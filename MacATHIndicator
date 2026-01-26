@@ -407,6 +407,27 @@ var string r4_pattern = "Scanning"
 var bool r4_triggered = false
 var int r4_setup_bar = 0
 var bool r4_entry_label_drawn = false  // Track if we already drew entry label for this setup
+var float r4_entry_price = na      // Actual entry price when triggered
+
+// Setup staleness threshold - if price moves this % from entry, setup is stale
+float STALE_THRESHOLD_PCT = 0.5  // 0.5% for NQ/ES, works for most futures
+float staleDistancePts = close * (STALE_THRESHOLD_PCT / 100)
+
+// Function to check if setup is stale (price moved too far from entry)
+f_isSetupStale(entryLevel, currentPrice, bias) =>
+    if na(entryLevel)
+        false
+    else
+        float distance = math.abs(currentPrice - entryLevel)
+        float threshold = currentPrice * (STALE_THRESHOLD_PCT / 100)
+        // For LONG: stale if price dropped way below entry (missed the move)
+        // For SHORT: stale if price rose way above entry (missed the move)
+        if bias == 1
+            currentPrice > entryLevel + threshold  // Price ran away without us
+        else if bias == -1
+            currentPrice < entryLevel - threshold  // Price ran away without us
+        else
+            false
 
 // Label management - track current labels to delete old ones
 var label currentEntryLabel = na
@@ -571,8 +592,17 @@ if new4HCandle
 // Entry triggers (check on every bar) - use r4_setup_bias for setup tracking
 // IMPORTANT: Only trigger entries when Daily bias still aligns (avoid conflict entries)
 if not na(r4_entry_level) and not r4_triggered
-    if r4_setup_bias == 1 and close > r4_entry_level and dailyBias == 1
+    // First check: Is setup stale? (price ran away without triggering)
+    if f_isSetupStale(r4_entry_level, close, r4_setup_bias)
+        r4_pattern := "EXPIRED (Price Moved)"
+        r4_setup_bias := 0
+        r4_entry_level := na
+        r4_exit_level := na
+        r4_target_level := na
+
+    else if r4_setup_bias == 1 and close > r4_entry_level and dailyBias == 1
         r4_triggered := true
+        r4_entry_price := close  // Store actual entry price
         r4_pattern := "LONG ACTIVE"
 
         // Only draw label once per setup, use managed labels
@@ -585,6 +615,7 @@ if not na(r4_entry_level) and not r4_triggered
 
     else if r4_setup_bias == -1 and close < r4_entry_level and dailyBias == -1
         r4_triggered := true
+        r4_entry_price := close  // Store actual entry price
         r4_pattern := "SHORT ACTIVE"
 
         // Only draw label once per setup, use managed labels
@@ -687,26 +718,45 @@ else
         reentry_level := na
         reentry_type := "N/A"
 
-// Check for stop hit or target reached
+// Check for stop hit, target reached, OR HTF conflict developing
 if r4_triggered
+    // CRITICAL: Check if HTF conflict developed AFTER entry - recommend closing
+    bool htfConflictNow = (r4_setup_bias == 1 and dailyBias == -1) or (r4_setup_bias == -1 and dailyBias == 1)
+
     if r4_setup_bias == 1
         if close <= r4_exit_level
             r4_pattern := "STOPPED OUT"
             r4_triggered := false
-            r4_setup_bias := 0  // Only reset setup bias, not market bias
+            r4_setup_bias := 0
+            r4_entry_price := na
         else if close >= r4_target_level
             r4_pattern := "TARGET HIT"
             r4_triggered := false
-            r4_setup_bias := 0  // Only reset setup bias, not market bias
+            r4_setup_bias := 0
+            r4_entry_price := na
+        else if htfConflictNow
+            // HTF conflict developed - signal to close/manage trade
+            r4_pattern := "CLOSE TRADE (HTF Conflict)"
+            // Keep triggered=true so user knows they have an active position
+            // But update entry level to show actual entry price for P&L reference
+            if not na(r4_entry_price)
+                r4_entry_level := r4_entry_price
     else if r4_setup_bias == -1
         if close >= r4_exit_level
             r4_pattern := "STOPPED OUT"
             r4_triggered := false
             r4_setup_bias := 0
+            r4_entry_price := na
         else if close <= r4_target_level
             r4_pattern := "TARGET HIT"
             r4_triggered := false
             r4_setup_bias := 0
+            r4_entry_price := na
+        else if htfConflictNow
+            // HTF conflict developed - signal to close/manage trade
+            r4_pattern := "CLOSE TRADE (HTF Conflict)"
+            if not na(r4_entry_price)
+                r4_entry_level := r4_entry_price
 
 // 4HR Bias text
 string r4_biasText = r4_bias == 1 ? "BULLISH" : r4_bias == -1 ? "BEARISH" : "NEUTRAL"
@@ -865,10 +915,10 @@ if r4_triggered and htfAligned
     gpsColor := r4_setup_bias == 1 ? color.green : color.red
     gpsDirection := r4_setup_bias == 1 ? "LONG ↑" : "SHORT ↓"
 else if r4_triggered and htfConflict
-    // Active trade but HTF conflict = CHOP warning
-    gpsState := "CHOP"
-    gpsColor := color.orange
-    gpsDirection := r4_setup_bias == 1 ? "LONG (Caution)" : "SHORT (Caution)"
+    // Active trade but HTF conflict = EXIT urgently!
+    gpsState := "EXIT"
+    gpsColor := color.fuchsia
+    gpsDirection := r4_setup_bias == 1 ? "CLOSE LONG - HTF Conflict!" : "CLOSE SHORT - HTF Conflict!"
 else if not na(r4_entry_level) and not r4_triggered and r4_setup_bias != 0
     // Setup active, waiting for entry
     gpsState := "WAIT FOR ENTRY"
