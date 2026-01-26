@@ -408,6 +408,21 @@ var bool r4_triggered = false
 var int r4_setup_bar = 0
 var bool r4_entry_label_drawn = false  // Track if we already drew entry label for this setup
 
+// Label management - track current labels to delete old ones
+var label currentEntryLabel = na
+var label currentSweepLabel = na
+var array<label> entryLabels = array.new<label>(0)
+int MAX_LABELS = 3  // Only keep last 3 entry labels on chart
+
+// Function to add label and manage limit
+f_addManagedLabel(lbl) =>
+    array.unshift(entryLabels, lbl)
+    // Delete excess labels
+    while array.size(entryLabels) > MAX_LABELS
+        oldLabel = array.pop(entryLabels)
+        if not na(oldLabel)
+            label.delete(oldLabel)
+
 // Detect new 4HR candle
 bool new4HCandle = ta.change(mtf4H_time) != 0
 
@@ -489,9 +504,11 @@ if new4HCandle
     bool bullishContinuation = (bar4H_current == 2 and dailyBias == 1)  // 2UP with daily bullish
     bool bearishContinuation = (bar4H_current == -2 and dailyBias == -1)  // 2DOWN with daily bearish
 
+    // IMPORTANT: Only create setups that ALIGN with Daily bias (no conflict trades!)
     // Only create new setups if NOT already in an active trade
     if not r4_triggered
-        if bullishReversal
+        // LONG setups only when Daily is BULLISH
+        if bullishReversal and dailyBias == 1
             r4_entry_level := mtf4H_prevHigh  // Break above the 2DOWN high for entry
             // Tight stop based on 30min/1HR structure (lowest of recent lows)
             float tight_stop = math.max(mtf30_prevLow, math.max(mtf30_low, mtf1H_low))
@@ -506,7 +523,8 @@ if new4HCandle
             r4_entry_label_drawn := false
             r4_setup_bar := bar_index
 
-        else if bearishReversal
+        // SHORT setups only when Daily is BEARISH
+        else if bearishReversal and dailyBias == -1
             r4_entry_level := mtf4H_prevLow   // Break below the 2UP low for entry
             // Tight stop based on 30min/1HR structure (highest of recent highs)
             float tight_stop = math.min(mtf30_prevHigh, math.min(mtf30_high, mtf1H_high))
@@ -551,28 +569,39 @@ if new4HCandle
             r4_setup_bar := bar_index
 
 // Entry triggers (check on every bar) - use r4_setup_bias for setup tracking
+// IMPORTANT: Only trigger entries when Daily bias still aligns (avoid conflict entries)
 if not na(r4_entry_level) and not r4_triggered
-    if r4_setup_bias == 1 and close > r4_entry_level
+    if r4_setup_bias == 1 and close > r4_entry_level and dailyBias == 1
         r4_triggered := true
         r4_pattern := "LONG ACTIVE"
 
-        // Only draw label once per setup
+        // Only draw label once per setup, use managed labels
         if showPatterns and not r4_entry_label_drawn
-            label.new(bar_index, low, "LONG @ " + str.tostring(close, format.mintick),
+            newLabel = label.new(bar_index, low, "LONG @ " + str.tostring(close, format.mintick),
                      style=label.style_label_up, color=color.new(color.lime, 30),
                      textcolor=color.white, size=size.small)
+            f_addManagedLabel(newLabel)
             r4_entry_label_drawn := true
 
-    else if r4_setup_bias == -1 and close < r4_entry_level
+    else if r4_setup_bias == -1 and close < r4_entry_level and dailyBias == -1
         r4_triggered := true
         r4_pattern := "SHORT ACTIVE"
 
-        // Only draw label once per setup
+        // Only draw label once per setup, use managed labels
         if showPatterns and not r4_entry_label_drawn
-            label.new(bar_index, high, "SHORT @ " + str.tostring(close, format.mintick),
+            newLabel = label.new(bar_index, high, "SHORT @ " + str.tostring(close, format.mintick),
                      style=label.style_label_down, color=color.new(color.maroon, 30),
                      textcolor=color.white, size=size.small)
+            f_addManagedLabel(newLabel)
             r4_entry_label_drawn := true
+
+    // If setup exists but Daily bias changed (conflict now), invalidate the setup
+    else if (r4_setup_bias == 1 and dailyBias == -1) or (r4_setup_bias == -1 and dailyBias == 1)
+        r4_pattern := "INVALIDATED (HTF Conflict)"
+        r4_setup_bias := 0
+        r4_entry_level := na
+        r4_exit_level := na
+        r4_target_level := na
 
 // Dynamically update target based on nearest OB (liquidity target)
 if r4_setup_bias == 1 and not na(nearest_bear_ob_above)
@@ -761,13 +790,13 @@ if not na(lonHiFinal) and dailyBias == -1
         bearish_sweep_type := "London Sweep"
         bearish_sweep_level := lonHiFinal
 
-// Update sweep signal
+// Update sweep signal - sweeps already only trigger when aligned with Daily bias
 if bullish_sweep
     sweep_signal := "BULLISH SWEEP"
     sweep_level := bullish_sweep_level
     sweep_type := bullish_sweep_type
 
-    // Create entry setup from sweep
+    // Create entry setup from sweep (only when not in active trade)
     if not r4_triggered
         r4_entry_level := bullish_sweep_level
         r4_exit_level := low - syminfo.mintick  // Stop just below the sweep low
@@ -780,16 +809,17 @@ if bullish_sweep
         r4_entry_label_drawn := false
 
         if showPatterns
-            label.new(bar_index, low, bullish_sweep_type + "\nBUY @ " + str.tostring(close, format.mintick),
+            sweepLabel = label.new(bar_index, low, bullish_sweep_type + "\nBUY",
                      style=label.style_label_up, color=color.new(color.teal, 30),
                      textcolor=color.white, size=size.small)
+            f_addManagedLabel(sweepLabel)
 
 else if bearish_sweep
     sweep_signal := "BEARISH SWEEP"
     sweep_level := bearish_sweep_level
     sweep_type := bearish_sweep_type
 
-    // Create entry setup from sweep
+    // Create entry setup from sweep (only when not in active trade)
     if not r4_triggered
         r4_entry_level := bearish_sweep_level
         r4_exit_level := high + syminfo.mintick  // Stop just above the sweep high
@@ -802,9 +832,10 @@ else if bearish_sweep
         r4_entry_label_drawn := false
 
         if showPatterns
-            label.new(bar_index, high, bearish_sweep_type + "\nSELL @ " + str.tostring(close, format.mintick),
+            sweepLabel = label.new(bar_index, high, bearish_sweep_type + "\nSELL",
                      style=label.style_label_down, color=color.new(color.purple, 30),
                      textcolor=color.white, size=size.small)
+            f_addManagedLabel(sweepLabel)
 else
     sweep_signal := "None"
     sweep_level := na
