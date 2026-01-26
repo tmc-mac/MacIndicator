@@ -804,11 +804,15 @@ if showLevels
 // ALERTS
 //══════════════════════════════════════════════════════════════════════════════
 
-// 4HR Setup Alert
-alertcondition(new4HCandle and r4_bias != 0 and not r4_triggered, "4HR Setup", "4HR Re-Trigger setup: {{ticker}} - " + r4_pattern)
+// 4HR Setup Alerts (separate for bullish/bearish since message must be const)
+alertcondition(new4HCandle and r4_bias == 1 and not r4_triggered, "4HR CALL Setup", "4HR Re-Trigger CALL setup detected: {{ticker}} @ {{close}}")
+alertcondition(new4HCandle and r4_bias == -1 and not r4_triggered, "4HR PUT Setup", "4HR Re-Trigger PUT setup detected: {{ticker}} @ {{close}}")
 
-// 4HR Entry Alert
-alertcondition(r4_triggered, "4HR Entry", "4HR Entry triggered: {{ticker}} @ {{close}}")
+// 4HR Entry Alerts
+alertcondition(r4_triggered and r4_bias == 1, "4HR CALL Entry", "4HR CALL Entry triggered: {{ticker}} @ {{close}}")
+alertcondition(r4_triggered and r4_bias == -1, "4HR PUT Entry", "4HR PUT Entry triggered: {{ticker}} @ {{close}}")
 
-// HTF Aligned GO Alert
-alertcondition(gpsState == "GO", "GPS GO Signal", "GPS GO: {{ticker}} - HTF Aligned " + gpsDirection)
+// GPS State Alerts
+alertcondition(gpsState == "GO" and dailyBias == 1, "GPS GO LONG", "GPS GO: {{ticker}} - HTF Aligned LONG")
+alertcondition(gpsState == "GO" and dailyBias == -1, "GPS GO SHORT", "GPS GO: {{ticker}} - HTF Aligned SHORT")
+alertcondition(gpsState == "CHOP", "GPS CHOP Warning", "GPS CHOP: {{ticker}} - HTF Conflict or Inside Day")
