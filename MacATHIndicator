@@ -279,12 +279,12 @@ if new4HCandle
         r4_exit_level := mtf4H_prevLow    // Stop below the 2DOWN low
         r4_target_level := r4_entry_level + (r4_entry_level - r4_exit_level) * 2  // 2:1 target
         r4_bias := 1
-        r4_pattern := "2DOWN→2UP (CALL)"
+        r4_pattern := "2DOWN→2UP (LONG)"
         r4_triggered := false
         r4_setup_bar := bar_index
 
         if showPatterns
-            label.new(bar_index, low, "4HR CALL\nEntry: " + str.tostring(r4_entry_level, format.mintick) +
+            label.new(bar_index, low, "4HR LONG\nEntry: " + str.tostring(r4_entry_level, format.mintick) +
                      "\nStop: " + str.tostring(r4_exit_level, format.mintick),
                      style=label.style_label_up, color=color.new(color.green, 50),
                      textcolor=color.white, size=size.small)
@@ -294,12 +294,12 @@ if new4HCandle
         r4_exit_level := mtf4H_prevHigh   // Stop above the 2UP high
         r4_target_level := r4_entry_level - (r4_exit_level - r4_entry_level) * 2  // 2:1 target
         r4_bias := -1
-        r4_pattern := "2UP→2DOWN (PUT)"
+        r4_pattern := "2UP→2DOWN (SHORT)"
         r4_triggered := false
         r4_setup_bar := bar_index
 
         if showPatterns
-            label.new(bar_index, high, "4HR PUT\nEntry: " + str.tostring(r4_entry_level, format.mintick) +
+            label.new(bar_index, high, "4HR SHORT\nEntry: " + str.tostring(r4_entry_level, format.mintick) +
                      "\nStop: " + str.tostring(r4_exit_level, format.mintick),
                      style=label.style_label_down, color=color.new(color.red, 50),
                      textcolor=color.white, size=size.small)
@@ -308,19 +308,19 @@ if new4HCandle
 if not na(r4_entry_level) and not r4_triggered
     if r4_bias == 1 and close > r4_entry_level
         r4_triggered := true
-        r4_pattern := "CALL ACTIVE"
+        r4_pattern := "LONG ACTIVE"
 
         if showPatterns
-            label.new(bar_index, low, "CALL ENTRY\n" + str.tostring(close, format.mintick),
+            label.new(bar_index, low, "LONG ENTRY\n" + str.tostring(close, format.mintick),
                      style=label.style_label_up, color=color.new(color.lime, 30),
                      textcolor=color.white, size=size.normal)
 
     else if r4_bias == -1 and close < r4_entry_level
         r4_triggered := true
-        r4_pattern := "PUT ACTIVE"
+        r4_pattern := "SHORT ACTIVE"
 
         if showPatterns
-            label.new(bar_index, high, "PUT ENTRY\n" + str.tostring(close, format.mintick),
+            label.new(bar_index, high, "SHORT ENTRY\n" + str.tostring(close, format.mintick),
                      style=label.style_label_down, color=color.new(color.maroon, 30),
                      textcolor=color.white, size=size.normal)
 
@@ -805,12 +805,12 @@ if showLevels
 //══════════════════════════════════════════════════════════════════════════════
 
 // 4HR Setup Alerts (separate for bullish/bearish since message must be const)
-alertcondition(new4HCandle and r4_bias == 1 and not r4_triggered, "4HR CALL Setup", "4HR Re-Trigger CALL setup detected: {{ticker}} @ {{close}}")
-alertcondition(new4HCandle and r4_bias == -1 and not r4_triggered, "4HR PUT Setup", "4HR Re-Trigger PUT setup detected: {{ticker}} @ {{close}}")
+alertcondition(new4HCandle and r4_bias == 1 and not r4_triggered, "4HR LONG Setup", "4HR Re-Trigger LONG setup detected: {{ticker}} @ {{close}}")
+alertcondition(new4HCandle and r4_bias == -1 and not r4_triggered, "4HR SHORT Setup", "4HR Re-Trigger SHORT setup detected: {{ticker}} @ {{close}}")
 
 // 4HR Entry Alerts
-alertcondition(r4_triggered and r4_bias == 1, "4HR CALL Entry", "4HR CALL Entry triggered: {{ticker}} @ {{close}}")
-alertcondition(r4_triggered and r4_bias == -1, "4HR PUT Entry", "4HR PUT Entry triggered: {{ticker}} @ {{close}}")
+alertcondition(r4_triggered and r4_bias == 1, "4HR LONG Entry", "4HR LONG Entry triggered: {{ticker}} @ {{close}}")
+alertcondition(r4_triggered and r4_bias == -1, "4HR SHORT Entry", "4HR SHORT Entry triggered: {{ticker}} @ {{close}}")
 
 // GPS State Alerts
 alertcondition(gpsState == "GO" and dailyBias == 1, "GPS GO LONG", "GPS GO: {{ticker}} - HTF Aligned LONG")
