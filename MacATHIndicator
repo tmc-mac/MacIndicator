@@ -1364,7 +1364,7 @@ if showDashboard and barstate.islast
                   dashPosition == "middle_right" ? position.middle_right :
                   dashPosition == "bottom_left" ? position.bottom_left :
                   dashPosition == "bottom_center" ? position.bottom_center : position.bottom_right,
-         columns=2, rows=24,
+         columns=2, rows=19,
          bgcolor=color.new(color.black, 10),
          border_width=2,
          border_color=color.new(color.gray, 50))
@@ -1374,7 +1374,7 @@ if showDashboard and barstate.islast
               dashSize == "normal" ? size.normal :
               dashSize == "large" ? size.large : size.huge
 
-    table.clear(dashboard, 0, 0, 1, 23)
+    table.clear(dashboard, 0, 0, 1, 18)
 
     // Header - GPS State
     table.cell(dashboard, 0, 0, "PRICE GPS", text_color=color.white, bgcolor=gpsColor, text_size=txtSize)
@@ -1384,92 +1384,71 @@ if showDashboard and barstate.islast
     table.cell(dashboard, 0, 1, "Direction", text_color=color.gray, text_size=txtSize)
     table.cell(dashboard, 1, 1, gpsDirection, text_color=gpsColor, text_size=txtSize)
 
-    // Confidence Level
-    table.cell(dashboard, 0, 2, "Confidence", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 2, confidenceText, text_color=confidenceColor, text_size=txtSize)
-
     // Day Type
-    table.cell(dashboard, 0, 3, "Day Type", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 3, dayType, text_color=dayTypeColor, text_size=txtSize)
+    table.cell(dashboard, 0, 2, "Day Type", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 2, dayType, text_color=dayTypeColor, text_size=txtSize)
 
     // Volume State
-    table.cell(dashboard, 0, 4, "Volume", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 4, volState, text_color=volStateColor, text_size=txtSize)
+    table.cell(dashboard, 0, 3, "Volume", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 3, volState, text_color=volStateColor, text_size=txtSize)
 
     // HTF Alignment Section
-    table.cell(dashboard, 0, 5, "HTF BIAS", text_color=color.white, bgcolor=color.new(color.blue, 70), text_size=txtSize)
-    table.merge_cells(dashboard, 0, 5, 1, 5)
+    table.cell(dashboard, 0, 4, "HTF BIAS", text_color=color.white, bgcolor=color.new(color.blue, 70), text_size=txtSize)
+    table.merge_cells(dashboard, 0, 4, 1, 4)
 
-    table.cell(dashboard, 0, 6, "  Daily", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 6, dailyBiasText, text_color=dailyBiasColor, text_size=txtSize)
+    table.cell(dashboard, 0, 5, "  Daily", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 5, dailyBiasText, text_color=dailyBiasColor, text_size=txtSize)
 
-    table.cell(dashboard, 0, 7, "  4HR", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 7, r4_biasText, text_color=r4_biasColor, text_size=txtSize)
+    table.cell(dashboard, 0, 6, "  4HR", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 6, r4_biasText, text_color=r4_biasColor, text_size=txtSize)
 
-    table.cell(dashboard, 0, 8, "  Alignment", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 8, alignmentText, text_color=alignmentColor, text_size=txtSize)
+    table.cell(dashboard, 0, 7, "  Alignment", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 7, alignmentText, text_color=alignmentColor, text_size=txtSize)
 
     // 4HR Re-Trigger Section
-    table.cell(dashboard, 0, 9, "4HR SETUP", text_color=color.white, bgcolor=color.new(color.orange, 70), text_size=txtSize)
-    table.merge_cells(dashboard, 0, 9, 1, 9)
+    table.cell(dashboard, 0, 8, "4HR SETUP", text_color=color.white, bgcolor=color.new(color.orange, 70), text_size=txtSize)
+    table.merge_cells(dashboard, 0, 8, 1, 8)
 
-    table.cell(dashboard, 0, 10, "  Pattern", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 10, r4_pattern, text_color=color.white, text_size=txtSize)
+    table.cell(dashboard, 0, 9, "  Pattern", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 9, r4_pattern, text_color=color.white, text_size=txtSize)
 
     entryStr = not na(r4_entry_level) and r4_setup_bias != 0 ? str.tostring(r4_entry_level, format.mintick) : "N/A"
-    table.cell(dashboard, 0, 11, "  Entry Level", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 11, entryStr, text_color=color.lime, text_size=txtSize)
+    table.cell(dashboard, 0, 10, "  Entry Level", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 10, entryStr, text_color=color.lime, text_size=txtSize)
+
+    exitStr = not na(r4_exit_level) and r4_setup_bias != 0 ? str.tostring(r4_exit_level, format.mintick) : "N/A"
+    table.cell(dashboard, 0, 11, "  Stop Level", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 11, exitStr, text_color=color.red, text_size=txtSize)
+
+    targetStr = not na(r4_target_level) and r4_setup_bias != 0 ? str.tostring(r4_target_level, format.mintick) : "N/A"
+    table.cell(dashboard, 0, 12, "  Target", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 12, targetStr, text_color=color.aqua, text_size=txtSize)
+
+    // REVERSAL ZONE Section (Short-term plays)
+    table.cell(dashboard, 0, 13, "REVERSAL ZONE", text_color=color.white, bgcolor=color.new(color.teal, 70), text_size=txtSize)
+    table.merge_cells(dashboard, 0, 13, 1, 13)
+
+    // Reversal Action (BUY/SELL @ level)
+    table.cell(dashboard, 0, 14, "  Action", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 14, reversal_action, text_color=reversal_color, text_size=txtSize)
+
+    // Reversal Type (what kind of level)
+    table.cell(dashboard, 0, 15, "  Type", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 15, reversal_type, text_color=color.white, text_size=txtSize)
+
+    // Distance to reversal level
+    table.cell(dashboard, 0, 16, "  Distance", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 16, reversal_distance, text_color=color.yellow, text_size=txtSize)
+
+    // Reversal Strength
+    table.cell(dashboard, 0, 17, "  Strength", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 17, reversal_conf, text_color=reversal_conf_color, text_size=txtSize)
 
     // Re-entry Level (for pullback entries during active trades)
     reentryStr = not na(reentry_level) ? str.tostring(reentry_level, format.mintick) + " (" + reentry_type + ")" : "N/A"
     reentryColor = r4_triggered ? color.yellow : color.lime
-    table.cell(dashboard, 0, 12, "  Re-Entry", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 12, reentryStr, text_color=reentryColor, text_size=txtSize)
-
-    exitStr = not na(r4_exit_level) and r4_setup_bias != 0 ? str.tostring(r4_exit_level, format.mintick) : "N/A"
-    table.cell(dashboard, 0, 13, "  Stop Level", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 13, exitStr, text_color=color.red, text_size=txtSize)
-
-    targetStr = not na(r4_target_level) and r4_setup_bias != 0 ? str.tostring(r4_target_level, format.mintick) : "N/A"
-    table.cell(dashboard, 0, 14, "  Target", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 14, targetStr, text_color=color.aqua, text_size=txtSize)
-
-    // Key Levels Section
-    table.cell(dashboard, 0, 15, "KEY LEVELS", text_color=color.white, bgcolor=color.new(color.purple, 70), text_size=txtSize)
-    table.merge_cells(dashboard, 0, 15, 1, 15)
-
-    aboveStr = nearestAbove + (not na(nearestAbovePrice) ? " @ " + str.tostring(nearestAbovePrice, format.mintick) : "")
-    table.cell(dashboard, 0, 16, "  Above", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 16, aboveStr, text_color=color.green, text_size=txtSize)
-
-    belowStr = nearestBelow + (not na(nearestBelowPrice) ? " @ " + str.tostring(nearestBelowPrice, format.mintick) : "")
-    table.cell(dashboard, 0, 17, "  Below", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 17, belowStr, text_color=color.red, text_size=txtSize)
-
-    // Price Target based on bias
-    table.cell(dashboard, 0, 18, "  Target", text_color=color.gray, text_size=txtSize)
-    targetColor = dailyBias == 1 ? color.green : dailyBias == -1 ? color.red : color.gray
-    table.cell(dashboard, 1, 18, priceTarget, text_color=targetColor, text_size=txtSize)
-
-    // REVERSAL ZONE Section (Short-term plays)
-    table.cell(dashboard, 0, 19, "REVERSAL ZONE", text_color=color.white, bgcolor=color.new(color.teal, 70), text_size=txtSize)
-    table.merge_cells(dashboard, 0, 19, 1, 19)
-
-    // Reversal Action (BUY/SELL @ level)
-    table.cell(dashboard, 0, 20, "  Action", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 20, reversal_action, text_color=reversal_color, text_size=txtSize)
-
-    // Reversal Type (what kind of level)
-    table.cell(dashboard, 0, 21, "  Type", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 21, reversal_type, text_color=color.white, text_size=txtSize)
-
-    // Distance to reversal level
-    table.cell(dashboard, 0, 22, "  Distance", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 22, reversal_distance, text_color=color.yellow, text_size=txtSize)
-
-    // Reversal Confidence
-    table.cell(dashboard, 0, 23, "  Strength", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 23, reversal_conf, text_color=reversal_conf_color, text_size=txtSize)
+    table.cell(dashboard, 0, 18, "  Re-Entry", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 18, reentryStr, text_color=reentryColor, text_size=txtSize)
 
 //══════════════════════════════════════════════════════════════════════════════
 // VISUAL PLOTTING - Key Levels
