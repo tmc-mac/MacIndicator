@@ -1,5 +1,5 @@
 //@version=5
-indicator("MAC ATH Strategy V1", overlay=true, max_labels_count=500, max_boxes_count=50)
+indicator("MAC Price GPS - 4HR Re-Trigger", overlay=true, max_labels_count=500, max_boxes_count=50)
 
 //══════════════════════════════════════════════════════════════════════════════
 // INPUTS & SETTINGS
@@ -8,15 +8,10 @@ indicator("MAC ATH Strategy V1", overlay=true, max_labels_count=500, max_boxes_c
 // Timezone
 string TZ = input.string("America/New_York", "Timezone", options=["America/New_York", "America/Chicago", "America/Los_Angeles"])
 
-// Strategy Toggles
-enable12HR = input.bool(true, "Enable 12HR Miyagi Strategy", group="Strategy Selection")
-enable4HR  = input.bool(true, "Enable 4HR Re-Trigger Strategy", group="Strategy Selection")
-enable322  = input.bool(true, "Enable 322 First Live Strategy", group="Strategy Selection")
-
 // Dashboard Settings
 showDashboard = input.bool(true, "Show Dashboard", group="Dashboard")
-dashPosition  = input.string("top_right", "Dashboard Position", 
-     options=["top_left", "top_center", "top_right", "middle_left", "middle_center", 
+dashPosition  = input.string("top_right", "Dashboard Position",
+     options=["top_left", "top_center", "top_right", "middle_left", "middle_center",
               "middle_right", "bottom_left", "bottom_center", "bottom_right"], group="Dashboard")
 dashSize      = input.string("normal", "Dashboard Size", options=["tiny", "small", "normal", "large", "huge"], group="Dashboard")
 
@@ -27,23 +22,16 @@ colBullish    = input.color(color.new(color.green, 80), "Bullish Color", group="
 colBearish    = input.color(color.new(color.red, 80), "Bearish Color", group="Visual")
 colNeutral    = input.color(color.new(color.gray, 80), "Neutral Color", group="Visual")
 
-// Volume Settings
-volEMALen     = input.int(20, "Volume EMA Length", minval=1, group="Volume")
-volThreshold  = input.float(1.5, "High Volume Threshold (x EMA)", minval=0.5, step=0.1, group="Volume")
-
 //══════════════════════════════════════════════════════════════════════════════
 // BAR NOTATION SYSTEM (1-Inside, 2-Directional, 3-Outside)
 //══════════════════════════════════════════════════════════════════════════════
 
-f_getBarType(_high, _low, _close, _open) =>
-    prevHigh = high[1]
-    prevLow  = low[1]
-    
-    isInside  = (_high <= prevHigh and _low >= prevLow)
-    isOutside = (_high > prevHigh and _low < prevLow)
-    is2UP     = (_high > prevHigh and _low >= prevLow and _close > _open)
-    is2DOWN   = (_high <= prevHigh and _low < prevLow and _close < _open)
-    
+f_getBarType(_high, _low, _close, _open, _prevHigh, _prevLow) =>
+    isInside  = (_high <= _prevHigh and _low >= _prevLow)
+    isOutside = (_high > _prevHigh and _low < _prevLow)
+    is2UP     = (_high > _prevHigh and _low >= _prevLow and _close > _open)
+    is2DOWN   = (_high <= _prevHigh and _low < _prevLow and _close < _open)
+
     barType = 0  // 0=undefined
     if isInside
         barType := 1
@@ -53,10 +41,10 @@ f_getBarType(_high, _low, _close, _open) =>
         barType := 2  // 2UP
     else if is2DOWN
         barType := -2 // 2DOWN
-    
+
     barType
 
-currentBarType = f_getBarType(high, low, close, open)
+currentBarType = f_getBarType(high, low, close, open, high[1], low[1])
 
 //══════════════════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
@@ -68,23 +56,41 @@ f_getMidpoint(_high, _low) =>
 f_isMarketOpen() =>
     hour(time, TZ) == 9 and minute(time, TZ) >= 30 or hour(time, TZ) > 9
 
-f_is4AMCandle() =>
-    hour(time, TZ) == 4 and minute(time, TZ) == 0
+//══════════════════════════════════════════════════════════════════════════════
+// MULTI-TIMEFRAME DATA REQUESTS
+//══════════════════════════════════════════════════════════════════════════════
 
-f_is8AMCandle() =>
-    hour(time, TZ) == 8 and minute(time, TZ) == 0
+// Daily data for HTF bias
+[mtfD_open, mtfD_high, mtfD_low, mtfD_close, mtfD_time] =
+     request.security(syminfo.tickerid, "D", [open, high, low, close, time],
+     lookahead=barmerge.lookahead_off)
 
-f_is4PMCandle() =>
-    hour(time, TZ) == 16 and minute(time, TZ) == 0
+// Previous day data
+[mtfD_prevHigh, mtfD_prevLow, mtfD_prevClose] =
+     request.security(syminfo.tickerid, "D", [high[1], low[1], close[1]],
+     lookahead=barmerge.lookahead_off)
 
-f_is9AMCandle() =>
-    hour(time, TZ) == 9 and minute(time, TZ) == 0
+// 4HR data
+[mtf4H_open, mtf4H_high, mtf4H_low, mtf4H_close, mtf4H_time] =
+     request.security(syminfo.tickerid, "240", [open, high, low, close, time],
+     lookahead=barmerge.lookahead_off)
 
-f_is10AMCandle() =>
-    hour(time, TZ) == 10 and minute(time, TZ) == 0
+// Previous 4HR candles for bar type calculation
+[mtf4H_prevHigh, mtf4H_prevLow, mtf4H_prevClose, mtf4H_prevOpen] =
+     request.security(syminfo.tickerid, "240", [high[1], low[1], close[1], open[1]],
+     lookahead=barmerge.lookahead_off)
+
+[mtf4H_prev2High, mtf4H_prev2Low] =
+     request.security(syminfo.tickerid, "240", [high[2], low[2]],
+     lookahead=barmerge.lookahead_off)
+
+// 1HR data
+[mtf1H_open, mtf1H_high, mtf1H_low, mtf1H_close, mtf1H_time] =
+     request.security(syminfo.tickerid, "60", [open, high, low, close, time],
+     lookahead=barmerge.lookahead_off)
 
 //══════════════════════════════════════════════════════════════════════════════
-// MULTI-TIMEFRAME DATA REQUESTS & SESSION LEVELS
+// SESSION LEVELS (PDH/PDL, Session Opens, Asia/London)
 //══════════════════════════════════════════════════════════════════════════════
 
 // Previous Day High/Low - Using PT timezone for consistency
@@ -102,7 +108,7 @@ if newDay
     dayHi := high
     dayLo := low
 else
-    // Only update running high/low if NOT a new day (to avoid including new day's bar in PDH/PDL)
+    // Only update running high/low if NOT a new day
     if na(dayHi)
         dayHi := high
         dayLo := low
@@ -122,22 +128,19 @@ asiaEnd   = (not inAsia) and inAsia[1]
 lonStart  = inLondon and not inLondon[1]
 lonEnd    = (not inLondon) and inLondon[1]
 
-// LIVE Asia High/Low (updates while in session, then locks)
+// LIVE Asia High/Low
 var float asiaHiLive = na
 var float asiaLoLive = na
 var float asiaHiLock = na
 var float asiaLoLock = na
 
-// IMPORTANT: Lock Asia values BEFORE clearing on newDay (asiaEnd and newDay happen simultaneously at midnight PT)
 if asiaEnd and not na(asiaHiLive) and not na(asiaLoLive)
     asiaHiLock := asiaHiLive
     asiaLoLock := asiaLoLive
 
-// Clear live values on new day (after locking above)
 if newDay
     asiaHiLive := na
     asiaLoLive := na
-    // Note: Keep asiaHiLock/asiaLoLock - they hold the locked session values
 
 if asiaStart
     asiaHiLive := high
@@ -150,7 +153,7 @@ if inAsia
 float asiaHiFinal = inAsia ? asiaHiLive : asiaHiLock
 float asiaLoFinal = inAsia ? asiaLoLive : asiaLoLock
 
-// LIVE London High/Low (updates while in session, then locks)
+// LIVE London High/Low
 var float lonHiLive = na
 var float lonLoLive = na
 var float lonHiLock = na
@@ -159,7 +162,6 @@ var float lonLoLock = na
 if newDay
     lonHiLive := na
     lonLoLive := na
-    // DO NOT clear lonHiLock / lonLoLock here - keep previous London levels until new session locks them
 
 if lonStart
     lonHiLive := high
@@ -189,9 +191,9 @@ cross0630 = (time >= ts0630) and (nz(time[1]) < ts0630)
 cross1500 = (time >= ts1500) and (nz(time[1]) < ts1500)
 cross0000 = (time >= ts0000) and (nz(time[1]) < ts0000)
 
-var float nyOpen = na      // 6:30 AM PT (9:30 AM ET)
-var float pm3Open = na     // 15:00 PT (3:00 PM PT)
-var float midnightOpen = na // 00:00 PT (Midnight PT)
+var float nyOpen = na
+var float pm3Open = na
+var float midnightOpen = na
 
 if cross0630
     nyOpen := open
@@ -202,459 +204,278 @@ if cross1500
 if cross0000
     midnightOpen := open
 
-// 12HR data
-[mtf12H_open, mtf12H_high, mtf12H_low, mtf12H_close, mtf12H_time] = 
-     request.security(syminfo.tickerid, "720", [open, high, low, close, time], 
-     lookahead=barmerge.lookahead_off)
-
-// 4HR data
-[mtf4H_open, mtf4H_high, mtf4H_low, mtf4H_close, mtf4H_time] = 
-     request.security(syminfo.tickerid, "240", [open, high, low, close, time], 
-     lookahead=barmerge.lookahead_off)
-
-// 1HR data
-[mtf1H_open, mtf1H_high, mtf1H_low, mtf1H_close, mtf1H_time] = 
-     request.security(syminfo.tickerid, "60", [open, high, low, close, time], 
-     lookahead=barmerge.lookahead_off)
-
 //══════════════════════════════════════════════════════════════════════════════
-// 12HR MIYAGI STRATEGY (1-3-1 Pattern)
+// DAY TYPE DETECTION (Trend Up, Inside Day, Trend Down)
 //══════════════════════════════════════════════════════════════════════════════
 
-var float m12_candle1_high = na
-var float m12_candle1_low  = na
-var float m12_candle2_high = na
-var float m12_candle2_low  = na
-var float m12_candle3_high = na
-var float m12_candle3_low  = na
-var float m12_trigger      = na
-var int   m12_setup_state  = 0  // 0=none, 1=1st inside, 2=2nd outside, 3=3rd inside, 4=live
-var int   m12_bias         = 0  // 1=bullish, -1=bearish, 0=neutral
-var string m12_pattern     = ""
-var bool  m12_invalidated  = false
-var int   m12_candle_count = 0
+// Compare current day's range to previous day
+bool isTrendDayUp   = mtfD_high > mtfD_prevHigh and mtfD_low >= mtfD_prevLow and mtfD_close > mtfD_open
+bool isTrendDayDown = mtfD_low < mtfD_prevLow and mtfD_high <= mtfD_prevHigh and mtfD_close < mtfD_open
+bool isInsideDay    = mtfD_high <= mtfD_prevHigh and mtfD_low >= mtfD_prevLow
+bool isOutsideDay   = mtfD_high > mtfD_prevHigh and mtfD_low < mtfD_prevLow
 
-// Detect new 12HR candle
-bool new12HCandle = ta.change(mtf12H_time) != 0
+string dayType = isInsideDay ? "Inside Day" :
+                 isTrendDayUp ? "Trend Day UP" :
+                 isTrendDayDown ? "Trend Day DOWN" :
+                 isOutsideDay ? "Outside Day" :
+                 mtfD_close > mtfD_open ? "Developing UP" : "Developing DOWN"
 
-if new12HCandle
-    m12_candle_count += 1
-    
-    // Get bar types for sequence detection
-    int bar1Type = na
-    int bar2Type = na
-    int bar3Type = na
-    
-    if m12_candle_count >= 3
-        // Calculate bar types for previous candles
-        bar3Type := f_getBarType(mtf12H_high[0], mtf12H_low[0], mtf12H_close[0], mtf12H_open[0])
-        bar2Type := f_getBarType(mtf12H_high[1], mtf12H_low[1], mtf12H_close[1], mtf12H_open[1])
-        bar1Type := f_getBarType(mtf12H_high[2], mtf12H_low[2], mtf12H_close[2], mtf12H_open[2])
-        
-        // Check for 1-3-1 pattern
-        if bar1Type == 1 and bar2Type == 3 and bar3Type == 1
-            m12_candle1_high := mtf12H_high[2]
-            m12_candle1_low  := mtf12H_low[2]
-            m12_candle2_high := mtf12H_high[1]
-            m12_candle2_low  := mtf12H_low[1]
-            m12_candle3_high := mtf12H_high[0]
-            m12_candle3_low  := mtf12H_low[0]
-            m12_trigger      := f_getMidpoint(m12_candle3_high, m12_candle3_low)
-            m12_setup_state  := 3
-            m12_pattern      := "1-3-1 Valid"
-            m12_invalidated  := false
-            m12_candle_count := 0
-
-// Check for 4th candle (live candle) - must be 2UP or 2DOWN
-if m12_setup_state == 3
-    currentBar = f_getBarType(mtf12H_high, mtf12H_low, mtf12H_close, mtf12H_open)
-    
-    // Check if 3rd candle becomes invalidated (becomes a 3-bar)
-    if mtf12H_high > m12_candle3_high and mtf12H_low < m12_candle3_low
-        m12_invalidated := true
-        m12_setup_state := 0
-        m12_pattern := "Invalidated"
-    
-    // Check if 4th candle is forming as 2UP or 2DOWN
-    if currentBar == 2  // 2UP
-        m12_setup_state := 4
-        m12_bias := close > m12_trigger ? -1 : 0  // Bearish if above trigger (reversal expected)
-        m12_pattern := "2UP Live"
-    else if currentBar == -2  // 2DOWN
-        m12_setup_state := 4
-        m12_bias := close < m12_trigger ? 1 : 0   // Bullish if below trigger (reversal expected)
-        m12_pattern := "2DOWN Live"
-
-// Entry logic at market open
-var bool m12_entry_triggered = false
-if m12_setup_state == 4 and f_isMarketOpen() and not m12_entry_triggered
-    if m12_bias == 1 and close >= m12_trigger  // Bullish entry
-        m12_entry_triggered := true
-    else if m12_bias == -1 and close <= m12_trigger  // Bearish entry
-        m12_entry_triggered := true
-
-// 60-minute flip invalidation
-var bool m12_active_trade = false
-var float m12_last_60m_high = na
-var float m12_last_60m_low  = na
-
-if m12_entry_triggered
-    m12_active_trade := true
-    m12_last_60m_high := mtf1H_high
-    m12_last_60m_low  := mtf1H_low
-
-if m12_active_trade
-    // Update 60m levels
-    if ta.change(mtf1H_time) != 0
-        m12_last_60m_high := mtf1H_high
-        m12_last_60m_low  := mtf1H_low
-    
-    // Check for flip
-    if m12_bias == 1 and low < m12_last_60m_low  // Bullish trade flipped
-        m12_active_trade := false
-        m12_setup_state := 0
-        m12_pattern := "60m Flip Exit"
-    else if m12_bias == -1 and high > m12_last_60m_high  // Bearish trade flipped
-        m12_active_trade := false
-        m12_setup_state := 0
-        m12_pattern := "60m Flip Exit"
+color dayTypeColor = isInsideDay ? color.yellow :
+                     isTrendDayUp or dayType == "Developing UP" ? color.green :
+                     isTrendDayDown or dayType == "Developing DOWN" ? color.red :
+                     color.orange
 
 //══════════════════════════════════════════════════════════════════════════════
-// 4HR RE-TRIGGER STRATEGY (Enhanced - All 4HR Sessions)
+// HTF BIAS SYSTEM (Daily → 4HR Alignment)
 //══════════════════════════════════════════════════════════════════════════════
 
-// Track multiple 4HR setups throughout the day
-var array<float> r4_entry_highs = array.new<float>()
-var array<float> r4_entry_lows = array.new<float>()
-var array<int> r4_biases = array.new<int>()
-var array<int> r4_bar_times = array.new<int>()
-var array<bool> r4_triggered = array.new<bool>()
+// Daily Bias: Based on price position relative to PDH/PDL and current day direction
+int dailyBias = 0
+if not na(pdh) and not na(pdl)
+    if close > pdh
+        dailyBias := 1  // Bullish - trading above prior day high
+    else if close < pdl
+        dailyBias := -1 // Bearish - trading below prior day low
+    else if close > f_getMidpoint(pdh, pdl)
+        dailyBias := 1  // Lean bullish - above midpoint
+    else
+        dailyBias := -1 // Lean bearish - below midpoint
 
-var float r4_current_high = na
-var float r4_current_low = na
-var int r4_current_bias = 0
-var string r4_pattern = ""
-var bool r4_current_triggered = false
-var int r4_setup_count = 0
+// Also consider daily candle direction
+if isTrendDayUp
+    dailyBias := 1
+else if isTrendDayDown
+    dailyBias := -1
+
+string dailyBiasText = dailyBias == 1 ? "BULLISH" : dailyBias == -1 ? "BEARISH" : "NEUTRAL"
+color dailyBiasColor = dailyBias == 1 ? color.green : dailyBias == -1 ? color.red : color.gray
+
+//══════════════════════════════════════════════════════════════════════════════
+// 4HR RE-TRIGGER STRATEGY (Core Focus)
+//══════════════════════════════════════════════════════════════════════════════
+
+var float r4_entry_level = na      // Entry trigger level
+var float r4_exit_level = na       // Exit/stop level
+var float r4_target_level = na     // Target level
+var int r4_bias = 0                // 1=bullish, -1=bearish
+var string r4_pattern = "Scanning"
+var bool r4_triggered = false
+var int r4_setup_bar = 0
 
 // Detect new 4HR candle
 bool new4HCandle = ta.change(mtf4H_time) != 0
 
+// Get 4HR bar types
+int bar4H_current = f_getBarType(mtf4H_high, mtf4H_low, mtf4H_close, mtf4H_open, mtf4H_prevHigh, mtf4H_prevLow)
+int bar4H_prev = f_getBarType(mtf4H_prevHigh, mtf4H_prevLow, mtf4H_prevClose, mtf4H_prevOpen, mtf4H_prev2High, mtf4H_prev2Low)
+
 if new4HCandle
-    // Get previous two 4HR candles' bar types
-    int bar1Type = f_getBarType(mtf4H_high[1], mtf4H_low[1], mtf4H_close[1], mtf4H_open[1])
-    int bar2Type = f_getBarType(mtf4H_high[0], mtf4H_low[0], mtf4H_close[0], mtf4H_open[0])
-    
     // Check for reversal patterns (2DOWN→2UP or 2UP→2DOWN)
-    bool bullishReversal = (bar1Type == -2 and bar2Type == 2)  // 2DOWN then 2UP
-    bool bearishReversal = (bar1Type == 2 and bar2Type == -2)  // 2UP then 2DOWN
-    
+    bool bullishReversal = (bar4H_prev == -2 and bar4H_current == 2)  // 2DOWN then 2UP
+    bool bearishReversal = (bar4H_prev == 2 and bar4H_current == -2)  // 2UP then 2DOWN
+
     if bullishReversal
-        // New bullish reversal setup
-        r4_current_high := mtf4H_high[1]  // First candle (2DOWN) high is entry trigger
-        r4_current_low := mtf4H_low[1]
-        r4_current_bias := 1  // Bullish
-        r4_pattern := "2DOWN→2UP Rev"
-        r4_current_triggered := false
-        r4_setup_count += 1
-        
+        r4_entry_level := mtf4H_prevHigh  // Break above the 2DOWN high for entry
+        r4_exit_level := mtf4H_prevLow    // Stop below the 2DOWN low
+        r4_target_level := r4_entry_level + (r4_entry_level - r4_exit_level) * 2  // 2:1 target
+        r4_bias := 1
+        r4_pattern := "2DOWN→2UP (CALL)"
+        r4_triggered := false
+        r4_setup_bar := bar_index
+
         if showPatterns
-            label.new(bar_index, low, "4HR CALL Setup\n" + str.tostring(r4_current_high, format.mintick), 
-                     style=label.style_label_up, color=color.new(color.green, 50), 
+            label.new(bar_index, low, "4HR CALL\nEntry: " + str.tostring(r4_entry_level, format.mintick) +
+                     "\nStop: " + str.tostring(r4_exit_level, format.mintick),
+                     style=label.style_label_up, color=color.new(color.green, 50),
                      textcolor=color.white, size=size.small)
-    
+
     else if bearishReversal
-        // New bearish reversal setup
-        r4_current_high := mtf4H_high[1]
-        r4_current_low := mtf4H_low[1]  // First candle (2UP) low is entry trigger
-        r4_current_bias := -1  // Bearish
-        r4_pattern := "2UP→2DOWN Rev"
-        r4_current_triggered := false
-        r4_setup_count += 1
-        
+        r4_entry_level := mtf4H_prevLow   // Break below the 2UP low for entry
+        r4_exit_level := mtf4H_prevHigh   // Stop above the 2UP high
+        r4_target_level := r4_entry_level - (r4_exit_level - r4_entry_level) * 2  // 2:1 target
+        r4_bias := -1
+        r4_pattern := "2UP→2DOWN (PUT)"
+        r4_triggered := false
+        r4_setup_bar := bar_index
+
         if showPatterns
-            label.new(bar_index, high, "4HR PUT Setup\n" + str.tostring(r4_current_low, format.mintick), 
-                     style=label.style_label_down, color=color.new(color.red, 50), 
+            label.new(bar_index, high, "4HR PUT\nEntry: " + str.tostring(r4_entry_level, format.mintick) +
+                     "\nStop: " + str.tostring(r4_exit_level, format.mintick),
+                     style=label.style_label_down, color=color.new(color.red, 50),
                      textcolor=color.white, size=size.small)
 
 // Entry triggers (check on every bar)
-if not na(r4_current_high) and not r4_current_triggered
-    if r4_current_bias == 1 and close > r4_current_high  // Bullish breakout
-        r4_current_triggered := true
-        r4_pattern := "CALL Entry ✓"
-        
+if not na(r4_entry_level) and not r4_triggered
+    if r4_bias == 1 and close > r4_entry_level
+        r4_triggered := true
+        r4_pattern := "CALL ACTIVE"
+
         if showPatterns
-            label.new(bar_index, low, "4HR CALL Entry\n" + str.tostring(close, format.mintick), 
-                     style=label.style_label_up, color=color.new(color.lime, 30), 
-                     textcolor=color.white, size=size.normal)
-    
-    else if r4_current_bias == -1 and close < r4_current_low  // Bearish breakdown
-        r4_current_triggered := true
-        r4_pattern := "PUT Entry ✓"
-        
-        if showPatterns
-            label.new(bar_index, high, "4HR PUT Entry\n" + str.tostring(close, format.mintick), 
-                     style=label.style_label_down, color=color.new(color.maroon, 30), 
+            label.new(bar_index, low, "CALL ENTRY\n" + str.tostring(close, format.mintick),
+                     style=label.style_label_up, color=color.new(color.lime, 30),
                      textcolor=color.white, size=size.normal)
 
+    else if r4_bias == -1 and close < r4_entry_level
+        r4_triggered := true
+        r4_pattern := "PUT ACTIVE"
+
+        if showPatterns
+            label.new(bar_index, high, "PUT ENTRY\n" + str.tostring(close, format.mintick),
+                     style=label.style_label_down, color=color.new(color.maroon, 30),
+                     textcolor=color.white, size=size.normal)
+
+// Check for stop hit or target reached
+if r4_triggered
+    if r4_bias == 1
+        if close <= r4_exit_level
+            r4_pattern := "STOPPED OUT"
+            r4_triggered := false
+            r4_bias := 0
+        else if close >= r4_target_level
+            r4_pattern := "TARGET HIT"
+            r4_triggered := false
+            r4_bias := 0
+    else if r4_bias == -1
+        if close >= r4_exit_level
+            r4_pattern := "STOPPED OUT"
+            r4_triggered := false
+            r4_bias := 0
+        else if close <= r4_target_level
+            r4_pattern := "TARGET HIT"
+            r4_triggered := false
+            r4_bias := 0
+
+// 4HR Bias text
+string r4_biasText = r4_bias == 1 ? "BULLISH" : r4_bias == -1 ? "BEARISH" : "NEUTRAL"
+color r4_biasColor = r4_bias == 1 ? color.green : r4_bias == -1 ? color.red : color.gray
+
 //══════════════════════════════════════════════════════════════════════════════
-// 322 FIRST LIVE STRATEGY (3-2-2 Reversal, 1HR)
+// HTF ALIGNMENT CHECK
 //══════════════════════════════════════════════════════════════════════════════
 
-var float f322_candle8AM_high = na
-var float f322_candle8AM_low  = na
-var float f322_candle9AM_high = na
-var float f322_candle9AM_low  = na
-var int   f322_setup_state    = 0  // 0=none, 1=8AM 3-bar set, 2=9AM 2-bar set, 3=valid
-var int   f322_bias           = 0
-var string f322_pattern       = ""
-var bool  f322_triggered      = false
+bool htfAligned = (dailyBias == r4_bias) and r4_bias != 0
+bool htfConflict = (dailyBias != r4_bias) and dailyBias != 0 and r4_bias != 0
 
-// 8AM 1HR candle check
-bool is8AM_1H = ta.change(mtf1H_time) != 0 and hour(mtf1H_time, TZ) == 8
+string alignmentText = htfAligned ? "ALIGNED" : htfConflict ? "CONFLICT" : "WAITING"
+color alignmentColor = htfAligned ? color.green : htfConflict ? color.red : color.yellow
 
-if is8AM_1H
-    int barType8AM = f_getBarType(mtf1H_high, mtf1H_low, mtf1H_close, mtf1H_open)
-    
-    if barType8AM == 3  // Outside bar
-        f322_candle8AM_high := mtf1H_high
-        f322_candle8AM_low  := mtf1H_low
-        f322_setup_state    := 1
-        f322_pattern        := "8AM 3-Bar"
-        f322_triggered      := false
+//══════════════════════════════════════════════════════════════════════════════
+// GPS STATE: GO, Chop, Wait For Entry Level
+//══════════════════════════════════════════════════════════════════════════════
 
-// 9AM 1HR candle check
-bool is9AM_1H = ta.change(mtf1H_time) != 0 and hour(mtf1H_time, TZ) == 9
+string gpsState = "WAIT"
+color gpsColor = color.yellow
+string gpsDirection = ""
 
-if is9AM_1H and f322_setup_state == 1
-    int barType9AM = f_getBarType(mtf1H_high, mtf1H_low, mtf1H_close, mtf1H_open)
-    
-    if barType9AM == 2  // 2UP
-        f322_candle9AM_high := mtf1H_high
-        f322_candle9AM_low  := mtf1H_low
-        f322_setup_state    := 2
-        f322_bias           := -1  // Bearish (reversal expected)
-        f322_pattern        := "3-2UP (Rev Down)"
-    else if barType9AM == -2  // 2DOWN
-        f322_candle9AM_high := mtf1H_high
-        f322_candle9AM_low  := mtf1H_low
-        f322_setup_state    := 2
-        f322_bias           := 1  // Bullish (reversal expected)
-        f322_pattern        := "3-2DOWN (Rev Up)"
+if r4_triggered and htfAligned
+    // Active trade with HTF alignment = GO
+    gpsState := "GO"
+    gpsColor := r4_bias == 1 ? color.green : color.red
+    gpsDirection := r4_bias == 1 ? "LONG ↑" : "SHORT ↓"
+else if r4_triggered and htfConflict
+    // Active trade but HTF conflict = CHOP warning
+    gpsState := "CHOP"
+    gpsColor := color.orange
+    gpsDirection := r4_bias == 1 ? "LONG (Caution)" : "SHORT (Caution)"
+else if not na(r4_entry_level) and not r4_triggered and r4_bias != 0
+    // Setup active, waiting for entry
+    gpsState := "WAIT FOR ENTRY"
+    gpsColor := color.yellow
+    if r4_bias == 1
+        gpsDirection := "Watch " + str.tostring(r4_entry_level, format.mintick) + " ↑"
     else
-        f322_setup_state := 0
-        f322_pattern := "9AM not 2-bar"
-
-// 10AM entry window
-bool is10AM_1H = hour(time, TZ) == 10
-
-if is10AM_1H and f322_setup_state == 2 and not f322_triggered
-    if f322_bias == 1 and close > f322_candle9AM_high  // Bullish entry
-        f322_triggered := true
-        f322_setup_state := 3
-        f322_pattern := "CALL Entry"
-    else if f322_bias == -1 and close < f322_candle9AM_low  // Bearish entry
-        f322_triggered := true
-        f322_setup_state := 3
-        f322_pattern := "PUT Entry"
-
-// 60-minute flip for 322
-var bool f322_active_trade = false
-var float f322_last_60m_high = na
-var float f322_last_60m_low  = na
-
-if f322_triggered
-    f322_active_trade := true
-    f322_last_60m_high := mtf1H_high
-    f322_last_60m_low  := mtf1H_low
-
-if f322_active_trade
-    if ta.change(mtf1H_time) != 0
-        f322_last_60m_high := mtf1H_high
-        f322_last_60m_low  := mtf1H_low
-    
-    if f322_bias == 1 and low < f322_last_60m_low
-        f322_active_trade := false
-        f322_setup_state := 0
-        f322_pattern := "60m Flip Exit"
-    else if f322_bias == -1 and high > f322_last_60m_high
-        f322_active_trade := false
-        f322_setup_state := 0
-        f322_pattern := "60m Flip Exit"
+        gpsDirection := "Watch " + str.tostring(r4_entry_level, format.mintick) + " ↓"
+else if isInsideDay
+    // Inside day = expect chop
+    gpsState := "CHOP"
+    gpsColor := color.orange
+    gpsDirection := "Inside Day - Range Bound"
+else
+    // No setup
+    gpsState := "WAIT"
+    gpsColor := color.gray
+    gpsDirection := "Scanning for Setup"
 
 //══════════════════════════════════════════════════════════════════════════════
-// VOLUME ANALYSIS
+// NEAREST KEY LEVEL & PRICE TARGET
 //══════════════════════════════════════════════════════════════════════════════
-
-volEMA = ta.ema(volume, volEMALen)
-volStatus = volume > volEMA * volThreshold ? "High" : volume > volEMA ? "Above Avg" : "Below Avg"
-volColor = volume > volEMA * volThreshold ? color.green : volume > volEMA ? color.yellow : color.gray
-
-//══════════════════════════════════════════════════════════════════════════════
-// KEY SESSION LEVELS & BIAS TARGET
-//══════════════════════════════════════════════════════════════════════════════
-
-// All session levels are now calculated above in the session tracking section
-// Build array of all key levels with labels
 
 var array<float> keyLevels = array.new<float>()
 var array<string> keyLabels = array.new<string>()
 
-// Update levels array
 if barstate.islast
     array.clear(keyLevels)
     array.clear(keyLabels)
-    
+
     if not na(pdh)
         array.push(keyLevels, pdh)
         array.push(keyLabels, "PDH")
-    
+
     if not na(pdl)
         array.push(keyLevels, pdl)
         array.push(keyLabels, "PDL")
-    
+
     if not na(nyOpen)
         array.push(keyLevels, nyOpen)
         array.push(keyLabels, "NY Open")
-    
-    if not na(pm3Open)
-        array.push(keyLevels, pm3Open)
-        array.push(keyLabels, "3PM Open")
-    
-    if not na(midnightOpen)
-        array.push(keyLevels, midnightOpen)
-        array.push(keyLabels, "Midnight")
-    
+
     if not na(asiaHiFinal)
         array.push(keyLevels, asiaHiFinal)
         array.push(keyLabels, "Asia High")
-    
+
     if not na(asiaLoFinal)
         array.push(keyLevels, asiaLoFinal)
         array.push(keyLabels, "Asia Low")
-    
+
     if not na(lonHiFinal)
         array.push(keyLevels, lonHiFinal)
         array.push(keyLabels, "London High")
-    
+
     if not na(lonLoFinal)
         array.push(keyLevels, lonLoFinal)
         array.push(keyLabels, "London Low")
 
-// Find nearest level and determine bias
-string biasTarget = "None"
-float biasLevel = na
-float minDistance = 999999.0
+    // Add 4HR entry/exit levels if active
+    if not na(r4_entry_level) and r4_bias != 0
+        array.push(keyLevels, r4_entry_level)
+        array.push(keyLabels, "4HR Entry")
+
+    if not na(r4_exit_level) and r4_bias != 0
+        array.push(keyLevels, r4_exit_level)
+        array.push(keyLabels, "4HR Stop")
+
+// Find nearest level above and below
+string nearestAbove = "None"
+string nearestBelow = "None"
+float nearestAbovePrice = na
+float nearestBelowPrice = na
+float minDistAbove = 999999.0
+float minDistBelow = 999999.0
 
 if array.size(keyLevels) > 0
     for i = 0 to array.size(keyLevels) - 1
         float lvl = array.get(keyLevels, i)
-        float dist = math.abs(close - lvl)
-        
-        if dist < minDistance and not na(lvl)
-            minDistance := dist
-            biasLevel := lvl
-            biasTarget := array.get(keyLabels, i)
+        if not na(lvl)
+            if lvl > close and (lvl - close) < minDistAbove
+                minDistAbove := lvl - close
+                nearestAbovePrice := lvl
+                nearestAbove := array.get(keyLabels, i)
+            else if lvl < close and (close - lvl) < minDistBelow
+                minDistBelow := close - lvl
+                nearestBelowPrice := lvl
+                nearestBelow := array.get(keyLabels, i)
 
-// Determine if bias is to go up or down to level
-string biasDirection = na(biasLevel) ? "" : close < biasLevel ? " ↑" : close > biasLevel ? " ↓" : " @"
-string levelBiasText = biasTarget + biasDirection
-
-//══════════════════════════════════════════════════════════════════════════════
-// STRUCTURE & PULLBACK ANALYSIS
-//══════════════════════════════════════════════════════════════════════════════
-
-// Simple structure: higher highs/lower lows
-hhll_lookback = 20
-isHH = high == ta.highest(high, hhll_lookback)
-isLL = low == ta.lowest(low, hhll_lookback)
-isLH = high[1] > high and high[1] == ta.highest(high, hhll_lookback)
-isHL = low[1] < low and low[1] == ta.lowest(low, hhll_lookback)
-
-structure = isHH or isLH ? "Bearish" : isLL or isHL ? "Bullish" : "Neutral"
-
-// Pullback detection (price retracing from recent extreme)
-atr = ta.atr(14)
-recentHigh = ta.highest(high, 10)
-recentLow = ta.lowest(low, 10)
-pullbackDepth = (recentHigh - close) / atr
-
-pullbackStatus = pullbackDepth > 2 ? "Deep" : pullbackDepth > 1 ? "Moderate" : "Shallow"
+string priceTarget = dailyBias == 1 ? nearestAbove + " ↑" : dailyBias == -1 ? nearestBelow + " ↓" : "Neutral"
 
 //══════════════════════════════════════════════════════════════════════════════
-// PREFERENCE (PREF) - Time of day preference
+// TIME PREFERENCE
 //══════════════════════════════════════════════════════════════════════════════
 
 currentHour = hour(time, TZ)
-pref = currentHour >= 9 and currentHour < 11 ? "Prime" : 
-       currentHour >= 11 and currentHour < 15 ? "Active" : 
+pref = currentHour >= 9 and currentHour < 11 ? "Prime" :
+       currentHour >= 11 and currentHour < 15 ? "Active" :
        currentHour >= 15 or currentHour < 9 ? "Off-Hours" : "Other"
-
-//══════════════════════════════════════════════════════════════════════════════
-// OVERALL BIAS & CONFIDENCE SCORE
-//══════════════════════════════════════════════════════════════════════════════
-
-// Aggregate bias from all strategies
-biasScore = 0
-activeStrategies = 0
-
-if enable12HR and m12_setup_state > 0
-    biasScore += m12_bias
-    activeStrategies += 1
-
-if enable4HR and r4_current_bias != 0
-    biasScore += r4_current_bias
-    activeStrategies += 1
-
-if enable322 and f322_setup_state > 0
-    biasScore += f322_bias
-    activeStrategies += 1
-
-// Calculate normalized bias
-overallBias = activeStrategies > 0 ? biasScore / activeStrategies : 0
-biasText = overallBias > 0.3 ? "Bullish" : overallBias < -0.3 ? "Bearish" : "Neutral"
-biasColor = overallBias > 0.3 ? color.green : overallBias < -0.3 ? color.red : color.gray
-
-// Confidence score (0-100)
-confidence = 0
-
-// Add points for aligned strategies
-if activeStrategies > 1
-    alignment = math.abs(biasScore) / activeStrategies
-    confidence += alignment * 40  // Max 40 points for alignment
-
-// Add points for volume
-if volStatus == "High"
-    confidence += 20
-else if volStatus == "Above Avg"
-    confidence += 10
-
-// Add points for structure alignment
-if (biasText == "Bullish" and structure == "Bullish") or (biasText == "Bearish" and structure == "Bearish")
-    confidence += 20
-
-// Add points for being in prime time
-if pref == "Prime"
-    confidence += 10
-
-confidence := math.min(confidence, 100)
-
-//══════════════════════════════════════════════════════════════════════════════
-// STATE & SIGNAL DETERMINATION
-//══════════════════════════════════════════════════════════════════════════════
-
-state = "Waiting"
-signal = "None"
-
-if m12_entry_triggered or r4_current_triggered or f322_triggered
-    state := "In Trade"
-    signal := biasText == "Bullish" ? "LONG" : biasText == "Bearish" ? "SHORT" : "None"
-else if m12_setup_state >= 3 or (not na(r4_current_high) and r4_current_bias != 0) or f322_setup_state >= 2
-    state := "Setup Active"
-    signal := "Watch"
-else if m12_setup_state > 0 or r4_setup_count > 0 or f322_setup_state > 0
-    state := "Forming"
-    signal := "Pending"
+prefColor = pref == "Prime" ? color.green : pref == "Active" ? color.yellow : color.gray
 
 //══════════════════════════════════════════════════════════════════════════════
 // DASHBOARD TABLE
@@ -662,140 +483,122 @@ else if m12_setup_state > 0 or r4_setup_count > 0 or f322_setup_state > 0
 
 if showDashboard and barstate.islast
     var table dashboard = table.new(
-         position=dashPosition == "top_left" ? position.top_left : 
-                  dashPosition == "top_center" ? position.top_center : 
-                  dashPosition == "top_right" ? position.top_right : 
-                  dashPosition == "middle_left" ? position.middle_left : 
-                  dashPosition == "middle_center" ? position.middle_center : 
-                  dashPosition == "middle_right" ? position.middle_right : 
-                  dashPosition == "bottom_left" ? position.bottom_left : 
+         position=dashPosition == "top_left" ? position.top_left :
+                  dashPosition == "top_center" ? position.top_center :
+                  dashPosition == "top_right" ? position.top_right :
+                  dashPosition == "middle_left" ? position.middle_left :
+                  dashPosition == "middle_center" ? position.middle_center :
+                  dashPosition == "middle_right" ? position.middle_right :
+                  dashPosition == "bottom_left" ? position.bottom_left :
                   dashPosition == "bottom_center" ? position.bottom_center : position.bottom_right,
-         columns=2, rows=20,
+         columns=2, rows=18,
          bgcolor=color.new(color.black, 10),
          border_width=2,
          border_color=color.new(color.gray, 50))
-    
-    // Size mapping
-    txtSize = dashSize == "tiny" ? size.tiny : 
-              dashSize == "small" ? size.small : 
-              dashSize == "normal" ? size.normal : 
+
+    txtSize = dashSize == "tiny" ? size.tiny :
+              dashSize == "small" ? size.small :
+              dashSize == "normal" ? size.normal :
               dashSize == "large" ? size.large : size.huge
-    
-    // Clear table first
-    table.clear(dashboard, 0, 0, 1, 19)
-    
-    // Header
-    table.cell(dashboard, 0, 0, "MAC ATH STRATEGY", text_color=color.white, bgcolor=color.new(color.blue, 30), text_size=txtSize)
-    table.merge_cells(dashboard, 0, 0, 1, 0)
-    
-    // State
-    table.cell(dashboard, 0, 1, "State", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 1, state, text_color=color.white, text_size=txtSize)
-    
-    // Signal
-    table.cell(dashboard, 0, 2, "Signal", text_color=color.gray, text_size=txtSize)
-    signalColor = signal == "LONG" ? color.green : signal == "SHORT" ? color.red : color.gray
-    table.cell(dashboard, 1, 2, signal, text_color=signalColor, text_size=txtSize)
-    
-    // Level Bias (nearest key level with direction)
-    table.cell(dashboard, 0, 3, "Level Bias", text_color=color.gray, text_size=txtSize)
-    levelBiasColor = str.contains(levelBiasText, "↑") ? color.green : str.contains(levelBiasText, "↓") ? color.red : color.yellow
-    table.cell(dashboard, 1, 3, levelBiasText, text_color=levelBiasColor, text_size=txtSize)
-    
-    // 12HR Miyagi
-    m12_levelStr = not na(m12_trigger) ? str.tostring(m12_trigger, format.mintick) : "N/A"
-    m12_biasStr = m12_bias == 1 ? "Bullish" : m12_bias == -1 ? "Bearish" : "Neutral"
-    m12_displayBias = m12_bias == 1 ? color.green : m12_bias == -1 ? color.red : color.gray
-    
-    table.cell(dashboard, 0, 4, "12HR Miyagi", text_color=color.white, bgcolor=color.new(color.purple, 70), text_size=txtSize)
-    table.merge_cells(dashboard, 0, 4, 1, 4)
-    
-    table.cell(dashboard, 0, 5, "  Levels", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 5, m12_levelStr, text_color=color.yellow, text_size=txtSize)
-    
-    table.cell(dashboard, 0, 6, "  Pattern", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 6, m12_pattern, text_color=color.white, text_size=txtSize)
-    
-    table.cell(dashboard, 0, 7, "  Bias", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 7, m12_biasStr, text_color=m12_displayBias, text_size=txtSize)
-    
-    // 4HR Re-Trigger
-    r4_levelStr = not na(r4_current_high) ? str.tostring(r4_current_high, format.mintick) + " / " + str.tostring(r4_current_low, format.mintick) : "N/A"
-    r4_biasStr = r4_current_bias == 1 ? "Bullish" : r4_current_bias == -1 ? "Bearish" : "Neutral"
-    r4_displayBias = r4_current_bias == 1 ? color.green : r4_current_bias == -1 ? color.red : color.gray
-    
-    table.cell(dashboard, 0, 8, "4HR Re-Trigger", text_color=color.white, bgcolor=color.new(color.orange, 70), text_size=txtSize)
-    table.merge_cells(dashboard, 0, 8, 1, 8)
-    
-    table.cell(dashboard, 0, 9, "  Levels", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 9, r4_levelStr, text_color=color.yellow, text_size=txtSize)
-    
-    table.cell(dashboard, 0, 10, "  Pattern", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 10, r4_pattern, text_color=color.white, text_size=txtSize)
-    
-    table.cell(dashboard, 0, 11, "  Bias", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 11, r4_biasStr, text_color=r4_displayBias, text_size=txtSize)
-    
-    // Pref
-    table.cell(dashboard, 0, 12, "Pref", text_color=color.gray, text_size=txtSize)
-    prefColor = pref == "Prime" ? color.green : pref == "Active" ? color.yellow : color.gray
-    table.cell(dashboard, 1, 12, pref, text_color=prefColor, text_size=txtSize)
-    
-    // Pullback
-    table.cell(dashboard, 0, 13, "Pullback", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 13, pullbackStatus, text_color=color.white, text_size=txtSize)
-    
-    // Structure
-    table.cell(dashboard, 0, 14, "Structure", text_color=color.gray, text_size=txtSize)
-    structColor = structure == "Bullish" ? color.green : structure == "Bearish" ? color.red : color.gray
-    table.cell(dashboard, 1, 14, structure, text_color=structColor, text_size=txtSize)
-    
-    // Volume
-    table.cell(dashboard, 0, 15, "Volume", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 15, volStatus, text_color=volColor, text_size=txtSize)
-    
-    // Overall Bias
-    table.cell(dashboard, 0, 16, "Overall Bias", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 16, biasText, text_color=biasColor, text_size=txtSize)
-    
-    // Confidence Score
-    confStr = str.tostring(math.round(confidence)) + "%"
-    confColor = confidence > 70 ? color.green : confidence > 40 ? color.yellow : color.red
-    table.cell(dashboard, 0, 17, "Confidence", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 17, confStr, text_color=confColor, text_size=txtSize)
+
+    table.clear(dashboard, 0, 0, 1, 17)
+
+    // Header - GPS State
+    table.cell(dashboard, 0, 0, "PRICE GPS", text_color=color.white, bgcolor=gpsColor, text_size=txtSize)
+    table.cell(dashboard, 1, 0, gpsState, text_color=color.white, bgcolor=gpsColor, text_size=txtSize)
+
+    // GPS Direction
+    table.cell(dashboard, 0, 1, "Direction", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 1, gpsDirection, text_color=gpsColor, text_size=txtSize)
+
+    // Day Type
+    table.cell(dashboard, 0, 2, "Day Type", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 2, dayType, text_color=dayTypeColor, text_size=txtSize)
+
+    // HTF Alignment Section
+    table.cell(dashboard, 0, 3, "HTF BIAS", text_color=color.white, bgcolor=color.new(color.blue, 70), text_size=txtSize)
+    table.merge_cells(dashboard, 0, 3, 1, 3)
+
+    table.cell(dashboard, 0, 4, "  Daily", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 4, dailyBiasText, text_color=dailyBiasColor, text_size=txtSize)
+
+    table.cell(dashboard, 0, 5, "  4HR", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 5, r4_biasText, text_color=r4_biasColor, text_size=txtSize)
+
+    table.cell(dashboard, 0, 6, "  Alignment", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 6, alignmentText, text_color=alignmentColor, text_size=txtSize)
+
+    // 4HR Re-Trigger Section
+    table.cell(dashboard, 0, 7, "4HR SETUP", text_color=color.white, bgcolor=color.new(color.orange, 70), text_size=txtSize)
+    table.merge_cells(dashboard, 0, 7, 1, 7)
+
+    table.cell(dashboard, 0, 8, "  Pattern", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 8, r4_pattern, text_color=color.white, text_size=txtSize)
+
+    entryStr = not na(r4_entry_level) ? str.tostring(r4_entry_level, format.mintick) : "N/A"
+    table.cell(dashboard, 0, 9, "  Entry Level", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 9, entryStr, text_color=color.lime, text_size=txtSize)
+
+    exitStr = not na(r4_exit_level) ? str.tostring(r4_exit_level, format.mintick) : "N/A"
+    table.cell(dashboard, 0, 10, "  Stop Level", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 10, exitStr, text_color=color.red, text_size=txtSize)
+
+    targetStr = not na(r4_target_level) ? str.tostring(r4_target_level, format.mintick) : "N/A"
+    table.cell(dashboard, 0, 11, "  Target", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 11, targetStr, text_color=color.aqua, text_size=txtSize)
+
+    // Key Levels Section
+    table.cell(dashboard, 0, 12, "KEY LEVELS", text_color=color.white, bgcolor=color.new(color.purple, 70), text_size=txtSize)
+    table.merge_cells(dashboard, 0, 12, 1, 12)
+
+    aboveStr = nearestAbove + (not na(nearestAbovePrice) ? " @ " + str.tostring(nearestAbovePrice, format.mintick) : "")
+    table.cell(dashboard, 0, 13, "  Above", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 13, aboveStr, text_color=color.green, text_size=txtSize)
+
+    belowStr = nearestBelow + (not na(nearestBelowPrice) ? " @ " + str.tostring(nearestBelowPrice, format.mintick) : "")
+    table.cell(dashboard, 0, 14, "  Below", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 14, belowStr, text_color=color.red, text_size=txtSize)
+
+    // Price Target based on bias
+    table.cell(dashboard, 0, 15, "  Target", text_color=color.gray, text_size=txtSize)
+    targetColor = dailyBias == 1 ? color.green : dailyBias == -1 ? color.red : color.gray
+    table.cell(dashboard, 1, 15, priceTarget, text_color=targetColor, text_size=txtSize)
+
+    // Time Preference
+    table.cell(dashboard, 0, 16, "Session", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 16, pref, text_color=prefColor, text_size=txtSize)
+
+    // Current Price
+    table.cell(dashboard, 0, 17, "Price", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 17, str.tostring(close, format.mintick), text_color=color.white, text_size=txtSize)
 
 //══════════════════════════════════════════════════════════════════════════════
-// VISUAL PLOTTING - Key Levels (LIVE UPDATING)
+// VISUAL PLOTTING - Key Levels
 //══════════════════════════════════════════════════════════════════════════════
 
 int EXTEND = 500
 
-// Declare persistent lines and labels
 var line linePDH = na
 var line linePDL = na
 var line lineNYOpen = na
-var line line3PMOpen = na
-var line lineMidnight = na
 var line lineAsiaHi = na
 var line lineAsiaLo = na
 var line lineLonHi = na
 var line lineLonLo = na
-var line line12HRTrigger = na
-var line line4HRHigh = na
-var line line4HRLow = na
+var line line4HREntry = na
+var line line4HRStop = na
+var line line4HRTarget = na
 
 var label labelPDH = na
 var label labelPDL = na
 var label labelNYOpen = na
-var label label3PMOpen = na
-var label labelMidnight = na
 var label labelAsiaHi = na
 var label labelAsiaLo = na
 var label labelLonHi = na
 var label labelLonLo = na
-var label label12HRTrigger = na
-var label label4HRHigh = na
-var label label4HRLow = na
+var label label4HREntry = na
+var label label4HRStop = na
+var label label4HRTarget = na
 
 if showLevels
     // PDH - Red dotted line
@@ -805,16 +608,16 @@ if showLevels
                 line.delete(linePDH)
             if not na(labelPDH)
                 label.delete(labelPDH)
-            linePDH := line.new(bar_index, pdh, bar_index + EXTEND, pdh, 
+            linePDH := line.new(bar_index, pdh, bar_index + EXTEND, pdh,
                      color=color.new(color.red, 30), width=2, style=line.style_dotted)
-            labelPDH := label.new(bar_index, pdh, "PDH", 
-                      style=label.style_label_right, color=color.new(color.red, 60), 
+            labelPDH := label.new(bar_index, pdh, "PDH",
+                      style=label.style_label_right, color=color.new(color.red, 60),
                       textcolor=color.white, size=size.small, yloc=yloc.price)
         else
             line.set_xy1(linePDH, bar_index, pdh)
             line.set_xy2(linePDH, bar_index + EXTEND, pdh)
             label.set_xy(labelPDH, bar_index, pdh)
-    
+
     // PDL - Green dotted line
     if not na(pdl)
         if na(linePDL) or newDay
@@ -822,53 +625,29 @@ if showLevels
                 line.delete(linePDL)
             if not na(labelPDL)
                 label.delete(labelPDL)
-            linePDL := line.new(bar_index, pdl, bar_index + EXTEND, pdl, 
+            linePDL := line.new(bar_index, pdl, bar_index + EXTEND, pdl,
                      color=color.new(color.green, 30), width=2, style=line.style_dotted)
-            labelPDL := label.new(bar_index, pdl, "PDL", 
-                      style=label.style_label_right, color=color.new(color.green, 60), 
+            labelPDL := label.new(bar_index, pdl, "PDL",
+                      style=label.style_label_right, color=color.new(color.green, 60),
                       textcolor=color.white, size=size.small, yloc=yloc.price)
         else
             line.set_xy1(linePDL, bar_index, pdl)
             line.set_xy2(linePDL, bar_index + EXTEND, pdl)
             label.set_xy(labelPDL, bar_index, pdl)
-    
-    // NY Open (6:30 AM PT / 9:30 AM ET) - Blue dotted line
+
+    // NY Open - Blue dotted line
     if cross0630
         if not na(lineNYOpen)
             line.delete(lineNYOpen)
         if not na(labelNYOpen)
             label.delete(labelNYOpen)
-        lineNYOpen := line.new(bar_index, open, bar_index + EXTEND, open, 
+        lineNYOpen := line.new(bar_index, open, bar_index + EXTEND, open,
                  color=color.new(color.blue, 40), width=1, style=line.style_dotted)
-        labelNYOpen := label.new(bar_index, open, "NY Open", 
-                  style=label.style_label_right, color=color.new(color.blue, 70), 
+        labelNYOpen := label.new(bar_index, open, "NY Open",
+                  style=label.style_label_right, color=color.new(color.blue, 70),
                   textcolor=color.white, size=size.tiny, yloc=yloc.price)
-    
-    // 3PM Open (15:00 PT) - Aqua dotted line
-    if cross1500
-        if not na(line3PMOpen)
-            line.delete(line3PMOpen)
-        if not na(label3PMOpen)
-            label.delete(label3PMOpen)
-        line3PMOpen := line.new(bar_index, open, bar_index + EXTEND, open, 
-                 color=color.new(color.aqua, 40), width=1, style=line.style_dotted)
-        label3PMOpen := label.new(bar_index, open, "3PM Open", 
-                  style=label.style_label_right, color=color.new(color.aqua, 70), 
-                  textcolor=color.white, size=size.tiny, yloc=yloc.price)
-    
-    // Midnight Open (00:00 PT) - White dotted line
-    if cross0000
-        if not na(lineMidnight)
-            line.delete(lineMidnight)
-        if not na(labelMidnight)
-            label.delete(labelMidnight)
-        lineMidnight := line.new(bar_index, open, bar_index + EXTEND, open, 
-                 color=color.new(color.white, 60), width=1, style=line.style_dotted)
-        labelMidnight := label.new(bar_index, open, "Midnight", 
-                  style=label.style_label_right, color=color.new(color.gray, 50), 
-                  textcolor=color.white, size=size.tiny, yloc=yloc.price)
-    
-    // Asia High - Yellow dotted line (LIVE UPDATING)
+
+    // Asia High/Low - Yellow
     if not na(asiaHiFinal)
         if na(lineAsiaHi) or asiaStart
             if not na(lineAsiaHi)
@@ -877,23 +656,19 @@ if showLevels
                 label.delete(labelAsiaHi)
             lineAsiaHi := line.new(bar_index, asiaHiFinal, bar_index + EXTEND, asiaHiFinal,
                      color=color.new(color.yellow, 50), width=1, style=line.style_dotted)
-            labelAsiaHi := label.new(bar_index, asiaHiFinal, "Asia High",
+            labelAsiaHi := label.new(bar_index, asiaHiFinal, "Asia Hi",
                       style=label.style_label_right, color=color.new(color.yellow, 70),
                       textcolor=color.black, size=size.tiny, yloc=yloc.price)
         else
             line.set_xy1(lineAsiaHi, bar_index, asiaHiFinal)
             line.set_xy2(lineAsiaHi, bar_index + EXTEND, asiaHiFinal)
             label.set_xy(labelAsiaHi, bar_index, asiaHiFinal)
-    else
-        // Clean up when value becomes na
-        if not na(lineAsiaHi)
-            line.delete(lineAsiaHi)
-            lineAsiaHi := na
-        if not na(labelAsiaHi)
-            label.delete(labelAsiaHi)
-            labelAsiaHi := na
+    else if not na(lineAsiaHi)
+        line.delete(lineAsiaHi)
+        lineAsiaHi := na
+        label.delete(labelAsiaHi)
+        labelAsiaHi := na
 
-    // Asia Low - Yellow dotted line (LIVE UPDATING)
     if not na(asiaLoFinal)
         if na(lineAsiaLo) or asiaStart
             if not na(lineAsiaLo)
@@ -902,23 +677,20 @@ if showLevels
                 label.delete(labelAsiaLo)
             lineAsiaLo := line.new(bar_index, asiaLoFinal, bar_index + EXTEND, asiaLoFinal,
                      color=color.new(color.yellow, 50), width=1, style=line.style_dotted)
-            labelAsiaLo := label.new(bar_index, asiaLoFinal, "Asia Low",
+            labelAsiaLo := label.new(bar_index, asiaLoFinal, "Asia Lo",
                       style=label.style_label_right, color=color.new(color.yellow, 70),
                       textcolor=color.black, size=size.tiny, yloc=yloc.price)
         else
             line.set_xy1(lineAsiaLo, bar_index, asiaLoFinal)
             line.set_xy2(lineAsiaLo, bar_index + EXTEND, asiaLoFinal)
             label.set_xy(labelAsiaLo, bar_index, asiaLoFinal)
-    else
-        // Clean up when value becomes na
-        if not na(lineAsiaLo)
-            line.delete(lineAsiaLo)
-            lineAsiaLo := na
-        if not na(labelAsiaLo)
-            label.delete(labelAsiaLo)
-            labelAsiaLo := na
+    else if not na(lineAsiaLo)
+        line.delete(lineAsiaLo)
+        lineAsiaLo := na
+        label.delete(labelAsiaLo)
+        labelAsiaLo := na
 
-    // London High - Lime dotted line (LIVE UPDATING)
+    // London High/Low - Lime
     if not na(lonHiFinal)
         if na(lineLonHi) or lonStart
             if not na(lineLonHi)
@@ -927,23 +699,19 @@ if showLevels
                 label.delete(labelLonHi)
             lineLonHi := line.new(bar_index, lonHiFinal, bar_index + EXTEND, lonHiFinal,
                      color=color.new(color.lime, 50), width=1, style=line.style_dotted)
-            labelLonHi := label.new(bar_index, lonHiFinal, "London High",
+            labelLonHi := label.new(bar_index, lonHiFinal, "London Hi",
                       style=label.style_label_right, color=color.new(color.lime, 70),
                       textcolor=color.black, size=size.tiny, yloc=yloc.price)
         else
             line.set_xy1(lineLonHi, bar_index, lonHiFinal)
             line.set_xy2(lineLonHi, bar_index + EXTEND, lonHiFinal)
             label.set_xy(labelLonHi, bar_index, lonHiFinal)
-    else
-        // Clean up when value becomes na
-        if not na(lineLonHi)
-            line.delete(lineLonHi)
-            lineLonHi := na
-        if not na(labelLonHi)
-            label.delete(labelLonHi)
-            labelLonHi := na
+    else if not na(lineLonHi)
+        line.delete(lineLonHi)
+        lineLonHi := na
+        label.delete(labelLonHi)
+        labelLonHi := na
 
-    // London Low - Lime dotted line (LIVE UPDATING)
     if not na(lonLoFinal)
         if na(lineLonLo) or lonStart
             if not na(lineLonLo)
@@ -952,96 +720,95 @@ if showLevels
                 label.delete(labelLonLo)
             lineLonLo := line.new(bar_index, lonLoFinal, bar_index + EXTEND, lonLoFinal,
                      color=color.new(color.lime, 50), width=1, style=line.style_dotted)
-            labelLonLo := label.new(bar_index, lonLoFinal, "London Low",
+            labelLonLo := label.new(bar_index, lonLoFinal, "London Lo",
                       style=label.style_label_right, color=color.new(color.lime, 70),
                       textcolor=color.black, size=size.tiny, yloc=yloc.price)
         else
             line.set_xy1(lineLonLo, bar_index, lonLoFinal)
             line.set_xy2(lineLonLo, bar_index + EXTEND, lonLoFinal)
             label.set_xy(labelLonLo, bar_index, lonLoFinal)
-    else
-        // Clean up when value becomes na
-        if not na(lineLonLo)
-            line.delete(lineLonLo)
-            lineLonLo := na
-        if not na(labelLonLo)
-            label.delete(labelLonLo)
-            labelLonLo := na
-    
-    // 12HR Miyagi trigger - Purple dashed line
-    if not na(m12_trigger) and m12_setup_state > 0
-        if na(line12HRTrigger)
-            line12HRTrigger := line.new(bar_index, m12_trigger, bar_index + EXTEND, m12_trigger,
-                     color=color.new(color.purple, 50), width=2, style=line.style_dashed)
-            label12HRTrigger := label.new(bar_index, m12_trigger, "12HR Trigger",
-                      style=label.style_label_right, color=color.new(color.purple, 50),
-                      textcolor=color.white, size=size.tiny, yloc=yloc.price)
-        else
-            line.set_xy1(line12HRTrigger, bar_index, m12_trigger)
-            line.set_xy2(line12HRTrigger, bar_index + EXTEND, m12_trigger)
-            label.set_xy(label12HRTrigger, bar_index, m12_trigger)
-    else
-        // Clean up when setup is invalidated or trigger becomes na
-        if not na(line12HRTrigger)
-            line.delete(line12HRTrigger)
-            line12HRTrigger := na
-        if not na(label12HRTrigger)
-            label.delete(label12HRTrigger)
-            label12HRTrigger := na
+    else if not na(lineLonLo)
+        line.delete(lineLonLo)
+        lineLonLo := na
+        label.delete(labelLonLo)
+        labelLonLo := na
 
-    // 4HR Re-trigger levels - Orange dotted lines
-    if not na(r4_current_high) and r4_current_bias != 0 and not r4_current_triggered
-        if na(line4HRHigh)
-            line4HRHigh := line.new(bar_index, r4_current_high, bar_index + EXTEND, r4_current_high,
-                     color=color.new(color.orange, 50), width=1, style=line.style_dotted)
-            label4HRHigh := label.new(bar_index, r4_current_high, "4HR High",
-                      style=label.style_label_right, color=color.new(color.orange, 70),
-                      textcolor=color.white, size=size.tiny, yloc=yloc.price)
+    // 4HR Entry Level - Lime solid line
+    if not na(r4_entry_level) and r4_bias != 0 and not r4_triggered
+        if na(line4HREntry) or new4HCandle
+            if not na(line4HREntry)
+                line.delete(line4HREntry)
+            if not na(label4HREntry)
+                label.delete(label4HREntry)
+            entryColor = r4_bias == 1 ? color.lime : color.fuchsia
+            line4HREntry := line.new(bar_index, r4_entry_level, bar_index + EXTEND, r4_entry_level,
+                     color=color.new(entryColor, 20), width=2, style=line.style_solid)
+            label4HREntry := label.new(bar_index, r4_entry_level, "4HR ENTRY",
+                      style=label.style_label_right, color=color.new(entryColor, 50),
+                      textcolor=color.white, size=size.small, yloc=yloc.price)
         else
-            line.set_xy1(line4HRHigh, bar_index, r4_current_high)
-            line.set_xy2(line4HRHigh, bar_index + EXTEND, r4_current_high)
-            label.set_xy(label4HRHigh, bar_index, r4_current_high)
-    else
-        // Clean up when setup is triggered or invalidated
-        if not na(line4HRHigh)
-            line.delete(line4HRHigh)
-            line4HRHigh := na
-        if not na(label4HRHigh)
-            label.delete(label4HRHigh)
-            label4HRHigh := na
+            line.set_xy1(line4HREntry, bar_index, r4_entry_level)
+            line.set_xy2(line4HREntry, bar_index + EXTEND, r4_entry_level)
+            label.set_xy(label4HREntry, bar_index, r4_entry_level)
+    else if not na(line4HREntry)
+        line.delete(line4HREntry)
+        line4HREntry := na
+        label.delete(label4HREntry)
+        label4HREntry := na
 
-    if not na(r4_current_low) and r4_current_bias != 0 and not r4_current_triggered
-        if na(line4HRLow)
-            line4HRLow := line.new(bar_index, r4_current_low, bar_index + EXTEND, r4_current_low,
-                     color=color.new(color.orange, 50), width=1, style=line.style_dotted)
-            label4HRLow := label.new(bar_index, r4_current_low, "4HR Low",
-                      style=label.style_label_right, color=color.new(color.orange, 70),
+    // 4HR Stop Level - Red dashed line
+    if not na(r4_exit_level) and r4_bias != 0
+        if na(line4HRStop) or new4HCandle
+            if not na(line4HRStop)
+                line.delete(line4HRStop)
+            if not na(label4HRStop)
+                label.delete(label4HRStop)
+            line4HRStop := line.new(bar_index, r4_exit_level, bar_index + EXTEND, r4_exit_level,
+                     color=color.new(color.red, 30), width=1, style=line.style_dashed)
+            label4HRStop := label.new(bar_index, r4_exit_level, "STOP",
+                      style=label.style_label_right, color=color.new(color.red, 50),
                       textcolor=color.white, size=size.tiny, yloc=yloc.price)
         else
-            line.set_xy1(line4HRLow, bar_index, r4_current_low)
-            line.set_xy2(line4HRLow, bar_index + EXTEND, r4_current_low)
-            label.set_xy(label4HRLow, bar_index, r4_current_low)
-    else
-        // Clean up when setup is triggered or invalidated
-        if not na(line4HRLow)
-            line.delete(line4HRLow)
-            line4HRLow := na
-        if not na(label4HRLow)
-            label.delete(label4HRLow)
-            label4HRLow := na
+            line.set_xy1(line4HRStop, bar_index, r4_exit_level)
+            line.set_xy2(line4HRStop, bar_index + EXTEND, r4_exit_level)
+            label.set_xy(label4HRStop, bar_index, r4_exit_level)
+    else if not na(line4HRStop)
+        line.delete(line4HRStop)
+        line4HRStop := na
+        label.delete(label4HRStop)
+        label4HRStop := na
+
+    // 4HR Target Level - Aqua dashed line
+    if not na(r4_target_level) and r4_bias != 0
+        if na(line4HRTarget) or new4HCandle
+            if not na(line4HRTarget)
+                line.delete(line4HRTarget)
+            if not na(label4HRTarget)
+                label.delete(label4HRTarget)
+            line4HRTarget := line.new(bar_index, r4_target_level, bar_index + EXTEND, r4_target_level,
+                     color=color.new(color.aqua, 30), width=1, style=line.style_dashed)
+            label4HRTarget := label.new(bar_index, r4_target_level, "TARGET",
+                      style=label.style_label_right, color=color.new(color.aqua, 50),
+                      textcolor=color.white, size=size.tiny, yloc=yloc.price)
+        else
+            line.set_xy1(line4HRTarget, bar_index, r4_target_level)
+            line.set_xy2(line4HRTarget, bar_index + EXTEND, r4_target_level)
+            label.set_xy(label4HRTarget, bar_index, r4_target_level)
+    else if not na(line4HRTarget)
+        line.delete(line4HRTarget)
+        line4HRTarget := na
+        label.delete(label4HRTarget)
+        label4HRTarget := na
 
 //══════════════════════════════════════════════════════════════════════════════
 // ALERTS
 //══════════════════════════════════════════════════════════════════════════════
 
-// 12HR Miyagi Entry
-alertcondition(m12_entry_triggered, "12HR Miyagi Entry", "12HR Miyagi entry triggered: {{ticker}} @ {{close}}")
+// 4HR Setup Alert
+alertcondition(new4HCandle and r4_bias != 0 and not r4_triggered, "4HR Setup", "4HR Re-Trigger setup: {{ticker}} - " + r4_pattern)
 
-// 4HR Re-trigger Entry
-alertcondition(r4_current_triggered, "4HR Re-Trigger Entry", "4HR Re-Trigger entry: {{ticker}} @ {{close}}")
+// 4HR Entry Alert
+alertcondition(r4_triggered, "4HR Entry", "4HR Entry triggered: {{ticker}} @ {{close}}")
 
-// 322 First Live Entry
-alertcondition(f322_triggered, "322 First Live Entry", "322 entry triggered: {{ticker}} @ {{close}}")
-
-// High Confidence Setup
-alertcondition(confidence > 70, "High Confidence Setup", "High confidence setup ({{plot_0}}%): {{ticker}}")
+// HTF Aligned GO Alert
+alertcondition(gpsState == "GO", "GPS GO Signal", "GPS GO: {{ticker}} - HTF Aligned " + gpsDirection)
