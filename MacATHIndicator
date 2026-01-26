@@ -568,6 +568,82 @@ else if r4_setup_bias == -1 and not na(nearest_bull_ob_below)
     // For SHORT: target the nearest GREEN OB below (where buy liquidity is)
     r4_target_level := nearest_bull_ob_below
 
+//══════════════════════════════════════════════════════════════════════════════
+// PULLBACK RE-ENTRY LEVELS (For active trades - dynamic entries)
+//══════════════════════════════════════════════════════════════════════════════
+
+var float reentry_level = na
+var string reentry_type = "N/A"
+
+// 1HR data for shorter-term pullback detection
+[mtf1H_prevHigh, mtf1H_prevLow, mtf1H_prevClose, mtf1H_prevOpen] =
+     request.security(syminfo.tickerid, "60", [high[1], low[1], close[1], open[1]],
+     lookahead=barmerge.lookahead_off)
+
+[mtf1H_prev2High, mtf1H_prev2Low] =
+     request.security(syminfo.tickerid, "60", [high[2], low[2]],
+     lookahead=barmerge.lookahead_off)
+
+// Get 1HR bar type
+int bar1H_current = f_getBarType(mtf1H_high, mtf1H_low, mtf1H_close, mtf1H_open, mtf1H_prevHigh, mtf1H_prevLow)
+int bar1H_prev = f_getBarType(mtf1H_prevHigh, mtf1H_prevLow, mtf1H_prevClose, mtf1H_prevOpen, mtf1H_prev2High, mtf1H_prev2Low)
+
+// Detect new 1HR candle
+bool new1HCandle = ta.change(mtf1H_time) != 0
+
+// Track recent swing lows/highs for pullback entries
+var float recent_swing_low = na
+var float recent_swing_high = na
+
+// Update swing points on 1HR timeframe
+if new1HCandle
+    // Detect swing low: previous candle low is lower than candles on either side
+    if mtf1H_prevLow < mtf1H_prev2Low and mtf1H_prevLow < mtf1H_low
+        recent_swing_low := mtf1H_prevLow
+    // Detect swing high: previous candle high is higher than candles on either side
+    if mtf1H_prevHigh > mtf1H_prev2High and mtf1H_prevHigh > mtf1H_high
+        recent_swing_high := mtf1H_prevHigh
+
+// Calculate pullback re-entry levels when trade is active
+if r4_triggered
+    if r4_setup_bias == 1
+        // LONG ACTIVE: Look for pullback entries
+        // Re-entry options (in priority order):
+        // 1. Nearest bullish OB below current price (support zone)
+        // 2. Recent 1HR swing low
+        // 3. Current 1HR candle low (aggressive)
+
+        if not na(nearest_bull_ob_below) and nearest_bull_ob_below > r4_exit_level
+            reentry_level := nearest_bull_ob_below
+            reentry_type := "OB Support"
+        else if not na(recent_swing_low) and recent_swing_low > r4_exit_level and recent_swing_low < close
+            reentry_level := recent_swing_low
+            reentry_type := "Swing Low"
+        else
+            // Use recent 1HR low as aggressive re-entry
+            reentry_level := mtf1H_low
+            reentry_type := "1HR Low"
+
+    else if r4_setup_bias == -1
+        // SHORT ACTIVE: Look for pullback entries
+        if not na(nearest_bear_ob_above) and nearest_bear_ob_above < r4_exit_level
+            reentry_level := nearest_bear_ob_above
+            reentry_type := "OB Resistance"
+        else if not na(recent_swing_high) and recent_swing_high < r4_exit_level and recent_swing_high > close
+            reentry_level := recent_swing_high
+            reentry_type := "Swing High"
+        else
+            reentry_level := mtf1H_high
+            reentry_type := "1HR High"
+else
+    // No active trade - re-entry is same as entry
+    if r4_setup_bias != 0 and not na(r4_entry_level)
+        reentry_level := r4_entry_level
+        reentry_type := "Setup Entry"
+    else
+        reentry_level := na
+        reentry_type := "N/A"
+
 // Check for stop hit or target reached
 if r4_triggered
     if r4_setup_bias == 1
@@ -864,7 +940,7 @@ if showDashboard and barstate.islast
                   dashPosition == "middle_right" ? position.middle_right :
                   dashPosition == "bottom_left" ? position.bottom_left :
                   dashPosition == "bottom_center" ? position.bottom_center : position.bottom_right,
-         columns=2, rows=19,
+         columns=2, rows=20,
          bgcolor=color.new(color.black, 10),
          border_width=2,
          border_color=color.new(color.gray, 50))
@@ -874,7 +950,7 @@ if showDashboard and barstate.islast
               dashSize == "normal" ? size.normal :
               dashSize == "large" ? size.large : size.huge
 
-    table.clear(dashboard, 0, 0, 1, 18)
+    table.clear(dashboard, 0, 0, 1, 19)
 
     // Header - GPS State
     table.cell(dashboard, 0, 0, "PRICE GPS", text_color=color.white, bgcolor=gpsColor, text_size=txtSize)
@@ -920,34 +996,40 @@ if showDashboard and barstate.islast
     table.cell(dashboard, 0, 11, "  Entry Level", text_color=color.gray, text_size=txtSize)
     table.cell(dashboard, 1, 11, entryStr, text_color=color.lime, text_size=txtSize)
 
+    // Re-entry Level (for pullback entries during active trades)
+    reentryStr = not na(reentry_level) ? str.tostring(reentry_level, format.mintick) + " (" + reentry_type + ")" : "N/A"
+    reentryColor = r4_triggered ? color.yellow : color.lime
+    table.cell(dashboard, 0, 12, "  Re-Entry", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 12, reentryStr, text_color=reentryColor, text_size=txtSize)
+
     exitStr = not na(r4_exit_level) and r4_setup_bias != 0 ? str.tostring(r4_exit_level, format.mintick) : "N/A"
-    table.cell(dashboard, 0, 12, "  Stop Level", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 12, exitStr, text_color=color.red, text_size=txtSize)
+    table.cell(dashboard, 0, 13, "  Stop Level", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 13, exitStr, text_color=color.red, text_size=txtSize)
 
     targetStr = not na(r4_target_level) and r4_setup_bias != 0 ? str.tostring(r4_target_level, format.mintick) : "N/A"
-    table.cell(dashboard, 0, 13, "  Target", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 13, targetStr, text_color=color.aqua, text_size=txtSize)
+    table.cell(dashboard, 0, 14, "  Target", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 14, targetStr, text_color=color.aqua, text_size=txtSize)
 
     // Key Levels Section
-    table.cell(dashboard, 0, 14, "KEY LEVELS", text_color=color.white, bgcolor=color.new(color.purple, 70), text_size=txtSize)
-    table.merge_cells(dashboard, 0, 14, 1, 14)
+    table.cell(dashboard, 0, 15, "KEY LEVELS", text_color=color.white, bgcolor=color.new(color.purple, 70), text_size=txtSize)
+    table.merge_cells(dashboard, 0, 15, 1, 15)
 
     aboveStr = nearestAbove + (not na(nearestAbovePrice) ? " @ " + str.tostring(nearestAbovePrice, format.mintick) : "")
-    table.cell(dashboard, 0, 15, "  Above", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 15, aboveStr, text_color=color.green, text_size=txtSize)
+    table.cell(dashboard, 0, 16, "  Above", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 16, aboveStr, text_color=color.green, text_size=txtSize)
 
     belowStr = nearestBelow + (not na(nearestBelowPrice) ? " @ " + str.tostring(nearestBelowPrice, format.mintick) : "")
-    table.cell(dashboard, 0, 16, "  Below", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 16, belowStr, text_color=color.red, text_size=txtSize)
+    table.cell(dashboard, 0, 17, "  Below", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 17, belowStr, text_color=color.red, text_size=txtSize)
 
     // Price Target based on bias
-    table.cell(dashboard, 0, 17, "  Target", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 0, 18, "  Target", text_color=color.gray, text_size=txtSize)
     targetColor = dailyBias == 1 ? color.green : dailyBias == -1 ? color.red : color.gray
-    table.cell(dashboard, 1, 17, priceTarget, text_color=targetColor, text_size=txtSize)
+    table.cell(dashboard, 1, 18, priceTarget, text_color=targetColor, text_size=txtSize)
 
     // Time Preference
-    table.cell(dashboard, 0, 18, "Session", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 18, pref, text_color=prefColor, text_size=txtSize)
+    table.cell(dashboard, 0, 19, "Session", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 19, pref, text_color=prefColor, text_size=txtSize)
 
 //══════════════════════════════════════════════════════════════════════════════
 // VISUAL PLOTTING - Key Levels
@@ -965,6 +1047,7 @@ var line lineLonLo = na
 var line line4HREntry = na
 var line line4HRStop = na
 var line line4HRTarget = na
+var line line4HRReentry = na
 
 var label labelPDH = na
 var label labelPDL = na
@@ -976,6 +1059,7 @@ var label labelLonLo = na
 var label label4HREntry = na
 var label label4HRStop = na
 var label label4HRTarget = na
+var label label4HRReentry = na
 
 if showLevels
     // PDH - Red dotted line
@@ -1176,6 +1260,29 @@ if showLevels
         line4HRTarget := na
         label.delete(label4HRTarget)
         label4HRTarget := na
+
+    // 4HR Re-Entry Level - Yellow solid line (shows pullback entry during active trades)
+    if not na(reentry_level) and r4_triggered
+        if na(line4HRReentry) or new1HCandle
+            if not na(line4HRReentry)
+                line.delete(line4HRReentry)
+            if not na(label4HRReentry)
+                label.delete(label4HRReentry)
+            reentryLineColor = r4_setup_bias == 1 ? color.yellow : color.orange
+            line4HRReentry := line.new(bar_index, reentry_level, bar_index + EXTEND, reentry_level,
+                     color=color.new(reentryLineColor, 20), width=2, style=line.style_solid)
+            label4HRReentry := label.new(bar_index, reentry_level, "RE-ENTRY (" + reentry_type + ")",
+                      style=label.style_label_right, color=color.new(reentryLineColor, 50),
+                      textcolor=color.white, size=size.small, yloc=yloc.price)
+        else
+            line.set_xy1(line4HRReentry, bar_index, reentry_level)
+            line.set_xy2(line4HRReentry, bar_index + EXTEND, reentry_level)
+            label.set_xy(label4HRReentry, bar_index, reentry_level)
+    else if not na(line4HRReentry)
+        line.delete(line4HRReentry)
+        line4HRReentry := na
+        label.delete(label4HRReentry)
+        label4HRReentry := na
 
 //══════════════════════════════════════════════════════════════════════════════
 // ALERTS
