@@ -1154,65 +1154,68 @@ array.clear(rev_scores)
 array.clear(rev_types)
 
 // Determine which direction we're looking for reversals
-int trendBias = htfAligned ? dailyBias : r4_market_bias
+// Priority: Daily bias first (HTF always wins), then 4HR market bias as fallback
+int trendBias = dailyBias != 0 ? dailyBias : r4_market_bias
 bool lookingForLongReversal = trendBias == 1   // In uptrend, look for support to buy
 bool lookingForShortReversal = trendBias == -1 // In downtrend, look for resistance to sell
 
 if lookingForLongReversal
     // UPTREND: Find support levels BELOW current price for buying pullbacks
+    // No distance filter on high-probability levels - always show them
 
-    // 1. Bullish Order Blocks (GREEN OBs below price)
+    // 1. Bullish Order Blocks (GREEN OBs below price) - always include
     if not na(nearest_bull_ob_below) and nearest_bull_ob_below < close
         array.push(rev_levels, nearest_bull_ob_below)
         array.push(rev_scores, 3)  // OBs are high probability
         array.push(rev_types, "OB Support")
 
     // 2. Fibonacci 61.8% (golden pocket) - strongest
-    if fib_618 < close and fib_618 > close * 0.99  // Within 1% below price
+    if fib_618 < close and fib_618 > close * 0.95  // Within 5% below
         array.push(rev_levels, fib_618)
         array.push(rev_scores, 2)
         array.push(rev_types, "Fib 61.8%")
 
     // 3. Fibonacci 50%
-    if fib_50 < close and fib_50 > close * 0.985
+    if fib_50 < close and fib_50 > close * 0.95
         array.push(rev_levels, fib_50)
         array.push(rev_scores, 2)
         array.push(rev_types, "Fib 50%")
 
-    // 4. PDL (Previous Day Low) - strong support
-    if not na(pdl) and pdl < close and pdl > close * 0.98
+    // 4. PDL (Previous Day Low) - strong support, always include
+    if not na(pdl) and pdl < close
         array.push(rev_levels, pdl)
         array.push(rev_scores, 2)
         array.push(rev_types, "PDL")
 
     // 5. Asia Low - session support
-    if not na(asiaLoFinal) and asiaLoFinal < close and asiaLoFinal > close * 0.99
+    if not na(asiaLoFinal) and asiaLoFinal < close
         array.push(rev_levels, asiaLoFinal)
         array.push(rev_scores, 1)
         array.push(rev_types, "Asia Low")
 
     // 6. London Low - session support
-    if not na(lonLoFinal) and lonLoFinal < close and lonLoFinal > close * 0.99
+    if not na(lonLoFinal) and lonLoFinal < close
         array.push(rev_levels, lonLoFinal)
         array.push(rev_scores, 1)
         array.push(rev_types, "London Low")
 
     // 7. Recent 1HR swing low
-    if not na(recent_swing_low) and recent_swing_low < close and recent_swing_low > close * 0.99
+    if not na(recent_swing_low) and recent_swing_low < close
         array.push(rev_levels, recent_swing_low)
         array.push(rev_scores, 2)
         array.push(rev_types, "1HR Swing Low")
 
-    // 8. 30min structure low
-    if mtf30_prevLow < close and mtf30_prevLow > close * 0.995
+    // 8. 30min structure low - closest/scalp level
+    if mtf30_prevLow < close
         array.push(rev_levels, mtf30_prevLow)
         array.push(rev_scores, 1)
         array.push(rev_types, "30m Low")
 
 else if lookingForShortReversal
     // DOWNTREND: Find resistance levels ABOVE current price for selling rallies
+    // No distance filter on high-probability levels - always show them
 
-    // 1. Bearish Order Blocks (RED OBs above price)
+    // 1. Bearish Order Blocks (RED OBs above price) - always include
     if not na(nearest_bear_ob_above) and nearest_bear_ob_above > close
         array.push(rev_levels, nearest_bear_ob_above)
         array.push(rev_scores, 3)
@@ -1220,44 +1223,44 @@ else if lookingForShortReversal
 
     // 2. Fibonacci 61.8% from above
     float fib_618_down = mtf4H_prevHigh - fib_range * 0.618
-    if fib_618_down > close and fib_618_down < close * 1.01
+    if fib_618_down > close and fib_618_down < close * 1.05  // Within 5% above
         array.push(rev_levels, fib_618_down)
         array.push(rev_scores, 2)
         array.push(rev_types, "Fib 61.8%")
 
     // 3. Fibonacci 50% from above
     float fib_50_down = mtf4H_prevHigh - fib_range * 0.5
-    if fib_50_down > close and fib_50_down < close * 1.015
+    if fib_50_down > close and fib_50_down < close * 1.05
         array.push(rev_levels, fib_50_down)
         array.push(rev_scores, 2)
         array.push(rev_types, "Fib 50%")
 
-    // 4. PDH (Previous Day High) - strong resistance
-    if not na(pdh) and pdh > close and pdh < close * 1.02
+    // 4. PDH (Previous Day High) - strong resistance, always include
+    if not na(pdh) and pdh > close
         array.push(rev_levels, pdh)
         array.push(rev_scores, 2)
         array.push(rev_types, "PDH")
 
     // 5. Asia High - session resistance
-    if not na(asiaHiFinal) and asiaHiFinal > close and asiaHiFinal < close * 1.01
+    if not na(asiaHiFinal) and asiaHiFinal > close
         array.push(rev_levels, asiaHiFinal)
         array.push(rev_scores, 1)
         array.push(rev_types, "Asia High")
 
     // 6. London High - session resistance
-    if not na(lonHiFinal) and lonHiFinal > close and lonHiFinal < close * 1.01
+    if not na(lonHiFinal) and lonHiFinal > close
         array.push(rev_levels, lonHiFinal)
         array.push(rev_scores, 1)
         array.push(rev_types, "London High")
 
     // 7. Recent 1HR swing high
-    if not na(recent_swing_high) and recent_swing_high > close and recent_swing_high < close * 1.01
+    if not na(recent_swing_high) and recent_swing_high > close
         array.push(rev_levels, recent_swing_high)
         array.push(rev_scores, 2)
         array.push(rev_types, "1HR Swing High")
 
-    // 8. 30min structure high
-    if mtf30_prevHigh > close and mtf30_prevHigh < close * 1.005
+    // 8. 30min structure high - closest/scalp level
+    if mtf30_prevHigh > close
         array.push(rev_levels, mtf30_prevHigh)
         array.push(rev_scores, 1)
         array.push(rev_types, "30m High")
