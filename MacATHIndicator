@@ -390,7 +390,7 @@ color dailyBiasColor = dailyBias == 1 ? color.green : dailyBias == -1 ? color.re
 var float r4_entry_level = na      // Entry trigger level
 var float r4_exit_level = na       // Exit/stop level
 var float r4_target_level = na     // Target level
-var int r4_bias = 0                // 1=bullish, -1=bearish
+var int r4_setup_bias = 0          // Setup-specific bias: 1=bullish setup, -1=bearish setup
 var string r4_pattern = "Scanning"
 var bool r4_triggered = false
 var int r4_setup_bar = 0
@@ -402,10 +402,79 @@ bool new4HCandle = ta.change(mtf4H_time) != 0
 int bar4H_current = f_getBarType(mtf4H_high, mtf4H_low, mtf4H_close, mtf4H_open, mtf4H_prevHigh, mtf4H_prevLow)
 int bar4H_prev = f_getBarType(mtf4H_prevHigh, mtf4H_prevLow, mtf4H_prevClose, mtf4H_prevOpen, mtf4H_prev2High, mtf4H_prev2Low)
 
+//══════════════════════════════════════════════════════════════════════════════
+// 4HR MARKET BIAS (Continuous - Always calculated based on current conditions)
+//══════════════════════════════════════════════════════════════════════════════
+
+// Calculate continuous 4HR market bias based on multiple factors:
+// 1. Current 4HR candle direction
+// 2. Price position (above prior high = bullish momentum)
+// 3. Bar type patterns (2UP = bullish, 2DOWN = bearish)
+// 4. Close relative to prior candle range
+
+int r4_market_bias = 0
+
+// Factor 1: Current 4HR candle is bullish/bearish
+bool r4_candle_bullish = mtf4H_close > mtf4H_open
+bool r4_candle_bearish = mtf4H_close < mtf4H_open
+
+// Factor 2: Breaking out of prior candle range
+bool r4_above_prior_high = mtf4H_close > mtf4H_prevHigh
+bool r4_below_prior_low = mtf4H_close < mtf4H_prevLow
+
+// Factor 3: Current bar type indicates momentum
+bool r4_is_2up = bar4H_current == 2
+bool r4_is_2down = bar4H_current == -2
+
+// Factor 4: Close position within current candle and prior range
+float r4_prior_mid = f_getMidpoint(mtf4H_prevHigh, mtf4H_prevLow)
+bool r4_close_above_prior_mid = mtf4H_close > r4_prior_mid
+bool r4_close_below_prior_mid = mtf4H_close < r4_prior_mid
+
+// Calculate market bias score
+int r4_bias_score = 0
+
+// Strong bullish signals
+if r4_above_prior_high
+    r4_bias_score += 2
+if r4_is_2up
+    r4_bias_score += 2
+if r4_candle_bullish
+    r4_bias_score += 1
+if r4_close_above_prior_mid
+    r4_bias_score += 1
+
+// Strong bearish signals
+if r4_below_prior_low
+    r4_bias_score -= 2
+if r4_is_2down
+    r4_bias_score -= 2
+if r4_candle_bearish
+    r4_bias_score -= 1
+if r4_close_below_prior_mid
+    r4_bias_score -= 1
+
+// Determine market bias from score
+// Score >= 2: Bullish, Score <= -2: Bearish, else: Neutral
+if r4_bias_score >= 2
+    r4_market_bias := 1
+else if r4_bias_score <= -2
+    r4_market_bias := -1
+else
+    r4_market_bias := 0
+
+// For HTF alignment purposes, use market bias (which is always calculated)
+// r4_bias is used for dashboard and alignment - it reflects CURRENT market conditions
+int r4_bias = r4_market_bias
+
 if new4HCandle
     // Check for reversal patterns (2DOWN→2UP or 2UP→2DOWN)
     bool bullishReversal = (bar4H_prev == -2 and bar4H_current == 2)  // 2DOWN then 2UP
     bool bearishReversal = (bar4H_prev == 2 and bar4H_current == -2)  // 2UP then 2DOWN
+
+    // Also detect continuation patterns when aligned with HTF
+    bool bullishContinuation = (bar4H_current == 2 and dailyBias == 1)  // 2UP with daily bullish
+    bool bearishContinuation = (bar4H_current == -2 and dailyBias == -1)  // 2DOWN with daily bearish
 
     if bullishReversal
         r4_entry_level := mtf4H_prevHigh  // Break above the 2DOWN high for entry
@@ -415,7 +484,7 @@ if new4HCandle
             r4_target_level := nearest_bear_ob_above
         else
             r4_target_level := r4_entry_level + (r4_entry_level - r4_exit_level) * 2
-        r4_bias := 1
+        r4_setup_bias := 1
         r4_pattern := "2DOWN→2UP (LONG)"
         r4_triggered := false
         r4_setup_bar := bar_index
@@ -434,7 +503,7 @@ if new4HCandle
             r4_target_level := nearest_bull_ob_below
         else
             r4_target_level := r4_entry_level - (r4_exit_level - r4_entry_level) * 2
-        r4_bias := -1
+        r4_setup_bias := -1
         r4_pattern := "2UP→2DOWN (SHORT)"
         r4_triggered := false
         r4_setup_bar := bar_index
@@ -445,9 +514,35 @@ if new4HCandle
                      style=label.style_label_down, color=color.new(color.red, 50),
                      textcolor=color.white, size=size.small)
 
-// Entry triggers (check on every bar)
+    // Continuation setups - update levels when HTF aligned and 2UP/2DOWN continues
+    else if bullishContinuation and (r4_setup_bias != 1 or na(r4_entry_level))
+        // Set entry at current 4HR low (pullback entry) with stop at recent swing low
+        r4_entry_level := mtf4H_low
+        r4_exit_level := mtf4H_prevLow
+        if not na(nearest_bear_ob_above)
+            r4_target_level := nearest_bear_ob_above
+        else
+            r4_target_level := r4_entry_level + (r4_entry_level - r4_exit_level) * 2
+        r4_setup_bias := 1
+        r4_pattern := "HTF ALIGNED LONG"
+        r4_triggered := false
+        r4_setup_bar := bar_index
+
+    else if bearishContinuation and (r4_setup_bias != -1 or na(r4_entry_level))
+        r4_entry_level := mtf4H_high
+        r4_exit_level := mtf4H_prevHigh
+        if not na(nearest_bull_ob_below)
+            r4_target_level := nearest_bull_ob_below
+        else
+            r4_target_level := r4_entry_level - (r4_exit_level - r4_entry_level) * 2
+        r4_setup_bias := -1
+        r4_pattern := "HTF ALIGNED SHORT"
+        r4_triggered := false
+        r4_setup_bar := bar_index
+
+// Entry triggers (check on every bar) - use r4_setup_bias for setup tracking
 if not na(r4_entry_level) and not r4_triggered
-    if r4_bias == 1 and close > r4_entry_level
+    if r4_setup_bias == 1 and close > r4_entry_level
         r4_triggered := true
         r4_pattern := "LONG ACTIVE"
 
@@ -456,7 +551,7 @@ if not na(r4_entry_level) and not r4_triggered
                      style=label.style_label_up, color=color.new(color.lime, 30),
                      textcolor=color.white, size=size.normal)
 
-    else if r4_bias == -1 and close < r4_entry_level
+    else if r4_setup_bias == -1 and close < r4_entry_level
         r4_triggered := true
         r4_pattern := "SHORT ACTIVE"
 
@@ -466,44 +561,44 @@ if not na(r4_entry_level) and not r4_triggered
                      textcolor=color.white, size=size.normal)
 
 // Dynamically update target based on nearest OB (liquidity target)
-if r4_bias == 1 and not na(nearest_bear_ob_above)
+if r4_setup_bias == 1 and not na(nearest_bear_ob_above)
     // For LONG: target the nearest RED OB above (where sell liquidity is)
     r4_target_level := nearest_bear_ob_above
-else if r4_bias == -1 and not na(nearest_bull_ob_below)
+else if r4_setup_bias == -1 and not na(nearest_bull_ob_below)
     // For SHORT: target the nearest GREEN OB below (where buy liquidity is)
     r4_target_level := nearest_bull_ob_below
 
 // Check for stop hit or target reached
 if r4_triggered
-    if r4_bias == 1
+    if r4_setup_bias == 1
         if close <= r4_exit_level
             r4_pattern := "STOPPED OUT"
             r4_triggered := false
-            r4_bias := 0
+            r4_setup_bias := 0  // Only reset setup bias, not market bias
         else if close >= r4_target_level
             r4_pattern := "TARGET HIT"
             r4_triggered := false
-            r4_bias := 0
-    else if r4_bias == -1
+            r4_setup_bias := 0  // Only reset setup bias, not market bias
+    else if r4_setup_bias == -1
         if close >= r4_exit_level
             r4_pattern := "STOPPED OUT"
             r4_triggered := false
-            r4_bias := 0
+            r4_setup_bias := 0
         else if close <= r4_target_level
             r4_pattern := "TARGET HIT"
             r4_triggered := false
-            r4_bias := 0
+            r4_setup_bias := 0
 
 // 4HR Bias text
 string r4_biasText = r4_bias == 1 ? "BULLISH" : r4_bias == -1 ? "BEARISH" : "NEUTRAL"
 color r4_biasColor = r4_bias == 1 ? color.green : r4_bias == -1 ? color.red : color.gray
 
 //══════════════════════════════════════════════════════════════════════════════
-// HTF ALIGNMENT CHECK
+// HTF ALIGNMENT CHECK (using market bias which is always calculated)
 //══════════════════════════════════════════════════════════════════════════════
 
-bool htfAligned = (dailyBias == r4_bias) and r4_bias != 0
-bool htfConflict = (dailyBias != r4_bias) and dailyBias != 0 and r4_bias != 0
+bool htfAligned = (dailyBias == r4_market_bias) and r4_market_bias != 0
+bool htfConflict = (dailyBias != r4_market_bias) and dailyBias != 0 and r4_market_bias != 0
 
 string alignmentText = htfAligned ? "ALIGNED" : htfConflict ? "CONFLICT" : "WAITING"
 color alignmentColor = htfAligned ? color.green : htfConflict ? color.red : color.yellow
@@ -519,31 +614,44 @@ string gpsDirection = ""
 if r4_triggered and htfAligned
     // Active trade with HTF alignment = GO
     gpsState := "GO"
-    gpsColor := r4_bias == 1 ? color.green : color.red
-    gpsDirection := r4_bias == 1 ? "LONG ↑" : "SHORT ↓"
+    gpsColor := r4_setup_bias == 1 ? color.green : color.red
+    gpsDirection := r4_setup_bias == 1 ? "LONG ↑" : "SHORT ↓"
 else if r4_triggered and htfConflict
     // Active trade but HTF conflict = CHOP warning
     gpsState := "CHOP"
     gpsColor := color.orange
-    gpsDirection := r4_bias == 1 ? "LONG (Caution)" : "SHORT (Caution)"
-else if not na(r4_entry_level) and not r4_triggered and r4_bias != 0
+    gpsDirection := r4_setup_bias == 1 ? "LONG (Caution)" : "SHORT (Caution)"
+else if not na(r4_entry_level) and not r4_triggered and r4_setup_bias != 0
     // Setup active, waiting for entry
     gpsState := "WAIT FOR ENTRY"
     gpsColor := color.yellow
-    if r4_bias == 1
+    if r4_setup_bias == 1
         gpsDirection := "Watch " + str.tostring(r4_entry_level, format.mintick) + " ↑"
     else
         gpsDirection := "Watch " + str.tostring(r4_entry_level, format.mintick) + " ↓"
+else if htfAligned
+    // No active setup but HTF aligned - show the directional bias
+    gpsState := "WAIT FOR ENTRY"
+    gpsColor := r4_market_bias == 1 ? color.green : color.red
+    if r4_market_bias == 1
+        gpsDirection := "BULLISH BIAS ↑ - Wait for pullback"
+    else
+        gpsDirection := "BEARISH BIAS ↓ - Wait for pullback"
 else if isInsideDay
     // Inside day = expect chop
     gpsState := "CHOP"
     gpsColor := color.orange
     gpsDirection := "Inside Day - Range Bound"
+else if r4_market_bias != 0 and dailyBias != 0
+    // Market has direction but conflicting with HTF
+    gpsState := "CHOP"
+    gpsColor := color.orange
+    gpsDirection := "HTF Conflict - Be Cautious"
 else
-    // No setup
+    // Truly neutral - no clear direction
     gpsState := "WAIT"
     gpsColor := color.gray
-    gpsDirection := "Scanning for Setup"
+    gpsDirection := "No Clear Bias"
 
 //══════════════════════════════════════════════════════════════════════════════
 // NEAREST KEY LEVEL & PRICE TARGET
@@ -585,11 +693,11 @@ if barstate.islast
         array.push(keyLabels, "London Low")
 
     // Add 4HR entry/exit levels if active
-    if not na(r4_entry_level) and r4_bias != 0
+    if not na(r4_entry_level) and r4_setup_bias != 0
         array.push(keyLevels, r4_entry_level)
         array.push(keyLabels, "4HR Entry")
 
-    if not na(r4_exit_level) and r4_bias != 0
+    if not na(r4_exit_level) and r4_setup_bias != 0
         array.push(keyLevels, r4_exit_level)
         array.push(keyLabels, "4HR Stop")
 
@@ -627,6 +735,124 @@ pref = currentHour >= 9 and currentHour < 11 ? "Prime" :
 prefColor = pref == "Prime" ? color.green : pref == "Active" ? color.yellow : color.gray
 
 //══════════════════════════════════════════════════════════════════════════════
+// VOLUME EXPANSION/COMPRESSION INDICATOR
+//══════════════════════════════════════════════════════════════════════════════
+
+// Compare current volume to average volume
+int volPeriod = 20
+float avgVolume = ta.sma(volume, volPeriod)
+float volRatio = volume / avgVolume
+
+// Determine volume state
+string volState = "NORMAL"
+color volStateColor = color.gray
+
+if volRatio >= 2.0
+    volState := "EXPANSION"
+    volStateColor := color.green
+else if volRatio >= 1.5
+    volState := "RISING"
+    volStateColor := color.lime
+else if volRatio <= 0.5
+    volState := "COMPRESSION"
+    volStateColor := color.orange
+else if volRatio <= 0.75
+    volState := "DECLINING"
+    volStateColor := color.yellow
+else
+    volState := "NORMAL"
+    volStateColor := color.gray
+
+// Track consecutive compression/expansion bars
+var int compressionBars = 0
+var int expansionBars = 0
+
+if volRatio <= 0.75
+    compressionBars += 1
+    expansionBars := 0
+else if volRatio >= 1.5
+    expansionBars += 1
+    compressionBars := 0
+else
+    compressionBars := math.max(0, compressionBars - 1)
+    expansionBars := math.max(0, expansionBars - 1)
+
+// Compression often precedes expansion (breakout)
+bool compressionAlert = compressionBars >= 3
+bool expansionAlert = expansionBars >= 2
+
+//══════════════════════════════════════════════════════════════════════════════
+// CONFIDENCE LEVEL CALCULATION
+//══════════════════════════════════════════════════════════════════════════════
+
+// Calculate confidence based on multiple factors aligning
+int confidenceScore = 0
+int maxConfidence = 10
+
+// Factor 1: Daily and 4HR bias alignment (+3)
+if htfAligned
+    confidenceScore += 3
+
+// Factor 2: Day type supports direction (+2)
+if (r4_market_bias == 1 and (isTrendDayUp or dayType == "Developing UP")) or
+   (r4_market_bias == -1 and (isTrendDayDown or dayType == "Developing DOWN"))
+    confidenceScore += 2
+
+// Factor 3: Volume supports move (+2)
+if (r4_market_bias != 0 and volRatio >= 1.5)
+    confidenceScore += 2
+else if compressionBars >= 3  // Compression = potential breakout
+    confidenceScore += 1
+
+// Factor 4: Bar type momentum (+2)
+if (r4_market_bias == 1 and bar4H_current == 2) or (r4_market_bias == -1 and bar4H_current == -2)
+    confidenceScore += 2
+
+// Factor 5: Prime trading time (+1)
+if pref == "Prime"
+    confidenceScore += 1
+
+// Confidence percentage
+int confidencePct = math.round(confidenceScore * 100 / maxConfidence)
+string confidenceText = str.tostring(confidencePct) + "%"
+color confidenceColor = confidencePct >= 70 ? color.green :
+                        confidencePct >= 50 ? color.yellow :
+                        confidencePct >= 30 ? color.orange : color.red
+
+//══════════════════════════════════════════════════════════════════════════════
+// CHOP DETECTION (Improved)
+//══════════════════════════════════════════════════════════════════════════════
+
+// Chop indicators:
+// 1. Inside day
+// 2. HTF conflict
+// 3. Volume compression
+// 4. Price oscillating within range
+
+bool isChoppy = false
+string chopReason = ""
+
+if isInsideDay
+    isChoppy := true
+    chopReason := "Inside Day"
+else if htfConflict
+    isChoppy := true
+    chopReason := "HTF Conflict"
+else if compressionBars >= 3
+    isChoppy := true
+    chopReason := "Vol Compression"
+else if r4_market_bias == 0 and dailyBias == 0
+    isChoppy := true
+    chopReason := "No Clear Direction"
+
+// Update GPS state for chop
+if isChoppy and gpsState != "GO"
+    gpsState := "CHOP"
+    gpsColor := color.orange
+    if chopReason != ""
+        gpsDirection := chopReason
+
+//══════════════════════════════════════════════════════════════════════════════
 // DASHBOARD TABLE
 //══════════════════════════════════════════════════════════════════════════════
 
@@ -640,7 +866,7 @@ if showDashboard and barstate.islast
                   dashPosition == "middle_right" ? position.middle_right :
                   dashPosition == "bottom_left" ? position.bottom_left :
                   dashPosition == "bottom_center" ? position.bottom_center : position.bottom_right,
-         columns=2, rows=18,
+         columns=2, rows=19,
          bgcolor=color.new(color.black, 10),
          border_width=2,
          border_color=color.new(color.gray, 50))
@@ -650,7 +876,7 @@ if showDashboard and barstate.islast
               dashSize == "normal" ? size.normal :
               dashSize == "large" ? size.large : size.huge
 
-    table.clear(dashboard, 0, 0, 1, 17)
+    table.clear(dashboard, 0, 0, 1, 18)
 
     // Header - GPS State
     table.cell(dashboard, 0, 0, "PRICE GPS", text_color=color.white, bgcolor=gpsColor, text_size=txtSize)
@@ -660,66 +886,70 @@ if showDashboard and barstate.islast
     table.cell(dashboard, 0, 1, "Direction", text_color=color.gray, text_size=txtSize)
     table.cell(dashboard, 1, 1, gpsDirection, text_color=gpsColor, text_size=txtSize)
 
+    // Confidence Level
+    table.cell(dashboard, 0, 2, "Confidence", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 2, confidenceText, text_color=confidenceColor, text_size=txtSize)
+
     // Day Type
-    table.cell(dashboard, 0, 2, "Day Type", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 2, dayType, text_color=dayTypeColor, text_size=txtSize)
+    table.cell(dashboard, 0, 3, "Day Type", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 3, dayType, text_color=dayTypeColor, text_size=txtSize)
+
+    // Volume State
+    table.cell(dashboard, 0, 4, "Volume", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 4, volState, text_color=volStateColor, text_size=txtSize)
 
     // HTF Alignment Section
-    table.cell(dashboard, 0, 3, "HTF BIAS", text_color=color.white, bgcolor=color.new(color.blue, 70), text_size=txtSize)
-    table.merge_cells(dashboard, 0, 3, 1, 3)
+    table.cell(dashboard, 0, 5, "HTF BIAS", text_color=color.white, bgcolor=color.new(color.blue, 70), text_size=txtSize)
+    table.merge_cells(dashboard, 0, 5, 1, 5)
 
-    table.cell(dashboard, 0, 4, "  Daily", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 4, dailyBiasText, text_color=dailyBiasColor, text_size=txtSize)
+    table.cell(dashboard, 0, 6, "  Daily", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 6, dailyBiasText, text_color=dailyBiasColor, text_size=txtSize)
 
-    table.cell(dashboard, 0, 5, "  4HR", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 5, r4_biasText, text_color=r4_biasColor, text_size=txtSize)
+    table.cell(dashboard, 0, 7, "  4HR", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 7, r4_biasText, text_color=r4_biasColor, text_size=txtSize)
 
-    table.cell(dashboard, 0, 6, "  Alignment", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 6, alignmentText, text_color=alignmentColor, text_size=txtSize)
+    table.cell(dashboard, 0, 8, "  Alignment", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 8, alignmentText, text_color=alignmentColor, text_size=txtSize)
 
     // 4HR Re-Trigger Section
-    table.cell(dashboard, 0, 7, "4HR SETUP", text_color=color.white, bgcolor=color.new(color.orange, 70), text_size=txtSize)
-    table.merge_cells(dashboard, 0, 7, 1, 7)
+    table.cell(dashboard, 0, 9, "4HR SETUP", text_color=color.white, bgcolor=color.new(color.orange, 70), text_size=txtSize)
+    table.merge_cells(dashboard, 0, 9, 1, 9)
 
-    table.cell(dashboard, 0, 8, "  Pattern", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 8, r4_pattern, text_color=color.white, text_size=txtSize)
+    table.cell(dashboard, 0, 10, "  Pattern", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 10, r4_pattern, text_color=color.white, text_size=txtSize)
 
-    entryStr = not na(r4_entry_level) ? str.tostring(r4_entry_level, format.mintick) : "N/A"
-    table.cell(dashboard, 0, 9, "  Entry Level", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 9, entryStr, text_color=color.lime, text_size=txtSize)
+    entryStr = not na(r4_entry_level) and r4_setup_bias != 0 ? str.tostring(r4_entry_level, format.mintick) : "N/A"
+    table.cell(dashboard, 0, 11, "  Entry Level", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 11, entryStr, text_color=color.lime, text_size=txtSize)
 
-    exitStr = not na(r4_exit_level) ? str.tostring(r4_exit_level, format.mintick) : "N/A"
-    table.cell(dashboard, 0, 10, "  Stop Level", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 10, exitStr, text_color=color.red, text_size=txtSize)
+    exitStr = not na(r4_exit_level) and r4_setup_bias != 0 ? str.tostring(r4_exit_level, format.mintick) : "N/A"
+    table.cell(dashboard, 0, 12, "  Stop Level", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 12, exitStr, text_color=color.red, text_size=txtSize)
 
-    targetStr = not na(r4_target_level) ? str.tostring(r4_target_level, format.mintick) : "N/A"
-    table.cell(dashboard, 0, 11, "  Target", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 11, targetStr, text_color=color.aqua, text_size=txtSize)
+    targetStr = not na(r4_target_level) and r4_setup_bias != 0 ? str.tostring(r4_target_level, format.mintick) : "N/A"
+    table.cell(dashboard, 0, 13, "  Target", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 13, targetStr, text_color=color.aqua, text_size=txtSize)
 
     // Key Levels Section
-    table.cell(dashboard, 0, 12, "KEY LEVELS", text_color=color.white, bgcolor=color.new(color.purple, 70), text_size=txtSize)
-    table.merge_cells(dashboard, 0, 12, 1, 12)
+    table.cell(dashboard, 0, 14, "KEY LEVELS", text_color=color.white, bgcolor=color.new(color.purple, 70), text_size=txtSize)
+    table.merge_cells(dashboard, 0, 14, 1, 14)
 
     aboveStr = nearestAbove + (not na(nearestAbovePrice) ? " @ " + str.tostring(nearestAbovePrice, format.mintick) : "")
-    table.cell(dashboard, 0, 13, "  Above", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 13, aboveStr, text_color=color.green, text_size=txtSize)
+    table.cell(dashboard, 0, 15, "  Above", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 15, aboveStr, text_color=color.green, text_size=txtSize)
 
     belowStr = nearestBelow + (not na(nearestBelowPrice) ? " @ " + str.tostring(nearestBelowPrice, format.mintick) : "")
-    table.cell(dashboard, 0, 14, "  Below", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 14, belowStr, text_color=color.red, text_size=txtSize)
+    table.cell(dashboard, 0, 16, "  Below", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 16, belowStr, text_color=color.red, text_size=txtSize)
 
     // Price Target based on bias
-    table.cell(dashboard, 0, 15, "  Target", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 0, 17, "  Target", text_color=color.gray, text_size=txtSize)
     targetColor = dailyBias == 1 ? color.green : dailyBias == -1 ? color.red : color.gray
-    table.cell(dashboard, 1, 15, priceTarget, text_color=targetColor, text_size=txtSize)
+    table.cell(dashboard, 1, 17, priceTarget, text_color=targetColor, text_size=txtSize)
 
     // Time Preference
-    table.cell(dashboard, 0, 16, "Session", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 16, pref, text_color=prefColor, text_size=txtSize)
-
-    // Current Price
-    table.cell(dashboard, 0, 17, "Price", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 17, str.tostring(close, format.mintick), text_color=color.white, text_size=txtSize)
+    table.cell(dashboard, 0, 18, "Session", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 18, pref, text_color=prefColor, text_size=txtSize)
 
 //══════════════════════════════════════════════════════════════════════════════
 // VISUAL PLOTTING - Key Levels
@@ -883,13 +1113,13 @@ if showLevels
         labelLonLo := na
 
     // 4HR Entry Level - Lime solid line
-    if not na(r4_entry_level) and r4_bias != 0 and not r4_triggered
+    if not na(r4_entry_level) and r4_setup_bias != 0 and not r4_triggered
         if na(line4HREntry) or new4HCandle
             if not na(line4HREntry)
                 line.delete(line4HREntry)
             if not na(label4HREntry)
                 label.delete(label4HREntry)
-            entryColor = r4_bias == 1 ? color.lime : color.fuchsia
+            entryColor = r4_setup_bias == 1 ? color.lime : color.fuchsia
             line4HREntry := line.new(bar_index, r4_entry_level, bar_index + EXTEND, r4_entry_level,
                      color=color.new(entryColor, 20), width=2, style=line.style_solid)
             label4HREntry := label.new(bar_index, r4_entry_level, "4HR ENTRY",
@@ -906,7 +1136,7 @@ if showLevels
         label4HREntry := na
 
     // 4HR Stop Level - Red dashed line
-    if not na(r4_exit_level) and r4_bias != 0
+    if not na(r4_exit_level) and r4_setup_bias != 0
         if na(line4HRStop) or new4HCandle
             if not na(line4HRStop)
                 line.delete(line4HRStop)
@@ -928,7 +1158,7 @@ if showLevels
         label4HRStop := na
 
     // 4HR Target Level - Aqua dashed line
-    if not na(r4_target_level) and r4_bias != 0
+    if not na(r4_target_level) and r4_setup_bias != 0
         if na(line4HRTarget) or new4HCandle
             if not na(line4HRTarget)
                 line.delete(line4HRTarget)
@@ -954,14 +1184,18 @@ if showLevels
 //══════════════════════════════════════════════════════════════════════════════
 
 // 4HR Setup Alerts (separate for bullish/bearish since message must be const)
-alertcondition(new4HCandle and r4_bias == 1 and not r4_triggered, "4HR LONG Setup", "4HR Re-Trigger LONG setup detected: {{ticker}} @ {{close}}")
-alertcondition(new4HCandle and r4_bias == -1 and not r4_triggered, "4HR SHORT Setup", "4HR Re-Trigger SHORT setup detected: {{ticker}} @ {{close}}")
+alertcondition(new4HCandle and r4_setup_bias == 1 and not r4_triggered, "4HR LONG Setup", "4HR Re-Trigger LONG setup detected: {{ticker}} @ {{close}}")
+alertcondition(new4HCandle and r4_setup_bias == -1 and not r4_triggered, "4HR SHORT Setup", "4HR Re-Trigger SHORT setup detected: {{ticker}} @ {{close}}")
 
 // 4HR Entry Alerts
-alertcondition(r4_triggered and r4_bias == 1, "4HR LONG Entry", "4HR LONG Entry triggered: {{ticker}} @ {{close}}")
-alertcondition(r4_triggered and r4_bias == -1, "4HR SHORT Entry", "4HR SHORT Entry triggered: {{ticker}} @ {{close}}")
+alertcondition(r4_triggered and r4_setup_bias == 1, "4HR LONG Entry", "4HR LONG Entry triggered: {{ticker}} @ {{close}}")
+alertcondition(r4_triggered and r4_setup_bias == -1, "4HR SHORT Entry", "4HR SHORT Entry triggered: {{ticker}} @ {{close}}")
 
 // GPS State Alerts
 alertcondition(gpsState == "GO" and dailyBias == 1, "GPS GO LONG", "GPS GO: {{ticker}} - HTF Aligned LONG")
 alertcondition(gpsState == "GO" and dailyBias == -1, "GPS GO SHORT", "GPS GO: {{ticker}} - HTF Aligned SHORT")
 alertcondition(gpsState == "CHOP", "GPS CHOP Warning", "GPS CHOP: {{ticker}} - HTF Conflict or Inside Day")
+
+// Volume Alerts
+alertcondition(expansionAlert, "Volume Expansion", "Volume expansion detected: {{ticker}} - Breakout likely")
+alertcondition(compressionAlert, "Volume Compression", "Volume compression detected: {{ticker}} - Expect breakout soon")
