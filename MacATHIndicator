@@ -815,9 +815,7 @@ if pref == "Prime"
 // Confidence percentage
 int confidencePct = math.round(confidenceScore * 100 / maxConfidence)
 string confidenceText = str.tostring(confidencePct) + "%"
-color confidenceColor = confidencePct >= 70 ? color.green :
-                        confidencePct >= 50 ? color.yellow :
-                        confidencePct >= 30 ? color.orange : color.red
+color confidenceColor = confidencePct >= 70 ? color.green : confidencePct >= 50 ? color.yellow : confidencePct >= 30 ? color.orange : color.red
 
 //══════════════════════════════════════════════════════════════════════════════
 // CHOP DETECTION (Improved)
