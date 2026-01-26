@@ -222,6 +222,18 @@ if array.size(bull_ob_avg) > 0
      request.security(syminfo.tickerid, "60", [open, high, low, close, time],
      lookahead=barmerge.lookahead_off)
 
+// 30min data for tighter stops
+[mtf30_open, mtf30_high, mtf30_low, mtf30_close, mtf30_time] =
+     request.security(syminfo.tickerid, "30", [open, high, low, close, time],
+     lookahead=barmerge.lookahead_off)
+
+[mtf30_prevHigh, mtf30_prevLow] =
+     request.security(syminfo.tickerid, "30", [high[1], low[1]],
+     lookahead=barmerge.lookahead_off)
+
+// Detect new 30min candle
+bool new30mCandle = ta.change(mtf30_time) != 0
+
 //══════════════════════════════════════════════════════════════════════════════
 // SESSION LEVELS (PDH/PDL, Session Opens, Asia/London)
 //══════════════════════════════════════════════════════════════════════════════
@@ -394,6 +406,7 @@ var int r4_setup_bias = 0          // Setup-specific bias: 1=bullish setup, -1=b
 var string r4_pattern = "Scanning"
 var bool r4_triggered = false
 var int r4_setup_bar = 0
+var bool r4_entry_label_drawn = false  // Track if we already drew entry label for this setup
 
 // Detect new 4HR candle
 bool new4HCandle = ta.change(mtf4H_time) != 0
@@ -476,69 +489,66 @@ if new4HCandle
     bool bullishContinuation = (bar4H_current == 2 and dailyBias == 1)  // 2UP with daily bullish
     bool bearishContinuation = (bar4H_current == -2 and dailyBias == -1)  // 2DOWN with daily bearish
 
-    if bullishReversal
-        r4_entry_level := mtf4H_prevHigh  // Break above the 2DOWN high for entry
-        r4_exit_level := mtf4H_prevLow    // Stop below the 2DOWN low
-        // Target: nearest bearish OB above (where liquidity/sells are), or fallback to 2:1
-        if not na(nearest_bear_ob_above)
-            r4_target_level := nearest_bear_ob_above
-        else
-            r4_target_level := r4_entry_level + (r4_entry_level - r4_exit_level) * 2
-        r4_setup_bias := 1
-        r4_pattern := "2DOWN→2UP (LONG)"
-        r4_triggered := false
-        r4_setup_bar := bar_index
+    // Only create new setups if NOT already in an active trade
+    if not r4_triggered
+        if bullishReversal
+            r4_entry_level := mtf4H_prevHigh  // Break above the 2DOWN high for entry
+            // Tight stop based on 30min/1HR structure (lowest of recent lows)
+            float tight_stop = math.max(mtf30_prevLow, math.max(mtf30_low, mtf1H_low))
+            r4_exit_level := tight_stop
+            // Target: nearest bearish OB above (where liquidity/sells are), or fallback to 2:1
+            if not na(nearest_bear_ob_above)
+                r4_target_level := nearest_bear_ob_above
+            else
+                r4_target_level := r4_entry_level + (r4_entry_level - r4_exit_level) * 2
+            r4_setup_bias := 1
+            r4_pattern := "2DOWN→2UP (LONG)"
+            r4_entry_label_drawn := false
+            r4_setup_bar := bar_index
 
-        if showPatterns
-            label.new(bar_index, low, "4HR LONG\nEntry: " + str.tostring(r4_entry_level, format.mintick) +
-                     "\nStop: " + str.tostring(r4_exit_level, format.mintick),
-                     style=label.style_label_up, color=color.new(color.green, 50),
-                     textcolor=color.white, size=size.small)
+        else if bearishReversal
+            r4_entry_level := mtf4H_prevLow   // Break below the 2UP low for entry
+            // Tight stop based on 30min/1HR structure (highest of recent highs)
+            float tight_stop = math.min(mtf30_prevHigh, math.min(mtf30_high, mtf1H_high))
+            r4_exit_level := tight_stop
+            // Target: nearest bullish OB below (where liquidity/buys are), or fallback to 2:1
+            if not na(nearest_bull_ob_below)
+                r4_target_level := nearest_bull_ob_below
+            else
+                r4_target_level := r4_entry_level - (r4_exit_level - r4_entry_level) * 2
+            r4_setup_bias := -1
+            r4_pattern := "2UP→2DOWN (SHORT)"
+            r4_entry_label_drawn := false
+            r4_setup_bar := bar_index
 
-    else if bearishReversal
-        r4_entry_level := mtf4H_prevLow   // Break below the 2UP low for entry
-        r4_exit_level := mtf4H_prevHigh   // Stop above the 2UP high
-        // Target: nearest bullish OB below (where liquidity/buys are), or fallback to 2:1
-        if not na(nearest_bull_ob_below)
-            r4_target_level := nearest_bull_ob_below
-        else
-            r4_target_level := r4_entry_level - (r4_exit_level - r4_entry_level) * 2
-        r4_setup_bias := -1
-        r4_pattern := "2UP→2DOWN (SHORT)"
-        r4_triggered := false
-        r4_setup_bar := bar_index
+        // Continuation setups - only if no existing setup
+        else if bullishContinuation and r4_setup_bias != 1
+            // Set entry at current 30min/1HR low for pullback entry
+            r4_entry_level := math.min(mtf30_low, mtf1H_low)
+            // Tight stop just below the entry structure
+            r4_exit_level := math.max(mtf30_prevLow, mtf30_low) - syminfo.mintick
+            if not na(nearest_bear_ob_above)
+                r4_target_level := nearest_bear_ob_above
+            else
+                r4_target_level := r4_entry_level + (r4_entry_level - r4_exit_level) * 2
+            r4_setup_bias := 1
+            r4_pattern := "HTF ALIGNED LONG"
+            r4_entry_label_drawn := false
+            r4_setup_bar := bar_index
 
-        if showPatterns
-            label.new(bar_index, high, "4HR SHORT\nEntry: " + str.tostring(r4_entry_level, format.mintick) +
-                     "\nStop: " + str.tostring(r4_exit_level, format.mintick),
-                     style=label.style_label_down, color=color.new(color.red, 50),
-                     textcolor=color.white, size=size.small)
-
-    // Continuation setups - update levels when HTF aligned and 2UP/2DOWN continues
-    else if bullishContinuation and (r4_setup_bias != 1 or na(r4_entry_level))
-        // Set entry at current 4HR low (pullback entry) with stop at recent swing low
-        r4_entry_level := mtf4H_low
-        r4_exit_level := mtf4H_prevLow
-        if not na(nearest_bear_ob_above)
-            r4_target_level := nearest_bear_ob_above
-        else
-            r4_target_level := r4_entry_level + (r4_entry_level - r4_exit_level) * 2
-        r4_setup_bias := 1
-        r4_pattern := "HTF ALIGNED LONG"
-        r4_triggered := false
-        r4_setup_bar := bar_index
-
-    else if bearishContinuation and (r4_setup_bias != -1 or na(r4_entry_level))
-        r4_entry_level := mtf4H_high
-        r4_exit_level := mtf4H_prevHigh
-        if not na(nearest_bull_ob_below)
-            r4_target_level := nearest_bull_ob_below
-        else
-            r4_target_level := r4_entry_level - (r4_exit_level - r4_entry_level) * 2
-        r4_setup_bias := -1
-        r4_pattern := "HTF ALIGNED SHORT"
-        r4_triggered := false
-        r4_setup_bar := bar_index
+        else if bearishContinuation and r4_setup_bias != -1
+            // Set entry at current 30min/1HR high for pullback entry
+            r4_entry_level := math.max(mtf30_high, mtf1H_high)
+            // Tight stop just above the entry structure
+            r4_exit_level := math.min(mtf30_prevHigh, mtf30_high) + syminfo.mintick
+            if not na(nearest_bull_ob_below)
+                r4_target_level := nearest_bull_ob_below
+            else
+                r4_target_level := r4_entry_level - (r4_exit_level - r4_entry_level) * 2
+            r4_setup_bias := -1
+            r4_pattern := "HTF ALIGNED SHORT"
+            r4_entry_label_drawn := false
+            r4_setup_bar := bar_index
 
 // Entry triggers (check on every bar) - use r4_setup_bias for setup tracking
 if not na(r4_entry_level) and not r4_triggered
@@ -546,19 +556,23 @@ if not na(r4_entry_level) and not r4_triggered
         r4_triggered := true
         r4_pattern := "LONG ACTIVE"
 
-        if showPatterns
-            label.new(bar_index, low, "LONG ENTRY\n" + str.tostring(close, format.mintick),
+        // Only draw label once per setup
+        if showPatterns and not r4_entry_label_drawn
+            label.new(bar_index, low, "LONG @ " + str.tostring(close, format.mintick),
                      style=label.style_label_up, color=color.new(color.lime, 30),
-                     textcolor=color.white, size=size.normal)
+                     textcolor=color.white, size=size.small)
+            r4_entry_label_drawn := true
 
     else if r4_setup_bias == -1 and close < r4_entry_level
         r4_triggered := true
         r4_pattern := "SHORT ACTIVE"
 
-        if showPatterns
-            label.new(bar_index, high, "SHORT ENTRY\n" + str.tostring(close, format.mintick),
+        // Only draw label once per setup
+        if showPatterns and not r4_entry_label_drawn
+            label.new(bar_index, high, "SHORT @ " + str.tostring(close, format.mintick),
                      style=label.style_label_down, color=color.new(color.maroon, 30),
-                     textcolor=color.white, size=size.normal)
+                     textcolor=color.white, size=size.small)
+            r4_entry_label_drawn := true
 
 // Dynamically update target based on nearest OB (liquidity target)
 if r4_setup_bias == 1 and not na(nearest_bear_ob_above)
