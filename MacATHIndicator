@@ -1321,6 +1321,56 @@ string reversal_conf = bestScore >= 4 ? "HIGH" : bestScore >= 2 ? "MED" : "LOW"
 color reversal_conf_color = bestScore >= 4 ? color.green : bestScore >= 2 ? color.yellow : color.orange
 
 //══════════════════════════════════════════════════════════════════════════════
+// SCALP ZONE (Nearest level for quick trades)
+//══════════════════════════════════════════════════════════════════════════════
+
+// Scalp zone = closest level to current price, regardless of confluence
+// For quick in-and-out trades when you don't want to wait for the reversal zone
+
+var float scalp_level = na
+var string scalp_type = "None"
+var string scalp_action = "WAIT"
+var color scalp_color = color.gray
+
+// Find the CLOSEST level from our array (ignoring score)
+float nearestLevel = na
+string nearestType = "None"
+float nearestDist = 999999.0
+
+if array.size(rev_levels) > 0
+    for i = 0 to array.size(rev_levels) - 1
+        float lvl = array.get(rev_levels, i)
+        string typ = array.get(rev_types, i)
+        float dist = math.abs(close - lvl)
+
+        if dist < nearestDist
+            nearestDist := dist
+            nearestLevel := lvl
+            nearestType := typ
+
+// Set scalp zone outputs
+scalp_level := nearestLevel
+
+if na(nearestLevel)
+    scalp_type := "No Zone"
+    scalp_action := "WAIT"
+    scalp_color := color.gray
+else
+    scalp_type := nearestType
+    if lookingForLongReversal
+        scalp_action := "BUY @ " + str.tostring(nearestLevel, format.mintick)
+        scalp_color := color.yellow
+    else if lookingForShortReversal
+        scalp_action := "SELL @ " + str.tostring(nearestLevel, format.mintick)
+        scalp_color := color.orange
+    else
+        scalp_action := "WAIT"
+        scalp_color := color.gray
+
+// Calculate distance to scalp level
+string scalp_distance = na(scalp_level) ? "N/A" : str.tostring(math.abs(close - scalp_level), format.mintick) + " pts"
+
+//══════════════════════════════════════════════════════════════════════════════
 // CHOP DETECTION (Improved)
 //══════════════════════════════════════════════════════════════════════════════
 
@@ -1367,7 +1417,7 @@ if showDashboard and barstate.islast
                   dashPosition == "middle_right" ? position.middle_right :
                   dashPosition == "bottom_left" ? position.bottom_left :
                   dashPosition == "bottom_center" ? position.bottom_center : position.bottom_right,
-         columns=2, rows=19,
+         columns=2, rows=22,
          bgcolor=color.new(color.black, 10),
          border_width=2,
          border_color=color.new(color.gray, 50))
@@ -1377,7 +1427,7 @@ if showDashboard and barstate.islast
               dashSize == "normal" ? size.normal :
               dashSize == "large" ? size.large : size.huge
 
-    table.clear(dashboard, 0, 0, 1, 18)
+    table.clear(dashboard, 0, 0, 1, 21)
 
     // Header - GPS State
     table.cell(dashboard, 0, 0, "PRICE GPS", text_color=color.white, bgcolor=gpsColor, text_size=txtSize)
@@ -1447,11 +1497,21 @@ if showDashboard and barstate.islast
     table.cell(dashboard, 0, 17, "  Strength", text_color=color.gray, text_size=txtSize)
     table.cell(dashboard, 1, 17, reversal_conf, text_color=reversal_conf_color, text_size=txtSize)
 
-    // Re-entry Level (for pullback entries during active trades)
-    reentryStr = not na(reentry_level) ? str.tostring(reentry_level, format.mintick) + " (" + reentry_type + ")" : "N/A"
-    reentryColor = r4_triggered ? color.yellow : color.lime
-    table.cell(dashboard, 0, 18, "  Re-Entry", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 18, reentryStr, text_color=reentryColor, text_size=txtSize)
+    // SCALP ZONE Section (Quick trades - nearest level)
+    table.cell(dashboard, 0, 18, "SCALP ZONE", text_color=color.black, bgcolor=color.new(color.yellow, 50), text_size=txtSize)
+    table.merge_cells(dashboard, 0, 18, 1, 18)
+
+    // Scalp Action (BUY/SELL @ nearest level)
+    table.cell(dashboard, 0, 19, "  Action", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 19, scalp_action, text_color=scalp_color, text_size=txtSize)
+
+    // Scalp Type
+    table.cell(dashboard, 0, 20, "  Type", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 20, scalp_type, text_color=color.white, text_size=txtSize)
+
+    // Distance to scalp level
+    table.cell(dashboard, 0, 21, "  Distance", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 21, scalp_distance, text_color=color.yellow, text_size=txtSize)
 
 //══════════════════════════════════════════════════════════════════════════════
 // VISUAL PLOTTING - Key Levels
@@ -1471,6 +1531,7 @@ var line line4HRStop = na
 var line line4HRTarget = na
 var line line4HRReentry = na
 var line lineReversal = na
+var line lineScalp = na
 
 var label labelPDH = na
 var label labelPDL = na
@@ -1484,6 +1545,7 @@ var label label4HRStop = na
 var label label4HRTarget = na
 var label label4HRReentry = na
 var label labelReversal = na
+var label labelScalp = na
 
 if showLevels
     // PDH - Red dotted line
@@ -1730,6 +1792,31 @@ if showLevels
         label.delete(labelReversal)
         labelReversal := na
 
+    // SCALP ZONE Level - Yellow solid line (nearest level for quick trades)
+    // Only show if different from reversal level (avoid overlapping lines)
+    bool scalp_diff_from_reversal = na(reversal_level) or na(scalp_level) or math.abs(scalp_level - reversal_level) > syminfo.mintick * 10
+
+    if not na(scalp_level) and scalp_diff_from_reversal
+        // Delete and recreate to keep it updated
+        if not na(lineScalp)
+            line.delete(lineScalp)
+        if not na(labelScalp)
+            label.delete(labelScalp)
+
+        scalpLineColor = lookingForLongReversal ? color.yellow : color.orange
+        lineScalp := line.new(bar_index, scalp_level, bar_index + EXTEND, scalp_level,
+                 color=color.new(scalpLineColor, 30), width=1, style=line.style_solid)
+
+        scalpLabelText = lookingForLongReversal ? "⚡ SCALP BUY (" + scalp_type + ")" : "⚡ SCALP SELL (" + scalp_type + ")"
+        labelScalp := label.new(bar_index, scalp_level, scalpLabelText,
+                  style=label.style_label_right, color=color.new(scalpLineColor, 50),
+                  textcolor=color.black, size=size.tiny, yloc=yloc.price)
+    else if not na(lineScalp)
+        line.delete(lineScalp)
+        lineScalp := na
+        label.delete(labelScalp)
+        labelScalp := na
+
 //══════════════════════════════════════════════════════════════════════════════
 // ALERTS
 //══════════════════════════════════════════════════════════════════════════════
@@ -1754,3 +1841,7 @@ alertcondition(compressionAlert, "Volume Compression", "Volume compression detec
 // Reversal Zone Alerts
 alertcondition(not na(reversal_level) and lookingForLongReversal and close <= reversal_level * 1.002, "Reversal BUY Zone", "Price approaching BUY reversal zone: {{ticker}} @ {{close}}")
 alertcondition(not na(reversal_level) and lookingForShortReversal and close >= reversal_level * 0.998, "Reversal SELL Zone", "Price approaching SELL reversal zone: {{ticker}} @ {{close}}")
+
+// Scalp Zone Alerts
+alertcondition(not na(scalp_level) and lookingForLongReversal and close <= scalp_level * 1.001, "Scalp BUY Zone", "Price at SCALP BUY zone: {{ticker}} @ {{close}}")
+alertcondition(not na(scalp_level) and lookingForShortReversal and close >= scalp_level * 0.999, "Scalp SELL Zone", "Price at SCALP SELL zone: {{ticker}} @ {{close}}")
