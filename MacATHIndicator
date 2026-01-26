@@ -684,6 +684,133 @@ string r4_biasText = r4_bias == 1 ? "BULLISH" : r4_bias == -1 ? "BEARISH" : "NEU
 color r4_biasColor = r4_bias == 1 ? color.green : r4_bias == -1 ? color.red : color.gray
 
 //══════════════════════════════════════════════════════════════════════════════
+// LIQUIDITY SWEEP DETECTION (Sweeps into OBs, PDL, Session Lows)
+//══════════════════════════════════════════════════════════════════════════════
+
+// Detect liquidity sweeps: price briefly breaks a level then reclaims
+// Bullish sweep: wick below support, close above = buy signal
+// Bearish sweep: wick above resistance, close below = sell signal
+
+var string sweep_signal = "None"
+var float sweep_level = na
+var string sweep_type = ""
+
+// Check for bullish sweeps (sweep lows, reclaim)
+bool bullish_sweep = false
+string bullish_sweep_type = ""
+float bullish_sweep_level = na
+
+// Sweep of nearest bullish OB
+if not na(nearest_bull_ob_below) and dailyBias == 1
+    if low < nearest_bull_ob_btm and close > nearest_bull_ob_top
+        bullish_sweep := true
+        bullish_sweep_type := "OB Sweep"
+        bullish_sweep_level := nearest_bull_ob_top
+
+// Sweep of PDL
+if not na(pdl) and dailyBias == 1
+    if low < pdl and close > pdl
+        bullish_sweep := true
+        bullish_sweep_type := "PDL Sweep"
+        bullish_sweep_level := pdl
+
+// Sweep of Asia Low
+if not na(asiaLoFinal) and dailyBias == 1
+    if low < asiaLoFinal and close > asiaLoFinal
+        bullish_sweep := true
+        bullish_sweep_type := "Asia Sweep"
+        bullish_sweep_level := asiaLoFinal
+
+// Sweep of London Low
+if not na(lonLoFinal) and dailyBias == 1
+    if low < lonLoFinal and close > lonLoFinal
+        bullish_sweep := true
+        bullish_sweep_type := "London Sweep"
+        bullish_sweep_level := lonLoFinal
+
+// Check for bearish sweeps (sweep highs, reclaim)
+bool bearish_sweep = false
+string bearish_sweep_type = ""
+float bearish_sweep_level = na
+
+// Sweep of nearest bearish OB
+if not na(nearest_bear_ob_above) and dailyBias == -1
+    if high > nearest_bear_ob_top and close < nearest_bear_ob_btm
+        bearish_sweep := true
+        bearish_sweep_type := "OB Sweep"
+        bearish_sweep_level := nearest_bear_ob_btm
+
+// Sweep of PDH
+if not na(pdh) and dailyBias == -1
+    if high > pdh and close < pdh
+        bearish_sweep := true
+        bearish_sweep_type := "PDH Sweep"
+        bearish_sweep_level := pdh
+
+// Sweep of Asia High
+if not na(asiaHiFinal) and dailyBias == -1
+    if high > asiaHiFinal and close < asiaHiFinal
+        bearish_sweep := true
+        bearish_sweep_type := "Asia Sweep"
+        bearish_sweep_level := asiaHiFinal
+
+// Sweep of London High
+if not na(lonHiFinal) and dailyBias == -1
+    if high > lonHiFinal and close < lonHiFinal
+        bearish_sweep := true
+        bearish_sweep_type := "London Sweep"
+        bearish_sweep_level := lonHiFinal
+
+// Update sweep signal
+if bullish_sweep
+    sweep_signal := "BULLISH SWEEP"
+    sweep_level := bullish_sweep_level
+    sweep_type := bullish_sweep_type
+
+    // Create entry setup from sweep
+    if not r4_triggered
+        r4_entry_level := bullish_sweep_level
+        r4_exit_level := low - syminfo.mintick  // Stop just below the sweep low
+        if not na(nearest_bear_ob_above)
+            r4_target_level := nearest_bear_ob_above
+        else
+            r4_target_level := r4_entry_level + (r4_entry_level - r4_exit_level) * 2
+        r4_setup_bias := 1
+        r4_pattern := bullish_sweep_type + " → LONG"
+        r4_entry_label_drawn := false
+
+        if showPatterns
+            label.new(bar_index, low, bullish_sweep_type + "\nBUY @ " + str.tostring(close, format.mintick),
+                     style=label.style_label_up, color=color.new(color.teal, 30),
+                     textcolor=color.white, size=size.small)
+
+else if bearish_sweep
+    sweep_signal := "BEARISH SWEEP"
+    sweep_level := bearish_sweep_level
+    sweep_type := bearish_sweep_type
+
+    // Create entry setup from sweep
+    if not r4_triggered
+        r4_entry_level := bearish_sweep_level
+        r4_exit_level := high + syminfo.mintick  // Stop just above the sweep high
+        if not na(nearest_bull_ob_below)
+            r4_target_level := nearest_bull_ob_below
+        else
+            r4_target_level := r4_entry_level - (r4_exit_level - r4_entry_level) * 2
+        r4_setup_bias := -1
+        r4_pattern := bearish_sweep_type + " → SHORT"
+        r4_entry_label_drawn := false
+
+        if showPatterns
+            label.new(bar_index, high, bearish_sweep_type + "\nSELL @ " + str.tostring(close, format.mintick),
+                     style=label.style_label_down, color=color.new(color.purple, 30),
+                     textcolor=color.white, size=size.small)
+else
+    sweep_signal := "None"
+    sweep_level := na
+    sweep_type := ""
+
+//══════════════════════════════════════════════════════════════════════════════
 // HTF ALIGNMENT CHECK (using market bias which is always calculated)
 //══════════════════════════════════════════════════════════════════════════════
 
@@ -954,7 +1081,7 @@ if showDashboard and barstate.islast
                   dashPosition == "middle_right" ? position.middle_right :
                   dashPosition == "bottom_left" ? position.bottom_left :
                   dashPosition == "bottom_center" ? position.bottom_center : position.bottom_right,
-         columns=2, rows=20,
+         columns=2, rows=19,
          bgcolor=color.new(color.black, 10),
          border_width=2,
          border_color=color.new(color.gray, 50))
@@ -964,7 +1091,7 @@ if showDashboard and barstate.islast
               dashSize == "normal" ? size.normal :
               dashSize == "large" ? size.large : size.huge
 
-    table.clear(dashboard, 0, 0, 1, 19)
+    table.clear(dashboard, 0, 0, 1, 18)
 
     // Header - GPS State
     table.cell(dashboard, 0, 0, "PRICE GPS", text_color=color.white, bgcolor=gpsColor, text_size=txtSize)
@@ -1040,10 +1167,6 @@ if showDashboard and barstate.islast
     table.cell(dashboard, 0, 18, "  Target", text_color=color.gray, text_size=txtSize)
     targetColor = dailyBias == 1 ? color.green : dailyBias == -1 ? color.red : color.gray
     table.cell(dashboard, 1, 18, priceTarget, text_color=targetColor, text_size=txtSize)
-
-    // Time Preference
-    table.cell(dashboard, 0, 19, "Session", text_color=color.gray, text_size=txtSize)
-    table.cell(dashboard, 1, 19, pref, text_color=prefColor, text_size=txtSize)
 
 //══════════════════════════════════════════════════════════════════════════════
 // VISUAL PLOTTING - Key Levels
