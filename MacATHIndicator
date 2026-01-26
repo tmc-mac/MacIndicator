@@ -1116,6 +1116,208 @@ string confidenceText = str.tostring(confidencePct) + "%"
 color confidenceColor = confidencePct >= 70 ? color.green : confidencePct >= 50 ? color.yellow : confidencePct >= 30 ? color.orange : color.red
 
 //══════════════════════════════════════════════════════════════════════════════
+// REVERSAL ZONE DETECTION (Short-term momentum plays aligned with trend)
+//══════════════════════════════════════════════════════════════════════════════
+
+// Reversal zones are levels where price is likely to bounce for a short-term move
+// In uptrend: Look for support levels to buy
+// In downtrend: Look for resistance levels to sell
+
+var float reversal_level = na
+var string reversal_type = "None"
+var string reversal_action = "WAIT"
+var color reversal_color = color.gray
+var int reversal_confluence = 0  // How many factors align at this level
+
+// Calculate Fibonacci levels from recent 4HR swing
+float fib_range = mtf4H_prevHigh - mtf4H_prevLow
+float fib_382 = mtf4H_prevLow + fib_range * 0.382
+float fib_50 = mtf4H_prevLow + fib_range * 0.5
+float fib_618 = mtf4H_prevLow + fib_range * 0.618
+
+// Track multiple potential reversal levels with confluence scoring
+var array<float> rev_levels = array.new<float>(0)
+var array<int> rev_scores = array.new<int>(0)
+var array<string> rev_types = array.new<string>(0)
+
+// Function to check if two levels are close (within 0.15% = clustering)
+f_levelsClose(lvl1, lvl2) =>
+    if na(lvl1) or na(lvl2)
+        false
+    else
+        math.abs(lvl1 - lvl2) / lvl1 < 0.0015
+
+// Calculate reversal levels based on current trend direction
+// Reset and recalculate each bar
+array.clear(rev_levels)
+array.clear(rev_scores)
+array.clear(rev_types)
+
+// Determine which direction we're looking for reversals
+int trendBias = htfAligned ? dailyBias : r4_market_bias
+bool lookingForLongReversal = trendBias == 1   // In uptrend, look for support to buy
+bool lookingForShortReversal = trendBias == -1 // In downtrend, look for resistance to sell
+
+if lookingForLongReversal
+    // UPTREND: Find support levels BELOW current price for buying pullbacks
+
+    // 1. Bullish Order Blocks (GREEN OBs below price)
+    if not na(nearest_bull_ob_below) and nearest_bull_ob_below < close
+        array.push(rev_levels, nearest_bull_ob_below)
+        array.push(rev_scores, 3)  // OBs are high probability
+        array.push(rev_types, "OB Support")
+
+    // 2. Fibonacci 61.8% (golden pocket) - strongest
+    if fib_618 < close and fib_618 > close * 0.99  // Within 1% below price
+        array.push(rev_levels, fib_618)
+        array.push(rev_scores, 2)
+        array.push(rev_types, "Fib 61.8%")
+
+    // 3. Fibonacci 50%
+    if fib_50 < close and fib_50 > close * 0.985
+        array.push(rev_levels, fib_50)
+        array.push(rev_scores, 2)
+        array.push(rev_types, "Fib 50%")
+
+    // 4. PDL (Previous Day Low) - strong support
+    if not na(pdl) and pdl < close and pdl > close * 0.98
+        array.push(rev_levels, pdl)
+        array.push(rev_scores, 2)
+        array.push(rev_types, "PDL")
+
+    // 5. Asia Low - session support
+    if not na(asiaLoFinal) and asiaLoFinal < close and asiaLoFinal > close * 0.99
+        array.push(rev_levels, asiaLoFinal)
+        array.push(rev_scores, 1)
+        array.push(rev_types, "Asia Low")
+
+    // 6. London Low - session support
+    if not na(lonLoFinal) and lonLoFinal < close and lonLoFinal > close * 0.99
+        array.push(rev_levels, lonLoFinal)
+        array.push(rev_scores, 1)
+        array.push(rev_types, "London Low")
+
+    // 7. Recent 1HR swing low
+    if not na(recent_swing_low) and recent_swing_low < close and recent_swing_low > close * 0.99
+        array.push(rev_levels, recent_swing_low)
+        array.push(rev_scores, 2)
+        array.push(rev_types, "1HR Swing Low")
+
+    // 8. 30min structure low
+    if mtf30_prevLow < close and mtf30_prevLow > close * 0.995
+        array.push(rev_levels, mtf30_prevLow)
+        array.push(rev_scores, 1)
+        array.push(rev_types, "30m Low")
+
+else if lookingForShortReversal
+    // DOWNTREND: Find resistance levels ABOVE current price for selling rallies
+
+    // 1. Bearish Order Blocks (RED OBs above price)
+    if not na(nearest_bear_ob_above) and nearest_bear_ob_above > close
+        array.push(rev_levels, nearest_bear_ob_above)
+        array.push(rev_scores, 3)
+        array.push(rev_types, "OB Resistance")
+
+    // 2. Fibonacci 61.8% from above
+    float fib_618_down = mtf4H_prevHigh - fib_range * 0.618
+    if fib_618_down > close and fib_618_down < close * 1.01
+        array.push(rev_levels, fib_618_down)
+        array.push(rev_scores, 2)
+        array.push(rev_types, "Fib 61.8%")
+
+    // 3. Fibonacci 50% from above
+    float fib_50_down = mtf4H_prevHigh - fib_range * 0.5
+    if fib_50_down > close and fib_50_down < close * 1.015
+        array.push(rev_levels, fib_50_down)
+        array.push(rev_scores, 2)
+        array.push(rev_types, "Fib 50%")
+
+    // 4. PDH (Previous Day High) - strong resistance
+    if not na(pdh) and pdh > close and pdh < close * 1.02
+        array.push(rev_levels, pdh)
+        array.push(rev_scores, 2)
+        array.push(rev_types, "PDH")
+
+    // 5. Asia High - session resistance
+    if not na(asiaHiFinal) and asiaHiFinal > close and asiaHiFinal < close * 1.01
+        array.push(rev_levels, asiaHiFinal)
+        array.push(rev_scores, 1)
+        array.push(rev_types, "Asia High")
+
+    // 6. London High - session resistance
+    if not na(lonHiFinal) and lonHiFinal > close and lonHiFinal < close * 1.01
+        array.push(rev_levels, lonHiFinal)
+        array.push(rev_scores, 1)
+        array.push(rev_types, "London High")
+
+    // 7. Recent 1HR swing high
+    if not na(recent_swing_high) and recent_swing_high > close and recent_swing_high < close * 1.01
+        array.push(rev_levels, recent_swing_high)
+        array.push(rev_scores, 2)
+        array.push(rev_types, "1HR Swing High")
+
+    // 8. 30min structure high
+    if mtf30_prevHigh > close and mtf30_prevHigh < close * 1.005
+        array.push(rev_levels, mtf30_prevHigh)
+        array.push(rev_scores, 1)
+        array.push(rev_types, "30m High")
+
+// Find the highest scoring reversal level (closest to price wins ties)
+float bestLevel = na
+int bestScore = 0
+string bestType = "None"
+float closestDist = 999999.0
+
+if array.size(rev_levels) > 0
+    for i = 0 to array.size(rev_levels) - 1
+        float lvl = array.get(rev_levels, i)
+        int score = array.get(rev_scores, i)
+        string typ = array.get(rev_types, i)
+        float dist = math.abs(close - lvl)
+
+        // Check for confluence - if another level is close, add to score
+        int confluenceBonus = 0
+        for j = 0 to array.size(rev_levels) - 1
+            if i != j and f_levelsClose(lvl, array.get(rev_levels, j))
+                confluenceBonus += 1
+
+        int totalScore = score + confluenceBonus
+
+        // Prefer higher score, then closer distance
+        if totalScore > bestScore or (totalScore == bestScore and dist < closestDist)
+            bestLevel := lvl
+            bestScore := totalScore
+            bestType := typ + (confluenceBonus > 0 ? " +" + str.tostring(confluenceBonus) : "")
+            closestDist := dist
+
+// Set reversal zone outputs
+reversal_level := bestLevel
+reversal_confluence := bestScore
+
+if na(bestLevel)
+    reversal_type := "No Zone"
+    reversal_action := "WAIT"
+    reversal_color := color.gray
+else
+    reversal_type := bestType
+    if lookingForLongReversal
+        reversal_action := "BUY @ " + str.tostring(bestLevel, format.mintick)
+        reversal_color := color.lime
+    else if lookingForShortReversal
+        reversal_action := "SELL @ " + str.tostring(bestLevel, format.mintick)
+        reversal_color := color.red
+    else
+        reversal_action := "WAIT"
+        reversal_color := color.gray
+
+// Calculate distance to reversal level
+string reversal_distance = na(reversal_level) ? "N/A" : str.tostring(math.abs(close - reversal_level), format.mintick) + " pts"
+
+// Reversal confidence based on confluence score
+string reversal_conf = bestScore >= 4 ? "HIGH" : bestScore >= 2 ? "MED" : "LOW"
+color reversal_conf_color = bestScore >= 4 ? color.green : bestScore >= 2 ? color.yellow : color.orange
+
+//══════════════════════════════════════════════════════════════════════════════
 // CHOP DETECTION (Improved)
 //══════════════════════════════════════════════════════════════════════════════
 
@@ -1162,7 +1364,7 @@ if showDashboard and barstate.islast
                   dashPosition == "middle_right" ? position.middle_right :
                   dashPosition == "bottom_left" ? position.bottom_left :
                   dashPosition == "bottom_center" ? position.bottom_center : position.bottom_right,
-         columns=2, rows=19,
+         columns=2, rows=24,
          bgcolor=color.new(color.black, 10),
          border_width=2,
          border_color=color.new(color.gray, 50))
@@ -1172,7 +1374,7 @@ if showDashboard and barstate.islast
               dashSize == "normal" ? size.normal :
               dashSize == "large" ? size.large : size.huge
 
-    table.clear(dashboard, 0, 0, 1, 18)
+    table.clear(dashboard, 0, 0, 1, 23)
 
     // Header - GPS State
     table.cell(dashboard, 0, 0, "PRICE GPS", text_color=color.white, bgcolor=gpsColor, text_size=txtSize)
@@ -1249,6 +1451,26 @@ if showDashboard and barstate.islast
     targetColor = dailyBias == 1 ? color.green : dailyBias == -1 ? color.red : color.gray
     table.cell(dashboard, 1, 18, priceTarget, text_color=targetColor, text_size=txtSize)
 
+    // REVERSAL ZONE Section (Short-term plays)
+    table.cell(dashboard, 0, 19, "REVERSAL ZONE", text_color=color.white, bgcolor=color.new(color.teal, 70), text_size=txtSize)
+    table.merge_cells(dashboard, 0, 19, 1, 19)
+
+    // Reversal Action (BUY/SELL @ level)
+    table.cell(dashboard, 0, 20, "  Action", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 20, reversal_action, text_color=reversal_color, text_size=txtSize)
+
+    // Reversal Type (what kind of level)
+    table.cell(dashboard, 0, 21, "  Type", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 21, reversal_type, text_color=color.white, text_size=txtSize)
+
+    // Distance to reversal level
+    table.cell(dashboard, 0, 22, "  Distance", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 22, reversal_distance, text_color=color.yellow, text_size=txtSize)
+
+    // Reversal Confidence
+    table.cell(dashboard, 0, 23, "  Strength", text_color=color.gray, text_size=txtSize)
+    table.cell(dashboard, 1, 23, reversal_conf, text_color=reversal_conf_color, text_size=txtSize)
+
 //══════════════════════════════════════════════════════════════════════════════
 // VISUAL PLOTTING - Key Levels
 //══════════════════════════════════════════════════════════════════════════════
@@ -1266,6 +1488,7 @@ var line line4HREntry = na
 var line line4HRStop = na
 var line line4HRTarget = na
 var line line4HRReentry = na
+var line lineReversal = na
 
 var label labelPDH = na
 var label labelPDL = na
@@ -1278,6 +1501,7 @@ var label label4HREntry = na
 var label label4HRStop = na
 var label label4HRTarget = na
 var label label4HRReentry = na
+var label labelReversal = na
 
 if showLevels
     // PDH - Red dotted line
@@ -1502,6 +1726,28 @@ if showLevels
         label.delete(label4HRReentry)
         label4HRReentry := na
 
+    // REVERSAL ZONE Level - Teal dashed line (short-term reversal plays)
+    if not na(reversal_level)
+        // Delete and recreate to keep it updated
+        if not na(lineReversal)
+            line.delete(lineReversal)
+        if not na(labelReversal)
+            label.delete(labelReversal)
+
+        reversalLineColor = lookingForLongReversal ? color.teal : color.fuchsia
+        lineReversal := line.new(bar_index, reversal_level, bar_index + EXTEND, reversal_level,
+                 color=color.new(reversalLineColor, 30), width=2, style=line.style_dashed)
+
+        reversalLabelText = lookingForLongReversal ? "⬆ BUY ZONE (" + reversal_type + ")" : "⬇ SELL ZONE (" + reversal_type + ")"
+        labelReversal := label.new(bar_index, reversal_level, reversalLabelText,
+                  style=label.style_label_right, color=color.new(reversalLineColor, 40),
+                  textcolor=color.white, size=size.small, yloc=yloc.price)
+    else if not na(lineReversal)
+        line.delete(lineReversal)
+        lineReversal := na
+        label.delete(labelReversal)
+        labelReversal := na
+
 //══════════════════════════════════════════════════════════════════════════════
 // ALERTS
 //══════════════════════════════════════════════════════════════════════════════
@@ -1522,3 +1768,7 @@ alertcondition(gpsState == "CHOP", "GPS CHOP Warning", "GPS CHOP: {{ticker}} - H
 // Volume Alerts
 alertcondition(expansionAlert, "Volume Expansion", "Volume expansion detected: {{ticker}} - Breakout likely")
 alertcondition(compressionAlert, "Volume Compression", "Volume compression detected: {{ticker}} - Expect breakout soon")
+
+// Reversal Zone Alerts
+alertcondition(not na(reversal_level) and lookingForLongReversal and close <= reversal_level * 1.002, "Reversal BUY Zone", "Price approaching BUY reversal zone: {{ticker}} @ {{close}}")
+alertcondition(not na(reversal_level) and lookingForShortReversal and close >= reversal_level * 0.998, "Reversal SELL Zone", "Price approaching SELL reversal zone: {{ticker}} @ {{close}}")
