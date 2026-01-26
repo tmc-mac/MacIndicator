@@ -95,21 +95,20 @@ var float dayLo = na
 var float pdh = na
 var float pdl = na
 
-// Initialize on first bar
-if na(dayHi)
-    dayHi := high
-    dayLo := low
-
-// Update running PT day high/low
-dayHi := math.max(dayHi, high)
-dayLo := math.min(dayLo, low)
-
-// On new PT day: lock prior day and reset trackers
+// On new PT day: lock prior day FIRST (before updating with new bar), then reset
 if newDay
     pdh := dayHi
     pdl := dayLo
     dayHi := high
     dayLo := low
+else
+    // Only update running high/low if NOT a new day (to avoid including new day's bar in PDH/PDL)
+    if na(dayHi)
+        dayHi := high
+        dayLo := low
+    else
+        dayHi := math.max(dayHi, high)
+        dayLo := math.min(dayLo, low)
 
 // Asia/London session definitions (PT timezone)
 string ASIA_SESSION   = "1500-0000"   // 3:00pm–12:00am PT
@@ -129,11 +128,16 @@ var float asiaLoLive = na
 var float asiaHiLock = na
 var float asiaLoLock = na
 
+// IMPORTANT: Lock Asia values BEFORE clearing on newDay (asiaEnd and newDay happen simultaneously at midnight PT)
+if asiaEnd and not na(asiaHiLive) and not na(asiaLoLive)
+    asiaHiLock := asiaHiLive
+    asiaLoLock := asiaLoLive
+
+// Clear live values on new day (after locking above)
 if newDay
     asiaHiLive := na
     asiaLoLive := na
-    asiaHiLock := na
-    asiaLoLock := na
+    // Note: Keep asiaHiLock/asiaLoLock - they hold the locked session values
 
 if asiaStart
     asiaHiLive := high
@@ -142,10 +146,6 @@ if asiaStart
 if inAsia
     asiaHiLive := math.max(nz(asiaHiLive, high), high)
     asiaLoLive := math.min(nz(asiaLoLive, low),  low)
-
-if asiaEnd and not na(asiaHiLive) and not na(asiaLoLive)
-    asiaHiLock := asiaHiLive
-    asiaLoLock := asiaLoLive
 
 float asiaHiFinal = inAsia ? asiaHiLive : asiaHiLock
 float asiaLoFinal = inAsia ? asiaLoLive : asiaLoLock
@@ -794,6 +794,8 @@ var label labelAsiaLo = na
 var label labelLonHi = na
 var label labelLonLo = na
 var label label12HRTrigger = na
+var label label4HRHigh = na
+var label label4HRLow = na
 
 if showLevels
     // PDH - Red dotted line
@@ -868,101 +870,165 @@ if showLevels
     
     // Asia High - Yellow dotted line (LIVE UPDATING)
     if not na(asiaHiFinal)
-        if na(lineAsiaHi) or newDay
+        if na(lineAsiaHi) or asiaStart
             if not na(lineAsiaHi)
                 line.delete(lineAsiaHi)
             if not na(labelAsiaHi)
                 label.delete(labelAsiaHi)
-            lineAsiaHi := line.new(bar_index, asiaHiFinal, bar_index + EXTEND, asiaHiFinal, 
+            lineAsiaHi := line.new(bar_index, asiaHiFinal, bar_index + EXTEND, asiaHiFinal,
                      color=color.new(color.yellow, 50), width=1, style=line.style_dotted)
-            labelAsiaHi := label.new(bar_index, asiaHiFinal, "Asia High", 
-                      style=label.style_label_right, color=color.new(color.yellow, 70), 
+            labelAsiaHi := label.new(bar_index, asiaHiFinal, "Asia High",
+                      style=label.style_label_right, color=color.new(color.yellow, 70),
                       textcolor=color.black, size=size.tiny, yloc=yloc.price)
         else
             line.set_xy1(lineAsiaHi, bar_index, asiaHiFinal)
             line.set_xy2(lineAsiaHi, bar_index + EXTEND, asiaHiFinal)
             label.set_xy(labelAsiaHi, bar_index, asiaHiFinal)
-    
+    else
+        // Clean up when value becomes na
+        if not na(lineAsiaHi)
+            line.delete(lineAsiaHi)
+            lineAsiaHi := na
+        if not na(labelAsiaHi)
+            label.delete(labelAsiaHi)
+            labelAsiaHi := na
+
     // Asia Low - Yellow dotted line (LIVE UPDATING)
     if not na(asiaLoFinal)
-        if na(lineAsiaLo) or newDay
+        if na(lineAsiaLo) or asiaStart
             if not na(lineAsiaLo)
                 line.delete(lineAsiaLo)
             if not na(labelAsiaLo)
                 label.delete(labelAsiaLo)
-            lineAsiaLo := line.new(bar_index, asiaLoFinal, bar_index + EXTEND, asiaLoFinal, 
+            lineAsiaLo := line.new(bar_index, asiaLoFinal, bar_index + EXTEND, asiaLoFinal,
                      color=color.new(color.yellow, 50), width=1, style=line.style_dotted)
-            labelAsiaLo := label.new(bar_index, asiaLoFinal, "Asia Low", 
-                      style=label.style_label_right, color=color.new(color.yellow, 70), 
+            labelAsiaLo := label.new(bar_index, asiaLoFinal, "Asia Low",
+                      style=label.style_label_right, color=color.new(color.yellow, 70),
                       textcolor=color.black, size=size.tiny, yloc=yloc.price)
         else
             line.set_xy1(lineAsiaLo, bar_index, asiaLoFinal)
             line.set_xy2(lineAsiaLo, bar_index + EXTEND, asiaLoFinal)
             label.set_xy(labelAsiaLo, bar_index, asiaLoFinal)
-    
+    else
+        // Clean up when value becomes na
+        if not na(lineAsiaLo)
+            line.delete(lineAsiaLo)
+            lineAsiaLo := na
+        if not na(labelAsiaLo)
+            label.delete(labelAsiaLo)
+            labelAsiaLo := na
+
     // London High - Lime dotted line (LIVE UPDATING)
     if not na(lonHiFinal)
-        if na(lineLonHi) or newDay
+        if na(lineLonHi) or lonStart
             if not na(lineLonHi)
                 line.delete(lineLonHi)
             if not na(labelLonHi)
                 label.delete(labelLonHi)
-            lineLonHi := line.new(bar_index, lonHiFinal, bar_index + EXTEND, lonHiFinal, 
+            lineLonHi := line.new(bar_index, lonHiFinal, bar_index + EXTEND, lonHiFinal,
                      color=color.new(color.lime, 50), width=1, style=line.style_dotted)
-            labelLonHi := label.new(bar_index, lonHiFinal, "London High", 
-                      style=label.style_label_right, color=color.new(color.lime, 70), 
+            labelLonHi := label.new(bar_index, lonHiFinal, "London High",
+                      style=label.style_label_right, color=color.new(color.lime, 70),
                       textcolor=color.black, size=size.tiny, yloc=yloc.price)
         else
             line.set_xy1(lineLonHi, bar_index, lonHiFinal)
             line.set_xy2(lineLonHi, bar_index + EXTEND, lonHiFinal)
             label.set_xy(labelLonHi, bar_index, lonHiFinal)
-    
+    else
+        // Clean up when value becomes na
+        if not na(lineLonHi)
+            line.delete(lineLonHi)
+            lineLonHi := na
+        if not na(labelLonHi)
+            label.delete(labelLonHi)
+            labelLonHi := na
+
     // London Low - Lime dotted line (LIVE UPDATING)
     if not na(lonLoFinal)
-        if na(lineLonLo) or newDay
+        if na(lineLonLo) or lonStart
             if not na(lineLonLo)
                 line.delete(lineLonLo)
             if not na(labelLonLo)
                 label.delete(labelLonLo)
-            lineLonLo := line.new(bar_index, lonLoFinal, bar_index + EXTEND, lonLoFinal, 
+            lineLonLo := line.new(bar_index, lonLoFinal, bar_index + EXTEND, lonLoFinal,
                      color=color.new(color.lime, 50), width=1, style=line.style_dotted)
-            labelLonLo := label.new(bar_index, lonLoFinal, "London Low", 
-                      style=label.style_label_right, color=color.new(color.lime, 70), 
+            labelLonLo := label.new(bar_index, lonLoFinal, "London Low",
+                      style=label.style_label_right, color=color.new(color.lime, 70),
                       textcolor=color.black, size=size.tiny, yloc=yloc.price)
         else
             line.set_xy1(lineLonLo, bar_index, lonLoFinal)
             line.set_xy2(lineLonLo, bar_index + EXTEND, lonLoFinal)
             label.set_xy(labelLonLo, bar_index, lonLoFinal)
+    else
+        // Clean up when value becomes na
+        if not na(lineLonLo)
+            line.delete(lineLonLo)
+            lineLonLo := na
+        if not na(labelLonLo)
+            label.delete(labelLonLo)
+            labelLonLo := na
     
     // 12HR Miyagi trigger - Purple dashed line
-    if not na(m12_trigger)
+    if not na(m12_trigger) and m12_setup_state > 0
         if na(line12HRTrigger)
-            line12HRTrigger := line.new(bar_index, m12_trigger, bar_index + EXTEND, m12_trigger, 
+            line12HRTrigger := line.new(bar_index, m12_trigger, bar_index + EXTEND, m12_trigger,
                      color=color.new(color.purple, 50), width=2, style=line.style_dashed)
-            label12HRTrigger := label.new(bar_index, m12_trigger, "12HR Trigger", 
-                      style=label.style_label_right, color=color.new(color.purple, 50), 
+            label12HRTrigger := label.new(bar_index, m12_trigger, "12HR Trigger",
+                      style=label.style_label_right, color=color.new(color.purple, 50),
                       textcolor=color.white, size=size.tiny, yloc=yloc.price)
         else
             line.set_xy1(line12HRTrigger, bar_index, m12_trigger)
             line.set_xy2(line12HRTrigger, bar_index + EXTEND, m12_trigger)
             label.set_xy(label12HRTrigger, bar_index, m12_trigger)
-    
+    else
+        // Clean up when setup is invalidated or trigger becomes na
+        if not na(line12HRTrigger)
+            line.delete(line12HRTrigger)
+            line12HRTrigger := na
+        if not na(label12HRTrigger)
+            label.delete(label12HRTrigger)
+            label12HRTrigger := na
+
     // 4HR Re-trigger levels - Orange dotted lines
-    if not na(r4_current_high)
+    if not na(r4_current_high) and r4_current_bias != 0 and not r4_current_triggered
         if na(line4HRHigh)
-            line4HRHigh := line.new(bar_index, r4_current_high, bar_index + EXTEND, r4_current_high, 
+            line4HRHigh := line.new(bar_index, r4_current_high, bar_index + EXTEND, r4_current_high,
                      color=color.new(color.orange, 50), width=1, style=line.style_dotted)
+            label4HRHigh := label.new(bar_index, r4_current_high, "4HR High",
+                      style=label.style_label_right, color=color.new(color.orange, 70),
+                      textcolor=color.white, size=size.tiny, yloc=yloc.price)
         else
             line.set_xy1(line4HRHigh, bar_index, r4_current_high)
             line.set_xy2(line4HRHigh, bar_index + EXTEND, r4_current_high)
-    
-    if not na(r4_current_low)
+            label.set_xy(label4HRHigh, bar_index, r4_current_high)
+    else
+        // Clean up when setup is triggered or invalidated
+        if not na(line4HRHigh)
+            line.delete(line4HRHigh)
+            line4HRHigh := na
+        if not na(label4HRHigh)
+            label.delete(label4HRHigh)
+            label4HRHigh := na
+
+    if not na(r4_current_low) and r4_current_bias != 0 and not r4_current_triggered
         if na(line4HRLow)
-            line4HRLow := line.new(bar_index, r4_current_low, bar_index + EXTEND, r4_current_low, 
+            line4HRLow := line.new(bar_index, r4_current_low, bar_index + EXTEND, r4_current_low,
                      color=color.new(color.orange, 50), width=1, style=line.style_dotted)
+            label4HRLow := label.new(bar_index, r4_current_low, "4HR Low",
+                      style=label.style_label_right, color=color.new(color.orange, 70),
+                      textcolor=color.white, size=size.tiny, yloc=yloc.price)
         else
             line.set_xy1(line4HRLow, bar_index, r4_current_low)
             line.set_xy2(line4HRLow, bar_index + EXTEND, r4_current_low)
+            label.set_xy(label4HRLow, bar_index, r4_current_low)
+    else
+        // Clean up when setup is triggered or invalidated
+        if not na(line4HRLow)
+            line.delete(line4HRLow)
+            line4HRLow := na
+        if not na(label4HRLow)
+            label.delete(label4HRLow)
+            label4HRLow := na
 
 //══════════════════════════════════════════════════════════════════════════════
 // ALERTS
