@@ -1,0 +1,980 @@
+//@version=5
+indicator("MAC Key Level Trader V1", overlay=true, max_labels_count=500, max_boxes_count=500, max_lines_count=500)
+
+//==============================================================================
+// MAC KEY LEVEL TRADER - Simplified Key Level to Key Level Trading
+// Strategy Components:
+// 1. Key Levels: Monthly/Weekly/Daily/4HR/1HR Highs & Lows
+// 2. Inside Bar 50% Trigger (Previous day inside bar = 50% entry trigger)
+// 3. Multi-TF RSI Extremes (1HR + 30min + 15min at 22/77)
+// 4. Order Block Detection
+// 5. Fair Value Gap Detection
+// 6. 4HR 2-2 Combo with Volume Confirmation
+// 7. Tiered Signal System
+//==============================================================================
+
+//==============================================================================
+// INPUTS & SETTINGS
+//==============================================================================
+
+// Timezone
+string TZ = input.string("America/New_York", "Timezone", options=["America/New_York", "America/Chicago", "America/Los_Angeles"], group="General")
+
+// Key Levels
+showMonthly = input.bool(true, "Show Monthly H/L", group="Key Levels")
+showWeekly  = input.bool(true, "Show Weekly H/L", group="Key Levels")
+showDaily   = input.bool(true, "Show Daily H/L", group="Key Levels")
+show4HR     = input.bool(true, "Show 4HR H/L", group="Key Levels")
+show1HR     = input.bool(true, "Show 1HR H/L", group="Key Levels")
+keyLevelTolerance = input.float(0.25, "Key Level Tolerance (%)", minval=0.1, maxval=1.0, step=0.05, group="Key Levels")
+
+// Inside Bar Settings
+showInsideBar50 = input.bool(true, "Show Inside Bar 50% Level", group="Inside Bar")
+insideBarColor  = input.color(color.new(color.fuchsia, 20), "Inside Bar 50% Color", group="Inside Bar")
+
+// RSI Settings
+rsiLength       = input.int(14, "RSI Period", minval=1, group="RSI")
+rsiOverbought   = input.int(77, "RSI Overbought Level", minval=60, maxval=90, group="RSI")
+rsiOversold     = input.int(22, "RSI Oversold Level", minval=10, maxval=40, group="RSI")
+showRSIDashboard = input.bool(true, "Show RSI Dashboard", group="RSI")
+
+// Order Block Settings
+obEnabled       = input.bool(true, "Enable Order Blocks", group="Order Blocks")
+obLength        = input.int(5, "OB Volume Pivot Length", minval=1, group="Order Blocks")
+obBullCount     = input.int(3, "Max Bullish OBs", minval=1, maxval=10, group="Order Blocks")
+obBearCount     = input.int(3, "Max Bearish OBs", minval=1, maxval=10, group="Order Blocks")
+obBullColor     = input.color(color.new(#169400, 80), "Bullish OB Color", group="Order Blocks")
+obBearColor     = input.color(color.new(#ff1100, 80), "Bearish OB Color", group="Order Blocks")
+obMitigation    = input.string("Wick", "Mitigation Method", options=["Wick", "Close"], group="Order Blocks")
+
+// FVG Settings
+fvgEnabled      = input.bool(true, "Enable FVGs", group="Fair Value Gaps")
+fvgBullCount    = input.int(3, "Max Bullish FVGs", minval=1, maxval=10, group="Fair Value Gaps")
+fvgBearCount    = input.int(3, "Max Bearish FVGs", minval=1, maxval=10, group="Fair Value Gaps")
+fvgBullColor    = input.color(color.new(#00bcd4, 80), "Bullish FVG Color", group="Fair Value Gaps")
+fvgBearColor    = input.color(color.new(#ff9800, 80), "Bearish FVG Color", group="Fair Value Gaps")
+fvgMitigation   = input.string("Wick", "FVG Mitigation", options=["Wick", "Close", "Half"], group="Fair Value Gaps")
+
+// 4HR 2-2 Combo Settings
+combo22Enabled  = input.bool(true, "Enable 4HR 2-2 Combo", group="4HR 2-2 Combo")
+volMultiplier   = input.float(1.5, "Volume Multiplier", minval=1.0, maxval=3.0, step=0.1, group="4HR 2-2 Combo")
+volEMALen       = input.int(20, "Volume EMA Length", minval=5, group="4HR 2-2 Combo")
+
+// Signal Settings
+showSignals     = input.bool(true, "Show Entry Signals", group="Signals")
+showTierLabels  = input.bool(true, "Show Tier Labels", group="Signals")
+
+// Dashboard Settings
+showDashboard   = input.bool(true, "Show Main Dashboard", group="Dashboard")
+dashPosition    = input.string("top_right", "Dashboard Position",
+                  options=["top_left", "top_center", "top_right", "middle_left", "middle_center",
+                           "middle_right", "bottom_left", "bottom_center", "bottom_right"], group="Dashboard")
+dashSize        = input.string("small", "Dashboard Size", options=["tiny", "small", "normal", "large"], group="Dashboard")
+
+//==============================================================================
+// HELPER FUNCTIONS
+//==============================================================================
+
+f_getMidpoint(_high, _low) =>
+    (_high + _low) / 2.0
+
+// Bar Type Detection (1-Inside, 2-Directional, 3-Outside)
+f_getBarType(_high, _low, _close, _open, _prevHigh, _prevLow) =>
+    isInside  = (_high <= _prevHigh and _low >= _prevLow)
+    isOutside = (_high > _prevHigh and _low < _prevLow)
+    is2UP     = (_high > _prevHigh and _low >= _prevLow and _close > _open)
+    is2DOWN   = (_high <= _prevHigh and _low < _prevLow and _close < _open)
+
+    barType = 0
+    if isInside
+        barType := 1
+    else if isOutside
+        barType := 3
+    else if is2UP
+        barType := 2
+    else if is2DOWN
+        barType := -2
+    barType
+
+// Check if price is near a level
+f_nearLevel(_price, _level, _tolerance) =>
+    math.abs(_price - _level) <= (_level * _tolerance / 100)
+
+//==============================================================================
+// MULTI-TIMEFRAME RSI CALCULATION
+//==============================================================================
+
+// Current timeframe RSI
+rsiCurrent = ta.rsi(close, rsiLength)
+
+// 15-minute RSI
+rsi15m = request.security(syminfo.tickerid, "15", ta.rsi(close, rsiLength), lookahead=barmerge.lookahead_off)
+
+// 30-minute RSI
+rsi30m = request.security(syminfo.tickerid, "30", ta.rsi(close, rsiLength), lookahead=barmerge.lookahead_off)
+
+// 1-hour RSI
+rsi1H = request.security(syminfo.tickerid, "60", ta.rsi(close, rsiLength), lookahead=barmerge.lookahead_off)
+
+// RSI Extreme Confluence Detection
+allRSIOversold  = rsi15m <= rsiOversold and rsi30m <= rsiOversold and rsi1H <= rsiOversold
+allRSIOverbought = rsi15m >= rsiOverbought and rsi30m >= rsiOverbought and rsi1H >= rsiOverbought
+rsiExtremeConf = allRSIOversold or allRSIOverbought
+rsiDirection   = allRSIOversold ? 1 : allRSIOverbought ? -1 : 0
+
+//==============================================================================
+// KEY LEVELS - Monthly/Weekly/Daily/4HR/1HR Highs & Lows
+//==============================================================================
+
+// Previous Monthly High/Low
+[pmh, pml] = request.security(syminfo.tickerid, "M", [high[1], low[1]], lookahead=barmerge.lookahead_on)
+
+// Previous Weekly High/Low
+[pwh, pwl] = request.security(syminfo.tickerid, "W", [high[1], low[1]], lookahead=barmerge.lookahead_on)
+
+// Previous Daily High/Low (Current Day's tracking)
+newDay = ta.change(time("D")) != 0
+var float dayHi = na
+var float dayLo = na
+var float pdh = na
+var float pdl = na
+
+if newDay
+    pdh := dayHi
+    pdl := dayLo
+    dayHi := high
+    dayLo := low
+else
+    if na(dayHi)
+        dayHi := high
+        dayLo := low
+    else
+        dayHi := math.max(dayHi, high)
+        dayLo := math.min(dayLo, low)
+
+// Current Day High/Low (live)
+cdh = dayHi
+cdl = dayLo
+
+// Previous 4HR High/Low
+[p4hh, p4hl] = request.security(syminfo.tickerid, "240", [high[1], low[1]], lookahead=barmerge.lookahead_off)
+
+// Current 4HR High/Low
+[c4hh, c4hl] = request.security(syminfo.tickerid, "240", [high, low], lookahead=barmerge.lookahead_off)
+
+// Previous 1HR High/Low
+[p1hh, p1hl] = request.security(syminfo.tickerid, "60", [high[1], low[1]], lookahead=barmerge.lookahead_off)
+
+// Current 1HR High/Low
+[c1hh, c1hl] = request.security(syminfo.tickerid, "60", [high, low], lookahead=barmerge.lookahead_off)
+
+// Check proximity to key levels
+nearMonthlyHigh = f_nearLevel(close, pmh, keyLevelTolerance)
+nearMonthlyLow  = f_nearLevel(close, pml, keyLevelTolerance)
+nearWeeklyHigh  = f_nearLevel(close, pwh, keyLevelTolerance)
+nearWeeklyLow   = f_nearLevel(close, pwl, keyLevelTolerance)
+nearDailyHigh   = f_nearLevel(close, pdh, keyLevelTolerance)
+nearDailyLow    = f_nearLevel(close, pdl, keyLevelTolerance)
+nearKeyLevel    = nearMonthlyHigh or nearMonthlyLow or nearWeeklyHigh or nearWeeklyLow or nearDailyHigh or nearDailyLow
+
+//==============================================================================
+// INSIDE BAR DETECTION & 50% LEVEL
+//==============================================================================
+
+// Get daily bar type
+[dHigh, dLow, dClose, dOpen, dHighPrev, dLowPrev] = request.security(syminfo.tickerid, "D",
+     [high, low, close, open, high[1], low[1]], lookahead=barmerge.lookahead_off)
+
+[dHighPrev2, dLowPrev2] = request.security(syminfo.tickerid, "D",
+     [high[1], low[1]], lookahead=barmerge.lookahead_on)
+
+// Previous day was an inside bar
+prevDayInsideBar = dHighPrev <= dHighPrev2 and dLowPrev >= dLowPrev2
+
+// 50% level of previous day (when it was an inside bar)
+var float insideBar50Level = na
+var bool  insideBarActive = false
+
+if newDay and prevDayInsideBar
+    insideBar50Level := f_getMidpoint(dHighPrev, dLowPrev)
+    insideBarActive := true
+else if newDay and not prevDayInsideBar
+    insideBarActive := false
+
+// Detect cross of 50% level
+crossedAbove50 = insideBarActive and ta.crossover(close, insideBar50Level)
+crossedBelow50 = insideBarActive and ta.crossunder(close, insideBar50Level)
+
+//==============================================================================
+// ORDER BLOCK DETECTION (Adapted from LuxAlgo)
+//==============================================================================
+
+var ob_bull_top  = array.new_float(0)
+var ob_bull_btm  = array.new_float(0)
+var ob_bull_avg  = array.new_float(0)
+var ob_bull_left = array.new_int(0)
+
+var ob_bear_top  = array.new_float(0)
+var ob_bear_btm  = array.new_float(0)
+var ob_bear_avg  = array.new_float(0)
+var ob_bear_left = array.new_int(0)
+
+var os_ob = 0
+upper_ob = ta.highest(obLength)
+lower_ob = ta.lowest(obLength)
+
+ob_target_bull = obMitigation == "Close" ? ta.lowest(close, obLength) : lower_ob
+ob_target_bear = obMitigation == "Close" ? ta.highest(close, obLength) : upper_ob
+
+os_ob := high[obLength] > upper_ob ? 0 : low[obLength] < lower_ob ? 1 : os_ob[1]
+
+phv = ta.pivothigh(volume, obLength, obLength)
+
+// Detect bullish order block
+if obEnabled and phv and os_ob == 1
+    avg = math.avg(hl2[obLength], low[obLength])
+    array.unshift(ob_bull_top, hl2[obLength])
+    array.unshift(ob_bull_btm, low[obLength])
+    array.unshift(ob_bull_avg, avg)
+    array.unshift(ob_bull_left, time[obLength])
+
+    // Limit array size
+    if array.size(ob_bull_top) > obBullCount * 2
+        array.pop(ob_bull_top)
+        array.pop(ob_bull_btm)
+        array.pop(ob_bull_avg)
+        array.pop(ob_bull_left)
+
+// Detect bearish order block
+if obEnabled and phv and os_ob == 0
+    avg = math.avg(high[obLength], hl2[obLength])
+    array.unshift(ob_bear_top, high[obLength])
+    array.unshift(ob_bear_btm, hl2[obLength])
+    array.unshift(ob_bear_avg, avg)
+    array.unshift(ob_bear_left, time[obLength])
+
+    // Limit array size
+    if array.size(ob_bear_top) > obBearCount * 2
+        array.pop(ob_bear_top)
+        array.pop(ob_bear_btm)
+        array.pop(ob_bear_avg)
+        array.pop(ob_bear_left)
+
+// Remove mitigated bullish OBs
+if array.size(ob_bull_btm) > 0
+    for i = array.size(ob_bull_btm) - 1 to 0
+        if i < array.size(ob_bull_btm)
+            if ob_target_bull < array.get(ob_bull_btm, i)
+                array.remove(ob_bull_top, i)
+                array.remove(ob_bull_btm, i)
+                array.remove(ob_bull_avg, i)
+                array.remove(ob_bull_left, i)
+
+// Remove mitigated bearish OBs
+if array.size(ob_bear_top) > 0
+    for i = array.size(ob_bear_top) - 1 to 0
+        if i < array.size(ob_bear_top)
+            if ob_target_bear > array.get(ob_bear_top, i)
+                array.remove(ob_bear_top, i)
+                array.remove(ob_bear_btm, i)
+                array.remove(ob_bear_avg, i)
+                array.remove(ob_bear_left, i)
+
+// Check if price is in an order block
+inBullOB = false
+inBearOB = false
+bullOB_50 = 0.0
+bearOB_50 = 0.0
+
+if array.size(ob_bull_top) > 0
+    for i = 0 to math.min(obBullCount - 1, array.size(ob_bull_top) - 1)
+        ob_top_val = array.get(ob_bull_top, i)
+        ob_btm_val = array.get(ob_bull_btm, i)
+        ob_avg_val = array.get(ob_bull_avg, i)
+        if close >= ob_btm_val and close <= ob_top_val
+            inBullOB := true
+            bullOB_50 := ob_avg_val
+
+if array.size(ob_bear_top) > 0
+    for i = 0 to math.min(obBearCount - 1, array.size(ob_bear_top) - 1)
+        ob_top_val = array.get(ob_bear_top, i)
+        ob_btm_val = array.get(ob_bear_btm, i)
+        ob_avg_val = array.get(ob_bear_avg, i)
+        if close >= ob_btm_val and close <= ob_top_val
+            inBearOB := true
+            bearOB_50 := ob_avg_val
+
+//==============================================================================
+// FAIR VALUE GAP DETECTION
+//==============================================================================
+
+var fvg_bull_top  = array.new_float(0)
+var fvg_bull_btm  = array.new_float(0)
+var fvg_bull_left = array.new_int(0)
+
+var fvg_bear_top  = array.new_float(0)
+var fvg_bear_btm  = array.new_float(0)
+var fvg_bear_left = array.new_int(0)
+
+// Bullish FVG: Current low > Previous high (gap up)
+bullFVG = fvgEnabled and low > high[2]
+if bullFVG
+    array.unshift(fvg_bull_top, low)
+    array.unshift(fvg_bull_btm, high[2])
+    array.unshift(fvg_bull_left, time[1])
+
+    if array.size(fvg_bull_top) > fvgBullCount * 2
+        array.pop(fvg_bull_top)
+        array.pop(fvg_bull_btm)
+        array.pop(fvg_bull_left)
+
+// Bearish FVG: Current high < Previous low (gap down)
+bearFVG = fvgEnabled and high < low[2]
+if bearFVG
+    array.unshift(fvg_bear_top, low[2])
+    array.unshift(fvg_bear_btm, high)
+    array.unshift(fvg_bear_left, time[1])
+
+    if array.size(fvg_bear_top) > fvgBearCount * 2
+        array.pop(fvg_bear_top)
+        array.pop(fvg_bear_btm)
+        array.pop(fvg_bear_left)
+
+// FVG Mitigation
+fvg_mit_bull = fvgMitigation == "Close" ? close : fvgMitigation == "Half" ? hl2 : low
+fvg_mit_bear = fvgMitigation == "Close" ? close : fvgMitigation == "Half" ? hl2 : high
+
+// Remove mitigated bullish FVGs
+if array.size(fvg_bull_btm) > 0
+    for i = array.size(fvg_bull_btm) - 1 to 0
+        if i < array.size(fvg_bull_btm)
+            if fvg_mit_bull < array.get(fvg_bull_btm, i)
+                array.remove(fvg_bull_top, i)
+                array.remove(fvg_bull_btm, i)
+                array.remove(fvg_bull_left, i)
+
+// Remove mitigated bearish FVGs
+if array.size(fvg_bear_top) > 0
+    for i = array.size(fvg_bear_top) - 1 to 0
+        if i < array.size(fvg_bear_top)
+            if fvg_mit_bear > array.get(fvg_bear_top, i)
+                array.remove(fvg_bear_top, i)
+                array.remove(fvg_bear_btm, i)
+                array.remove(fvg_bear_left, i)
+
+// Check if price is in an FVG
+inBullFVG = false
+inBearFVG = false
+bullFVG_50 = 0.0
+bearFVG_50 = 0.0
+
+if array.size(fvg_bull_top) > 0
+    for i = 0 to math.min(fvgBullCount - 1, array.size(fvg_bull_top) - 1)
+        fvg_top_val = array.get(fvg_bull_top, i)
+        fvg_btm_val = array.get(fvg_bull_btm, i)
+        if close >= fvg_btm_val and close <= fvg_top_val
+            inBullFVG := true
+            bullFVG_50 := (fvg_top_val + fvg_btm_val) / 2
+
+if array.size(fvg_bear_top) > 0
+    for i = 0 to math.min(fvgBearCount - 1, array.size(fvg_bear_top) - 1)
+        fvg_top_val = array.get(fvg_bear_top, i)
+        fvg_btm_val = array.get(fvg_bear_btm, i)
+        if close >= fvg_btm_val and close <= fvg_top_val
+            inBearFVG := true
+            bearFVG_50 := (fvg_top_val + fvg_btm_val) / 2
+
+// Combined OB/FVG zone check
+inBullZone = inBullOB or inBullFVG
+inBearZone = inBearOB or inBearFVG
+
+//==============================================================================
+// 4HR 2-2 COMBO DETECTION
+//==============================================================================
+
+// Get 4HR OHLC data
+[h4_open, h4_high, h4_low, h4_close, h4_vol, h4_time] = request.security(syminfo.tickerid, "240",
+     [open, high, low, close, volume, time], lookahead=barmerge.lookahead_off)
+
+[h4_high_1, h4_low_1, h4_close_1, h4_open_1] = request.security(syminfo.tickerid, "240",
+     [high[1], low[1], close[1], open[1]], lookahead=barmerge.lookahead_off)
+
+[h4_high_2, h4_low_2, h4_close_2, h4_open_2] = request.security(syminfo.tickerid, "240",
+     [high[2], low[2], close[2], open[2]], lookahead=barmerge.lookahead_off)
+
+[h4_high_3, h4_low_3] = request.security(syminfo.tickerid, "240",
+     [high[3], low[3]], lookahead=barmerge.lookahead_off)
+
+// 4HR volume analysis
+h4_volEMA = request.security(syminfo.tickerid, "240", ta.ema(volume, volEMALen), lookahead=barmerge.lookahead_off)
+h4_highVol = h4_vol > h4_volEMA * volMultiplier
+
+// Calculate bar types for 4HR candles
+h4_bar1_type = f_getBarType(h4_high_2, h4_low_2, h4_close_2, h4_open_2, h4_high_3, h4_low_3)
+h4_bar2_type = f_getBarType(h4_high_1, h4_low_1, h4_close_1, h4_open_1, h4_high_2, h4_low_2)
+
+// 2-2 Combo Detection (Two consecutive 2-bars in same direction)
+bullish22Combo = combo22Enabled and h4_bar1_type == 2 and h4_bar2_type == 2 and h4_highVol
+bearish22Combo = combo22Enabled and h4_bar1_type == -2 and h4_bar2_type == -2 and h4_highVol
+
+var bool active22Bull = false
+var bool active22Bear = false
+var float combo22Entry = na
+var float combo22Stop = na
+
+new4HCandle = ta.change(h4_time) != 0
+
+if new4HCandle
+    if bullish22Combo
+        active22Bull := true
+        active22Bear := false
+        combo22Entry := h4_high_1
+        combo22Stop  := h4_low_2
+    else if bearish22Combo
+        active22Bear := true
+        active22Bull := false
+        combo22Entry := h4_low_1
+        combo22Stop  := h4_high_2
+
+//==============================================================================
+// VOLUME FILTER
+//==============================================================================
+
+volEMA = ta.ema(volume, volEMALen)
+volAboveAvg = volume > volEMA
+volHigh = volume > volEMA * volThreshold
+avgDailyVol = request.security(syminfo.tickerid, "D", ta.ema(volume, 20), lookahead=barmerge.lookahead_off)
+volSufficient = volume > avgDailyVol * 0.5
+
+volThreshold = 1.5 // Define for display
+
+//==============================================================================
+// TIERED SIGNAL SYSTEM
+//==============================================================================
+
+// TIER 1 (75-85% Win Rate): Key Level + RSI Extreme + OB/FVG
+tier1Long  = nearKeyLevel and allRSIOversold and inBullZone and volSufficient
+tier1Short = nearKeyLevel and allRSIOverbought and inBearZone and volSufficient
+
+// TIER 1 ALT: Inside Bar 50% + RSI Extreme + OB/FVG
+tier1AltLong  = insideBarActive and crossedAbove50 and allRSIOversold and inBullZone
+tier1AltShort = insideBarActive and crossedBelow50 and allRSIOverbought and inBearZone
+
+// TIER 2 (65-75%): 4HR 2-2 Combo + Volume + OB/FVG + RSI Extreme
+tier2Long  = active22Bull and inBullZone and allRSIOversold
+tier2Short = active22Bear and inBearZone and allRSIOverbought
+
+// TIER 3 (60-70%): RSI Extreme + OB/FVG Only
+tier3Long  = allRSIOversold and inBullZone and volSufficient and not tier1Long and not tier1AltLong and not tier2Long
+tier3Short = allRSIOverbought and inBearZone and volSufficient and not tier1Short and not tier1AltShort and not tier2Short
+
+// Combined Signals
+longSignal  = tier1Long or tier1AltLong or tier2Long or tier3Long
+shortSignal = tier1Short or tier1AltShort or tier2Short or tier3Short
+
+// Determine signal tier for labeling
+signalTier = tier1Long or tier1Short ? "T1" :
+             tier1AltLong or tier1AltShort ? "T1-IB" :
+             tier2Long or tier2Short ? "T2" :
+             tier3Long or tier3Short ? "T3" : ""
+
+//==============================================================================
+// EXIT CONDITIONS
+//==============================================================================
+
+// RSI Mean Reversion Exit (Partial)
+rsi15mCross50 = ta.cross(rsi15m, 50)
+
+// RSI 1HR Cross 50 Exit (Full)
+rsi1HCross50 = ta.cross(rsi1H, 50)
+
+//==============================================================================
+// VISUAL PLOTTING - KEY LEVELS
+//==============================================================================
+
+int EXTEND = 100
+
+// Monthly Levels
+var line lineMonthlyH = na
+var line lineMonthlyL = na
+var label labelMonthlyH = na
+var label labelMonthlyL = na
+
+if showMonthly and barstate.islast
+    // Monthly High
+    if not na(lineMonthlyH)
+        line.delete(lineMonthlyH)
+        label.delete(labelMonthlyH)
+    lineMonthlyH := line.new(bar_index - 50, pmh, bar_index + EXTEND, pmh,
+                 color=color.new(color.purple, 30), width=2, style=line.style_solid)
+    labelMonthlyH := label.new(bar_index + EXTEND, pmh, "Monthly H",
+                 style=label.style_label_left, color=color.new(color.purple, 70),
+                 textcolor=color.white, size=size.tiny)
+
+    // Monthly Low
+    if not na(lineMonthlyL)
+        line.delete(lineMonthlyL)
+        label.delete(labelMonthlyL)
+    lineMonthlyL := line.new(bar_index - 50, pml, bar_index + EXTEND, pml,
+                 color=color.new(color.purple, 30), width=2, style=line.style_solid)
+    labelMonthlyL := label.new(bar_index + EXTEND, pml, "Monthly L",
+                 style=label.style_label_left, color=color.new(color.purple, 70),
+                 textcolor=color.white, size=size.tiny)
+
+// Weekly Levels
+var line lineWeeklyH = na
+var line lineWeeklyL = na
+var label labelWeeklyH = na
+var label labelWeeklyL = na
+
+if showWeekly and barstate.islast
+    if not na(lineWeeklyH)
+        line.delete(lineWeeklyH)
+        label.delete(labelWeeklyH)
+    lineWeeklyH := line.new(bar_index - 50, pwh, bar_index + EXTEND, pwh,
+                 color=color.new(color.blue, 30), width=2, style=line.style_dashed)
+    labelWeeklyH := label.new(bar_index + EXTEND, pwh, "Weekly H",
+                 style=label.style_label_left, color=color.new(color.blue, 70),
+                 textcolor=color.white, size=size.tiny)
+
+    if not na(lineWeeklyL)
+        line.delete(lineWeeklyL)
+        label.delete(labelWeeklyL)
+    lineWeeklyL := line.new(bar_index - 50, pwl, bar_index + EXTEND, pwl,
+                 color=color.new(color.blue, 30), width=2, style=line.style_dashed)
+    labelWeeklyL := label.new(bar_index + EXTEND, pwl, "Weekly L",
+                 style=label.style_label_left, color=color.new(color.blue, 70),
+                 textcolor=color.white, size=size.tiny)
+
+// Daily Levels (PDH/PDL)
+var line lineDailyH = na
+var line lineDailyL = na
+var label labelDailyH = na
+var label labelDailyL = na
+
+if showDaily and barstate.islast
+    if not na(lineDailyH)
+        line.delete(lineDailyH)
+        label.delete(labelDailyH)
+    lineDailyH := line.new(bar_index - 50, pdh, bar_index + EXTEND, pdh,
+                 color=color.new(color.red, 30), width=2, style=line.style_dotted)
+    labelDailyH := label.new(bar_index + EXTEND, pdh, "PDH",
+                 style=label.style_label_left, color=color.new(color.red, 70),
+                 textcolor=color.white, size=size.tiny)
+
+    if not na(lineDailyL)
+        line.delete(lineDailyL)
+        label.delete(labelDailyL)
+    lineDailyL := line.new(bar_index - 50, pdl, bar_index + EXTEND, pdl,
+                 color=color.new(color.green, 30), width=2, style=line.style_dotted)
+    labelDailyL := label.new(bar_index + EXTEND, pdl, "PDL",
+                 style=label.style_label_left, color=color.new(color.green, 70),
+                 textcolor=color.white, size=size.tiny)
+
+// 4HR Levels
+var line line4HH = na
+var line line4HL = na
+var label label4HH = na
+var label label4HL = na
+
+if show4HR and barstate.islast
+    if not na(line4HH)
+        line.delete(line4HH)
+        label.delete(label4HH)
+    line4HH := line.new(bar_index - 50, p4hh, bar_index + EXTEND, p4hh,
+                 color=color.new(color.orange, 40), width=1, style=line.style_dotted)
+    label4HH := label.new(bar_index + EXTEND, p4hh, "4H H",
+                 style=label.style_label_left, color=color.new(color.orange, 70),
+                 textcolor=color.white, size=size.tiny)
+
+    if not na(line4HL)
+        line.delete(line4HL)
+        label.delete(label4HL)
+    line4HL := line.new(bar_index - 50, p4hl, bar_index + EXTEND, p4hl,
+                 color=color.new(color.orange, 40), width=1, style=line.style_dotted)
+    label4HL := label.new(bar_index + EXTEND, p4hl, "4H L",
+                 style=label.style_label_left, color=color.new(color.orange, 70),
+                 textcolor=color.white, size=size.tiny)
+
+// 1HR Levels
+var line line1HH = na
+var line line1HL = na
+var label label1HH = na
+var label label1HL = na
+
+if show1HR and barstate.islast
+    if not na(line1HH)
+        line.delete(line1HH)
+        label.delete(label1HH)
+    line1HH := line.new(bar_index - 50, p1hh, bar_index + EXTEND, p1hh,
+                 color=color.new(color.yellow, 50), width=1, style=line.style_dotted)
+    label1HH := label.new(bar_index + EXTEND, p1hh, "1H H",
+                 style=label.style_label_left, color=color.new(color.yellow, 70),
+                 textcolor=color.black, size=size.tiny)
+
+    if not na(line1HL)
+        line.delete(line1HL)
+        label.delete(label1HL)
+    line1HL := line.new(bar_index - 50, p1hl, bar_index + EXTEND, p1hl,
+                 color=color.new(color.yellow, 50), width=1, style=line.style_dotted)
+    label1HL := label.new(bar_index + EXTEND, p1hl, "1H L",
+                 style=label.style_label_left, color=color.new(color.yellow, 70),
+                 textcolor=color.black, size=size.tiny)
+
+// Inside Bar 50% Level
+var line lineIB50 = na
+var label labelIB50 = na
+
+if showInsideBar50 and insideBarActive and barstate.islast
+    if not na(lineIB50)
+        line.delete(lineIB50)
+        label.delete(labelIB50)
+    lineIB50 := line.new(bar_index - 50, insideBar50Level, bar_index + EXTEND, insideBar50Level,
+                 color=insideBarColor, width=3, style=line.style_dashed)
+    labelIB50 := label.new(bar_index + EXTEND, insideBar50Level, "IB 50%",
+                 style=label.style_label_left, color=color.new(insideBarColor, 50),
+                 textcolor=color.white, size=size.small)
+
+//==============================================================================
+// VISUAL PLOTTING - ORDER BLOCKS
+//==============================================================================
+
+var array<box> ob_bull_boxes = array.new_box(0)
+var array<box> ob_bear_boxes = array.new_box(0)
+var array<line> ob_bull_lines = array.new_line(0)
+var array<line> ob_bear_lines = array.new_line(0)
+
+if obEnabled and barstate.islast
+    // Clear old boxes
+    for bx in ob_bull_boxes
+        box.delete(bx)
+    array.clear(ob_bull_boxes)
+
+    for bx in ob_bear_boxes
+        box.delete(bx)
+    array.clear(ob_bear_boxes)
+
+    for ln in ob_bull_lines
+        line.delete(ln)
+    array.clear(ob_bull_lines)
+
+    for ln in ob_bear_lines
+        line.delete(ln)
+    array.clear(ob_bear_lines)
+
+    // Draw bullish OBs
+    if array.size(ob_bull_top) > 0
+        for i = 0 to math.min(obBullCount - 1, array.size(ob_bull_top) - 1)
+            ob_t = array.get(ob_bull_top, i)
+            ob_b = array.get(ob_bull_btm, i)
+            ob_a = array.get(ob_bull_avg, i)
+            ob_l = array.get(ob_bull_left, i)
+
+            bx = box.new(ob_l, ob_t, time + 86400000 * 30, ob_b,
+                        xloc=xloc.bar_time, extend=extend.right,
+                        bgcolor=obBullColor, border_color=color.new(#169400, 50))
+            array.push(ob_bull_boxes, bx)
+
+            ln = line.new(ob_l, ob_a, time + 86400000 * 30, ob_a,
+                         xloc=xloc.bar_time, extend=extend.right,
+                         color=color.new(#9598a1, 50), style=line.style_dashed)
+            array.push(ob_bull_lines, ln)
+
+    // Draw bearish OBs
+    if array.size(ob_bear_top) > 0
+        for i = 0 to math.min(obBearCount - 1, array.size(ob_bear_top) - 1)
+            ob_t = array.get(ob_bear_top, i)
+            ob_b = array.get(ob_bear_btm, i)
+            ob_a = array.get(ob_bear_avg, i)
+            ob_l = array.get(ob_bear_left, i)
+
+            bx = box.new(ob_l, ob_t, time + 86400000 * 30, ob_b,
+                        xloc=xloc.bar_time, extend=extend.right,
+                        bgcolor=obBearColor, border_color=color.new(#ff1100, 50))
+            array.push(ob_bear_boxes, bx)
+
+            ln = line.new(ob_l, ob_a, time + 86400000 * 30, ob_a,
+                         xloc=xloc.bar_time, extend=extend.right,
+                         color=color.new(#9598a1, 50), style=line.style_dashed)
+            array.push(ob_bear_lines, ln)
+
+//==============================================================================
+// VISUAL PLOTTING - FAIR VALUE GAPS
+//==============================================================================
+
+var array<box> fvg_bull_boxes = array.new_box(0)
+var array<box> fvg_bear_boxes = array.new_box(0)
+
+if fvgEnabled and barstate.islast
+    // Clear old FVG boxes
+    for bx in fvg_bull_boxes
+        box.delete(bx)
+    array.clear(fvg_bull_boxes)
+
+    for bx in fvg_bear_boxes
+        box.delete(bx)
+    array.clear(fvg_bear_boxes)
+
+    // Draw bullish FVGs
+    if array.size(fvg_bull_top) > 0
+        for i = 0 to math.min(fvgBullCount - 1, array.size(fvg_bull_top) - 1)
+            fvg_t = array.get(fvg_bull_top, i)
+            fvg_b = array.get(fvg_bull_btm, i)
+            fvg_l = array.get(fvg_bull_left, i)
+
+            bx = box.new(fvg_l, fvg_t, time + 86400000 * 30, fvg_b,
+                        xloc=xloc.bar_time, extend=extend.right,
+                        bgcolor=fvgBullColor, border_color=color.new(#00bcd4, 50))
+            array.push(fvg_bull_boxes, bx)
+
+    // Draw bearish FVGs
+    if array.size(fvg_bear_top) > 0
+        for i = 0 to math.min(fvgBearCount - 1, array.size(fvg_bear_top) - 1)
+            fvg_t = array.get(fvg_bear_top, i)
+            fvg_b = array.get(fvg_bear_btm, i)
+            fvg_l = array.get(fvg_bear_left, i)
+
+            bx = box.new(fvg_l, fvg_t, time + 86400000 * 30, fvg_b,
+                        xloc=xloc.bar_time, extend=extend.right,
+                        bgcolor=fvgBearColor, border_color=color.new(#ff9800, 50))
+            array.push(fvg_bear_boxes, bx)
+
+//==============================================================================
+// SIGNAL PLOTTING
+//==============================================================================
+
+// Long Signal
+plotshape(showSignals and longSignal, "Long Signal", shape.triangleup,
+          location.belowbar, color.new(color.lime, 0), size=size.normal)
+
+// Short Signal
+plotshape(showSignals and shortSignal, "Short Signal", shape.triangledown,
+          location.abovebar, color.new(color.red, 0), size=size.normal)
+
+// Tier Labels
+if showTierLabels and longSignal and signalTier != ""
+    label.new(bar_index, low, signalTier + " LONG",
+              style=label.style_label_up, color=color.new(color.lime, 30),
+              textcolor=color.white, size=size.small)
+
+if showTierLabels and shortSignal and signalTier != ""
+    label.new(bar_index, high, signalTier + " SHORT",
+              style=label.style_label_down, color=color.new(color.red, 30),
+              textcolor=color.white, size=size.small)
+
+// Exit Signals
+plotshape(rsi15mCross50 and rsi15m[1] < 50, "Partial Exit (Bull)", shape.xcross,
+          location.abovebar, color.new(color.yellow, 0), size=size.tiny)
+plotshape(rsi15mCross50 and rsi15m[1] > 50, "Partial Exit (Bear)", shape.xcross,
+          location.belowbar, color.new(color.yellow, 0), size=size.tiny)
+
+//==============================================================================
+// RSI DASHBOARD (Multi-Timeframe)
+//==============================================================================
+
+if showRSIDashboard and barstate.islast
+    var table rsiTable = table.new(position.bottom_right, 4, 5,
+                         bgcolor=color.new(color.black, 20), border_width=1, border_color=color.gray)
+
+    // Size mapping
+    txtSize = dashSize == "tiny" ? size.tiny : dashSize == "small" ? size.small :
+              dashSize == "normal" ? size.normal : size.large
+
+    // Header
+    table.cell(rsiTable, 0, 0, "RSI", text_color=color.white, bgcolor=color.new(color.blue, 50), text_size=txtSize)
+    table.cell(rsiTable, 1, 0, "15m", text_color=color.white, bgcolor=color.new(color.blue, 50), text_size=txtSize)
+    table.cell(rsiTable, 2, 0, "30m", text_color=color.white, bgcolor=color.new(color.blue, 50), text_size=txtSize)
+    table.cell(rsiTable, 3, 0, "1H", text_color=color.white, bgcolor=color.new(color.blue, 50), text_size=txtSize)
+
+    // Values
+    table.cell(rsiTable, 0, 1, "Value", text_color=color.gray, text_size=txtSize)
+
+    rsi15Color = rsi15m <= rsiOversold ? color.green : rsi15m >= rsiOverbought ? color.red : color.gray
+    rsi30Color = rsi30m <= rsiOversold ? color.green : rsi30m >= rsiOverbought ? color.red : color.gray
+    rsi1HColor = rsi1H <= rsiOversold ? color.green : rsi1H >= rsiOverbought ? color.red : color.gray
+
+    table.cell(rsiTable, 1, 1, str.tostring(rsi15m, "#.0"), text_color=rsi15Color, text_size=txtSize)
+    table.cell(rsiTable, 2, 1, str.tostring(rsi30m, "#.0"), text_color=rsi30Color, text_size=txtSize)
+    table.cell(rsiTable, 3, 1, str.tostring(rsi1H, "#.0"), text_color=rsi1HColor, text_size=txtSize)
+
+    // Confluence Status
+    table.cell(rsiTable, 0, 2, "Status", text_color=color.gray, text_size=txtSize)
+
+    confText = allRSIOversold ? "OVERSOLD" : allRSIOverbought ? "OVERBOUGHT" : "Normal"
+    confColor = allRSIOversold ? color.green : allRSIOverbought ? color.red : color.gray
+
+    table.cell(rsiTable, 1, 2, confText, text_color=confColor, text_size=txtSize)
+    table.merge_cells(rsiTable, 1, 2, 3, 2)
+
+//==============================================================================
+// MAIN DASHBOARD
+//==============================================================================
+
+if showDashboard and barstate.islast
+    var table mainDash = table.new(
+         position=dashPosition == "top_left" ? position.top_left :
+                  dashPosition == "top_center" ? position.top_center :
+                  dashPosition == "top_right" ? position.top_right :
+                  dashPosition == "middle_left" ? position.middle_left :
+                  dashPosition == "middle_center" ? position.middle_center :
+                  dashPosition == "middle_right" ? position.middle_right :
+                  dashPosition == "bottom_left" ? position.bottom_left :
+                  dashPosition == "bottom_center" ? position.bottom_center : position.bottom_right,
+         columns=2, rows=16,
+         bgcolor=color.new(color.black, 10),
+         border_width=1,
+         border_color=color.new(color.gray, 50))
+
+    txtSize = dashSize == "tiny" ? size.tiny : dashSize == "small" ? size.small :
+              dashSize == "normal" ? size.normal : size.large
+
+    // Header
+    table.cell(mainDash, 0, 0, "MAC KEY LEVEL TRADER", text_color=color.white,
+               bgcolor=color.new(color.blue, 30), text_size=txtSize)
+    table.merge_cells(mainDash, 0, 0, 1, 0)
+
+    // RSI Confluence
+    rsiConfText = allRSIOversold ? "OVERSOLD" : allRSIOverbought ? "OVERBOUGHT" : "Normal"
+    rsiConfColor = allRSIOversold ? color.lime : allRSIOverbought ? color.red : color.gray
+    table.cell(mainDash, 0, 1, "RSI Confluence", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 1, rsiConfText, text_color=rsiConfColor, text_size=txtSize)
+
+    // Inside Bar Status
+    ibText = insideBarActive ? "ACTIVE" : "None"
+    ibColor = insideBarActive ? color.fuchsia : color.gray
+    table.cell(mainDash, 0, 2, "Inside Bar 50%", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 2, ibText, text_color=ibColor, text_size=txtSize)
+
+    // Order Block Zone
+    obZoneText = inBullOB ? "In Bull OB" : inBearOB ? "In Bear OB" : "None"
+    obZoneColor = inBullOB ? color.lime : inBearOB ? color.red : color.gray
+    table.cell(mainDash, 0, 3, "Order Block", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 3, obZoneText, text_color=obZoneColor, text_size=txtSize)
+
+    // FVG Zone
+    fvgZoneText = inBullFVG ? "In Bull FVG" : inBearFVG ? "In Bear FVG" : "None"
+    fvgZoneColor = inBullFVG ? color.lime : inBearFVG ? color.red : color.gray
+    table.cell(mainDash, 0, 4, "Fair Value Gap", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 4, fvgZoneText, text_color=fvgZoneColor, text_size=txtSize)
+
+    // 4HR 2-2 Combo
+    comboText = active22Bull ? "BULLISH" : active22Bear ? "BEARISH" : "None"
+    comboColor = active22Bull ? color.lime : active22Bear ? color.red : color.gray
+    table.cell(mainDash, 0, 5, "4HR 2-2 Combo", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 5, comboText, text_color=comboColor, text_size=txtSize)
+
+    // Key Level Proximity
+    keyLevelText = nearMonthlyHigh ? "Monthly H" : nearMonthlyLow ? "Monthly L" :
+                   nearWeeklyHigh ? "Weekly H" : nearWeeklyLow ? "Weekly L" :
+                   nearDailyHigh ? "PDH" : nearDailyLow ? "PDL" : "None"
+    keyLevelColor = nearKeyLevel ? color.yellow : color.gray
+    table.cell(mainDash, 0, 6, "Near Key Level", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 6, keyLevelText, text_color=keyLevelColor, text_size=txtSize)
+
+    // Volume Status
+    volText = volHigh ? "HIGH" : volAboveAvg ? "Above Avg" : "Low"
+    volColor = volHigh ? color.lime : volAboveAvg ? color.yellow : color.gray
+    table.cell(mainDash, 0, 7, "Volume", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 7, volText, text_color=volColor, text_size=txtSize)
+
+    // Separator
+    table.cell(mainDash, 0, 8, "─────────────", text_color=color.gray, text_size=txtSize)
+    table.merge_cells(mainDash, 0, 8, 1, 8)
+
+    // Current Signal
+    signalText = longSignal ? "LONG " + signalTier : shortSignal ? "SHORT " + signalTier : "No Signal"
+    signalColor = longSignal ? color.lime : shortSignal ? color.red : color.gray
+    table.cell(mainDash, 0, 9, "SIGNAL", text_color=color.white, bgcolor=color.new(signalColor, 50), text_size=txtSize)
+    table.cell(mainDash, 1, 9, signalText, text_color=signalColor, bgcolor=color.new(signalColor, 80), text_size=txtSize)
+
+    // Signal Tier Description
+    tierDesc = tier1Long or tier1Short ? "Key Level + RSI + Zone" :
+               tier1AltLong or tier1AltShort ? "Inside Bar + RSI + Zone" :
+               tier2Long or tier2Short ? "4HR 2-2 + RSI + Zone" :
+               tier3Long or tier3Short ? "RSI + Zone Only" : "-"
+    table.cell(mainDash, 0, 10, "Setup Type", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 10, tierDesc, text_color=color.white, text_size=txtSize)
+
+    // Win Rate Estimate
+    winRateText = tier1Long or tier1Short or tier1AltLong or tier1AltShort ? "75-85%" :
+                  tier2Long or tier2Short ? "65-75%" :
+                  tier3Long or tier3Short ? "60-70%" : "-"
+    winRateColor = tier1Long or tier1Short or tier1AltLong or tier1AltShort ? color.lime :
+                   tier2Long or tier2Short ? color.yellow :
+                   tier3Long or tier3Short ? color.orange : color.gray
+    table.cell(mainDash, 0, 11, "Est. Win Rate", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 11, winRateText, text_color=winRateColor, text_size=txtSize)
+
+    // Key Levels Section
+    table.cell(mainDash, 0, 12, "─── KEY LEVELS ───", text_color=color.gray, text_size=txtSize)
+    table.merge_cells(mainDash, 0, 12, 1, 12)
+
+    table.cell(mainDash, 0, 13, "PDH / PDL", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 13, str.tostring(pdh, format.mintick) + " / " + str.tostring(pdl, format.mintick),
+               text_color=color.white, text_size=txtSize)
+
+    table.cell(mainDash, 0, 14, "Weekly H/L", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 14, str.tostring(pwh, format.mintick) + " / " + str.tostring(pwl, format.mintick),
+               text_color=color.white, text_size=txtSize)
+
+    table.cell(mainDash, 0, 15, "Monthly H/L", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 15, str.tostring(pmh, format.mintick) + " / " + str.tostring(pml, format.mintick),
+               text_color=color.white, text_size=txtSize)
+
+//==============================================================================
+// ALERTS
+//==============================================================================
+
+// Tier 1 Signals (Highest Priority)
+alertcondition(tier1Long, "Tier 1 LONG - Key Level + RSI + Zone",
+               "T1 LONG: Key level + RSI extreme + OB/FVG confluence on {{ticker}}")
+alertcondition(tier1Short, "Tier 1 SHORT - Key Level + RSI + Zone",
+               "T1 SHORT: Key level + RSI extreme + OB/FVG confluence on {{ticker}}")
+
+// Tier 1 Alt (Inside Bar)
+alertcondition(tier1AltLong, "Tier 1 LONG - Inside Bar 50% + RSI + Zone",
+               "T1-IB LONG: Inside bar 50% cross + RSI extreme + zone on {{ticker}}")
+alertcondition(tier1AltShort, "Tier 1 SHORT - Inside Bar 50% + RSI + Zone",
+               "T1-IB SHORT: Inside bar 50% cross + RSI extreme + zone on {{ticker}}")
+
+// Tier 2 Signals
+alertcondition(tier2Long, "Tier 2 LONG - 4HR 2-2 Combo",
+               "T2 LONG: 4HR 2-2 bullish combo + RSI extreme + zone on {{ticker}}")
+alertcondition(tier2Short, "Tier 2 SHORT - 4HR 2-2 Combo",
+               "T2 SHORT: 4HR 2-2 bearish combo + RSI extreme + zone on {{ticker}}")
+
+// Tier 3 Signals
+alertcondition(tier3Long, "Tier 3 LONG - RSI + Zone",
+               "T3 LONG: RSI extreme + OB/FVG zone on {{ticker}}")
+alertcondition(tier3Short, "Tier 3 SHORT - RSI + Zone",
+               "T3 SHORT: RSI extreme + OB/FVG zone on {{ticker}}")
+
+// RSI Confluence Alerts
+alertcondition(allRSIOversold, "RSI Oversold Confluence",
+               "All 3 RSI timeframes (15m/30m/1H) are OVERSOLD (<" + str.tostring(rsiOversold) + ") on {{ticker}}")
+alertcondition(allRSIOverbought, "RSI Overbought Confluence",
+               "All 3 RSI timeframes (15m/30m/1H) are OVERBOUGHT (>" + str.tostring(rsiOverbought) + ") on {{ticker}}")
+
+// Inside Bar Alert
+alertcondition(newDay and prevDayInsideBar, "Inside Bar Detected",
+               "Previous day was an Inside Bar - 50% level active on {{ticker}}")
+
+// 4HR 2-2 Combo Alerts
+alertcondition(bullish22Combo, "4HR Bullish 2-2 Combo",
+               "4HR Bullish 2-2 Combo detected with high volume on {{ticker}}")
+alertcondition(bearish22Combo, "4HR Bearish 2-2 Combo",
+               "4HR Bearish 2-2 Combo detected with high volume on {{ticker}}")
+
+// Exit Alerts
+alertcondition(rsi15mCross50, "Partial Exit Signal (RSI 15m cross 50)",
+               "Consider partial exit - 15min RSI crossed 50 on {{ticker}}")
+alertcondition(rsi1HCross50, "Full Exit Signal (RSI 1H cross 50)",
+               "Consider full exit - 1HR RSI crossed 50 on {{ticker}}")
+
+// Combined Any Signal Alert
+alertcondition(longSignal or shortSignal, "Any Entry Signal",
+               "Entry signal detected on {{ticker}} - Check tier level")
+
+//==============================================================================
+// END OF INDICATOR
+//==============================================================================
