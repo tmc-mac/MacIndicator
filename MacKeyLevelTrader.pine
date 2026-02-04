@@ -72,10 +72,7 @@ f_getMidpoint(_high, _low) =>
 // BULLISH: Close > previous close AND green bar (close > open) OR breaking out above prev high
 // BEARISH: Close < previous close AND red bar (close < open) OR breaking down below prev low
 f_getBias(_close, _open, _prevClose, _prevHigh, _prevLow) =>
-    // Strong bias: breaking previous range
-    _close > _prevHigh ? 1 : _close < _prevLow ? -1 :
-    // Moderate bias: trending within range based on close/open relationship
-    (_close > _prevClose and _close > _open) ? 1 : (_close < _prevClose and _close < _open) ? -1 : 0
+    _close > _prevHigh ? 1 : _close < _prevLow ? -1 : (_close > _prevClose and _close > _open) ? 1 : (_close < _prevClose and _close < _open) ? -1 : 0
 
 // Get line style
 f_getLineStyle(style) =>
