@@ -72,7 +72,16 @@ f_getMidpoint(_high, _low) =>
 // BULLISH: Close > previous close AND green bar (close > open) OR breaking out above prev high
 // BEARISH: Close < previous close AND red bar (close < open) OR breaking down below prev low
 f_getBias(_close, _open, _prevClose, _prevHigh, _prevLow) =>
-    _close > _prevHigh ? 1 : _close < _prevLow ? -1 : (_close > _prevClose and _close > _open) ? 1 : (_close < _prevClose and _close < _open) ? -1 : 0
+    int result = 0
+    if _close > _prevHigh
+        result := 1
+    else if _close < _prevLow
+        result := -1
+    else if _close > _prevClose and _close > _open
+        result := 1
+    else if _close < _prevClose and _close < _open
+        result := -1
+    result
 
 // Get line style
 f_getLineStyle(style) =>
