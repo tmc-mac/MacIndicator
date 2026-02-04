@@ -68,9 +68,14 @@ dashSize        = input.string("small", "Dashboard Size", options=["tiny", "smal
 f_getMidpoint(_high, _low) =>
     (_high + _low) / 2.0
 
-// Bias calculation based on price vs previous candle high/low
-f_getBias(_close, _prevHigh, _prevLow) =>
-    _close > _prevHigh ? 1 : _close < _prevLow ? -1 : 0
+// Bias calculation - more intuitive: close vs close[1] AND bar color
+// BULLISH: Close > previous close AND green bar (close > open) OR breaking out above prev high
+// BEARISH: Close < previous close AND red bar (close < open) OR breaking down below prev low
+f_getBias(_close, _open, _prevClose, _prevHigh, _prevLow) =>
+    // Strong bias: breaking previous range
+    _close > _prevHigh ? 1 : _close < _prevLow ? -1 :
+    // Moderate bias: trending within range based on close/open relationship
+    (_close > _prevClose and _close > _open) ? 1 : (_close < _prevClose and _close < _open) ? -1 : 0
 
 // Get line style
 f_getLineStyle(style) =>
@@ -81,16 +86,28 @@ f_getLineStyle(style) =>
 //==============================================================================
 
 // Daily data for bias
-[d_high, d_low, d_close, d_high_1, d_low_1] = request.security(syminfo.tickerid, "D", [high, low, close, high[1], low[1]], lookahead=barmerge.lookahead_off)
-dailyBias = f_getBias(d_close, d_high_1, d_low_1)
+[d_close, d_open, d_close_1, d_high_1, d_low_1] = request.security(syminfo.tickerid, "D", [close, open, close[1], high[1], low[1]], lookahead=barmerge.lookahead_off)
+dailyBias = f_getBias(d_close, d_open, d_close_1, d_high_1, d_low_1)
 
 // 4HR data for bias
-[h4_high, h4_low, h4_close, h4_high_1, h4_low_1] = request.security(syminfo.tickerid, "240", [high, low, close, high[1], low[1]], lookahead=barmerge.lookahead_off)
-h4Bias = f_getBias(h4_close, h4_high_1, h4_low_1)
+[h4_close, h4_open, h4_close_1, h4_high_1, h4_low_1] = request.security(syminfo.tickerid, "240", [close, open, close[1], high[1], low[1]], lookahead=barmerge.lookahead_off)
+h4Bias = f_getBias(h4_close, h4_open, h4_close_1, h4_high_1, h4_low_1)
 
 // 1HR data for bias
-[h1_high, h1_low, h1_close, h1_high_1, h1_low_1] = request.security(syminfo.tickerid, "60", [high, low, close, high[1], low[1]], lookahead=barmerge.lookahead_off)
-h1Bias = f_getBias(h1_close, h1_high_1, h1_low_1)
+[h1_close, h1_open, h1_close_1, h1_high_1, h1_low_1] = request.security(syminfo.tickerid, "60", [close, open, close[1], high[1], low[1]], lookahead=barmerge.lookahead_off)
+h1Bias = f_getBias(h1_close, h1_open, h1_close_1, h1_high_1, h1_low_1)
+
+// 30min data for bias
+[m30_close, m30_open, m30_close_1, m30_high_1, m30_low_1] = request.security(syminfo.tickerid, "30", [close, open, close[1], high[1], low[1]], lookahead=barmerge.lookahead_off)
+m30Bias = f_getBias(m30_close, m30_open, m30_close_1, m30_high_1, m30_low_1)
+
+// 15min data for bias
+[m15_close, m15_open, m15_close_1, m15_high_1, m15_low_1] = request.security(syminfo.tickerid, "15", [close, open, close[1], high[1], low[1]], lookahead=barmerge.lookahead_off)
+m15Bias = f_getBias(m15_close, m15_open, m15_close_1, m15_high_1, m15_low_1)
+
+// 3min data for bias
+[m3_close, m3_open, m3_close_1, m3_high_1, m3_low_1] = request.security(syminfo.tickerid, "3", [close, open, close[1], high[1], low[1]], lookahead=barmerge.lookahead_off)
+m3Bias = f_getBias(m3_close, m3_open, m3_close_1, m3_high_1, m3_low_1)
 
 //==============================================================================
 // RSI MULTI-TIMEFRAME
@@ -386,45 +403,136 @@ inBullZone = inBullOB or inBullFVG
 inBearZone = inBearOB or inBearFVG
 
 //==============================================================================
-// 4HR 2-2 COMBO DETECTION
+// 4HR ROB SMITH / THE STRAT COMBO DETECTION
 //==============================================================================
 
-// Bar type function inline
-f_isBar2Up(_high, _low, _close, _open, _prevHigh, _prevLow) =>
-    _high > _prevHigh and _low >= _prevLow and _close > _open
+// Bar type functions - The Strat methodology
+// 1 = Inside bar (trading within previous range)
+// 2-Up = Breaks high, holds low (bullish directional)
+// 2-Down = Breaks low, holds high (bearish directional)
+// 3 = Outside bar (breaks both high and low)
 
-f_isBar2Down(_high, _low, _close, _open, _prevHigh, _prevLow) =>
-    _high <= _prevHigh and _low < _prevLow and _close < _open
+f_isBar1(_high, _low, _prevHigh, _prevLow) =>
+    _high <= _prevHigh and _low >= _prevLow
 
-// Get 4HR data for combo
+f_isBar2Up(_high, _low, _prevHigh, _prevLow) =>
+    _high > _prevHigh and _low >= _prevLow
+
+f_isBar2Down(_high, _low, _prevHigh, _prevLow) =>
+    _low < _prevLow and _high <= _prevHigh
+
+f_isBar3(_high, _low, _prevHigh, _prevLow) =>
+    _high > _prevHigh and _low < _prevLow
+
+// Get 4HR data for combos (need 5 bars back for some patterns)
 [h4_h, h4_l, h4_c, h4_o, h4_vol, h4_time] = request.security(syminfo.tickerid, "240", [high, low, close, open, volume, time], lookahead=barmerge.lookahead_off)
 [h4_h1, h4_l1, h4_c1, h4_o1] = request.security(syminfo.tickerid, "240", [high[1], low[1], close[1], open[1]], lookahead=barmerge.lookahead_off)
 [h4_h2, h4_l2, h4_c2, h4_o2] = request.security(syminfo.tickerid, "240", [high[2], low[2], close[2], open[2]], lookahead=barmerge.lookahead_off)
-[h4_h3, h4_l3] = request.security(syminfo.tickerid, "240", [high[3], low[3]], lookahead=barmerge.lookahead_off)
+[h4_h3, h4_l3, h4_c3, h4_o3] = request.security(syminfo.tickerid, "240", [high[3], low[3], close[3], open[3]], lookahead=barmerge.lookahead_off)
+[h4_h4, h4_l4] = request.security(syminfo.tickerid, "240", [high[4], low[4]], lookahead=barmerge.lookahead_off)
 
 h4_volEMA = request.security(syminfo.tickerid, "240", ta.ema(volume, volEMALen), lookahead=barmerge.lookahead_off)
 h4_highVol = h4_vol > h4_volEMA * volMultiplier
 
-// Check for 2-2 combo (two consecutive 2-bars same direction)
-bar1_is2Up = f_isBar2Up(h4_h2, h4_l2, h4_c2, h4_o2, h4_h3, h4_l3)
-bar2_is2Up = f_isBar2Up(h4_h1, h4_l1, h4_c1, h4_o1, h4_h2, h4_l2)
-bar1_is2Down = f_isBar2Down(h4_h2, h4_l2, h4_c2, h4_o2, h4_h3, h4_l3)
-bar2_is2Down = f_isBar2Down(h4_h1, h4_l1, h4_c1, h4_o1, h4_h2, h4_l2)
+// Bar classifications for positions [1], [2], [3] (most recent closed bars)
+bar1_is1 = f_isBar1(h4_h1, h4_l1, h4_h2, h4_l2)
+bar1_is2Up = f_isBar2Up(h4_h1, h4_l1, h4_h2, h4_l2)
+bar1_is2Down = f_isBar2Down(h4_h1, h4_l1, h4_h2, h4_l2)
+bar1_is3 = f_isBar3(h4_h1, h4_l1, h4_h2, h4_l2)
 
-bullish22Combo = combo22Enabled and bar1_is2Up and bar2_is2Up and h4_highVol
-bearish22Combo = combo22Enabled and bar1_is2Down and bar2_is2Down and h4_highVol
+bar2_is1 = f_isBar1(h4_h2, h4_l2, h4_h3, h4_l3)
+bar2_is2Up = f_isBar2Up(h4_h2, h4_l2, h4_h3, h4_l3)
+bar2_is2Down = f_isBar2Down(h4_h2, h4_l2, h4_h3, h4_l3)
+bar2_is3 = f_isBar3(h4_h2, h4_l2, h4_h3, h4_l3)
 
-var bool active22Bull = false
-var bool active22Bear = false
+bar3_is1 = f_isBar1(h4_h3, h4_l3, h4_h4, h4_l4)
+bar3_is2Up = f_isBar2Up(h4_h3, h4_l3, h4_h4, h4_l4)
+bar3_is2Down = f_isBar2Down(h4_h3, h4_l3, h4_h4, h4_l4)
+bar3_is3 = f_isBar3(h4_h3, h4_l3, h4_h4, h4_l4)
+
+// === 2-2 COMBO (Continuation) ===
+// Two consecutive 2-bars in same direction
+bullish22 = bar2_is2Up and bar1_is2Up
+bearish22 = bar2_is2Down and bar1_is2Down
+
+// === 2-1-2 COMBO (Reversal/Continuation) ===
+// 2-bar, then inside bar (1), then 2-bar breaking the inside bar
+// Bullish: 2-down or any, then 1, then 2-up breaking above the 1
+bullish212 = bar3_is2Down and bar2_is1 and bar1_is2Up
+bearish212 = bar3_is2Up and bar2_is1 and bar1_is2Down
+
+// === 3-1-2 COMBO (Reversal) ===
+// Outside bar (3), then inside bar (1), then 2-bar
+// Very powerful reversal setup
+bullish312 = bar3_is3 and bar2_is1 and bar1_is2Up and h4_c3 < h4_o3  // 3 was bearish, now reversing up
+bearish312 = bar3_is3 and bar2_is1 and bar1_is2Down and h4_c3 > h4_o3  // 3 was bullish, now reversing down
+
+// === 3-2-2 COMBO (Reversal) ===
+// Outside bar followed by two 2-bars in reversal direction
+bullish322 = bar3_is3 and bar2_is2Up and bar1_is2Up and h4_c3 < h4_o3  // 3 was bearish
+bearish322 = bar3_is3 and bar2_is2Down and bar1_is2Down and h4_c3 > h4_o3  // 3 was bullish
+
+// === 1-2-2 COMBO (Breakout) ===
+// Inside bar followed by two 2-bars breaking out
+bullish122 = bar3_is1 and bar2_is2Up and bar1_is2Up
+bearish122 = bar3_is1 and bar2_is2Down and bar1_is2Down
+
+// Combined combo signals with volume confirmation
+bullish22Combo = combo22Enabled and bullish22 and h4_highVol
+bearish22Combo = combo22Enabled and bearish22 and h4_highVol
+bullish212Combo = combo22Enabled and bullish212
+bearish212Combo = combo22Enabled and bearish212
+bullish312Combo = combo22Enabled and bullish312
+bearish312Combo = combo22Enabled and bearish312
+bullish322Combo = combo22Enabled and bullish322
+bearish322Combo = combo22Enabled and bearish322
+bullish122Combo = combo22Enabled and bullish122
+bearish122Combo = combo22Enabled and bearish122
+
+// Track active combos
+var string activeComboType = "None"
+var int activeComboDir = 0  // 1 = bullish, -1 = bearish
 
 new4HCandle = ta.change(h4_time) != 0
 if new4HCandle
-    if bullish22Combo
-        active22Bull := true
-        active22Bear := false
+    // Priority order: 3-1-2 > 3-2-2 > 2-1-2 > 1-2-2 > 2-2
+    if bullish312Combo
+        activeComboType := "3-1-2"
+        activeComboDir := 1
+    else if bearish312Combo
+        activeComboType := "3-1-2"
+        activeComboDir := -1
+    else if bullish322Combo
+        activeComboType := "3-2-2"
+        activeComboDir := 1
+    else if bearish322Combo
+        activeComboType := "3-2-2"
+        activeComboDir := -1
+    else if bullish212Combo
+        activeComboType := "2-1-2"
+        activeComboDir := 1
+    else if bearish212Combo
+        activeComboType := "2-1-2"
+        activeComboDir := -1
+    else if bullish122Combo
+        activeComboType := "1-2-2"
+        activeComboDir := 1
+    else if bearish122Combo
+        activeComboType := "1-2-2"
+        activeComboDir := -1
+    else if bullish22Combo
+        activeComboType := "2-2"
+        activeComboDir := 1
     else if bearish22Combo
-        active22Bear := true
-        active22Bull := false
+        activeComboType := "2-2"
+        activeComboDir := -1
+    else
+        activeComboType := "None"
+        activeComboDir := 0
+
+// For backward compatibility
+active22Bull = activeComboDir == 1
+active22Bear = activeComboDir == -1
 
 //==============================================================================
 // VOLUME ANALYSIS - Compression/Expansion/Normal
@@ -663,7 +771,7 @@ if showRSIDashboard and barstate.islast
 getDashPos(pos) =>
     pos == "top_left" ? position.top_left : pos == "top_center" ? position.top_center : pos == "top_right" ? position.top_right : pos == "middle_left" ? position.middle_left : pos == "middle_center" ? position.middle_center : pos == "middle_right" ? position.middle_right : pos == "bottom_left" ? position.bottom_left : pos == "bottom_center" ? position.bottom_center : position.bottom_right
 
-var table mainDash = table.new(getDashPos(dashPosition), 2, 14, bgcolor=color.new(color.black, 10), border_width=1, border_color=color.new(color.gray, 50))
+var table mainDash = table.new(getDashPos(dashPosition), 2, 16, bgcolor=color.new(color.black, 10), border_width=1, border_color=color.new(color.gray, 50))
 
 if showDashboard and barstate.islast
     txtSize = dashSize == "tiny" ? size.tiny : dashSize == "small" ? size.small : dashSize == "normal" ? size.normal : size.large
@@ -690,57 +798,63 @@ if showDashboard and barstate.islast
     table.cell(mainDash, 0, 3, "1HR Bias", text_color=color.gray, text_size=txtSize)
     table.cell(mainDash, 1, 3, h1BiasText, text_color=h1BiasColor, text_size=txtSize)
 
-    // Row 4: Inside Bar 50%
+    // Row 4: 30m Bias
+    m30BiasText = m30Bias == 1 ? "BULLISH" : m30Bias == -1 ? "BEARISH" : "NEUTRAL"
+    m30BiasColor = m30Bias == 1 ? color.lime : m30Bias == -1 ? color.red : color.gray
+    table.cell(mainDash, 0, 4, "30m Bias", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 4, m30BiasText, text_color=m30BiasColor, text_size=txtSize)
+
+    // Row 5: 15m Bias
+    m15BiasText = m15Bias == 1 ? "BULLISH" : m15Bias == -1 ? "BEARISH" : "NEUTRAL"
+    m15BiasColor = m15Bias == 1 ? color.lime : m15Bias == -1 ? color.red : color.gray
+    table.cell(mainDash, 0, 5, "15m Bias", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 5, m15BiasText, text_color=m15BiasColor, text_size=txtSize)
+
+    // Row 6: 3m Bias
+    m3BiasText = m3Bias == 1 ? "BULLISH" : m3Bias == -1 ? "BEARISH" : "NEUTRAL"
+    m3BiasColor = m3Bias == 1 ? color.lime : m3Bias == -1 ? color.red : color.gray
+    table.cell(mainDash, 0, 6, "3m Bias", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 6, m3BiasText, text_color=m3BiasColor, text_size=txtSize)
+
+    // Row 7: Inside Bar 50%
     ibText = insideBarActive ? "ACTIVE" : "None"
     ibColor = insideBarActive ? color.fuchsia : color.gray
-    table.cell(mainDash, 0, 4, "Inside Bar 50%", text_color=color.gray, text_size=txtSize)
-    table.cell(mainDash, 1, 4, ibText, text_color=ibColor, text_size=txtSize)
+    table.cell(mainDash, 0, 7, "Inside Bar 50%", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 7, ibText, text_color=ibColor, text_size=txtSize)
 
-    // Row 5: Order Block
-    obZoneText = inBullOB ? "In Bull OB" : inBearOB ? "In Bear OB" : "None"
-    obZoneColor = inBullOB ? color.lime : inBearOB ? color.red : color.gray
-    table.cell(mainDash, 0, 5, "Order Block", text_color=color.gray, text_size=txtSize)
-    table.cell(mainDash, 1, 5, obZoneText, text_color=obZoneColor, text_size=txtSize)
+    // Row 8: 4HR Strat Combo (shows combo type: 2-2, 2-1-2, 3-1-2, 3-2-2, 1-2-2)
+    comboDisplayText = activeComboType != "None" ? (activeComboDir == 1 ? activeComboType + " BULL" : activeComboType + " BEAR") : "None"
+    comboColor = activeComboDir == 1 ? color.lime : activeComboDir == -1 ? color.red : color.gray
+    table.cell(mainDash, 0, 8, "4HR Strat Combo", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 8, comboDisplayText, text_color=comboColor, text_size=txtSize)
 
-    // Row 6: Fair Value Gap
-    fvgZoneText = inBullFVG ? "In Bull FVG" : inBearFVG ? "In Bear FVG" : "None"
-    fvgZoneColor = inBullFVG ? color.lime : inBearFVG ? color.red : color.gray
-    table.cell(mainDash, 0, 6, "Fair Value Gap", text_color=color.gray, text_size=txtSize)
-    table.cell(mainDash, 1, 6, fvgZoneText, text_color=fvgZoneColor, text_size=txtSize)
+    // Row 9: Near Key Level (relative to TF)
+    table.cell(mainDash, 0, 9, "Near Key Level", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 9, nearestLevelText, text_color=color.yellow, text_size=txtSize)
 
-    // Row 7: 4HR 2-2 Combo
-    comboText = active22Bull ? "BULLISH" : active22Bear ? "BEARISH" : "None"
-    comboColor = active22Bull ? color.lime : active22Bear ? color.red : color.gray
-    table.cell(mainDash, 0, 7, "4HR 2-2 Combo", text_color=color.gray, text_size=txtSize)
-    table.cell(mainDash, 1, 7, comboText, text_color=comboColor, text_size=txtSize)
+    // Row 10: Volume Character
+    table.cell(mainDash, 0, 10, "Volume", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 10, volCharacter, text_color=volCharColor, text_size=txtSize)
 
-    // Row 8: Near Key Level (relative to TF)
-    table.cell(mainDash, 0, 8, "Near Key Level", text_color=color.gray, text_size=txtSize)
-    table.cell(mainDash, 1, 8, nearestLevelText, text_color=color.yellow, text_size=txtSize)
+    // Row 11: Separator
+    table.cell(mainDash, 0, 11, "-------------", text_color=color.gray, text_size=txtSize)
+    table.merge_cells(mainDash, 0, 11, 1, 11)
 
-    // Row 9: Volume Character
-    table.cell(mainDash, 0, 9, "Volume", text_color=color.gray, text_size=txtSize)
-    table.cell(mainDash, 1, 9, volCharacter, text_color=volCharColor, text_size=txtSize)
-
-    // Row 10: Separator
-    table.cell(mainDash, 0, 10, "-------------", text_color=color.gray, text_size=txtSize)
-    table.merge_cells(mainDash, 0, 10, 1, 10)
-
-    // Row 11: Signal
+    // Row 12: Signal
     signalText = longSignal ? "LONG " + signalTier : shortSignal ? "SHORT " + signalTier : "No Signal"
     signalColor = longSignal ? color.lime : shortSignal ? color.red : color.gray
-    table.cell(mainDash, 0, 11, "SIGNAL", text_color=color.white, bgcolor=color.new(signalColor, 50), text_size=txtSize)
-    table.cell(mainDash, 1, 11, signalText, text_color=signalColor, bgcolor=color.new(signalColor, 80), text_size=txtSize)
+    table.cell(mainDash, 0, 12, "SIGNAL", text_color=color.white, bgcolor=color.new(signalColor, 50), text_size=txtSize)
+    table.cell(mainDash, 1, 12, signalText, text_color=signalColor, bgcolor=color.new(signalColor, 80), text_size=txtSize)
 
-    // Row 12: Separator
-    table.cell(mainDash, 0, 12, "-------------", text_color=color.gray, text_size=txtSize)
-    table.merge_cells(mainDash, 0, 12, 1, 12)
+    // Row 13: Separator
+    table.cell(mainDash, 0, 13, "-------------", text_color=color.gray, text_size=txtSize)
+    table.merge_cells(mainDash, 0, 13, 1, 13)
 
-    // Row 13: RSI Confluence (LAST)
+    // Row 14: RSI Confluence (LAST)
     rsiConfText = allRSIOversold ? "OVERSOLD" : allRSIOverbought ? "OVERBOUGHT" : "Normal"
     rsiConfColor = allRSIOversold ? color.lime : allRSIOverbought ? color.red : color.gray
-    table.cell(mainDash, 0, 13, "RSI Confluence", text_color=color.gray, text_size=txtSize)
-    table.cell(mainDash, 1, 13, rsiConfText, text_color=rsiConfColor, text_size=txtSize)
+    table.cell(mainDash, 0, 14, "RSI Confluence", text_color=color.gray, text_size=txtSize)
+    table.cell(mainDash, 1, 14, rsiConfText, text_color=rsiConfColor, text_size=txtSize)
 
 //==============================================================================
 // ALERTS
@@ -762,6 +876,14 @@ alertcondition(bullFVGSignal, "Bullish FVG Formed", "Bullish FVG detected on {{t
 alertcondition(bearFVGSignal, "Bearish FVG Formed", "Bearish FVG detected on {{ticker}}")
 alertcondition(bullish22Combo, "4HR Bullish 2-2", "4HR Bullish 2-2 Combo on {{ticker}}")
 alertcondition(bearish22Combo, "4HR Bearish 2-2", "4HR Bearish 2-2 Combo on {{ticker}}")
+alertcondition(bullish212Combo, "4HR Bullish 2-1-2", "4HR Bullish 2-1-2 Reversal on {{ticker}}")
+alertcondition(bearish212Combo, "4HR Bearish 2-1-2", "4HR Bearish 2-1-2 Reversal on {{ticker}}")
+alertcondition(bullish312Combo, "4HR Bullish 3-1-2", "4HR Bullish 3-1-2 Reversal on {{ticker}}")
+alertcondition(bearish312Combo, "4HR Bearish 3-1-2", "4HR Bearish 3-1-2 Reversal on {{ticker}}")
+alertcondition(bullish322Combo, "4HR Bullish 3-2-2", "4HR Bullish 3-2-2 Reversal on {{ticker}}")
+alertcondition(bearish322Combo, "4HR Bearish 3-2-2", "4HR Bearish 3-2-2 Reversal on {{ticker}}")
+alertcondition(bullish122Combo, "4HR Bullish 1-2-2", "4HR Bullish 1-2-2 Breakout on {{ticker}}")
+alertcondition(bearish122Combo, "4HR Bearish 1-2-2", "4HR Bearish 1-2-2 Breakout on {{ticker}}")
 alertcondition(longSignal or shortSignal, "Any Signal", "Entry signal on {{ticker}}")
 
 //==============================================================================
