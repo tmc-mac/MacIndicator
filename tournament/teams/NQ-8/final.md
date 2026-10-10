@@ -1,0 +1,1 @@
+# NQ-8 final: NOT CERTIFIABLE. Donchian breakout has real raw edge (PF~1.25, 750 trades) but ~40% win-rate / large per-trade variance means trailing DD $2k is hit before +$3k in 35-40% of starts at any size giving >=45% pass. Only a minw=14 spike passes design, failing robustness. strategy.py left at base PARAMS.
