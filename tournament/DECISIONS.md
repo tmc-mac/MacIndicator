@@ -13,3 +13,4 @@
 7. Slippage/commission: commissions excluded per policy.
 8. **Lane overlap ruling (NQ-2 vs NQ-6).** Both use the 09:30 ET opening range geometry. NQ-2 is a pure range-breakout; NQ-6's declared core concept is a volatility-regime *classifier* that switches between breakout and failed-breakout fade. Accepted as distinct (different edge source, different trade logic); logged as borderline.
 9. Teams were told they cannot see validation/hold-out data (loader truncates at 2025-06-30). Several teams amended their prereg after first backtest on TRAIN (disclosed in each prereg.md "Amendments"); only train data was available to them.
+10. **NQ-4 removed** after a second failed gate (PF 0.97 after rework). No alternates were registered, so the bracket shrinks (spec §4/§8). Handling for odd qualifier counts: byes in Round 1; quarterfinal pool topped up to 8 with best R1 losers where available.

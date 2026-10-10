@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 import engine as E
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PARAMS = dict(T=0.055, ks=7.0, kt=0, hold=30, risk=150.0, step=5, first=585, last=900, flat=955,
+PARAMS = dict(T=0.065, ks=7.0, kt=0, hold=30, risk=150.0, step=5, first=585, last=900, flat=955,
               model='model.json')
 NF = 8
 

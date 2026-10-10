@@ -5,7 +5,7 @@ from numba import njit
 import engine as E
 
 PARAMS = dict(K=20, brk=1.0, N=20, rrmin=1.5, cz=1.0, risk=60.0, maxstop=7.0, stopbuf=0.5,
-              t_start=210, t_end=900, flat=955, max_day=3, rrcap=4.0, lvmask=127, off=2.0, minconf=0, maxpts=1e9, tr=0, trs=1)
+              t_start=210, t_end=900, flat=955, max_day=2, rrcap=4.0, lvmask=127, off=2.0, minconf=0, maxpts=30.0, tr=0, trs=1)
 
 
 @njit

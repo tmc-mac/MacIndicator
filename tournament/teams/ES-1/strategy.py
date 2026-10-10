@@ -95,11 +95,11 @@ def generate_a(d, p):
 
 
 PARAMS_B = dict(s_min=0.5, pb=0.6, stopk=2.0, rr=0, risk=100.0, max_tr=3, t0=600, t1=900, eod=955,
-                slope_n=45, max_risk1=150.0, cool=15, clean_n=0)
+                slope_n=45, max_risk1=150.0, cool=15, clean_n=0, htf=0)
 
 
 @njit
-def _genb(o, h, l, c, v, day, mod, mult, s_min, pb, stopk, rr, risk, max_tr, t0, t1, eod, slope_n, max_risk1, cool, clean_n):
+def _genb(o, h, l, c, v, day, mod, mult, s_min, pb, stopk, rr, risk, max_tr, t0, t1, eod, slope_n, max_risk1, cool, clean_n, htf):
     n = len(c)
     vw = np.full(n, np.nan)
     out_bar = np.zeros(n, np.int64); out_side = np.zeros(n, np.int64); out_px = np.zeros(n)
@@ -107,12 +107,15 @@ def _genb(o, h, l, c, v, day, mod, mult, s_min, pb, stopk, rr, risk, max_tr, t0,
     m = 0
     sv = 0.0; spv = 0.0; spv2 = 0.0
     cur = -1; ntoday = 0; last_sig = -10**9
+    prev_close = np.nan; last_rth = np.nan; day_open = np.nan
     for i in range(n):
         if day[i] != cur:
             cur = day[i]; sv = 0.0; spv = 0.0; spv2 = 0.0; ntoday = 0
+            prev_close = last_rth
         mi = mod[i]
         if mi < 570 or mi >= 960:
             continue
+        last_rth = c[i]
         tp = (h[i] + l[i] + c[i]) / 3.0
         vol = v[i] if v[i] > 0 else 1.0
         sv += vol; spv += tp * vol; spv2 += tp * tp * vol
@@ -130,6 +133,7 @@ def _genb(o, h, l, c, v, day, mod, mult, s_min, pb, stopk, rr, risk, max_tr, t0,
         elif slope <= -s_min and c[i] < w and h[i] >= w - pb * s and c[i] < o[i]:
             side = -1; stop = max(w, h[i]) + stopk * s
         if side == 0: continue
+        if htf == 1 and (np.isnan(prev_close) or side * (c[i] - prev_close) <= 0): continue
         if clean_n > 0:
             if i - clean_n < 0: continue
             okc = True
@@ -156,7 +160,7 @@ def _genb(o, h, l, c, v, day, mod, mult, s_min, pb, stopk, rr, risk, max_tr, t0,
 def generate_b(d, p):
     m, bar, side, px, stop, tgt, ex, q = _genb(d.o, d.h, d.l, d.c, d.v.astype(np.float64), d.day, d.minute_of_day_et,
         d.mult, p['s_min'], p['pb'], p['stopk'], p['rr'], p['risk'], p['max_tr'], p['t0'], p['t1'], p['eod'],
-        p['slope_n'], p['max_risk1'], p['cool'], p['clean_n'])
+        p['slope_n'], p['max_risk1'], p['cool'], p['clean_n'], p['htf'])
     return E.make_signals(bar, side, np.zeros(m, np.int64), px, stop, tgt, ex, ex, q)
 
 

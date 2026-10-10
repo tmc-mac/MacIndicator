@@ -7,3 +7,8 @@
 - Final train: net 6676, PF 1.13, n=1515 (2.59/d), maxDD 1450 raw; rolling 53 windows: pass 0%, bust 0%, positive 79%, median score 1.09, median net $1019. lookahead_clean True.
 - Quarterly PF: 0.79,1.29,1.03,1.14,1.41,1.27,1.35,0.91,1.01 (7/9 positive).
 - Note: removed numba cache=True (dynamic module loading breaks cache).
+
+## Rework (after validation fail PF 0.83)
+- Added trend-strength gate (|EMA8-EMA34| > strength*8*ATR1m60). Train: s=0 PF1.13 n1515; .5 PF1.21 n1006; .75 PF1.07; 1.0 PF1.20 n536 (0.92/d) DD1587; 1.5 PF1.09 n236; 2 PF1.41 n103. Non-monotonic: weak plateau. Wider stop/max_day=2 did not help on train.
+- Chose strength 1.0 (train). Validation (official): PF 0.97, n=361 (0.93/d), net -421, maxDD 2167. FAIL (PF<1). Sensitivity (diagnostic only, not selected): s=0.5 PF0.93, s=1.5 PF0.84.
+- Conclusion: no robust edge in 1m pullback-in-trend on NQ in 2024-25; train edge was largely noise.

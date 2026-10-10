@@ -5,11 +5,11 @@ import numpy as np
 from numba import njit
 import engine as E
 
-PARAMS = dict(lo=0.6, hi=1.5, z=2.5, box=30, risk=60.0, tm=2.0, cool=30, maxday=3, sw=15, lw=240, mw=60)
+PARAMS = dict(lo=0.6, hi=1.5, z=2.5, box=30, risk=60.0, tm=2.0, cool=30, maxday=3, sw=15, lw=240, mw=60, trendhi=0)
 
 
 @njit
-def _gen(o, h, l, c, day, mod, lo, hi, z, box, risk, tm, cool, maxday, sw, lw, mw, mult):
+def _gen(o, h, l, c, day, mod, lo, hi, z, box, risk, tm, cool, maxday, sw, lw, mw, mult, trendhi):
     n = len(c)
     cap = n // 100 + 100
     ob = np.zeros(cap, np.int64); osd = np.zeros(cap, np.int64)
@@ -37,7 +37,7 @@ def _gen(o, h, l, c, day, mod, lo, hi, z, box, risk, tm, cool, maxday, sw, lw, m
         ratio = a_s / a_l
         ex = i + (955 - m)
         side = 0; stp = 0.0; tgt = 0.0
-        if ratio < lo:
+        if ratio < lo or (trendhi == 1 and ratio > hi):
             bh = -1e18; bl = 1e18
             for j in range(i - box, i):
                 if h[j] > bh: bh = h[j]
@@ -73,5 +73,5 @@ def _gen(o, h, l, c, day, mod, lo, hi, z, box, risk, tm, cool, maxday, sw, lw, m
 def generate(d, p):
     b, s, px, st, tg, ex, q = _gen(d.o, d.h, d.l, d.c, d.day, d.minute_of_day_et, float(p['lo']), float(p['hi']),
         float(p['z']), int(p['box']), float(p['risk']), float(p['tm']), int(p['cool']), int(p['maxday']),
-        int(p['sw']), int(p['lw']), int(p['mw']), float(d.mult))
+        int(p['sw']), int(p['lw']), int(p['mw']), float(d.mult), int(p['trendhi']))
     return E.make_signals(b, s, np.zeros(len(b), np.int64), px, st, tg, ex, b, q)

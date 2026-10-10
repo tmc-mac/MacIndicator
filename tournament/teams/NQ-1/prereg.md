@@ -26,3 +26,7 @@ contracts = floor(risk$ / (stop_dist_pts * 2)), min 1, risk base ~ $60 so max DD
 Daily: max 3 trades/session signaled (cheap guard); engine DLL handles the rest.
 ## Parameters (planned, few): K=20, brk=1.0, N=10, rrmin=1.0, cz=1.0, base risk, maxstop=8.
 Success criteria: train PF>1.1, >=0.5 trades/day, plateau-shaped sensitivity, positive across quarters.
+
+## Amendments (rework, 2026-10-10)
+After validation gate failure (PF 0.96, DD 5150): added absolute stop cap maxpts=30 pts (skip setups whose 1-contract risk > $60,
+so the 1-contract floor cannot inflate risk) and max_day 3 -> 2 (fewer, cleaner setups). Numba cache removed. Concept unchanged.

@@ -6,3 +6,5 @@
 - Counter-trend filter, minconf, max_day 1/2 all tested: no improvement (log of numbers: tr390 PF1.04; max_day1 PF1.05 DD2913).
 - NOTE: shared scratchpad q.py was overwritten by another team mid-run; one accidental run executed it (printed only NQ-5 quarterly sums). Not used. Own helper now nq1_q.py.
 - REWORK 2026-10-10: validate gate failed (PF .96). Added maxpts (absolute stop cap, skip trades), removed numba cache. Testing on train.
+- Rework train: maxpts20 PF1.02 n249; 25 PF1.01; 30 PF1.06 n506 DD1815; 40 PF.94. maxpts30+max_day2: train n472 (0.81/d) PF1.11 net+1371 DD1605.
+- Validation (first, accidentally unmodified params) PF.96. Rework validate (maxpts30,max_day2): n289 (0.75/d) PF1.16 net+1258 DD673; rolling pos 79% bust 0%, lookahead clean.

@@ -117,5 +117,12 @@
   "team": "ES-6",
   "action": "gate",
   "detail": "ES-6 PASS PF=1.15 n=200 (0.52/d) net=926 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:03:30",
+  "round": "T1",
+  "team": "NQ-4",
+  "action": "gate-final",
+  "detail": "NQ-4 failed validation twice (rework PF 0.97, 361 trades, net -$421). Eliminated before the bracket; no alternate available, bracket will shrink."
  }
 ]

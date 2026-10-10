@@ -7,3 +7,7 @@ Lookahead clean.
 Honest weaknesses: no real edge. Event study shows raw reclaims drift ~0-1pt; limit exactly at the level is adversely selected (PF .83-.94).
 Only the offset-entry config is marginally positive and the neighbourhood is noisy (PF .91-1.18), so the result is likely not robust.
 1-contract floor means risk per trade (~$60) cannot be scaled down; DD too large for the arena. Expect a validation PF near 1.0 -- likely fails the gate.
+
+## Rework (frozen): maxpts=30, max_day=2 (others as above)
+Train: n472 (0.81/d) PF1.11 net+1371 DD1605. Validate (one run): n289 (0.75/d) PF1.16 net+1258 DD673, rolling pos 79%, bust 0%.
+Caveat: train sensitivity to maxpts is noisy (25: PF1.01, 40: PF0.94); thin edge, PF only ~1.1.
