@@ -544,5 +544,19 @@
   "team": "ES-8",
   "action": "v2-result",
   "detail": "ES-8 NOT certified: only 30m variant has edge; 0.25 trades/day, N-sensitivity = noise."
+ },
+ {
+  "ts": "2026-10-10T23:40:55",
+  "round": "T1",
+  "team": "NQ-8",
+  "action": "certify",
+  "detail": "NQ-8 NOT certified (provisional pending QA): proof pass 30% / bust 46% (design 31%/26%); fails halves, 2-tick cost, robustness."
+ },
+ {
+  "ts": "2026-10-10T23:40:55",
+  "round": "T1",
+  "team": "ES-1",
+  "action": "certify",
+  "detail": "ES-1 NOT certified (provisional pending QA): proof pass 9% / bust 7% / 84% timeouts; fails all but lookahead."
  }
 ]

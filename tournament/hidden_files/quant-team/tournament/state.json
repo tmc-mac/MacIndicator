@@ -10160,7 +10160,7 @@
    "lane": "Session VWAP",
    "concept_short": "VWAP deviation-band reversion / pullback",
    "concept": "VWAP deviation-band reversion / pullback",
-   "status": "candidate",
+   "status": "eliminated",
    "gate": {
     "pf": 1.0695460190423625,
     "wr": 0.4,
@@ -11507,7 +11507,8 @@
     "attempt": 1,
     "pass": false
    },
-   "legacy_status": "qualified"
+   "legacy_status": "qualified",
+   "v2_note": "not certified \u2014 proof pass 9% / bust 7% / 84% timeouts; fails all but lookahead"
   },
   "ES-2": {
    "lane": "Mean reversion",
@@ -21086,8 +21087,9 @@
    "lane": "Donchian / channel-breakout trend",
    "concept_short": "intraday channel-breakout trend-following with volatility stops",
    "concept": "intraday channel-breakout trend-following with volatility stops",
-   "status": "recruiting",
-   "gate": null
+   "status": "eliminated",
+   "gate": null,
+   "v2_note": "not certified \u2014 proof pass 30% / bust 46% (design 31%/26%); fails halves, 2-tick cost, robustness"
   },
   "NQ-9": {
    "lane": "Market-profile value area",
