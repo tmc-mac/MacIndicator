@@ -19424,6 +19424,14 @@
     "attempt": 1,
     "pass": true
    }
+  },
+  "NQ-7": {
+   "lane": "Daily-structure patterns",
+   "concept_short": "prior-day structure (inside/outside day, close location) \u2192 next-session follow-through (replaces NQ-4)",
+   "concept": "prior-day structure (inside/outside day, close location) \u2192 next-session follow-through (replaces NQ-4)",
+   "status": "research",
+   "gate": null,
+   "replaces": "NQ-4"
   }
  },
  "byes": [

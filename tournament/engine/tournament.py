@@ -19,6 +19,7 @@ LANES = {
  'NQ-3': ('Overnight / gap momentum', 'overnight structure & gap into the cash open'),
  'NQ-4': ('MTF trend-following', 'hourly trend filter + 1-min pullback reclaim'),
  'NQ-5': ('ICT / SMC', 'liquidity sweep + displacement + FVG in killzones'),
+ 'NQ-7': ('Daily-structure patterns', 'prior-day structure (inside/outside day, close location) → next-session follow-through (replaces NQ-4)'),
  'NQ-6': ('Vol-regime adaptive', 'volatility-regime switch between breakout & fade'),
  'ES-1': ('Session VWAP', 'VWAP deviation-band reversion / pullback'),
  'ES-2': ('Mean reversion', 'oscillator / statistical exhaustion fades'),
@@ -41,6 +42,8 @@ def log(action, detail, team='coordinator', rnd='T1'):
 
 def state():
     s = jload(STATE, None)
+    if s is not None and 'NQ-7' not in s['teams']:
+        lane, short = LANES['NQ-7']; s['teams']['NQ-7'] = dict(lane=lane, concept_short=short, concept=short, status='research', gate=None, replaces='NQ-4')
     if s is None:
         s = dict(phase_index=1, phase_label='Teams researching on train data (2021–2023)', data_note=DATA_NOTE, draw=[], teams={})
         for k, (lane, short) in LANES.items():

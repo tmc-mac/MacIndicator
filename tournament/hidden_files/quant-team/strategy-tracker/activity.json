@@ -236,5 +236,12 @@
   "team": "NQ-2",
   "action": "match",
   "detail": "R1 ES-2 0.00 (net -1254, dd 1661) vs NQ-2 0.30 (net 324, dd 1079) \u2192 NQ-2 advances (only finisher net-positive & alive)"
+ },
+ {
+  "ts": "2026-10-10T23:21:50",
+  "round": "T1",
+  "team": "NQ-7",
+  "action": "replacement",
+  "detail": "NQ-4 eliminated after failing the gate twice; NQ-7 (daily-structure patterns) admitted as a late replacement entrant. Must pre-register, train, and pass the same validation gate; Round 1 is held until then."
  }
 ]

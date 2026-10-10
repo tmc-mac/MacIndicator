@@ -199,7 +199,7 @@ footer{margin-top:44px;text-align:center;font-family:var(--mono);font-size:11px;
   <div class="top">
     <div class="brand">
       <div class="logo">G</div>
-      <div><h1>THE <span>GAUNTLET</span></h1><div class="tag">12 algos · single elimination · unseen data · $50K eval rules</div></div>
+      <div><h1>THE <span>GAUNTLET</span></h1><div class="tag"><span id="nalgos">12</span> algos · single elimination · unseen data · $50K eval rules</div></div>
     </div>
     <div class="live">
       <span class="pill"><span class="dot"></span><span id="phaseName">—</span></span>
@@ -293,16 +293,17 @@ played.forEach(m=>{
     record[id].best=Math.max(record[id].best,m['score'+a]||0); record[id].net+=m['net'+a]||0; });
 });
 const alive = Object.values(T).filter(t=>['qualified','active','champion'].includes(t.status)).length;
+const TOTAL = Object.values(T).filter(t=>t.status!=='failed_gate').length || 12;
 
 /* ---------- header / kpis / phases ---------- */
-$('#phaseName').textContent = DATA.state.phase_label;
+$('#phaseName').textContent = DATA.state.phase_label; $('#nalgos').textContent = Object.values(T).filter(t=>t.status!=='failed_gate').length||12;
 $('#updated').textContent = 'updated '+DATA.generated.replace('T',' ').slice(0,16)+' UTC';
 const best = played.length?Math.max(...played.flatMap(m=>[m.scoreA||0,m.scoreB||0])):0;
 const vals = Object.values(T).filter(t=>t.gate&&t.gate.pf);
 const bestPF = vals.length?Math.max(...vals.map(t=>t.gate.pf)):0;
 const champ = Object.entries(T).find(([k,t])=>t.status==='champion');
 $('#kpis').innerHTML = [
-  ['Teams alive', alive+' / 12', Object.values(T).filter(t=>t.status==='failed_gate').length+' failed gate','var(--nq)'],
+  ['Teams alive', alive+' / '+TOTAL, Object.values(T).filter(t=>t.status==='failed_gate').length+' failed gate','var(--nq)'],
   ['Matches played', played.length+' / '+matches.length, DATA.state.phase_label,'var(--vio)'],
   ['Best match score', best?fx(best,2):'—','net ÷ max(DD,$500)','var(--es)'],
   ['Best validation PF', bestPF?fx(bestPF,2):'—','2024-01 → 2025-06','var(--gold)'],
