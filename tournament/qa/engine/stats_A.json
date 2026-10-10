@@ -1,0 +1,332 @@
+[
+ {
+  "team": "NQ-3",
+  "mult": 4,
+  "n_starts": 67,
+  "sessions": 259,
+  "pass_rate": 0.5074626865671642,
+  "bust_rate": 0.4925373134328358,
+  "neff_pass": 14.3,
+  "neff_bust": 14.3,
+  "pass_ci95": [
+   0.36,
+   0.7
+  ],
+  "bust_ci95": [
+   0.3,
+   0.64
+  ],
+  "nonoverlap_pass_rate_by_offset": [
+   0.5,
+   0.0,
+   0.67,
+   0.67
+  ],
+  "nonoverlap_n": 4,
+  "daily_approx_pass_bust": [
+   0.51,
+   0.49
+  ],
+  "real_pass_bust": [
+   0.51,
+   0.49
+  ]
+ },
+ {
+  "team": "NQ-5",
+  "mult": 4,
+  "n_starts": 67,
+  "sessions": 259,
+  "pass_rate": 0.6119402985074627,
+  "bust_rate": 0.3880597014925373,
+  "neff_pass": 7.0,
+  "neff_bust": 7.0,
+  "pass_ci95": [
+   0.27,
+   0.87
+  ],
+  "bust_ci95": [
+   0.13,
+   0.73
+  ],
+  "nonoverlap_pass_rate_by_offset": [
+   0.25,
+   0.75,
+   0.67,
+   0.67
+  ],
+  "nonoverlap_n": 4,
+  "daily_approx_pass_bust": [
+   0.61,
+   0.39
+  ],
+  "real_pass_bust": [
+   0.61,
+   0.39
+  ]
+ },
+ {
+  "team": "NQ-1",
+  "mult": 8,
+  "n_starts": 67,
+  "sessions": 259,
+  "pass_rate": 0.47761194029850745,
+  "bust_rate": 0.5223880597014925,
+  "neff_pass": 18.4,
+  "neff_bust": 18.4,
+  "pass_ci95": [
+   0.31,
+   0.57
+  ],
+  "bust_ci95": [
+   0.43,
+   0.69
+  ],
+  "nonoverlap_pass_rate_by_offset": [
+   0.5,
+   0.25,
+   0.67,
+   0.67
+  ],
+  "nonoverlap_n": 4,
+  "daily_approx_pass_bust": [
+   0.55,
+   0.42
+  ],
+  "real_pass_bust": [
+   0.48,
+   0.52
+  ]
+ },
+ {
+  "team": "NQ-8",
+  "mult": 4,
+  "n_starts": 67,
+  "sessions": 259,
+  "pass_rate": 0.26865671641791045,
+  "bust_rate": 0.7313432835820896,
+  "neff_pass": 7.7,
+  "neff_bust": 7.7,
+  "pass_ci95": [
+   0.0,
+   0.34
+  ],
+  "bust_ci95": [
+   0.66,
+   1.0
+  ],
+  "nonoverlap_pass_rate_by_offset": [
+   0.25,
+   0.25,
+   0.0,
+   0.33
+  ],
+  "nonoverlap_n": 4,
+  "daily_approx_pass_bust": [
+   0.39,
+   0.61
+  ],
+  "real_pass_bust": [
+   0.27,
+   0.73
+  ]
+ },
+ {
+  "team": "NQ-11",
+  "mult": 4,
+  "n_starts": 67,
+  "sessions": 259,
+  "pass_rate": 0.4925373134328358,
+  "bust_rate": 0.5074626865671642,
+  "neff_pass": 8.4,
+  "neff_bust": 8.4,
+  "pass_ci95": [
+   0.18,
+   0.82
+  ],
+  "bust_ci95": [
+   0.18,
+   0.82
+  ],
+  "nonoverlap_pass_rate_by_offset": [
+   0.75,
+   0.5,
+   0.67,
+   0.33
+  ],
+  "nonoverlap_n": 4,
+  "daily_approx_pass_bust": [
+   0.6,
+   0.39
+  ],
+  "real_pass_bust": [
+   0.49,
+   0.51
+  ]
+ },
+ {
+  "team": "NQ-7",
+  "mult": 4,
+  "n_starts": 67,
+  "sessions": 259,
+  "pass_rate": 0.5522388059701493,
+  "bust_rate": 0.44776119402985076,
+  "neff_pass": 11.4,
+  "neff_bust": 11.4,
+  "pass_ci95": [
+   0.33,
+   0.84
+  ],
+  "bust_ci95": [
+   0.16,
+   0.67
+  ],
+  "nonoverlap_pass_rate_by_offset": [
+   0.75,
+   0.75,
+   0.67,
+   0.33
+  ],
+  "nonoverlap_n": 4,
+  "daily_approx_pass_bust": [
+   0.55,
+   0.45
+  ],
+  "real_pass_bust": [
+   0.55,
+   0.45
+  ]
+ },
+ {
+  "team": "ES-8",
+  "mult": 8,
+  "n_starts": 67,
+  "sessions": 259,
+  "pass_rate": 0.7014925373134329,
+  "bust_rate": 0.29850746268656714,
+  "neff_pass": 20.2,
+  "neff_bust": 20.2,
+  "pass_ci95": [
+   0.57,
+   0.85
+  ],
+  "bust_ci95": [
+   0.15,
+   0.43
+  ],
+  "nonoverlap_pass_rate_by_offset": [
+   0.75,
+   0.75,
+   1.0,
+   0.67
+  ],
+  "nonoverlap_n": 4,
+  "daily_approx_pass_bust": [
+   0.75,
+   0.25
+  ],
+  "real_pass_bust": [
+   0.7,
+   0.3
+  ]
+ },
+ {
+  "team": "ES-1",
+  "mult": 4,
+  "n_starts": 67,
+  "sessions": 259,
+  "pass_rate": 0.3283582089552239,
+  "bust_rate": 0.6716417910447762,
+  "neff_pass": 26.0,
+  "neff_bust": 26.0,
+  "pass_ci95": [
+   0.22,
+   0.45
+  ],
+  "bust_ci95": [
+   0.55,
+   0.78
+  ],
+  "nonoverlap_pass_rate_by_offset": [
+   0.5,
+   0.25,
+   0.33,
+   0.33
+  ],
+  "nonoverlap_n": 4,
+  "daily_approx_pass_bust": [
+   0.45,
+   0.55
+  ],
+  "real_pass_bust": [
+   0.33,
+   0.67
+  ]
+ },
+ {
+  "team": "ES-2",
+  "mult": 8,
+  "n_starts": 67,
+  "sessions": 259,
+  "pass_rate": 0.2537313432835821,
+  "bust_rate": 0.746268656716418,
+  "neff_pass": 5.7,
+  "neff_bust": 5.7,
+  "pass_ci95": [
+   0.0,
+   0.55
+  ],
+  "bust_ci95": [
+   0.45,
+   1.0
+  ],
+  "nonoverlap_pass_rate_by_offset": [
+   0.25,
+   0.25,
+   0.33,
+   0.0
+  ],
+  "nonoverlap_n": 4,
+  "daily_approx_pass_bust": [
+   0.25,
+   0.75
+  ],
+  "real_pass_bust": [
+   0.25,
+   0.75
+  ]
+ },
+ {
+  "team": "NQ-2",
+  "mult": 8,
+  "n_starts": 67,
+  "sessions": 259,
+  "pass_rate": 0.373134328358209,
+  "bust_rate": 0.6268656716417911,
+  "neff_pass": 33.1,
+  "neff_bust": 33.1,
+  "pass_ci95": [
+   0.24,
+   0.49
+  ],
+  "bust_ci95": [
+   0.51,
+   0.76
+  ],
+  "nonoverlap_pass_rate_by_offset": [
+   0.25,
+   0.5,
+   0.0,
+   0.67
+  ],
+  "nonoverlap_n": 4,
+  "daily_approx_pass_bust": [
+   0.46,
+   0.54
+  ],
+  "real_pass_bust": [
+   0.37,
+   0.63
+  ]
+ }
+]

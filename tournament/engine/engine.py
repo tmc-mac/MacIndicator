@@ -26,6 +26,7 @@ TARGET = 3_000.0
 MAX_DD = 2_000.0
 DLL = 1_250.0
 MAX_CONTRACTS = 40
+FILLMODE = 1      # default intra-bar model for limit-fill bars (see _sim); set 0 for the legacy optimistic ordering
 DD_FLOOR_FOR_SCORE = 500.0
 MULT = {'NQ': 2.0, 'ES': 5.0}          # MNQ $2/pt, MES $5/pt
 
@@ -84,7 +85,7 @@ def make_signals(bar, side, kind, px, stop, target, exit_by, cancel_by, contract
 
 @njit
 def _sim(ts, o, h, l, c, day, mult, i0, i1,
-         sbar, sside, skind, spx, sstop, starget, sexit, scancel, sqty, sn, enforce, slip, stop_on_pass,
+         sbar, sside, skind, spx, sstop, starget, sexit, scancel, sqty, sn, enforce, slip, stop_on_pass, gov, fillmode,
          out_trades, out_dday, out_dpnl):
     tick = 0.25
     sl = slip * 0.25
@@ -159,6 +160,24 @@ def _sim(ts, o, h, l, c, day, mult, i0, i1,
             day_start_eq = eq
         if paused_day == cur_day:
             continue
+        # ---- risk governor (optional, equity-aware sizing) ----
+        if gov[7] > 0.5:
+            eq_g = START_EQ + realized
+            if gov[6] > 0 and (eq_g - day_start_eq) <= -gov[6]:
+                continue
+            sc = 1.0
+            cushion = eq_g - floor
+            if cushion < gov[0]:
+                sc = gov[1]
+            elif cushion > gov[2]:
+                sc = gov[3]
+            if gov[4] > 0 and (START_EQ + TARGET - eq_g) < gov[4]:
+                sc = min(sc, gov[5])
+            q = int(q * sc + 0.5)
+            if q < 1:
+                q = 1
+            if q > 40:
+                q = 40
         # ---- manage the position ----
         exit_px = 0.0
         exit_bar = -1
@@ -207,7 +226,16 @@ def _sim(ts, o, h, l, c, day, mult, i0, i1,
                 reason = 4
                 paused_day = cur_day
                 break
-            if not np.isnan(tgt):
+            tgt_ok = True
+            if skind[k] == 1 and j == eb:
+                # limit filled on THIS bar: was the target reachable AFTER the fill?  Bar path is unknown at 1-min resolution.
+                #  fillmode 0: always yes (legacy, optimistic) | 1: O-L-H-C path if bar closed up (buys), O-H-L-C if closed down (sells)
+                #  fillmode 2: never (strict: a limit-fill bar cannot also exit at target)
+                if fillmode == 2:
+                    tgt_ok = False
+                elif fillmode == 1:
+                    tgt_ok = (c[j] >= o[j]) if side == 1 else (c[j] <= o[j])
+            if tgt_ok and not np.isnan(tgt):
                 if (side == 1 and h[j] >= tgt + tick) or (side == -1 and l[j] <= tgt - tick):
                     exit_px = tgt
                     exit_bar = j
@@ -260,7 +288,9 @@ def _sim(ts, o, h, l, c, day, mult, i0, i1,
 REASONS = {1: 'stop', 2: 'target', 3: 'BUST', 4: 'DLL', 5: 'time'}
 
 
-def run(data, sig, i0, i1, enforce=True, slip=1.0, stop_on_pass=False):
+def run(data, sig, i0, i1, enforce=True, slip=1.0, stop_on_pass=False, gov=None, fillmode=None):
+    fm = FILLMODE if fillmode is None else fillmode
+    g = np.zeros(8) if gov is None else _gov_array(gov)
     """Run the $50K eval on bars [i0,i1).  Returns metrics dict + trade tape (numpy)."""
     m = (sig['bar'] + 1 >= i0) & (sig['bar'] + 1 < i1)
     s = {k: v[m] for k, v in sig.items()}
@@ -271,7 +301,7 @@ def run(data, sig, i0, i1, enforce=True, slip=1.0, stop_on_pass=False):
     ntr, nd, realized, max_dd, bust, bust_ts, passed_ts = _sim(
         data.ts, data.o, data.h, data.l, data.c, data.day, data.mult, i0, i1,
         s['bar'], s['side'], s['kind'], s['px'], s['stop'], s['target'], s['exit_by'], s['cancel_by'],
-        s['contracts'].astype(np.float64), sn, enforce, slip, stop_on_pass, out_t, out_dd, out_dp)
+        s['contracts'].astype(np.float64), sn, enforce, slip, stop_on_pass, g, fm, out_t, out_dd, out_dp)
     t = out_t[:ntr]
     pnl = t[:, 5]
     gp = pnl[pnl > 0].sum(); gl = -pnl[pnl < 0].sum()
@@ -367,7 +397,7 @@ def load(name, research=True, phase=None):
 # trailing floor), or `max_days` sessions elapse (TIMEOUT).  Starts without a full max_days of data
 # before i1 are CENSORED (excluded) so the stats are never biased by truncation.
 # ---------------------------------------------------------------------------------------------
-def combine(data, sig, i0, i1, step=3, max_days=60, slip=1.0):
+def combine(data, sig, i0, i1, step=3, max_days=60, slip=1.0, gov=None, fillmode=None):
     day = data.day[i0:i1]
     udays, first = np.unique(day, return_index=True)
     first = first + i0
@@ -376,7 +406,7 @@ def combine(data, sig, i0, i1, step=3, max_days=60, slip=1.0):
         if k + max_days >= len(udays):
             break                                   # censored
         a = int(first[k]); b = int(first[k + max_days])
-        r = run(data, sig, a, b, enforce=True, slip=slip, stop_on_pass=True)
+        r = run(data, sig, a, b, enforce=True, slip=slip, stop_on_pass=True, gov=gov, fillmode=fillmode)
         if r['bust']:
             res = 'bust'
         elif r['passed']:
@@ -398,3 +428,18 @@ def combine_stats(rows):
                 median_days_to_pass=float(np.nanmedian(dp)) if np.isfinite(dp).any() else float('nan'),
                 pass_bust_ratio=float(p / b) if b > 0 else (float('inf') if p > 0 else 0.0),
                 mean_net=float(np.mean([r[2] for r in rows])))
+
+
+def _gov_array(g):
+    """Risk governor (equity-aware sizing).  dict keys (all optional):
+       cush_lo, scale_lo : if (equity - trailing floor) < cush_lo  -> multiply contracts by scale_lo
+       cush_hi, scale_hi : if cushion > cush_hi                    -> multiply by scale_hi
+       tgt_buf, scale_near: if remaining profit to target < tgt_buf -> multiply by min(.., scale_near)
+       day_stop          : stop opening trades for the session once day P&L <= -day_stop
+    Contracts are re-rounded (min 1, max 40)."""
+    a = np.zeros(8)
+    a[0] = g.get('cush_lo', -1e9); a[1] = g.get('scale_lo', 1.0)
+    a[2] = g.get('cush_hi', 1e9);  a[3] = g.get('scale_hi', 1.0)
+    a[4] = g.get('tgt_buf', 0.0);  a[5] = g.get('scale_near', 1.0)
+    a[6] = g.get('day_stop', 0.0); a[7] = 1.0
+    return a

@@ -26,3 +26,12 @@
     (2024-07-01..2025-06-30), plus cost stress, parameter robustness, half-year consistency and lookahead checks. Hold-out 2025-07..2026-09 is reserved for the tournament.
 17. **Caveat:** pre-v2 teams (NQ-1..7, ES-1..6) saw validation data (2024-01..2025-06) while reworking, so their PROOF is partly contaminated; they are re-certified under the same bar and flagged. New recruits (NQ-8..11, ES-7..10) design on 2021-09..2024-06 only.
 18. **Quality team:** QA-Engine (independent simulator re-implementation) and QA-Realism (data + fill-realism audit) must sign off before any certification is published.
+19. **CRITICAL FILL-MODEL FIX (2026-10-11, found by QA-Realism, verified by coordinator).** The engine credited limit entries with a same-bar target
+    hit whenever a 1-minute bar's range covered both the limit and the target (always in the trader's favour). For NQ-5, 54% of trades were
+    limit-fill + target within one bar and produced +$80.9k of a +$52.9k design net. `engine.FILLMODE` now defaults to 1 (bar-path model: a limit-fill
+    bar may reach its target only if the bar closed up for buys / down for sells); mode 2 is strict (never); mode 0 is the legacy optimistic rule, kept only for comparison.
+    Effect on NQ-5 x3: design PF 1.71 -> 0.75, net +$52.9k -> -$33.3k, combine pass(60) 77% -> 7%, bust 16% -> 91%. The previously reported "74% eval pass rate"
+    was an artifact of 1-minute bar resolution. All earlier certification numbers for limit-entry strategies are void; no strategy is certified. Lab mission redefined:
+    find edge that survives fillmode 1 AND 2 (small share of same-bar fill+exit trades).
+20. QA-Realism also flagged (not yet applied): EOD-only trailing drawdown flatters pass rates (intraday-unrealized trailing would cut NQ-5 0.68->0.37), no consistency/min-days rule,
+    no slippage on time exits, stops fill at the stop price however far the bar runs through (MEDIUM), NQ file unadjusted for 15 roll gaps (no trade spans one), ~40 holiday/early-close trades run overnight. Tracked for the next engine revision.

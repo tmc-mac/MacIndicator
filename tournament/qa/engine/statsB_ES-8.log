@@ -1,0 +1,3 @@
+ES-8 zero-edge {"design_gate_ok": 0.0075, "P_proof_bar": 0.0, "P_proof_bar_and_halves": 0.0, "mean_proof_pass": 0.21393034825870647, "true_daily_mean": 0.0, "daily_sd": 74.90624375200707}
+ES-8 half-edge {"design_gate_ok": 0.04, "P_proof_bar": 0.0025, "P_proof_bar_and_halves": 0.0025, "mean_proof_pass": 0.27611940298507465, "true_daily_mean": 2.6653497869318183, "daily_sd": 74.90624375200707}
+ES-8 real-edge {"design_gate_ok": 0.215, "P_proof_bar": 0.045, "P_proof_bar_and_halves": 0.045, "mean_proof_pass": 0.4092329052412356, "true_daily_mean": 5.330699573863637, "daily_sd": 74.90624375200707}

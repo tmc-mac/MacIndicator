@@ -1,0 +1,33 @@
+[
+ {
+  "ts": "2026-10-10T23:55:00",
+  "version": "v2",
+  "agent": "NQ-5 team",
+  "change": "Frozen baseline (ICT sweep + displacement + FVG limit, 0.5R target, min_stop 8, risk x3 = $525). No governor.",
+  "design": {
+   "P60": 0.714,
+   "B120": 0.143,
+   "P120": 0.857
+  },
+  "proof": {
+   "P60": 0.663,
+   "B120": 0.337,
+   "P120": 0.663
+  },
+  "status": "baseline",
+  "note": "dense every-3-session starts; hold-out months pass 10/10 through 2026-04 but 2026-05/06 bust"
+ },
+ {
+  "ts": "2026-10-11T00:20:00",
+  "version": "v2-legacy",
+  "agent": "coordinator",
+  "change": "Same strategy re-scored under realistic fill model (fillmode 1).",
+  "design": {
+   "P60": 0.07,
+   "B120": 0.91,
+   "P120": null
+  },
+  "status": "invalidated",
+  "note": "Legacy fill order credited same-bar limit-fill+target to the trader; 54% of trades. Pass 77% -> 7%."
+ }
+]

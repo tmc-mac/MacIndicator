@@ -1,0 +1,3 @@
+NQ-5 zero-edge {"design_gate_ok": 0.0, "P_proof_bar": 0.0, "P_proof_bar_and_halves": 0.0, "mean_proof_pass": null, "true_daily_mean": 0.0, "daily_sd": 95.4693560255634}
+NQ-5 half-edge {"design_gate_ok": 0.38, "P_proof_bar": 0.1, "P_proof_bar_and_halves": 0.0975, "mean_proof_pass": 0.45453652788688137, "true_daily_mean": 11.744397759103641, "daily_sd": 95.4693560255634}
+NQ-5 real-edge {"design_gate_ok": 0.99, "P_proof_bar": 0.765, "P_proof_bar_and_halves": 0.745, "mean_proof_pass": 0.7521483491632746, "true_daily_mean": 23.488795518207283, "daily_sd": 95.4693560255634}

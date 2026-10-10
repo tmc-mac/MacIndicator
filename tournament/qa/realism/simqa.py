@@ -8,11 +8,11 @@ from numba import njit
 import engine as E
 
 # opts indices
-O_ORDER, O_SLIPSTOP, O_THRU, O_NOSB, O_TRAIL, O_LOCK, O_COMM, O_STOPEXT, O_TGTSLIP, O_BUSTEXIT, O_DLLEXIT = range(11)
+O_ORDER, O_SLIPSTOP, O_THRU, O_NOSB, O_TRAIL, O_LOCK, O_COMM, O_STOPEXT, O_TGTSLIP, O_BUSTEXIT, O_DLLEXIT, O_TIMESLIP = range(12)
 def default_opts(**kw):
-    o = np.zeros(11); o[O_SLIPSTOP] = -1; o[O_THRU] = 1
+    o = np.zeros(12); o[O_SLIPSTOP] = -1; o[O_THRU] = 1
     names = dict(order=O_ORDER, slip_stop=O_SLIPSTOP, thru=O_THRU, no_samebar=O_NOSB, trail=O_TRAIL, lock=O_LOCK,
-                 comm=O_COMM, stop_ext=O_STOPEXT, tgt_slip=O_TGTSLIP, bust_exit=O_BUSTEXIT, dll_exit=O_DLLEXIT)
+                 comm=O_COMM, stop_ext=O_STOPEXT, tgt_slip=O_TGTSLIP, bust_exit=O_BUSTEXIT, dll_exit=O_DLLEXIT, time_slip=O_TIMESLIP)
     for k, v in kw.items(): o[names[k]] = v
     return o
 
@@ -146,7 +146,13 @@ def _simq(ts, o, h, l, c, day, mult, i0, i1,
                 if (side == 1 and h[j] >= tgt + thru) or (side == -1 and l[j] <= tgt - thru):
                     tgt_hit = True
                 if opts[3] > 0 and j == eb and skind[k] == 1:
-                    tgt_hit = False        # limit-filled bar: cannot know the high came after the fill
+                    if opts[3] == 1:
+                        tgt_hit = False    # limit-filled bar: cannot know the high came after the fill
+                    else:                  # 2 = allow only if OHLC path is consistent (buy: O-L-H-C needs close>=open)
+                        if side == 1 and c[j] < o[j]:
+                            tgt_hit = False
+                        if side == -1 and c[j] > o[j]:
+                            tgt_hit = False
             if stop_hit and tgt_hit:
                 both = 1
                 if order_mode == 1:
@@ -161,12 +167,16 @@ def _simq(ts, o, h, l, c, day, mult, i0, i1,
                         if up:
                             stop_hit = False
             if stop_hit:
-                if opts[7] > 0:
+                if opts[7] == 1:
                     exit_px = worst
                 elif side == 1:
                     exit_px = (o[j] if (o[j] < stop and j > eb) else stop) - slst
+                    if opts[7] == 2 and worst < exit_px:
+                        exit_px = 0.5 * (exit_px + worst)
                 else:
                     exit_px = (o[j] if (o[j] > stop and j > eb) else stop) + slst
+                    if opts[7] == 2 and worst > exit_px:
+                        exit_px = 0.5 * (exit_px + worst)
                 exit_bar = j
                 reason = 1
                 break
@@ -195,7 +205,7 @@ def _simq(ts, o, h, l, c, day, mult, i0, i1,
             if eq_best > peak_intra:
                 peak_intra = eq_best
             if j >= last_exit or j >= i1 - 1:
-                exit_px = c[j]
+                exit_px = c[j] - side * opts[11] * tick
                 exit_bar = j
                 reason = 5
                 break
