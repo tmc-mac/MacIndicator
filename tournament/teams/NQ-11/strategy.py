@@ -4,7 +4,7 @@ import numpy as np
 from numba import njit
 import engine as E
 
-PARAMS = dict(risk=100.0, K=8, LEGMIN=4.0, FIB=0.5, STOPFIB=0.786, EXT=0.0, CANCEL=60, ATRN=60)
+PARAMS = dict(risk=100.0, K=8, LEGMIN=2.0, FIB=0.382, STOPFIB=1.0, EXT=0.272, CANCEL=60, ATRN=60)
 RISK_KEY = 'risk'
 TUNABLE = ['K', 'LEGMIN', 'FIB', 'STOPFIB', 'EXT', 'CANCEL']
 

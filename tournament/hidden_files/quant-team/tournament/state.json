@@ -33,7 +33,7 @@
    "lane": "Levels-reclaim",
    "concept_short": "break \u2192 retest \u2192 reclaim at PDH/PDL, Asia, weekly levels & VWAP",
    "concept": "break \u2192 retest \u2192 reclaim at PDH/PDL, Asia, weekly levels & VWAP",
-   "status": "candidate",
+   "status": "eliminated",
    "gate": {
     "pf": 1.1647857550547658,
     "wr": 0.19377162629757785,
@@ -1716,7 +1716,8 @@
     "attempt": 1,
     "pass": false
    },
-   "legacy_status": "eliminated"
+   "legacy_status": "eliminated",
+   "v2_note": "no certifiable edge \u2014 design best: x3 pass 13% / bust 42%"
   },
   "NQ-2": {
    "lane": "Opening-range breakout",
@@ -11508,7 +11509,7 @@
    "lane": "Mean reversion",
    "concept_short": "oscillator / statistical exhaustion fades",
    "concept": "oscillator / statistical exhaustion fades",
-   "status": "candidate",
+   "status": "eliminated",
    "gate": {
     "pf": 1.0045220420504524,
     "wr": 0.5054347826086957,
@@ -13507,13 +13508,14 @@
     "attempt": 1,
     "pass": false
    },
-   "legacy_status": "eliminated"
+   "legacy_status": "eliminated",
+   "v2_note": "no certifiable edge \u2014 design best: x4 pass 27% / bust 47%"
   },
   "ES-3": {
    "lane": "Asia / London session",
    "concept_short": "cross-session structure into NY",
    "concept": "cross-session structure into NY",
-   "status": "candidate",
+   "status": "eliminated",
    "gate": {
     "pf": 1.1277863606267933,
     "wr": 0.49743589743589745,
@@ -14820,7 +14822,8 @@
     "attempt": 1,
     "pass": true
    },
-   "legacy_status": "qualified"
+   "legacy_status": "qualified",
+   "v2_note": "no certifiable edge \u2014 design best: x4 pass 11% / bust 26%"
   },
   "ES-4": {
    "lane": "ML / statistical",
@@ -16535,7 +16538,7 @@
    "lane": "Order-flow proxy",
    "concept_short": "volume-delta, absorption & climax from 1-min bars",
    "concept": "volume-delta, absorption & climax from 1-min bars",
-   "status": "candidate",
+   "status": "eliminated",
    "gate": {
     "pf": 1.2926305494131693,
     "wr": 0.49808429118773945,
@@ -18106,7 +18109,8 @@
     "attempt": 1,
     "pass": true
    },
-   "legacy_status": "eliminated"
+   "legacy_status": "eliminated",
+   "v2_note": "no certifiable edge \u2014 design best: x4 pass 35% / bust 59%"
   },
   "ES-6": {
    "lane": "Event / time-of-day",
@@ -21125,8 +21129,9 @@
    "lane": "Candlestick price-action",
    "concept_short": "engulfing / pin-bar patterns at swing structure",
    "concept": "engulfing / pin-bar patterns at swing structure",
-   "status": "recruiting",
-   "gate": null
+   "status": "eliminated",
+   "gate": null,
+   "v2_note": "no certifiable edge \u2014 no pattern reaches PF>1.1 at >=0.5 trades/day"
   }
  },
  "byes": [],
