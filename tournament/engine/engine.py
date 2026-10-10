@@ -16,6 +16,7 @@ Fill model (conservative, identical for every team):
 Signals are arrays (one row per intended trade, sorted by decision bar). A signal decided on bar i
 becomes live on bar i+1. Signals that arrive while a position/pending order exists are ignored.
 """
+import os
 import numpy as np
 from numba import njit
 
@@ -36,6 +37,10 @@ WINDOWS = {
     'QF':       ('2025-10-01', '2025-12-31'),
     'SF':       ('2026-01-01', '2026-03-31'),
     'F':        ('2026-04-01', '2026-09-24'),   # final: ~6 months (data ends 2026-09-25 NQ)
+    # --- v2 (pass-before-bust) protocol ---
+    'design':   ('2021-09-27', '2024-06-30'),   # teams build/tune here (what research loaders show)
+    'proof':    ('2024-07-01', '2025-06-30'),   # certification out-of-sample year (hidden from teams)
+    'holdout':  ('2025-07-01', '2026-09-24'),   # tournament data (hidden from everyone)
 }
 
 
@@ -79,9 +84,10 @@ def make_signals(bar, side, kind, px, stop, target, exit_by, cancel_by, contract
 
 @njit
 def _sim(ts, o, h, l, c, day, mult, i0, i1,
-         sbar, sside, skind, spx, sstop, starget, sexit, scancel, sqty, sn, enforce,
+         sbar, sside, skind, spx, sstop, starget, sexit, scancel, sqty, sn, enforce, slip, stop_on_pass,
          out_trades, out_dday, out_dpnl):
     tick = 0.25
+    sl = slip * 0.25
     realized = 0.0
     floor = START_EQ - MAX_DD
     peak_eod = START_EQ
@@ -111,7 +117,7 @@ def _sim(ts, o, h, l, c, day, mult, i0, i1,
         entry = 0.0
         eb = -1
         if skind[k] == 0:
-            entry = o[b] + side * tick
+            entry = o[b] + side * sl
             eb = b
         else:
             lim = spx[k]
@@ -181,9 +187,9 @@ def _sim(ts, o, h, l, c, day, mult, i0, i1,
                 best = l[j]
             if (side == 1 and worst <= stop) or (side == -1 and worst >= stop):
                 if side == 1:
-                    exit_px = (o[j] if (o[j] < stop and j > eb) else stop) - tick
+                    exit_px = (o[j] if (o[j] < stop and j > eb) else stop) - sl
                 else:
-                    exit_px = (o[j] if (o[j] > stop and j > eb) else stop) + tick
+                    exit_px = (o[j] if (o[j] > stop and j > eb) else stop) + sl
                 exit_bar = j
                 reason = 1
                 break
@@ -242,6 +248,8 @@ def _sim(ts, o, h, l, c, day, mult, i0, i1,
         free_bar = exit_bar + 1
         if bust == 1:
             break
+        if stop_on_pass and passed_ts != 0:
+            break
     if cur_day != -1 and nd < out_dday.shape[0]:
         out_dday[nd] = cur_day
         out_dpnl[nd] = START_EQ + realized - day_start_eq
@@ -252,7 +260,7 @@ def _sim(ts, o, h, l, c, day, mult, i0, i1,
 REASONS = {1: 'stop', 2: 'target', 3: 'BUST', 4: 'DLL', 5: 'time'}
 
 
-def run(data, sig, i0, i1, enforce=True):
+def run(data, sig, i0, i1, enforce=True, slip=1.0, stop_on_pass=False):
     """Run the $50K eval on bars [i0,i1).  Returns metrics dict + trade tape (numpy)."""
     m = (sig['bar'] + 1 >= i0) & (sig['bar'] + 1 < i1)
     s = {k: v[m] for k, v in sig.items()}
@@ -263,7 +271,7 @@ def run(data, sig, i0, i1, enforce=True):
     ntr, nd, realized, max_dd, bust, bust_ts, passed_ts = _sim(
         data.ts, data.o, data.h, data.l, data.c, data.day, data.mult, i0, i1,
         s['bar'], s['side'], s['kind'], s['px'], s['stop'], s['target'], s['exit_by'], s['cancel_by'],
-        s['contracts'].astype(np.float64), sn, enforce, out_t, out_dd, out_dp)
+        s['contracts'].astype(np.float64), sn, enforce, slip, stop_on_pass, out_t, out_dd, out_dp)
     t = out_t[:ntr]
     pnl = t[:, 5]
     gp = pnl[pnl > 0].sum(); gl = -pnl[pnl < 0].sum()
@@ -339,11 +347,54 @@ def summarize_rolling(rs):
                 mean_score=float(sc.mean()), median_score=float(np.median(sc)), median_net=float(np.median(net)))
 
 
-def load(name, research=True):
-    """Load NQ/ES.  research=True hard-truncates bars after the validation window so hold-out data
-    used by the bracket is invisible to teams."""
+def load(name, research=True, phase=None):
+    """Load NQ/ES.  phase: 'design' (<=2024-06-30, what teams see), 'dev' (<=2025-06-30, certifier only),
+    'full' (everything, tournament only).  research=True is the legacy flag == 'design'."""
     d = Data(name, f'/tmp/claude-0/cache/{name.lower()}_1m.npz')
-    if research:
-        _, n = d.idx(*WINDOWS['validate'])
-        d = _truncate(d, n)
+    ph = phase or ('design' if research else 'full')
+    if ph != 'design' and os.environ.get('TOURNAMENT_COORDINATOR') != '1':
+        raise PermissionError("phase '%s' (proof/hold-out data) is reserved for the coordinator/certifier; teams use phase='design'" % ph)
+    if ph == 'design':
+        _, n = d.idx(*WINDOWS['design']); d = _truncate(d, n)
+    elif ph == 'dev':
+        _, n = d.idx(*WINDOWS['proof']); d = _truncate(d, n)
     return d
+
+
+# ---------------------------------------------------------------------------------------------
+# Combine (pass-before-bust) harness.  A "start" = fresh $50K eval beginning on the first bar of a
+# session; it runs until +$3,000 (PASS, closed-trade equity >= 53,000), bust (equity touches the
+# trailing floor), or `max_days` sessions elapse (TIMEOUT).  Starts without a full max_days of data
+# before i1 are CENSORED (excluded) so the stats are never biased by truncation.
+# ---------------------------------------------------------------------------------------------
+def combine(data, sig, i0, i1, step=3, max_days=60, slip=1.0):
+    day = data.day[i0:i1]
+    udays, first = np.unique(day, return_index=True)
+    first = first + i0
+    out = []
+    for k in range(0, len(udays), step):
+        if k + max_days >= len(udays):
+            break                                   # censored
+        a = int(first[k]); b = int(first[k + max_days])
+        r = run(data, sig, a, b, enforce=True, slip=slip, stop_on_pass=True)
+        if r['bust']:
+            res = 'bust'
+        elif r['passed']:
+            res = 'pass'
+        else:
+            res = 'timeout'
+        dpass = (r['passed_ts'] - int(data.ts[a])) / 86400.0 if r['passed'] else np.nan
+        out.append((int(data.ts[a]), res, r['net'], r['max_dd'], dpass, r['trades']))
+    return out
+
+
+def combine_stats(rows):
+    n = len(rows)
+    if n == 0:
+        return dict(n=0, pass_rate=0.0, bust_rate=0.0, timeout_rate=0.0, median_days_to_pass=float('nan'), pass_bust_ratio=0.0)
+    res = np.array([r[1] for r in rows]); dp = np.array([r[4] for r in rows], float)
+    p = float((res == 'pass').mean()); b = float((res == 'bust').mean())
+    return dict(n=n, pass_rate=p, bust_rate=b, timeout_rate=float((res == 'timeout').mean()),
+                median_days_to_pass=float(np.nanmedian(dp)) if np.isfinite(dp).any() else float('nan'),
+                pass_bust_ratio=float(p / b) if b > 0 else (float('inf') if p > 0 else 0.0),
+                mean_net=float(np.mean([r[2] for r in rows])))

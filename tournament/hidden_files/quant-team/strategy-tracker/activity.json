@@ -404,5 +404,19 @@
   "team": "ES-3",
   "action": "second-chance",
   "detail": "ES-3 re-enters as a best R1 loser (score 0.00, net -358)"
+ },
+ {
+  "ts": "2026-10-10T23:35:47",
+  "round": "T1",
+  "team": "coordinator",
+  "action": "rules-v2",
+  "detail": "USER DIRECTIVE: only strategies PROVEN to hit +$3,000 before the trailing -$2,000 drawdown may enter. Round 1 (old format, 3/12 profitable, none passed) voided as an exhibition. Recruiting + independent QA + certification in progress; bracket paused until 12 certified."
+ },
+ {
+  "ts": "2026-10-10T23:35:47",
+  "round": "T1",
+  "team": "coordinator",
+  "action": "qa",
+  "detail": "QA team stood up: independent engine re-implementation + data/realism audit before any certification is trusted."
  }
 ]

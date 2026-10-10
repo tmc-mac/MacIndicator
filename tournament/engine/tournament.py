@@ -2,6 +2,7 @@
 State lives in hidden_files/quant-team/{tournament/{state,bracket}.json, strategy-tracker/activity.json}."""
 import sys, os, json, random, datetime as dt
 sys.path.insert(0, os.path.dirname(__file__))
+os.environ['TOURNAMENT_COORDINATOR'] = '1'
 import numpy as np, engine as E
 from run_team import load_strategy
 
