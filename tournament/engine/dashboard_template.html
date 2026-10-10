@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="refresh" content="600">
+<title>THE GAUNTLET · Algo Tournament Board</title>
+<style>
+:root{
+  --bg:#05070d; --bg2:#0a0f1c; --glass:rgba(16,24,42,.62); --glass2:rgba(22,32,56,.72);
+  --line:rgba(120,160,255,.14); --line2:rgba(120,160,255,.28);
+  --tx:#e8eefc; --dim:#8a97b8; --mute:#5b6786;
+  --nq:#22d3ee; --es:#a3e635; --gold:#fbbf24; --red:#fb7185; --vio:#a78bfa; --pink:#f472b6;
+  --mono:ui-monospace,"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;
+  --sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);min-height:100vh;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;z-index:-2;
+  background:
+   radial-gradient(900px 500px at 12% -10%,rgba(34,211,238,.13),transparent 60%),
+   radial-gradient(800px 500px at 95% 0%,rgba(167,139,250,.12),transparent 60%),
+   radial-gradient(700px 600px at 50% 120%,rgba(163,230,53,.07),transparent 60%),var(--bg)}
+body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.5;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:56px 56px;mask-image:radial-gradient(ellipse at 50% 0%,#000 0%,transparent 75%)}
+.wrap{max-width:1560px;margin:0 auto;padding:22px 26px 60px}
+a{color:inherit}
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:14px}
+.logo{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-family:var(--mono);font-weight:800;font-size:20px;
+  background:conic-gradient(from 210deg,var(--nq),var(--vio),var(--es),var(--nq));color:#04060b;box-shadow:0 0 30px rgba(34,211,238,.35)}
+h1{margin:0;font-size:26px;letter-spacing:.14em;font-weight:800}
+h1 span{background:linear-gradient(90deg,var(--nq),var(--vio) 55%,var(--es));-webkit-background-clip:text;background-clip:text;color:transparent}
+.tag{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin-top:3px}
+.live{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;border:1px solid var(--line2);background:var(--glass);backdrop-filter:blur(8px)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--es);box-shadow:0 0 10px var(--es);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.35;transform:scale(.8)}}
+/* kpis */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.kpi{padding:14px 16px;border-radius:14px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(10px);position:relative;overflow:hidden}
+.kpi::after{content:"";position:absolute;left:0;top:0;height:2px;width:100%;background:linear-gradient(90deg,var(--c,var(--nq)),transparent)}
+.kpi .l{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+.kpi .v{font-size:28px;font-weight:700;margin-top:6px;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:11.5px;color:var(--mute);margin-top:2px;font-family:var(--mono)}
+/* phase */
+.phases{display:flex;gap:0;margin:6px 0 22px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--glass)}
+.ph{flex:1;padding:12px 14px;position:relative;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);border-right:1px solid var(--line)}
+.ph:last-child{border-right:0}
+.ph b{display:block;font-size:12.5px;color:var(--dim);letter-spacing:.06em;margin-bottom:3px}
+.ph.done{color:var(--es)} .ph.done b{color:var(--tx)}
+.ph.now{background:linear-gradient(180deg,rgba(34,211,238,.16),transparent);color:var(--nq)} .ph.now b{color:#fff}
+.ph.now::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:var(--nq);box-shadow:0 0 12px var(--nq)}
+/* sections */
+h2.sec{display:flex;align-items:center;gap:12px;margin:34px 0 14px;font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);font-family:var(--mono)}
+h2.sec::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line2),transparent)}
+h2.sec i{font-style:normal;color:var(--nq)}
+.glass{background:var(--glass);border:1px solid var(--line);border-radius:16px;backdrop-filter:blur(10px)}
+/* bracket */
+.bracket-scroll{overflow-x:auto;padding:6px 2px 14px}
+.bracket{display:grid;grid-template-columns:repeat(5,minmax(262px,1fr));gap:34px;min-width:1400px;align-items:stretch;position:relative}
+.col{display:flex;flex-direction:column;justify-content:space-around;gap:14px}
+.col h3{margin:0 0 4px;font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;color:var(--dim);text-transform:uppercase;font-weight:600}
+.col h3 em{display:block;font-style:normal;color:var(--mute);letter-spacing:.06em;margin-top:3px;font-size:10.5px;text-transform:none}
+.match{position:relative;border-radius:14px;border:1px solid var(--line);background:var(--glass2);padding:10px;cursor:pointer;transition:.18s;backdrop-filter:blur(8px)}
+.match:hover{transform:translateY(-2px);border-color:var(--line2);box-shadow:0 10px 34px rgba(0,0,0,.45)}
+.match.live{border-color:rgba(34,211,238,.5);box-shadow:0 0 0 1px rgba(34,211,238,.25),0 0 28px rgba(34,211,238,.16)}
+.match .mh{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--mute);letter-spacing:.08em;margin-bottom:7px;text-transform:uppercase}
+.mt{display:grid;grid-template-columns:4px 1fr auto;gap:9px;align-items:center;padding:8px 9px;border-radius:9px;margin:3px 0;background:rgba(5,8,16,.55);border:1px solid transparent}
+.mt .bar{height:30px;border-radius:2px;background:var(--c)}
+.mt .n{font-weight:700;font-size:14px;letter-spacing:.04em}
+.mt .c{font-size:10.5px;color:var(--dim);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;display:block}
+.mt .sc{font-family:var(--mono);font-size:15px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.mt .sc small{display:block;font-size:10px;color:var(--mute);font-weight:500}
+.mt.win{border-color:rgba(163,230,53,.45);background:linear-gradient(90deg,rgba(163,230,53,.14),rgba(5,8,16,.55))}
+.mt.win .sc{color:var(--es)}
+.mt.lose{opacity:.55}
+.mt.bust .sc{color:var(--red)}
+.mt.tbd .n{color:var(--mute);font-weight:500}
+.mt.sc2{border-color:rgba(251,191,36,.5)}
+.vs{height:0;text-align:center;font-family:var(--mono);font-size:9px;color:var(--mute)}
+.spark{display:block;width:100%;height:30px;margin-top:6px}
+.badge{display:inline-block;padding:2px 7px;border-radius:6px;font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase}
+.b-bust{background:rgba(251,113,133,.16);color:var(--red);border:1px solid rgba(251,113,133,.4)}
+.b-pass{background:rgba(163,230,53,.14);color:var(--es);border:1px solid rgba(163,230,53,.4)}
+.b-sc{background:rgba(251,191,36,.14);color:var(--gold);border:1px solid rgba(251,191,36,.4)}
+.b-nq{background:rgba(34,211,238,.12);color:var(--nq);border:1px solid rgba(34,211,238,.35)}
+.b-es{background:rgba(163,230,53,.12);color:var(--es);border:1px solid rgba(163,230,53,.35)}
+.b-q{background:rgba(167,139,250,.14);color:var(--vio);border:1px solid rgba(167,139,250,.35)}
+.b-x{background:rgba(138,151,184,.12);color:var(--dim);border:1px solid rgba(138,151,184,.3)}
+.b-w{background:rgba(251,191,36,.18);color:var(--gold);border:1px solid rgba(251,191,36,.5)}
+.champ{border-radius:18px;padding:22px 18px;text-align:center;border:1px solid rgba(251,191,36,.45);
+  background:radial-gradient(circle at 50% 0%,rgba(251,191,36,.22),transparent 65%),var(--glass2);box-shadow:0 0 50px rgba(251,191,36,.12);align-self:center}
+.champ .cup{font-size:46px;filter:drop-shadow(0 0 16px rgba(251,191,36,.6))}
+.champ h4{margin:6px 0 2px;font-size:12px;letter-spacing:.3em;color:var(--gold);font-family:var(--mono)}
+.champ .nm{font-size:30px;font-weight:800;letter-spacing:.06em;margin:6px 0}
+.champ p{margin:0;color:var(--dim);font-size:12px;line-height:1.5}
+/* team grid */
+.teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(305px,1fr));gap:14px}
+.card{border-radius:16px;padding:15px;background:var(--glass);border:1px solid var(--line);position:relative;overflow:hidden;cursor:pointer;transition:.18s}
+.card:hover{border-color:var(--line2);transform:translateY(-2px)}
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c)}
+.card.out{opacity:.5;filter:saturate(.5)}
+.card .hd{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.card .id{font-size:20px;font-weight:800;letter-spacing:.06em}
+.card .cn{font-size:12px;color:var(--dim);margin:4px 0 10px;line-height:1.45;min-height:34px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}
+.stats div{padding:7px 4px;border-radius:9px;background:rgba(5,8,16,.55);text-align:center;border:1px solid var(--line)}
+.stats b{display:block;font-family:var(--mono);font-size:14px;font-variant-numeric:tabular-nums}
+.stats span{font-size:9.5px;letter-spacing:.1em;color:var(--mute);font-family:var(--mono);text-transform:uppercase}
+.rec{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:6px}
+.good{color:var(--es)} .bad{color:var(--red)}
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line2);cursor:default}
+td{padding:10px 12px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+td.m{font-family:var(--mono)}
+tr:hover td{background:rgba(120,160,255,.05)}
+.two{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
+@media(max-width:1100px){.two{grid-template-columns:1fr}.phases{flex-wrap:wrap}.ph{min-width:33%}}
+.tablebox{overflow-x:auto}
+/* feed */
+.feed{max-height:430px;overflow:auto;padding:6px 4px}
+.fi{display:grid;grid-template-columns:auto 1fr;gap:12px;padding:9px 12px;border-bottom:1px solid var(--line);font-size:12.5px}
+.fi time{font-family:var(--mono);font-size:10.5px;color:var(--mute);white-space:nowrap;padding-top:2px}
+.fi .a{font-family:var(--mono);font-size:10px;color:var(--nq);letter-spacing:.1em;text-transform:uppercase;margin-right:6px}
+.fi .tm{color:var(--vio);font-family:var(--mono);font-size:11px;margin-right:4px}
+/* rules */
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;padding:14px}
+.rule{padding:12px;border-radius:12px;background:rgba(5,8,16,.55);border:1px solid var(--line)}
+.rule b{display:block;font-family:var(--mono);font-size:19px;color:var(--nq)}
+.rule span{font-size:11px;color:var(--dim)}
+/* arena replay */
+.arena{padding:18px;border-radius:18px;background:linear-gradient(180deg,rgba(16,24,42,.8),rgba(8,12,24,.8));border:1px solid var(--line2)}
+.actl{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:10px;overflow:hidden}
+.seg button,.btn{background:transparent;border:0;color:var(--dim);font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;padding:9px 13px;cursor:pointer;text-transform:uppercase}
+.seg button.on{background:rgba(34,211,238,.18);color:#fff}
+.btn{border:1px solid var(--line2);border-radius:10px;color:var(--tx)}
+.btn:hover,.seg button:hover{background:rgba(120,160,255,.14)}
+.btn.primary{background:rgba(34,211,238,.16);border-color:rgba(34,211,238,.5)}
+select.sel{background:#0b1222;color:var(--tx);border:1px solid var(--line2);border-radius:10px;padding:9px 12px;font-family:var(--mono);font-size:12px;max-width:100%}
+.verdict{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.vbox{padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(5,8,16,.55)}
+.vbox .l{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--mute);text-transform:uppercase}
+.vbox .v{font-size:19px;font-weight:700;margin:4px 0 2px}
+.vbox .s{font-size:12px;color:var(--dim)}
+.vbox.hl{border-color:rgba(34,211,238,.5);background:rgba(34,211,238,.06)}
+.lane{border:1px solid var(--line);border-radius:13px;background:rgba(5,8,16,.6);padding:10px 14px 12px;margin-bottom:10px;position:relative}
+.lane .lh{display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-bottom:8px;gap:10px;flex-wrap:wrap}
+.lane .lh b{font-weight:800;letter-spacing:.05em}
+.lane .lh .st{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.track{position:relative;height:38px;border-radius:8px;background:#070b16;border:1px solid var(--line);overflow:hidden}
+.zone-bust{position:absolute;left:0;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(251,113,133,.30) 0 5px,rgba(251,113,133,.06) 5px 10px)}
+.zone-fin{position:absolute;right:0;top:0;bottom:0;background:conic-gradient(#d8dee9 25%,#1a2236 0 50%,#d8dee9 0 75%,#1a2236 0) 0 0/10px 10px;opacity:.45}
+.fill{position:absolute;top:13px;height:12px;border-radius:6px;background:linear-gradient(90deg,transparent,var(--c));box-shadow:0 0 14px var(--c);transition:none}
+.mk{position:absolute;top:2px;width:34px;height:34px;margin-left:-17px;filter:drop-shadow(0 0 7px var(--c))}
+.floor{position:absolute;top:0;bottom:0;width:2px;background:var(--red);box-shadow:0 0 8px var(--red)}
+.startl{position:absolute;top:0;bottom:0;width:1px;background:#e8eefc;opacity:.55}
+.finl{position:absolute;top:0;bottom:0;width:2px;background:var(--es);box-shadow:0 0 10px var(--es)}
+.axis{position:relative;height:16px;font-family:var(--mono);font-size:10px;color:var(--mute);margin:2px 14px 12px}
+.axis span{position:absolute;transform:translateX(-50%)}
+.scrub{display:flex;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(5,8,16,.55);margin-top:6px}
+.scrub input[type=range]{flex:1;accent-color:var(--nq)}
+.scrub .dd{font-family:var(--mono);font-size:12px;color:var(--dim);white-space:nowrap}
+.arena2{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-top:14px}
+@media(max-width:1100px){.arena2,.verdict{grid-template-columns:1fr}}
+.radio{max-height:300px;overflow:auto}
+.ri{display:flex;gap:10px;padding:8px 11px;margin:5px 0;border-left:3px solid var(--c,var(--nq));background:rgba(5,8,16,.55);border-radius:0 8px 8px 0;font-size:12.5px;animation:slide .35s}
+@keyframes slide{from{opacity:0;transform:translateX(-8px)}}
+.ri i{font-style:normal;font-family:var(--mono);font-size:10px;color:var(--mute);min-width:26px;padding-top:2px}
+.ri b{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--c,var(--nq));margin-right:6px}
+.heat{display:grid;gap:2px;padding:14px;overflow-x:auto}
+.heat .row{display:grid;align-items:center;gap:2px}
+.heat .rl{font-family:var(--mono);font-size:11px;font-weight:700;padding-right:8px;white-space:nowrap}
+.hc{height:20px;border-radius:3px;background:#0b1222;min-width:12px}
+/* drawer */
+.drawer{position:fixed;inset:0;background:rgba(2,4,9,.72);backdrop-filter:blur(6px);display:none;z-index:50;align-items:center;justify-content:center;padding:20px}
+.drawer.on{display:flex}
+.panel{width:min(1040px,100%);max-height:92vh;overflow:auto;border-radius:20px;background:#0a1020;border:1px solid var(--line2);padding:22px 24px;box-shadow:0 30px 100px rgba(0,0,0,.7)}
+.panel h3{margin:0 0 4px;font-size:20px;letter-spacing:.06em}
+.panel .x{float:right;cursor:pointer;font-family:var(--mono);color:var(--dim);border:1px solid var(--line2);border-radius:8px;padding:4px 10px}
+.legend{display:flex;gap:16px;font-family:var(--mono);font-size:11px;color:var(--dim);margin:10px 0}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+@media(max-width:760px){.cmp{grid-template-columns:1fr}.wrap{padding:16px 14px}}
+.kv{display:grid;grid-template-columns:auto auto;gap:5px 18px;font-family:var(--mono);font-size:12px;justify-content:space-between}
+.kv span{color:var(--mute)}
+.empty{padding:28px;text-align:center;color:var(--mute);font-family:var(--mono);font-size:12px}
+footer{margin-top:44px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--mute);line-height:1.8}
+.scroll-hint{font-family:var(--mono);font-size:10px;color:var(--mute);text-align:right;margin-bottom:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <div class="logo">G</div>
+      <div><h1>THE <span>GAUNTLET</span></h1><div class="tag">12 algos · single elimination · unseen data · $50K eval rules</div></div>
+    </div>
+    <div class="live">
+      <span class="pill"><span class="dot"></span><span id="phaseName">—</span></span>
+      <span class="pill" id="updated">—</span>
+      <span class="pill" id="countdown">next refresh —</span>
+    </div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+  <div class="phases" id="phases"></div>
+
+  <h2 class="sec"><i>00</i> Arena replay · live race</h2>
+  <div class="arena" id="arena"></div>
+
+  <h2 class="sec"><i>01</i> Bracket</h2>
+  <div class="scroll-hint">click any match for the full tape comparison →</div>
+  <div class="bracket-scroll"><div class="bracket" id="bracket"></div></div>
+
+  <h2 class="sec"><i>02</i> Team roster · validation gate</h2>
+  <div class="teams" id="teams"></div>
+
+  <h2 class="sec"><i>03</i> Leaderboard &amp; live feed</h2>
+  <div class="two">
+    <div class="glass tablebox" id="board"></div>
+    <div class="glass"><div class="feed" id="feed"></div></div>
+  </div>
+
+  <h2 class="sec"><i>04</i> Match history</h2>
+  <div class="glass tablebox" id="history"></div>
+
+  <h2 class="sec"><i>05</i> Weekly P&amp;L heatmap · every team, every round</h2>
+  <div class="glass" id="heat"></div>
+
+  <h2 class="sec"><i>06</i> Arena rules</h2>
+  <div class="glass"><div class="rules" id="rules"></div></div>
+
+  <footer id="foot"></footer>
+</div>
+
+<div class="drawer" id="drawer"><div class="panel" id="panel"></div></div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const $ = s => document.querySelector(s);
+const fmt$ = v => (v<0?'-':'')+'$'+Math.abs(Math.round(v)).toLocaleString();
+const fx = (v,d=2) => (v==null||!isFinite(v))?'—':Number(v).toFixed(d);
+const col = id => id && id.startsWith('NQ') ? 'var(--nq)' : 'var(--es)';
+const T = DATA.state.teams;
+const ROUND_ORDER = ['Round 1','Quarterfinals','Semifinals','Final'];
+
+/* ---------- tiny SVG charts ---------- */
+function spark(curve, color, h=30, w=240, base=50000){
+  if(!curve||curve.length<2) return `<svg class="spark" viewBox="0 0 ${w} ${h}"></svg>`;
+  const ys=curve.map(p=>p[1]), mn=Math.min(...ys,base), mx=Math.max(...ys,base);
+  const X=i=>i/(curve.length-1)*w, Y=v=>h-2-(v-mn)/((mx-mn)||1)*(h-4);
+  const d=curve.map((p,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(p[1]).toFixed(1)).join(' ');
+  const id='g'+Math.random().toString(36).slice(2,8);
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <defs><linearGradient id="${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".35"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+    <line x1="0" x2="${w}" y1="${Y(base)}" y2="${Y(base)}" stroke="#5b6786" stroke-dasharray="3 4" stroke-width=".6"/>
+    <path d="${d} L${w} ${h} L0 ${h}Z" fill="url(#${id})"/>
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+}
+function bigChart(curves){ // curves: [{name,color,pts:[[ts,eq]]}]
+  const W=960,H=300,P={l:62,r:14,t:14,b:26};
+  const all=curves.flatMap(c=>c.pts); if(all.length<2) return '<div class="empty">no tape</div>';
+  const xs=all.map(p=>p[0]), ys=all.map(p=>p[1]).concat([50000,48000,53000]);
+  const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys)-150,y1=Math.max(...ys)+150;
+  const X=t=>P.l+(t-x0)/((x1-x0)||1)*(W-P.l-P.r), Y=v=>H-P.b-(v-y0)/((y1-y0)||1)*(H-P.t-P.b);
+  let g='';
+  [[53000,'TARGET $53,000','#a3e635'],[50000,'START $50,000','#5b6786'],[48000,'BUST FLOOR $48,000','#fb7185']].forEach(([v,l,c])=>{
+    g+=`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${c}" stroke-dasharray="5 5" stroke-width=".9" opacity=".7"/><text x="${P.l+4}" y="${Y(v)-4}" fill="${c}" font-size="9.5" font-family="monospace">${l}</text>`;});
+  const tick=5; for(let i=0;i<=tick;i++){const v=y0+(y1-y0)*i/tick;g+=`<text x="${P.l-8}" y="${Y(v)+3}" text-anchor="end" fill="#5b6786" font-size="9.5" font-family="monospace">${Math.round(v).toLocaleString()}</text>`;}
+  for(let i=0;i<=4;i++){const t=x0+(x1-x0)*i/4;g+=`<text x="${X(t)}" y="${H-8}" text-anchor="middle" fill="#5b6786" font-size="9.5" font-family="monospace">${new Date(t*1000).toISOString().slice(0,10)}</text>`;}
+  curves.forEach(c=>{
+    if(c.pts.length<2) return;
+    // step-after path: equity changes at trade close
+    let d=''; c.pts.forEach((p,i)=>{ d+=(i?` L${X(p[0]).toFixed(1)} ${Y(c.pts[i-1][1]).toFixed(1)} L`:'M')+`${X(p[0]).toFixed(1)} ${Y(p[1]).toFixed(1)}`;});
+    g+=`<path d="${d}" fill="none" stroke="${c.color}" stroke-width="2" stroke-linejoin="round" style="filter:drop-shadow(0 0 5px ${c.color})"/>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="background:rgba(5,8,16,.6);border-radius:12px;border:1px solid var(--line)">${g}</svg>`;
+}
+
+/* ---------- derived ---------- */
+const matches = DATA.bracket.rounds.flatMap((r,ri)=>r.matches.map(m=>({...m,round:r.name,window:r.window,ri})));
+const played = matches.filter(m=>m.winner);
+const record = {}; Object.keys(T).forEach(k=>record[k]={w:0,l:0,best:0,net:0,played:0});
+played.forEach(m=>{
+  [['A','B'],['B','A']].forEach(([a,b])=>{ const id=m['team'+a]; if(!id||!record[id]) return;
+    record[id].played++; if(m.winner===id) record[id].w++; else record[id].l++;
+    record[id].best=Math.max(record[id].best,m['score'+a]||0); record[id].net+=m['net'+a]||0; });
+});
+const alive = Object.values(T).filter(t=>['qualified','active','champion'].includes(t.status)).length;
+
+/* ---------- header / kpis / phases ---------- */
+$('#phaseName').textContent = DATA.state.phase_label;
+$('#updated').textContent = 'updated '+DATA.generated.replace('T',' ').slice(0,16)+' UTC';
+const best = played.length?Math.max(...played.flatMap(m=>[m.scoreA||0,m.scoreB||0])):0;
+const vals = Object.values(T).filter(t=>t.gate&&t.gate.pf);
+const bestPF = vals.length?Math.max(...vals.map(t=>t.gate.pf)):0;
+const champ = Object.entries(T).find(([k,t])=>t.status==='champion');
+$('#kpis').innerHTML = [
+  ['Teams alive', alive+' / 12', Object.values(T).filter(t=>t.status==='failed_gate').length+' failed gate','var(--nq)'],
+  ['Matches played', played.length+' / '+matches.length, DATA.state.phase_label,'var(--vio)'],
+  ['Best match score', best?fx(best,2):'—','net ÷ max(DD,$500)','var(--es)'],
+  ['Best validation PF', bestPF?fx(bestPF,2):'—','2024-01 → 2025-06','var(--gold)'],
+  ['Busts', played.filter(m=>m.bust).length, 'instant eliminations','var(--red)'],
+  ['Champion', champ?champ[0]:'TBD', champ?'crowned':'in the arena','var(--gold)']
+].map(([l,v,s,c])=>`<div class="kpi" style="--c:${c}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
+
+const steps=[['Pre-register','teams freeze rules'],['Train','2021 → 2023'],['Validation gate','PF>1 · 100+ trades'],['Round 1','2025 Q3'],['Quarterfinals','2025 Q4'],['Semifinals','2026 Q1'],['Final','2026 Apr → Sep'],['Champion','published']];
+const cur = DATA.state.phase_index;
+$('#phases').innerHTML = steps.map((s,i)=>`<div class="ph ${i<cur?'done':i===cur?'now':''}"><b>${i<cur?'✓ ':''}${s[0]}</b>${s[1]}</div>`).join('');
+
+/* ---------- bracket ---------- */
+function teamRow(id, m, side){
+  if(!id) return `<div class="mt tbd" style="--c:#2a3350"><div class="bar"></div><div><div class="n">TBD</div><span class="c">awaiting winner</span></div><div class="sc">—</div></div>`;
+  const t=T[id]||{}, done=!!m.winner, win=done&&m.winner===id, bust=m['bust'+side];
+  const sc=m['score'+side], net=m['net'+side];
+  return `<div class="mt ${done?(win?'win':'lose'):''} ${bust?'bust':''} ${m['second'+side]?'sc2':''}" style="--c:${col(id)}">
+    <div class="bar"></div>
+    <div><div class="n">${id} ${m['second'+side]?'<span class="badge b-sc">2nd chance</span>':''}</div><span class="c">${t.concept_short||t.lane||''}</span></div>
+    <div class="sc">${done?(bust?'BUST':fx(sc,2)):'—'}<small>${done?fmt$(net||0):''}</small></div></div>`;
+}
+function matchCard(m, idx){
+  const done=!!m.winner;
+  const sp = done&&m.curveA? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${spark(m.curveA,'#22d3ee',26,120)+spark(m.curveB,'#a3e635',26,120)}</div>`:'';
+  return `<div class="match ${done?'':(m.teamA&&m.teamB?'live':'')}" data-m="${idx}">
+    <div class="mh"><span>${m.label||'Match'}</span><span>${done?(m.date||''):(m.teamA&&m.teamB?'● ready':'pending')}</span></div>
+    ${teamRow(m.teamA,m,'A')}<div class="vs"></div>${teamRow(m.teamB,m,'B')}${sp}</div>`;
+}
+(function(){
+  const cols=[]; const info=DATA.bracket.rounds;
+  info.forEach((r,ri)=>{
+    const cards=r.matches.map(m=>{const gi=matches.findIndex(x=>x===matches.find(y=>y.round===r.name&&y.label===m.label));return matchCard(m,gi)}).join('');
+    cols.push(`<div class="col"><div><h3>${r.name}<em>${r.window.start} → ${r.window.end} · ${r.matches.length} match${r.matches.length>1?'es':''}</em></h3></div>${cards}</div>`);
+  });
+  cols.push(`<div class="col"><div class="champ"><div class="cup">🏆</div><h4>CHAMPION</h4><div class="nm" style="color:${champ?col(champ[0]):'var(--dim)'}">${champ?champ[0]:'—'}</div><p>${champ?(champ[1].concept||''):'Last algo standing.<br>Full spec &amp; tapes published.'}</p></div></div>`);
+  $('#bracket').innerHTML=cols.join('');
+})();
+document.querySelectorAll('.match').forEach(el=>el.onclick=()=>openMatch(matches[+el.dataset.m]));
+
+/* ---------- team grid ---------- */
+function status(t){return {qualified:['qualified','b-q'],active:['active','b-q'],failed_gate:['failed gate','b-x'],eliminated:['eliminated','b-x'],champion:['champion','b-w'],research:['researching','b-x']}[t.status]||[t.status,'b-x']}
+$('#teams').innerHTML=Object.keys(T).map(id=>{
+  const t=T[id],g=t.gate||{},r=record[id],[sl,sc]=status(t);
+  return `<div class="card ${['eliminated','failed_gate'].includes(t.status)?'out':''}" style="--c:${col(id)}" data-t="${id}">
+   <div class="hd"><div><div class="id">${id}</div><span class="badge ${id.startsWith('NQ')?'b-nq':'b-es'}">${id.startsWith('NQ')?'MNQ · $2/pt':'MES · $5/pt'}</span></div><span class="badge ${sc}">${sl}</span></div>
+   <div class="cn"><b style="color:var(--tx)">${t.lane||''}</b><br>${t.concept_short||''}</div>
+   ${spark(t.val_curve,id.startsWith('NQ')?'#22d3ee':'#a3e635',34,260)}
+   <div class="stats"><div><b class="${g.pf>1?'good':'bad'}">${fx(g.pf)}</b><span>PF</span></div><div><b>${g.wr!=null?Math.round(g.wr*100)+'%':'—'}</b><span>WR</span></div><div><b>${g.trades??'—'}</b><span>trades</span></div><div><b>${fx(g.tpd)}</b><span>/day</span></div></div>
+   <div class="rec"><span>validation ${g.pass===true?'<span class="good">✓ PASS</span>':g.pass===false?'<span class="bad">✗ FAIL</span>':'—'}</span><span>record ${r.w}-${r.l}${r.played?' · best '+fx(r.best):''}</span></div></div>`;}).join('');
+document.querySelectorAll('.card').forEach(el=>el.onclick=()=>openTeam(el.dataset.t));
+
+/* ---------- leaderboard ---------- */
+(function(){
+  const rows=Object.keys(T).map(id=>({id,...record[id],g:T[id].gate||{},st:T[id].status}));
+  rows.sort((a,b)=>(b.w-a.w)||(b.best-a.best)||((b.g.pf||0)-(a.g.pf||0)));
+  $('#board').innerHTML=`<table><tr><th>#</th><th>Team</th><th>Lane</th><th>Val PF</th><th>Val net</th><th>W-L</th><th>Best score</th><th>Status</th></tr>`+
+   rows.map((r,i)=>`<tr><td class="m">${i+1}</td><td><b style="color:${col(r.id)}">${r.id}</b></td><td style="color:var(--dim)">${T[r.id].lane||''}</td><td class="m">${fx(r.g.pf)}</td><td class="m">${r.g.net!=null?fmt$(r.g.net):'—'}</td><td class="m">${r.w}-${r.l}</td><td class="m">${r.best?fx(r.best):'—'}</td><td><span class="badge ${status(T[r.id])[1]}">${status(T[r.id])[0]}</span></td></tr>`).join('')+`</table>`;
+  const f=DATA.activity.slice().sort((a,b)=>b.ts.localeCompare(a.ts)).slice(0,60);
+  $('#feed').innerHTML=f.length?f.map(e=>`<div class="fi"><time>${e.ts.replace('T',' ').slice(5,16)}</time><div><span class="a">${e.action}</span>${e.team&&e.team!=='coordinator'?`<span class="tm">${e.team}</span>`:''}${e.detail}</div></div>`).join(''):'<div class="empty">no activity yet</div>';
+})();
+
+/* ---------- history ---------- */
+$('#history').innerHTML=played.length?`<table><tr><th>Round</th><th>Window</th><th>Match</th><th>Score A</th><th>Score B</th><th>Net A</th><th>Net B</th><th>DD A</th><th>DD B</th><th>Winner</th><th>Decided</th></tr>`+
+ played.map(m=>`<tr data-h="1"><td>${m.round}</td><td class="m">${m.window.start} → ${m.window.end}</td><td><b style="color:${col(m.teamA)}">${m.teamA}</b> vs <b style="color:${col(m.teamB)}">${m.teamB}</b></td>
+ <td class="m">${m.bustA?'<span class="bad">BUST</span>':fx(m.scoreA)}</td><td class="m">${m.bustB?'<span class="bad">BUST</span>':fx(m.scoreB)}</td>
+ <td class="m">${fmt$(m.netA||0)}</td><td class="m">${fmt$(m.netB||0)}</td><td class="m">${fmt$(m.ddA||0)}</td><td class="m">${fmt$(m.ddB||0)}</td>
+ <td><span class="badge b-w">${m.winner}</span></td><td class="m">${m.date||''}</td></tr>`).join('')+'</table>':'<div class="empty">no matches played yet — Round 1 opens after the validation gate</div>';
+
+/* ---------- rules ---------- */
+$('#rules').innerHTML=[['$50,000','simulated eval account'],['+$3,000','profit target'],['−$2,000','max drawdown · trails EOD peak'],['−$1,250','daily loss limit · pause, survive'],['40','micro contracts max'],['$500','drawdown floor in score'],['≥ 20','trades per match'],['1','position at a time · stop required']].map(([a,b])=>`<div class="rule"><b>${a}</b><span>${b}</span></div>`).join('');
+$('#foot').innerHTML=`Score = net profit ÷ max(intraday max drawdown, $500) · bust ⇒ 0 · no martingale · commissions excluded · 1-tick slippage on market/stop fills<br>Data: ${DATA.state.data_note}<br>Board rebuilt by the coordinator after every step · page auto-refreshes every 10 minutes`;
+
+/* ---------- drawers ---------- */
+const drawer=$('#drawer'), panel=$('#panel');
+drawer.onclick=e=>{if(e.target===drawer)drawer.classList.remove('on')};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')drawer.classList.remove('on')});
+function statBlock(m,s){
+  const id=m['team'+s]; return `<div class="glass" style="padding:14px"><div style="font-weight:800;font-size:18px;color:${col(id)};margin-bottom:8px">${id||'TBD'} ${m['bust'+s]?'<span class="badge b-bust">BUST</span>':''} ${m.winner===id?'<span class="badge b-w">winner</span>':''}</div>
+  <div class="kv"><span>score</span><b>${fx(m['score'+s])}</b><span>net P&amp;L</span><b>${fmt$(m['net'+s]||0)}</b><span>final equity</span><b>${fmt$(m['equity'+s]||50000)}</b><span>max drawdown</span><b>${fmt$(m['dd'+s]||0)}</b><span>profit factor</span><b>${fx(m['pf'+s])}</b><span>win rate</span><b>${m['wr'+s]!=null?Math.round(m['wr'+s]*100)+'%':'—'}</b><span>trades</span><b>${m['trades'+s]??'—'}</b><span>avg contracts</span><b>${fx(m['avgq'+s],1)}</b><span>target hit</span><b>${m['passed'+s]?'<span class="good">yes</span>':'no'}</b></div></div>`;}
+function openMatch(m){
+  if(!m) return;
+  const done=!!m.winner;
+  panel.innerHTML=`<span class="x" onclick="drawer.classList.remove('on')">ESC ✕</span><h3>${m.round} · ${m.label||''}</h3><div class="tag">${m.window.start} → ${m.window.end} ${done?'· decided '+(m.date||''):''}</div>
+  ${done?`<div class="legend"><span><i style="background:#22d3ee"></i>${m.teamA}</span><span><i style="background:#a3e635"></i>${m.teamB}</span><span style="color:var(--mute)">equity after each closed trade</span></div>
+  ${bigChart([{name:m.teamA,color:'#22d3ee',pts:m.curveA||[]},{name:m.teamB,color:'#a3e635',pts:m.curveB||[]}])}
+  <div class="cmp">${statBlock(m,'A')}${statBlock(m,'B')}</div>`:'<div class="empty">match not played yet</div>'}`;
+  drawer.classList.add('on');
+}
+function openTeam(id){
+  const t=T[id],g=t.gate||{},r=record[id];
+  const mm=played.filter(m=>m.teamA===id||m.teamB===id);
+  panel.innerHTML=`<span class="x" onclick="drawer.classList.remove('on')">ESC ✕</span><h3 style="color:${col(id)}">${id} · ${t.lane||''}</h3><div class="tag">${t.concept||''}</div>
+  <div class="legend"><span>validation 2024-01 → 2025-06 · account rules off · equity after each trade (1 contract-sizing as traded)</span></div>
+  ${bigChart([{name:id,color:id.startsWith('NQ')?'#22d3ee':'#a3e635',pts:t.val_curve_full||t.val_curve||[]}])}
+  <div class="cmp"><div class="glass" style="padding:14px"><div class="kv"><span>validation PF</span><b>${fx(g.pf)}</b><span>win rate</span><b>${g.wr!=null?Math.round(g.wr*100)+'%':'—'}</b><span>trades</span><b>${g.trades??'—'}</b><span>trades / day</span><b>${fx(g.tpd)}</b><span>net P&amp;L</span><b>${g.net!=null?fmt$(g.net):'—'}</b><span>gate</span><b>${g.pass===true?'PASS':g.pass===false?'FAIL':'—'}</b></div></div>
+  <div class="glass" style="padding:14px"><div class="kv"><span>rolling 3-mo pass rate</span><b>${t.roll?Math.round(t.roll.pass_rate*100)+'%':'—'}</b><span>rolling bust rate</span><b>${t.roll?Math.round(t.roll.bust_rate*100)+'%':'—'}</b><span>rolling positive</span><b>${t.roll?Math.round(t.roll.pos_rate*100)+'%':'—'}</b><span>record</span><b>${r.w}-${r.l}</b><span>sizing</span><b>${t.sizing||'—'}</b><span>params</span><b>${t.nparams??'—'}</b></div></div></div>
+  ${mm.length?`<div class="glass tablebox" style="margin-top:14px"><table><tr><th>Round</th><th>Opponent</th><th>Score</th><th>Net</th><th>DD</th><th>Result</th></tr>${mm.map(m=>{const s=m.teamA===id?'A':'B',o=s==='A'?m.teamB:m.teamA;return `<tr><td>${m.round}</td><td>${o}</td><td class="m">${m['bust'+s]?'BUST':fx(m['score'+s])}</td><td class="m">${fmt$(m['net'+s]||0)}</td><td class="m">${fmt$(m['dd'+s]||0)}</td><td>${m.winner===id?'<span class="good">WON</span>':'<span class="bad">LOST</span>'}</td></tr>`}).join('')}</table></div>`:''}`;
+  drawer.classList.add('on');
+}
+
+/* ---------- ARENA REPLAY ---------- */
+const AR={mi:-1,t:0,playing:false,speed:1,days:[],A:null,B:null,ev:[],raf:0,last:0};
+function dayAxis(m){
+  const set=new Set(); [m.dayA,m.dayB].forEach(a=>(a||[]).forEach(r=>set.add(r[0])));
+  // fill every weekday between first and last so the race has a regular clock
+  const a=[...set].sort((x,y)=>x-y); if(!a.length) return [];
+  const out=[]; for(let d=a[0]; d<=a[a.length-1]; d+=86400){const w=new Date(d*1000).getUTCDay(); if(w!==0&&w!==6) out.push(d);} return out;
+}
+function series(rows,days){ // forward-filled eod equity / floor / day pnl per axis day
+  const map=new Map((rows||[]).map(r=>[r[0],r])); let eq=50000,fl=48000; const o=[];
+  days.forEach(d=>{const r=map.get(d); let pnl=0; if(r){eq=r[1];fl=r[2];pnl=r[3];} o.push({eq,fl,pnl,traded:!!r});}); return o;
+}
+function buildEvents(m){
+  const ev=[], A=AR.A, B=AR.B; let leader=null, pkA=0, pkB=0, doneA=false, doneB=false;
+  const nm={A:m.teamA,B:m.teamB}, cl={A:col(m.teamA),B:col(m.teamB)};
+  for(let i=0;i<AR.days.length;i++){
+    [['A',A],['B',B]].forEach(([k,S])=>{
+      const d=S[i], g=d.eq-50000;
+      if(d.pnl<=-1000) ev.push({i,k:'DLL',c:'var(--red)',x:`${nm[k]} takes a ${fmt$(d.pnl)} day${d.pnl<=-1250?' — daily loss limit hit, paused':''}.`});
+      const mile=Math.floor(g/500)*500; const pk=k==='A'?pkA:pkB;
+      if(mile>pk&&mile>=500){ ev.push({i,k:'PEAK',c:cl[k],x:`${nm[k]} breaks ${fmt$(mile)} open profit (${fmt$(g)}).`}); if(k==='A')pkA=mile; else pkB=mile; }
+      if(g>=3000&&!(k==='A'?doneA:doneB)){ ev.push({i,k:'FINISH',c:'var(--es)',x:`${nm[k]} hits the +$3,000 target on day ${i+1}.`}); if(k==='A')doneA=true; else doneB=true; }
+    });
+    const dA=A[i].eq-50000, dB=B[i].eq-50000, l=Math.abs(dA-dB)<1?leader:(dA>dB?'A':'B');
+    if(l&&l!==leader){ ev.push({i,k:'LEAD',c:cl[l],x:`${nm[l]} takes the lead (${fmt$(l==='A'?dA:dB)} vs ${fmt$(l==='A'?dB:dA)}).`}); leader=l; }
+  }
+  [['A',m.bustA,m.bust_tsA],['B',m.bustB,m.bust_tsB]].forEach(([k,b,ts])=>{ if(b){ let i=ts?AR.days.findIndex(d=>d+86400>ts):AR.days.length-1; if(i<0)i=AR.days.length-1; ev.push({i,k:'BUST',c:'var(--red)',x:`${nm[k]} touches the trailing floor — BUSTED, eliminated.`}); }});
+  ev.sort((a,b)=>a.i-b.i); return ev;
+}
+function arenaSelect(mi){
+  AR.mi=mi; AR.playing=false; cancelAnimationFrame(AR.raf);
+  const m=matches[mi]; AR.days=dayAxis(m); AR.A=series(m.dayA,AR.days); AR.B=series(m.dayB,AR.days);
+  AR.ev=buildEvents(m); AR.t=AR.days.length-1; arenaRender();
+}
+function laneHTML(id,S,k,m){
+  const i=Math.min(AR.days.length-1,Math.floor(AR.t)), d=S[i], g=d.eq-50000;
+  const bust=(k==='A'?m.bustA:m.bustB), bi = bust? (()=>{const ts=k==='A'?m.bust_tsA:m.bust_tsB;const j=ts?AR.days.findIndex(x=>x+86400>ts):AR.days.length-1;return j<0?AR.days.length-1:j})():-1;
+  const dead=bust&&i>=bi, fin=g>=3000;
+  const X=v=>Math.max(0,Math.min(1,(v+2000)/5500))*100;
+  const c=col(id), hex=id.startsWith('NQ')?'#22d3ee':'#a3e635';
+  const pos=X(Math.min(g,3250)), fl=X(d.fl-50000);
+  return `<div class="lane" style="--c:${hex}"><div class="lh"><span><b style="color:${hex}">${id}</b> <span class="badge ${id.startsWith('NQ')?'b-nq':'b-es'}">${id.startsWith('NQ')?'MNQ':'MES'}</span> <span style="color:var(--dim)">${(T[id]||{}).lane||''}</span></span>
+   <span class="st">DAY ${i+1} · ${g>=0?'+':''}${fmt$(g)} · ${dead?'<span class="bad">BUSTED</span>':fin?'<span class="good">FINISHED</span>':Math.max(0,Math.round(g/30))+'% to target'}</span></div>
+   <div class="track"><div class="zone-bust" style="width:${X(0)}%"></div><div class="zone-fin" style="width:${100-X(3000)}%"></div>
+    <div class="startl" style="left:${X(0)}%"></div><div class="finl" style="left:${X(3000)}%"></div>
+    <div class="floor" style="left:${fl}%"></div>
+    <div class="fill" style="left:${Math.min(pos,X(0))}%;width:${Math.abs(pos-X(0))}%;${g<0?'background:linear-gradient(270deg,transparent,var(--red))':''}"></div>
+    <svg class="mk" style="left:${pos}%;--c:${dead?'#fb7185':hex}" viewBox="0 0 34 34"><path d="M3 17 L22 5 L31 17 L22 29 Z" fill="${dead?'#fb7185':hex}"/><ellipse cx="22" cy="17" rx="4.5" ry="3" fill="#fff" opacity=".9"/></svg></div></div>`;
+}
+function arenaRender(first){
+  const root=$('#arena');
+  if(!played.length){ root.innerHTML='<div class="empty">The arena opens once Round 1 is played.<br>Both teams will race along a lane from the −$2,000 bust floor to the +$3,000 finish, with a scrubber, replay and race radio.</div>'; return; }
+  const m=matches[AR.mi]; const n=AR.days.length;
+  if(first!==false||!$('#lanes')){
+    const opts=played.map(x=>matches.indexOf(x)).map(i=>`<option value="${i}" ${i===AR.mi?'selected':''}>${matches[i].round} · ${matches[i].teamA} vs ${matches[i].teamB}</option>`).join('');
+    const wsum=`${m.window.start} → ${m.window.end}`;
+    const lw = m.winner? `<div class="vbox hl"><div class="l">Verdict · decided ${m.date||''}</div><div class="v" style="color:${col(m.winner)}">${m.winner} advances</div><div class="s">${m.teamA} ${m.bustA?'BUST':fx(m.scoreA)} vs ${m.teamB} ${m.bustB?'BUST':fx(m.scoreB)} · score = net ÷ max(maxDD, $500)</div></div>`:'';
+    root.innerHTML=`<div class="actl"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><select class="sel" id="asel">${opts}</select><span class="tag">${wsum}</span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="aplay">▶ Play</button><button class="btn" id="areplay">↻ Replay</button>
+      <div class="seg" id="aspeed"><button data-s="1" class="on">1×</button><button data-s="2">2×</button><button data-s="4">4×</button><button data-s="8">8×</button></div><button class="btn" id="adetail">Full tape</button></div></div>
+      <div class="verdict"><div class="vbox"><div class="l">${m.round} · ${m.label||''}</div><div class="v">${m.teamA} <span style="color:var(--mute)">vs</span> ${m.teamB}</div><div class="s">${n} trading days · fresh $50K eval each · same unseen window</div></div>${lw}</div>
+      <div id="lanes"></div>
+      <div class="axis"><span style="left:0%">−$2k BUST</span><span style="left:18.18%">−$1k</span><span style="left:36.36%;color:#e8eefc">START</span><span style="left:54.55%">+$1k</span><span style="left:72.73%">+$2k</span><span style="left:90.91%;color:var(--es)">+$3k FINISH</span></div>
+      <div class="scrub"><button class="btn" id="aplay2" style="padding:6px 11px">▶</button><input type="range" id="arange" min="0" max="${Math.max(0,n-1)}" step="0.01" value="${AR.t}"><span class="dd" id="aday"></span></div>
+      <div class="arena2"><div><div class="tag" style="margin:6px 0">Telemetry · equity vs trading day · dashed = trailing floor · click/drag to scrub</div><div id="tele"></div></div>
+      <div><div class="tag" style="margin:6px 0">Race radio</div><div class="radio" id="radio"></div></div></div>`;
+    $('#asel').onchange=e=>arenaSelect(+e.target.value);
+    const toggle=()=>{AR.playing?arenaPause():arenaPlay()};
+    $('#aplay').onclick=toggle; $('#aplay2').onclick=toggle;
+    $('#areplay').onclick=()=>{AR.t=0;arenaPlay()};
+    $('#adetail').onclick=()=>openMatch(m);
+    document.querySelectorAll('#aspeed button').forEach(b=>b.onclick=()=>{AR.speed=+b.dataset.s;document.querySelectorAll('#aspeed button').forEach(x=>x.classList.toggle('on',x===b))});
+    $('#arange').oninput=e=>{AR.t=+e.target.value;AR.playing=false;cancelAnimationFrame(AR.raf);arenaRender(false)};
+  }
+  const i=Math.min(n-1,Math.floor(AR.t));
+  $('#lanes').innerHTML=laneHTML(m.teamA,AR.A,'A',m)+laneHTML(m.teamB,AR.B,'B',m);
+  $('#arange').value=AR.t; $('#aday').textContent=`DAY ${i+1} / ${n} · ${new Date(AR.days[i]*1000).toISOString().slice(0,10)}`;
+  $('#aplay').textContent=AR.playing?'❚❚ Pause':'▶ Play'; $('#aplay2').textContent=AR.playing?'❚❚':'▶';
+  $('#tele').innerHTML=teleChart(m,i);
+  const evs=AR.ev.filter(e=>e.i<=i).reverse().slice(0,40);
+  $('#radio').innerHTML=evs.length?evs.map(e=>`<div class="ri" style="--c:${e.c}"><i>D${String(e.i+1).padStart(2,'0')}</i><div><b>${e.k}</b>${e.x}</div></div>`).join(''):'<div class="empty">lights out… press Play</div>';
+}
+function teleChart(m,cur){
+  const W=900,H=250,P={l:58,r:12,t:10,b:22}, n=AR.days.length; if(n<2) return '';
+  const all=[...AR.A,...AR.B]; const y0=Math.min(47800,...all.map(d=>d.eq))-100, y1=Math.max(53200,...all.map(d=>d.eq))+100;
+  const X=i=>P.l+i/(n-1)*(W-P.l-P.r), Y=v=>H-P.b-(v-y0)/(y1-y0)*(H-P.t-P.b);
+  let g='';
+  [[53000,'#a3e635','TARGET'],[50000,'#5b6786','START'],[48000,'#fb7185','BUST']].forEach(([v,c,l])=>g+=`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${c}" stroke-dasharray="4 5" stroke-width=".8" opacity=".6"/><text x="${P.l-6}" y="${Y(v)+3}" text-anchor="end" fill="${c}" font-size="9" font-family="monospace">${(v/1000).toFixed(0)}k</text>`);
+  [[AR.A,'#22d3ee'],[AR.B,'#a3e635']].forEach(([S,c])=>{
+    const upto=S.slice(0,cur+1);
+    g+=`<path d="${S.map((d,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(d.fl).toFixed(1)).join(' ')}" fill="none" stroke="${c}" stroke-width="1" stroke-dasharray="3 4" opacity=".4"/>`;
+    g+=`<path d="${S.map((d,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(d.eq).toFixed(1)).join(' ')}" fill="none" stroke="${c}" stroke-width="1" opacity=".22"/>`;
+    g+=`<path d="${upto.map((d,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(d.eq).toFixed(1)).join(' ')}" fill="none" stroke="${c}" stroke-width="2.2" style="filter:drop-shadow(0 0 5px ${c})"/>`;
+    g+=`<circle cx="${X(cur)}" cy="${Y(S[cur].eq)}" r="4" fill="${c}"/>`; });
+  g+=`<line x1="${X(cur)}" x2="${X(cur)}" y1="${P.t}" y2="${H-P.b}" stroke="#e8eefc" stroke-width=".8" opacity=".6"/>`;
+  [0,.25,.5,.75,1].forEach(f=>{const i=Math.round(f*(n-1));g+=`<text x="${X(i)}" y="${H-6}" text-anchor="middle" fill="#5b6786" font-size="9" font-family="monospace">${new Date(AR.days[i]*1000).toISOString().slice(5,10)}</text>`;});
+  return `<svg id="tsvg" viewBox="0 0 ${W} ${H}" width="100%" style="background:rgba(5,8,16,.6);border-radius:12px;border:1px solid var(--line);cursor:crosshair">${g}</svg>`;
+}
+document.addEventListener('pointerdown',e=>{const sv=e.target.closest&&e.target.closest('#tsvg'); if(!sv)return; const mv=ev=>{const r=sv.getBoundingClientRect(),f=Math.max(0,Math.min(1,((ev.clientX-r.left)/r.width*900-58)/(900-58-12)));AR.t=Math.round(f*(AR.days.length-1));AR.playing=false;cancelAnimationFrame(AR.raf);arenaRender(false)}; mv(e); const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up)}; addEventListener('pointermove',mv); addEventListener('pointerup',up);});
+function arenaPlay(){ if(AR.t>=AR.days.length-1)AR.t=0; AR.playing=true; AR.last=performance.now(); const step=now=>{ if(!AR.playing)return; AR.t=Math.min(AR.days.length-1,AR.t+(now-AR.last)/1000*3*AR.speed); AR.last=now; if(AR.t>=AR.days.length-1)AR.playing=false; arenaRender(false); if(AR.playing)AR.raf=requestAnimationFrame(step); }; AR.raf=requestAnimationFrame(step); }
+function arenaPause(){AR.playing=false;cancelAnimationFrame(AR.raf);arenaRender(false)}
+if(played.length) arenaSelect(matches.indexOf(played[played.length-1])); else arenaRender();
+
+/* ---------- weekly heatmap ---------- */
+(function(){
+  const ids=Object.keys(T).filter(id=>played.some(m=>m.teamA===id||m.teamB===id));
+  if(!ids.length){ $('#heat').innerHTML='<div class="empty">heatmap fills in as rounds are played</div>'; return; }
+  const wk=d=>Math.floor(d/86400/7); let w0=1e9,w1=0; const cell={};
+  played.forEach(m=>[['A',m.dayA],['B',m.dayB]].forEach(([k,rows])=>{const id=m['team'+k]; (rows||[]).forEach(r=>{const w=wk(r[0]);w0=Math.min(w0,w);w1=Math.max(w1,w);(cell[id]=cell[id]||{})[w]=(cell[id][w]||0)+r[3];});}));
+  const n=w1-w0+1; const colr=v=>v==null?'#0b1222':v>=0?`rgba(163,230,53,${Math.min(.95,.12+v/1200)})`:`rgba(251,113,133,${Math.min(.95,.12+(-v)/1200)})`;
+  $('#heat').innerHTML=`<div class="heat">`+ids.map(id=>`<div class="row" style="grid-template-columns:70px repeat(${n},minmax(10px,1fr))"><div class="rl" style="color:${col(id)}">${id}</div>`+Array.from({length:n},(_,i)=>{const v=(cell[id]||{})[w0+i];return `<div class="hc" style="background:${colr(v)}" title="${id} · week of ${new Date((w0+i)*7*86400000+0).toISOString().slice(0,10)} · ${v==null?'no data':fmt$(v)}"></div>`}).join('')+`</div>`).join('')+`<div class="tag" style="margin-top:8px">green = profitable week · red = losing week · intensity ∝ $ · weeks without a round are blank</div></div>`;
+})();
+
+/* ---------- refresh countdown ---------- */
+const t0=Date.now(); setInterval(()=>{const left=Math.max(0,600-Math.floor((Date.now()-t0)/1000));$('#countdown').textContent='next refresh '+String(Math.floor(left/60)).padStart(2,'0')+':'+String(left%60).padStart(2,'0')},1000);
+</script>
+</body>
+</html>

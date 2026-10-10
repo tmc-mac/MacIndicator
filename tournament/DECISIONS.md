@@ -11,3 +11,5 @@
 5. **Gate** run with account rules off (so bust does not truncate the trade count), one continuous pass over validate.
 6. **Lanes** assigned by coordinator to guarantee unique core concepts (see teams table).
 7. Slippage/commission: commissions excluded per policy.
+8. **Lane overlap ruling (NQ-2 vs NQ-6).** Both use the 09:30 ET opening range geometry. NQ-2 is a pure range-breakout; NQ-6's declared core concept is a volatility-regime *classifier* that switches between breakout and failed-breakout fade. Accepted as distinct (different edge source, different trade logic); logged as borderline.
+9. Teams were told they cannot see validation/hold-out data (loader truncates at 2025-06-30). Several teams amended their prereg after first backtest on TRAIN (disclosed in each prereg.md "Amendments"); only train data was available to them.

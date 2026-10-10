@@ -1,0 +1,7 @@
+# ES-4 log
+2026-10-10 prereg.md written, strategy.py/fit.py created (no backtests yet).
+Run1 (inner model fit 2021-09..2022-12, C=0.05; weights tiny, mostly prior-close & VWAP distance momentum): ks=kt=1.5 (ATR in per-bar range units) => PF 0.7-0.8, thousands of trades; slippage dominates, stop far too tight (my bug in scale). Widening: ks=kt=6..8, T=0.04: inner PF 1.07-1.11, 2023 PF 0.85-0.89 (fail); T=0.07: inner PF ~1.0-1.08 (n~200), 2023 PF 1.9-2.0 (n~120). Edge weak/unstable; high-confidence subset only.
+Run2 (step/T sweep, ks=8, kt=0, hold30): plateau at step=5, T=0.05-0.06: inner PF 1.17-1.18 (n 290-450), 2023 OOS PF 1.16-1.23 (n 177-290), maxDD 680-940. T>=0.07 unstable (inner ~1.0, 2023 ~2.0) -> not used. Choose T=0.055, step=5, ks=8, no target.
+Run3 (C 0.005/0.05/0.5 x T 0.05/0.06 x ks 6/8/10, inner-fit; train-inner / 2023 OOS): all PF 1.08-1.41, positive in every cell for both periods, DD 520-1060 at risk $120. Plateau over C. Final: C=0.01, T=0.055, ks=7, kt=0, hold=30, step=5, risk=150; refit on full train 2021-09..2023-12 (model.json).
+Run4 final (full-train fit C=0.01): train raw net=3121 PF=1.23 n=617 (1.07/d) maxDD=1628 (rules off); rolling 3m (52 windows): pass 0%, bust 0%, positive 71%, median score 0.44, median net $313. lookahead_clean=True.
+Quarterly nets (raw): -673,-416,+127,+995,+534,+77,+1786,-393,+1083. Risk sweep: 250 -> bust 2%, pass 6%, pos 67%; 350 -> bust 27%. Keep risk=150.

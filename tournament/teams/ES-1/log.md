@@ -1,0 +1,9 @@
+# ES-1 log
+- run1 (prereg defaults k=2,slope<0.6,risk120): train raw net=-21015 PF0.79 WR30% n=1217 (2.12/d) DD22675; rolling bust 92%. Fade-at-2sd loses.
+- Module A sweep (k 1.5-3.0, slope 0.3-1.5): PF 0.62-0.97 all; abandoned (see prereg amendment).
+- Module B (pullback continuation) first pass: small fixed targets (rr 0.5-2.5) lose (slippage + trend truncation); time exit (rr=0) wins: PF 1.1-1.4. Edge = riding trend days to close.
+- Wider stop (VWAP -/+ k*sd): stopk 0.5 PF1.1-1.4 DD 3-6k; 1.5-3.0 PF 1.2 plateau, DD ~2-2.7k.
+- Sizing floors at 1 contract (stops ~$100+/contract); max_risk1 250->150 cut rolling busts 12%->0%.
+- slope lookback (n bars): 20 PF1.11, 30 1.15, 40 1.26-1.36, 45 1.3, 60 1.16-1.27, 75 1.13, 90 1.02-1.07. Plateau 40-60; froze 45.
+- FROZEN: s_min .5, pb .6, stopk 2, rr 0, risk 100, slope_n 45, max_risk1 150, entries 10:00-15:00 ET, flat 15:55, max 3/day, cool 15.
+- FINAL train: net 6282 PF1.31 WR41% n=430 (0.75/d) maxDD 1684 (raw, rules off); rolling 52 evals: bust 0%, pos 85%, pass 0%, median net $786, median score 1.13; lookahead clean.
