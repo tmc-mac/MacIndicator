@@ -15,3 +15,7 @@ Filters: signals only when displacement bar closes in 08:30-11:00 ET; max stop d
 Sizing: contracts = floor(risk$ / (stop_pts * $2)), risk$ = $150 fixed, cap 40.
 Parameters (few): k_disp=1.5, ATR len 30, swing fractal 5, lookback 120, R=2, risk$=150, killzone window.
 Plateau checks to be done on k_disp, R, risk$, killzone end.
+
+## v2 amendments (2026-10-10)
+Goal changed to pass-before-bust. Added RISK_KEY='risk', TUNABLE list. Changed min_stop 4 -> 8 pts (principle: very tight stops are
+the most friction/noise-sensitive and give the largest contract counts). Concept unchanged. Sizing to be chosen on design (~2.5x of risk=175).

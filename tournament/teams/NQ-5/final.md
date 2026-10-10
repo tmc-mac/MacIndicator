@@ -10,3 +10,8 @@ median net $1.58k, median score 2.52. lookahead_clean True. All 10 train quarter
 Weaknesses: rr deviates from the classic 2R+ ICT target (rr>=1.25 had no edge; high win-rate/small-win profile, so a loss
 streak or widened slippage hurts; avg win ~0.5R vs loss 1R); rarely reaches $3k in 3 months at this risk (raise risk$ ~250 for ~$2.2k/qtr, DD ~1.4k);
 parameters (rr, k_disp, frac) were chosen after seeing train results; edge not yet tested out-of-sample.
+
+## v2 (pass-before-bust, design window 2021-09..2024-06)
+Frozen: min_stop 8 (else as above), risk base 175, chosen multiplier 2.5x (risk 437). Design: pass 73%, bust 5%, median 49 days to pass (slip 1);
+slip 2: pass 72%, bust 6%, median 49d. Perturbed +/-20%: pass .56-.79, bust <=.12. Slippage-insensitive since entry is a limit; stop slip is the only cost.
+Weaknesses: median 49 days is slow (near the 60-session cap; timeouts ~20%); small-win/large-loss shape; params tuned on design only.

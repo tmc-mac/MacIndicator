@@ -1,0 +1,139 @@
+{
+ "team": "NQ-5",
+ "instrument": "NQ",
+ "checks": {
+  "proof": {
+   "ok": false,
+   "pass_rate": 0.5671641791044776,
+   "bust_rate": 0.26865671641791045,
+   "timeout_rate": 0.16417910447761194,
+   "median_days_to_pass": 44.18819444444444,
+   "n_starts": 67,
+   "raw_trades": 221,
+   "raw_tpd": 0.8532818532818532,
+   "raw_pf": 1.5103414669361825,
+   "raw_net": 14138.5
+  },
+  "design": {
+   "ok": true,
+   "pass_rate": 0.7660550458715596,
+   "bust_rate": 0.1559633027522936,
+   "n_starts": 218
+  },
+  "halves": {
+   "ok": false,
+   "h1": 1.0,
+   "h2": 0.14705882352941177
+  },
+  "cost_2tick": {
+   "ok": true,
+   "pass_rate": 0.5671641791044776,
+   "bust_rate": 0.26865671641791045
+  },
+  "robust": {
+   "ok": false,
+   "median": 0.5671641791044776,
+   "worst": 0.0,
+   "n": 24
+  },
+  "lookahead": {
+   "ok": true
+  }
+ },
+ "reasons": [
+  "proof failed: pass_rate=0.57, bust_rate=0.27, timeout_rate=0.16, median_days_to_pass=44.19, n_starts=67, raw_trades=221, raw_tpd=0.85, raw_pf=1.51, raw_net=14138.50",
+  "halves failed: h1=1.00, h2=0.15",
+  "robust failed: median=0.57, worst=0.00, n=24"
+ ],
+ "design_sweep": [
+  {
+   "mult": 0.5,
+   "pass_rate": 0.0,
+   "bust_rate": 0.0,
+   "timeout_rate": 1.0,
+   "median_days_to_pass": NaN
+  },
+  {
+   "mult": 0.75,
+   "pass_rate": 0.0,
+   "bust_rate": 0.0,
+   "timeout_rate": 1.0,
+   "median_days_to_pass": NaN
+  },
+  {
+   "mult": 1,
+   "pass_rate": 0.0,
+   "bust_rate": 0.0,
+   "timeout_rate": 1.0,
+   "median_days_to_pass": NaN
+  },
+  {
+   "mult": 1.5,
+   "pass_rate": 0.3211009174311927,
+   "bust_rate": 0.0,
+   "timeout_rate": 0.6788990825688074,
+   "median_days_to_pass": 64.6732638888889
+  },
+  {
+   "mult": 2,
+   "pass_rate": 0.5871559633027523,
+   "bust_rate": 0.04128440366972477,
+   "timeout_rate": 0.37155963302752293,
+   "median_days_to_pass": 54.62569444444444
+  },
+  {
+   "mult": 3,
+   "pass_rate": 0.7660550458715596,
+   "bust_rate": 0.1559633027522936,
+   "timeout_rate": 0.0779816513761468,
+   "median_days_to_pass": 41.6125
+  },
+  {
+   "mult": 4,
+   "pass_rate": 0.7110091743119266,
+   "bust_rate": 0.2798165137614679,
+   "timeout_rate": 0.009174311926605505,
+   "median_days_to_pass": 26.65277777777778
+  },
+  {
+   "mult": 5,
+   "pass_rate": 0.6284403669724771,
+   "bust_rate": 0.37155963302752293,
+   "timeout_rate": 0.0,
+   "median_days_to_pass": 18.611805555555556
+  },
+  {
+   "mult": 6,
+   "pass_rate": 0.5779816513761468,
+   "bust_rate": 0.42201834862385323,
+   "timeout_rate": 0.0,
+   "median_days_to_pass": 14.683680555555556
+  },
+  {
+   "mult": 8,
+   "pass_rate": 0.5688073394495413,
+   "bust_rate": 0.43119266055045874,
+   "timeout_rate": 0.0,
+   "median_days_to_pass": 11.640625
+  }
+ ],
+ "chosen_mult": 3,
+ "frozen_params": {
+  "k_disp": 0.85,
+  "atr_n": 30,
+  "frac": 3,
+  "lookback": 120,
+  "disp_win": 8,
+  "rr": 0.5,
+  "risk": 525.0,
+  "kz_start": 510,
+  "kz_end": 660,
+  "exit_min": 720,
+  "max_per_day": 2,
+  "min_stop": 8.0,
+  "max_stop": 60.0,
+  "cancel": 20,
+  "buf_ticks": 2
+ },
+ "certified": false
+}

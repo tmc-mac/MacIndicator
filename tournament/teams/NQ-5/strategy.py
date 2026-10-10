@@ -6,7 +6,7 @@ from numba import njit
 import engine as E
 
 PARAMS = dict(k_disp=0.85, atr_n=30, frac=3, lookback=120, disp_win=8, rr=0.5, risk=175.0,
-              kz_start=510, kz_end=660, exit_min=720, max_per_day=2, min_stop=4.0, max_stop=60.0,
+              kz_start=510, kz_end=660, exit_min=720, max_per_day=2, min_stop=8.0, max_stop=60.0,
               cancel=20, buf_ticks=2)
 
 

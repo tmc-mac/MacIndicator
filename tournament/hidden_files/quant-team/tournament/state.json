@@ -6705,7 +6705,7 @@
    "lane": "ICT / SMC",
    "concept_short": "liquidity sweep + displacement + FVG in killzones",
    "concept": "liquidity sweep + displacement + FVG in killzones",
-   "status": "candidate",
+   "status": "not_certified",
    "gate": {
     "pf": 1.7050443814528977,
     "wr": 0.7674418604651163,
@@ -8608,7 +8608,13 @@
     "attempt": 1,
     "pass": true
    },
-   "legacy_status": "qualified"
+   "legacy_status": "qualified",
+   "v2_note": "NEAR MISS (provisional pending QA): proof pass 57% / bust 27% (bar 50/25), raw PF 1.51; fails half-year consistency (H1 100%, H2 15%) and parameter robustness (worst perturbation 0%)",
+   "cert": {
+    "pass_rate": 0.567,
+    "bust_rate": 0.269,
+    "mult": 3
+   }
   },
   "NQ-6": {
    "lane": "Vol-regime adaptive",

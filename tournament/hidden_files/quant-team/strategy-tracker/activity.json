@@ -558,5 +558,12 @@
   "team": "ES-1",
   "action": "certify",
   "detail": "ES-1 NOT certified (provisional pending QA): proof pass 9% / bust 7% / 84% timeouts; fails all but lookahead."
+ },
+ {
+  "ts": "2026-10-10T23:43:57",
+  "round": "T1",
+  "team": "NQ-5",
+  "action": "certify",
+  "detail": "NQ-5 NOT certified (provisional pending QA): proof year pass 57% / bust 27% (bar >=50% / <=25%); halves 100% / 15%; robustness worst 0%; cost-2tick ok; lookahead clean. Closest of 21 candidates."
  }
 ]
