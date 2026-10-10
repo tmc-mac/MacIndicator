@@ -55,7 +55,8 @@ class Ref:
 
 # ---------- the account simulation -------------------------------------------------------------
 def simulate(R, sig, i0, i1, enforce=True, slip=1.0, stop_on_pass=False, mode='mimic'):
-    S = (mode == 'strict')
+    F = set(['breach_order', 'post_check', 'pend_block', 'fillbar_tgt', 'time_slip', 'pause_orders']) if mode == 'strict' else \
+        (set() if mode == 'mimic' else set(mode.split(',')))
     o, h, l, c, day, ts, mult = R.o, R.h, R.l, R.c, R.day, R.ts, R.mult
     sl = slip * TICK
     bars = sig['bar'].tolist() if hasattr(sig['bar'], 'tolist') else list(sig['bar'])
@@ -80,7 +81,7 @@ def simulate(R, sig, i0, i1, enforce=True, slip=1.0, stop_on_pass=False, mode='m
         side = side_a[k]; q = q_a[k]
         if q < 1: continue
         stop = stop_a[k]; tgt = tgt_a[k]
-        if S and paused is not None and day[b] == paused: continue          # no new orders on a paused session
+        if 'pause_orders' in F and paused is not None and day[b] == paused: continue          # no new orders on a paused session
         # ----- entry -----
         if kind_a[k] == 0:
             eb = b; entry = o[b] + side * sl
@@ -92,17 +93,16 @@ def simulate(R, sig, i0, i1, enforce=True, slip=1.0, stop_on_pass=False, mode='m
                 if side == -1 and h[j] >= lim + TICK:
                     eb = j; entry = lim if o[j] < lim else o[j]; break
             if eb < 0:
-                if S: free = max(free, last + 1)                            # order was live (blocking) until cancel_by
+                if 'pend_block' in F: free = max(free, last + 1)                            # order was live (blocking) until cancel_by
                 continue
-            if S and eb > b: pass
         if (side == 1 and stop >= entry) or (side == -1 and stop <= entry):
-            if S and kind_a[k] == 1: free = max(free, eb + 1)
+            if 'pend_block' in F and kind_a[k] == 1: free = max(free, eb + 1)
             continue
         if eb < free:
             continue
         if day[eb] != cur_day:                                              # flat session roll(s)
             roll(day[eb], START + realized)
-        if (not S) and paused == cur_day:
+        if paused == cur_day:
             continue
         val = mult * q
         last_exit = xb_a[k]
@@ -118,7 +118,7 @@ def simulate(R, sig, i0, i1, enforce=True, slip=1.0, stop_on_pass=False, mode='m
             def touched(p): return side * (worst - p) <= 0 if True else False
             stop_hit = (side == 1 and worst <= stop) or (side == -1 and worst >= stop)
             gap = (j > eb)
-            if not S:
+            if 'breach_order' not in F:
                 # ---- mimic: stop first, then bust, then DLL, then target, then time ----
                 if stop_hit:
                     base = (o[j] if ((o[j] < stop if side == 1 else o[j] > stop) and gap) else stop)
@@ -151,16 +151,16 @@ def simulate(R, sig, i0, i1, enforce=True, slip=1.0, stop_on_pass=False, mode='m
                         paused = cur_day
                     break
             if not np.isnan(tgt):
-                tgt_ok = not (S and j == eb and kind_a[k] == 1)
+                tgt_ok = not ('fillbar_tgt' in F and j == eb and kind_a[k] == 1)
                 if tgt_ok and ((side == 1 and h[j] >= tgt + TICK) or (side == -1 and l[j] <= tgt - TICK)):
                     xpx = tgt; xbar = j; why = 'target'; break
             if j >= last_exit or j >= i1 - 1:
-                xpx = c[j] - (side * sl if S else 0.0); xbar = j; why = 'time'; break
+                xpx = c[j] - (side * sl if 'time_slip' in F else 0.0); xbar = j; why = 'time'; break
             j += 1
         pnl = side * (xpx - entry) * val
         realized += pnl
         eq_now = START + realized
-        if S and enforce and why in ('stop', 'time', 'target'):
+        if 'post_check' in F and enforce and why in ('stop', 'time', 'target'):
             if eq_now <= floor: bust = True; bust_ts = ts[xbar]
             elif eq_now - day_start <= -DLL: paused = cur_day
         if passed_ts == 0 and eq_now >= START + TARGET: passed_ts = ts[xbar]
