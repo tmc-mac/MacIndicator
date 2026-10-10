@@ -94,8 +94,8 @@ def generate_a(d, p):
     return E.make_signals(bar, side, np.zeros(m, np.int64), px, stop, tgt, ex, ex, q)
 
 
-PARAMS_B = dict(s_min=0.5, pb=0.6, stopk=2.0, rr=0, risk=100.0, max_tr=3, t0=600, t1=900, eod=955,
-                slope_n=45, max_risk1=150.0, cool=15, clean_n=0, htf=0)
+PARAMS_B = dict(s_min=0.5, pb=1.0, stopk=2.0, rr=0, risk=100.0, max_tr=3, t0=600, t1=900, eod=840,
+                slope_n=45, max_risk1=90.0, cool=15, clean_n=0, htf=0)
 
 
 @njit

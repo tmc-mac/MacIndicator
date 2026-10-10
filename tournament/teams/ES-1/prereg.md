@@ -35,3 +35,6 @@ Stop: VWAP -/+ STOPK*sd (below pullback low if lower). Target: entry +/- RR*risk
 Validation gate failed (PF 0.95, 268 trades, DD 2044; weak 2024Q1-Q3 chop and 2025Q2 whipsaw). Principled fix: trend-quality
 filter -- require the close to have stayed on the trend side of VWAP for the last HOLD_N bars before the pullback bar
 (a clean trend, not a VWAP-straddling chop whose drift is just a transient). Options tested on train first; validation used once to confirm.
+Rework outcome: clean-trend filter (price on trend side of VWAP for N bars), prior-close direction filter, stronger slope thresholds,
+and module A fades all made validation WORSE (PF 0.72-0.91) or did not generalize. Kept: volatility-regime cap (skip trades whose 1-contract
+stop risk > $90, i.e. skip high-vol days where 2-sd stops are huge), pb 1.0, and an earlier 14:00 ET flat (frees afternoon for a second trade; trend edge decays late).

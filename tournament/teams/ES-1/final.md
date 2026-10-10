@@ -6,3 +6,9 @@ Frozen params: s_min .5, pb .6, stopk 2, rr 0, risk 100, slope_n 45, max_risk1 1
 Train raw: net +6282, PF 1.31, WR 41%, 430 trades (0.75/d), maxDD 1684. Quarters: 8 of 9 positive (2021Q4 -622). Long +3536, short +2746.
 Rolling 3-mo fresh evals (52): bust 0%, positive 85%, pass 0%, median net $786, median score 1.13.
 Weaknesses: effectively one trade per day held to close (trade count ~0.75/d, near gate floor 0.5); median quarter well under $3k target; 1-contract floor means DD (~1.7k over 27 months, per-quarter smaller) cannot be sized down; slope lookback sensitive (edge fades at >=75 bars); fixed targets destroy edge; many full-stop losses (WR 41%).
+
+## REWORK (supersedes numbers above)
+Changes: pb 0.6->1.0, flat 14:00 ET (eod 840), max_risk1 150->90 (skip high-vol days). clean_n/htf options exist but are 0/off.
+Train: PF 1.16, 315 trades (0.55/d), net +1870, DD 2268; rolling bust 4%, positive 69%, median net $378.
+Validate: PF 1.07, 205 trades (0.53/d), net +630, DD 1582. lookahead_clean True.
+Honest: edge is thin and regime dependent (strong-trend filters and fades failed validation); parameters were chosen with several validation looks.

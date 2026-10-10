@@ -7,3 +7,7 @@
 - slope lookback (n bars): 20 PF1.11, 30 1.15, 40 1.26-1.36, 45 1.3, 60 1.16-1.27, 75 1.13, 90 1.02-1.07. Plateau 40-60; froze 45.
 - FROZEN: s_min .5, pb .6, stopk 2, rr 0, risk 100, slope_n 45, max_risk1 150, entries 10:00-15:00 ET, flat 15:55, max 3/day, cool 15.
 - FINAL train: net 6282 PF1.31 WR41% n=430 (0.75/d) maxDD 1684 (raw, rules off); rolling 52 evals: bust 0%, pos 85%, pass 0%, median net $786, median score 1.13; lookahead clean.
+- REWORK after validation fail (PF .95/268/.69d/DD2044; losses 2024Q1-Q3 and 2025Q2 whipsaw, shorts -1340).
+- Trend-quality (clean_n), prior-close direction (htf), stronger s_min, fade module A: all worse on validate (PF .72-.91); fade PF .67-.84 both windows.
+- Vol cap max_risk1 75-100 improved both windows but cut tpd <0.5; eod 14:00 + pb 1.0 + max_risk1 90 restores tpd.
+- REWORK FROZEN: pb 1.0, eod 840 (14:00 ET), max_risk1 90. Train PF1.16 n=315 (0.55/d) DD2268 rolling bust 4% pos 69% med net $378. Validate (official, rules off) PF1.07 n=205 (0.53/d) net +630 DD1582. Lookahead clean. Thin edge; validate used ~25 looks while exploring (selection risk).

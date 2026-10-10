@@ -124,5 +124,96 @@
   "team": "NQ-4",
   "action": "gate-final",
   "detail": "NQ-4 failed validation twice (rework PF 0.97, 361 trades, net -$421). Eliminated before the bracket; no alternate available, bracket will shrink."
+ },
+ {
+  "ts": "2026-10-10T23:04:27",
+  "round": "T1",
+  "team": "NQ-1",
+  "action": "gate",
+  "detail": "NQ-1 PASS PF=1.16 n=289 (0.75/d) net=1258 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:04:31",
+  "round": "T1",
+  "team": "NQ-2",
+  "action": "gate",
+  "detail": "NQ-2 PASS PF=1.12 n=270 (0.70/d) net=2949 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:04:33",
+  "round": "T1",
+  "team": "NQ-3",
+  "action": "gate",
+  "detail": "NQ-3 PASS PF=1.05 n=214 (0.55/d) net=900 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:04:35",
+  "round": "T1",
+  "team": "NQ-4",
+  "action": "gate",
+  "detail": "NQ-4 FAIL PF=0.97 n=361 (0.93/d) net=-421 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:04:51",
+  "round": "T1",
+  "team": "NQ-5",
+  "action": "gate",
+  "detail": "NQ-5 PASS PF=1.71 n=344 (0.89/d) net=8519 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:04:54",
+  "round": "T1",
+  "team": "NQ-6",
+  "action": "gate",
+  "detail": "NQ-6 PASS PF=1.06 n=253 (0.65/d) net=770 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:04:57",
+  "round": "T1",
+  "team": "ES-1",
+  "action": "gate",
+  "detail": "ES-1 PASS PF=1.07 n=205 (0.53/d) net=630 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:04:59",
+  "round": "T1",
+  "team": "ES-2",
+  "action": "gate",
+  "detail": "ES-2 PASS PF=1.00 n=368 (0.95/d) net=79 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:05:00",
+  "round": "T1",
+  "team": "ES-3",
+  "action": "gate",
+  "detail": "ES-3 PASS PF=1.13 n=195 (0.50/d) net=724 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:05:04",
+  "round": "T1",
+  "team": "ES-4",
+  "action": "gate",
+  "detail": "ES-4 PASS PF=1.03 n=294 (0.76/d) net=266 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:05:07",
+  "round": "T1",
+  "team": "ES-5",
+  "action": "gate",
+  "detail": "ES-5 PASS PF=1.29 n=261 (0.67/d) net=3441 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:05:08",
+  "round": "T1",
+  "team": "ES-6",
+  "action": "gate",
+  "detail": "ES-6 PASS PF=1.15 n=200 (0.52/d) net=926 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:05:19",
+  "round": "T1",
+  "team": "coordinator",
+  "action": "draw",
+  "detail": "Seeded random draw (seed 20261010): NQ-6 vs NQ-3; ES-2 vs NQ-2; NQ-1 vs NQ-5; ES-3 vs ES-5; ES-1 vs ES-4 \u00b7 bye ['ES-6']"
  }
 ]

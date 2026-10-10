@@ -1,0 +1,104 @@
+{
+ "rounds": [
+  {
+   "key": "R1",
+   "name": "Round 1",
+   "window": {
+    "start": "2025-07-01",
+    "end": "2025-09-30"
+   },
+   "matches": [
+    {
+     "label": "Match 1",
+     "teamA": "NQ-6",
+     "teamB": "NQ-3"
+    },
+    {
+     "label": "Match 2",
+     "teamA": "ES-2",
+     "teamB": "NQ-2"
+    },
+    {
+     "label": "Match 3",
+     "teamA": "NQ-1",
+     "teamB": "NQ-5"
+    },
+    {
+     "label": "Match 4",
+     "teamA": "ES-3",
+     "teamB": "ES-5"
+    },
+    {
+     "label": "Match 5",
+     "teamA": "ES-1",
+     "teamB": "ES-4"
+    }
+   ]
+  },
+  {
+   "key": "QF",
+   "name": "Quarterfinals",
+   "window": {
+    "start": "2025-10-01",
+    "end": "2025-12-31"
+   },
+   "matches": [
+    {
+     "label": "Match 1",
+     "teamA": null,
+     "teamB": null
+    },
+    {
+     "label": "Match 2",
+     "teamA": null,
+     "teamB": null
+    },
+    {
+     "label": "Match 3",
+     "teamA": null,
+     "teamB": null
+    },
+    {
+     "label": "Match 4",
+     "teamA": null,
+     "teamB": null
+    }
+   ]
+  },
+  {
+   "key": "SF",
+   "name": "Semifinals",
+   "window": {
+    "start": "2026-01-01",
+    "end": "2026-03-31"
+   },
+   "matches": [
+    {
+     "label": "Match 1",
+     "teamA": null,
+     "teamB": null
+    },
+    {
+     "label": "Match 2",
+     "teamA": null,
+     "teamB": null
+    }
+   ]
+  },
+  {
+   "key": "F",
+   "name": "Final",
+   "window": {
+    "start": "2026-04-01",
+    "end": "2026-09-24"
+   },
+   "matches": [
+    {
+     "label": "Grand Final",
+     "teamA": null,
+     "teamB": null
+    }
+   ]
+  }
+ ]
+}
