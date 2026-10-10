@@ -8,3 +8,5 @@
 - REWORK 2026-10-10: validate gate failed (PF .96). Added maxpts (absolute stop cap, skip trades), removed numba cache. Testing on train.
 - Rework train: maxpts20 PF1.02 n249; 25 PF1.01; 30 PF1.06 n506 DD1815; 40 PF.94. maxpts30+max_day2: train n472 (0.81/d) PF1.11 net+1371 DD1605.
 - Validation (first, accidentally unmodified params) PF.96. Rework validate (maxpts30,max_day2): n289 (0.75/d) PF1.16 net+1258 DD673; rolling pos 79% bust 0%, lookahead clean.
+- v2: combine_team design (2021-09..2024-06), n_starts 218: x1 pass0/bust0/timeout100; x2 pass.02/bust.02; x3 pass.13/bust.42; x4 pass.19/bust.63; x6 pass.26/bust.68 (med days 19). Raw PF ~1.08, 0.85/d, WR~20%.
+  Bust grows faster than pass at every size: edge (PF~1.08) too thin; no sizing meets 40%/30%. Stopped per brief (no data torture).

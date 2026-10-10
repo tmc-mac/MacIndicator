@@ -8,3 +8,5 @@
 - Chosen: mode1 buf0 sk2 tg2 risk150: net 2500 PF 1.27 n=348 (0.61/d) maxDD 1068. Qtrly P&L
   [-24,115,279,754,1214,121,-185,-315,541]. Rolling: pass 0, bust 0, pos 65%, median net +143. lookahead_clean True.
 - Sensitivity: t_exit 450/540/565 PF 1.07/1.15/1.20; t_end 240/420 PF 1.26/1.19; risk 300 PF 1.11 (DD 2326); buf .1 sk1.5 PF 1.02-1.05.
+- v2: combine_team design window (2021-09..2024-06), 215 starts. x1 pass 0%; x3 pass 7%/bust 8%; x4 11%/26%; x6 17%/56%/med 28d.
+  Raw PF 1.10-1.27, 410 trades. Pass never nears 40% with bust <=30%. Declared no edge; stopped.

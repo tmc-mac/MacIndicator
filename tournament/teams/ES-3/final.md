@@ -5,3 +5,7 @@ Train: net +2500, PF 1.27, 348 trades (0.61/d), max DD 1068. Rolling 3m: pass 0%
 Honest weaknesses: edge is weak (~+$7/trade, mostly time-exit drift; t-stat ~1.5), originally preregistered breakout had
 no edge. Too small to pass the $3k target; lumpy (2022 Q4/2023 Q1 negative). Sensitivity is only roughly plateau-shaped.
 Validation gate risk: PF>1 uncertain.
+
+## v2 verdict: NO EDGE (not certifiable)
+Design sweep: best pass/bust tradeoff x4 = 11% pass / 26% bust; x6 = 17% / 56%. Bar is 40% pass / <=30% bust. Asia-range
+structure gives no usable directional edge on ES 1m bars after costs; sizing cannot create one. Recommend dropping ES-3.

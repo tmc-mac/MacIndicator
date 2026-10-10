@@ -4,8 +4,8 @@ import numpy as np
 from numba import njit
 import engine as E
 
-PARAMS = dict(risk=100.0, N=15, rmult=2.0, buf=1.0, max_stop=12.0, min_stop=2.0,
-              tenkan=9, kijun=26, senkou=52, start=585, last=900, flat=955, lookback=2)
+PARAMS = dict(risk=150.0, N=30, rmult=2.0, buf=1.0, max_stop=20.0, min_stop=2.0,
+              tenkan=9, kijun=26, senkou=52, start=585, last=900, flat=955, lookback=6)
 RISK_KEY = 'risk'
 TUNABLE = ['N', 'rmult', 'buf', 'max_stop']
 

@@ -23,3 +23,6 @@ in any prior-day bucket. Only structured finding: when prior CLV is NEUTRAL (bal
 09:36->11:00 move continues into the afternoon (both signs). New H3 (replaces H1/H2): if prior CLV in
 [clv_lo, clv_hi] and |am move| >= m x mean10 range, enter at 11:00 ET in direction of the morning move,
 stop = stop_mult x mean10 range, time exit 15:55, sizing as before. Band width is the only trade-count lever.
+
+## v2 amendments (2026-10-10)
+Added RISK_KEY='risk', TUNABLE list. No logic change. Design-window certifier sweep failed (see log); declared no edge.

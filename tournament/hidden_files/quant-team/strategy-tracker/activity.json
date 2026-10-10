@@ -418,5 +418,12 @@
   "team": "coordinator",
   "action": "qa",
   "detail": "QA team stood up: independent engine re-implementation + data/realism audit before any certification is trusted."
+ },
+ {
+  "ts": "2026-10-10T23:38:37",
+  "round": "T1",
+  "team": "NQ-7",
+  "action": "v2-result",
+  "detail": "NQ-7 declared NO CERTIFIABLE EDGE on design (best size: pass 44% / bust 53%); withdrawn."
  }
 ]

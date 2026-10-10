@@ -30,3 +30,7 @@ Success criteria: train PF>1.1, >=0.5 trades/day, plateau-shaped sensitivity, po
 ## Amendments (rework, 2026-10-10)
 After validation gate failure (PF 0.96, DD 5150): added absolute stop cap maxpts=30 pts (skip setups whose 1-contract risk > $60,
 so the 1-contract floor cannot inflate risk) and max_day 3 -> 2 (fewer, cleaner setups). Numba cache removed. Concept unchanged.
+
+## v2 amendments (2026-10-10)
+Added RISK_KEY='risk' and TUNABLE list to strategy.py; no logic change. Disclosure: this team saw validation data (2024-01..2025-06)
+during the earlier rework (one official run of the final config plus one on the old config), so any proof-year result is partly contaminated.

@@ -8,3 +8,7 @@ Rolling 3-mo fresh evals (52 windows): pass 0%, bust 0%, positive 75%, median sc
 Weaknesses: thin edge (~$1.2k/quarter at 1-2 MES), never reaches +$3k target in 3 months; shorter horizons (<=45 min) have no edge;
 upsizing degrades PF and raises bust risk; some of the parameter choice (L75, tgt) came from sweeps on train; 1-min z-fade edge
 could be regime dependent (weak in 2022H2 trend). Gate risk: PF 1.17 train, ~0.93 trades/day passes >0.5.
+
+## v2 verdict: NO EDGE (does not meet certification)
+Design-window combine: best size x3 gives pass 13% / bust 25%; x4 pass 27% / bust 47%; x6 24%/76%. Never reaches pass>=40% with bust<=30%.
+Edge (PF ~1.07-1.15 design, ~1.00 validation) is too thin for pass-before-bust at any sizing. Not certified; no further work.

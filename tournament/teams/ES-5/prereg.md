@@ -39,3 +39,6 @@ v3 (MODE 2, replaces bar-climax): VWAP-distance volume-confirmed trend. LONG whe
 10-bar volume / (300-bar mean volume) >= VR AND 10-bar delta proxy (sum clv*v / sum v) > 0 (flow agrees); short mirrored.
 Stop = SW*atr60 away from close, no target, time exit 45 bars, flat 15:55, max 2 entries/day, cool 30 bars.
 Sizing: RISK$ / (stop pts * 5). Entry window 10:00-15:00 ET.
+
+## v2 amendments (2026-10-10)
+Brief V2 adopted: added RISK_KEY='risk' (renamed from RISK), TUNABLE list, MAXC raised to 40. Strategy logic unchanged (MODE 2).

@@ -6,7 +6,7 @@ import engine as E
 
 PARAMS = dict(hf=8, hs=34, pb_len=30, atr_len=60, depth=0.5, look=20, stop_mult=2.0, rr=2.5,
               risk=60.0, max_day=3, cooldown=90, min_stop=8.0, max_hold=180,
-              strength=1.0, start_min=585, end_min=915, flat_min=955)
+              strength=0.5, start_min=585, end_min=915, flat_min=955)
 
 
 @njit

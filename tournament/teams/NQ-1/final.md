@@ -11,3 +11,7 @@ Only the offset-entry config is marginally positive and the neighbourhood is noi
 ## Rework (frozen): maxpts=30, max_day=2 (others as above)
 Train: n472 (0.81/d) PF1.11 net+1371 DD1605. Validate (one run): n289 (0.75/d) PF1.16 net+1258 DD673, rolling pos 79%, bust 0%.
 Caveat: train sensitivity to maxpts is noisy (25: PF1.01, 40: PF0.94); thin edge, PF only ~1.1.
+
+## v2 verdict: NOT CERTIFIABLE
+Design pass/bust by size multiplier (base risk $60): x3 13%/42%, x4 19%/63%, x6 26%/68%. No size reaches pass>=40% with bust<=30%.
+Edge too thin (PF ~1.08, win rate ~20%). Honest result: no edge sufficient for pass-before-bust. Validation data (2024-01..2025-06) was seen earlier (disclosed).

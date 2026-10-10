@@ -4,3 +4,4 @@
 - Feature studies (train, forward return in pts): 30-bar delta proxy quintiles ~0; divergence price vs delta ~noise (n~200); first-30min delta vs rest-of-day corr -0.004. Far-from-VWAP + high volume => continuation (|z|>5: ~+/-1pt over 45 bars). Moving to v3.
 - v3 scans (train raw): ZT 4-6 PF~1.0; ZT 8-10 PF 1.15-1.35 both halves >1 (plateau); ZT 12 dips (0.92-1.12), ZT16 n<100. Frozen ZT=9,VR=1.0,SW=6,TIME3=60,MAXDAY3=3,RISK=150 (a priori mid-plateau).
 - Final run_team train: raw net=2006 PF=1.14 WR50% n=365 (0.63/d) maxDD=1196; rolling 52 windows: pass 0%, bust 0%, positive 71%, median net +261, median score 0.44; lookahead_clean True.
+- v2: combine_team on design (2021-09..2024-06), 215 starts. PF 1.22 raw, 442 trades. x1 pass0/bust0/timeout100; x2 pass10 bust5; x3 pass27 bust32; x4 pass35 bust59; x6 pass31 bust69. No size reaches pass>=40%/bust<=30%. No principled change identified (earlier fades/climax variants had PF<1); declared no edge, stopped.

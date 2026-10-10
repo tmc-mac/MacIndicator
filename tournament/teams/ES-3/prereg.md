@@ -24,3 +24,7 @@ plateau-shaped sensitivity, consistent across train quarters.
 ## Amendments (2026-10-10, after first backtests; see log.md)
 Pre-registered breakout (mode 0) failed on train. Frozen candidate is the declared fade variant: mode=1, buf=0,
 sk=2.0 (stop 2R beyond entry), tg=2.0 (x stop distance), rmin/rmax 0.5/2.0, risk 150, entry 03:00-05:00, exit 08:30.
+
+## v2 amendments (2026-10-10)
+Added RISK_KEY='risk', TUNABLE list, removed njit cache. No logic change. Goal now pass-before-bust; no tuning attempted
+because the edge (t~1.5) is too small for sizing to fix.

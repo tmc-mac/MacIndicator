@@ -21,3 +21,6 @@ Sensitivity to be checked over K in {2,2.5,3}, L in {10,15,30}. Expect plateau; 
 ## Amendments (2026-10-10, after sweep 1 on train)
 Pure z-fade of 10-60 min moves showed no edge (PF<=1.05). Exploring longer horizons (L 60-240) and an optional
 reversal-confirmation filter (current bar closes against the move). Same concept (return z-score exhaustion fade).
+
+## v2 amendments (2026-10-10)
+Added RISK_KEY='risk' and TUNABLE to strategy.py. No logic changes. Design sweep shows no sizing meets the bar; declared no edge.

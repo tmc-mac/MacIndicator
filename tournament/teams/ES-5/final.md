@@ -9,3 +9,7 @@ Rolling 3-mo evals (52): pass 0%, bust 0%, positive 71%, median net +$261, media
 Weaknesses: low edge (PF 1.14), earns little per quarter (far from the $3k target), 29% negative quarters,
 sensitivity cliff at ZT=12 (plateau 8-10), order-flow proxies from 1m OHLCV carry little standalone signal
 (delta divergence, opening delta, climax fades were all noise or negative). Trade-frequency gate (0.5/d) only just met.
+
+## v2 verdict: NO EDGE (does not meet certification bar)
+Design-window sweep (215 starts): best sizing x3 gives pass 27% / bust 32% / median 43 days; x4 pass 35% / bust 59%. Edge (PF ~1.2) is too
+thin: more size raises busts as fast as passes. Not certifiable; stopped without further tuning.

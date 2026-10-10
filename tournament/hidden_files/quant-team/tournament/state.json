@@ -19445,7 +19445,7 @@
    "lane": "Daily-structure patterns",
    "concept_short": "prior-day structure (inside/outside day, close location) \u2192 next-session follow-through (replaces NQ-4)",
    "concept": "prior-day structure (inside/outside day, close location) \u2192 next-session follow-through (replaces NQ-4)",
-   "status": "candidate",
+   "status": "eliminated",
    "gate": {
     "pf": 1.0172575738000176,
     "wr": 0.4296028880866426,
@@ -21069,7 +21069,8 @@
      50395.71249999997
     ]
    ],
-   "legacy_status": "eliminated"
+   "legacy_status": "eliminated",
+   "v2_note": "no certifiable edge (design best pass 44% / bust 53%)"
   },
   "NQ-8": {
    "lane": "Donchian / channel-breakout trend",

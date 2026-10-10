@@ -1,0 +1,1 @@
+# ES-10 final: NO EDGE. Candlestick patterns (engulfing/pin at swings, inside-bar breakout) on 5-60m ES bars lose after 1-tick slippage (PF 0.72-0.96). Best cell (inside-bar breakout 15m, PF 1.14) has 0.29 trades/day and no plateau. Not certifiable. strategy.py kept as defaults for reference.

@@ -3,7 +3,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'engine')
 import numpy as np
 import engine as E
 
-PARAMS = dict(risk=150.0, accept=3, gap_min=5.0, buf=3.0, max_stop=60.0, last_entry=660, min_width=20.0, rr_cap=0.0)
+PARAMS = dict(risk=150.0, accept=2, gap_min=0.0, buf=3.0, max_stop=150.0, last_entry=840, min_width=0.0, rr_cap=0.0)
 RISK_KEY = 'risk'
 TUNABLE = ['accept', 'gap_min', 'buf', 'max_stop', 'last_entry', 'min_width']
 
