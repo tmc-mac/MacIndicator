@@ -215,5 +215,26 @@
   "team": "coordinator",
   "action": "draw",
   "detail": "Seeded random draw (seed 20261010): NQ-6 vs NQ-3; ES-2 vs NQ-2; NQ-1 vs NQ-5; ES-3 vs ES-5; ES-1 vs ES-4 \u00b7 bye ['ES-6']"
+ },
+ {
+  "ts": "2026-10-10T23:20:17",
+  "round": "R1",
+  "team": "coordinator",
+  "action": "round-start",
+  "detail": "Round 1 window 2025-07-01 \u2192 2025-09-30"
+ },
+ {
+  "ts": "2026-10-10T23:20:32",
+  "round": "R1",
+  "team": "NQ-6",
+  "action": "match",
+  "detail": "R1 NQ-6 0.00 (net -532, dd 1320) vs NQ-3 0.00 (net -878, dd 1718) \u2192 NQ-6 advances (neither scored: higher net)"
+ },
+ {
+  "ts": "2026-10-10T23:20:39",
+  "round": "R1",
+  "team": "NQ-2",
+  "action": "match",
+  "detail": "R1 ES-2 0.00 (net -1254, dd 1661) vs NQ-2 0.30 (net 324, dd 1079) \u2192 NQ-2 advances (only finisher net-positive & alive)"
  }
 ]
