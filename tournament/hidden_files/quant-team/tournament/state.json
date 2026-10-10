@@ -1723,7 +1723,7 @@
    "lane": "Opening-range breakout",
    "concept_short": "09:30 ET opening range breakout",
    "concept": "09:30 ET opening range breakout",
-   "status": "candidate",
+   "status": "eliminated",
    "gate": {
     "pf": 1.1165432659774668,
     "wr": 0.4777777777777778,
@@ -3330,13 +3330,14 @@
     "attempt": 1,
     "pass": true
    },
-   "legacy_status": "qualified"
+   "legacy_status": "qualified",
+   "v2_note": "not certified \u2014 design best x3 pass 43% / bust 56%"
   },
   "NQ-3": {
    "lane": "Overnight / gap momentum",
    "concept_short": "overnight structure & gap into the cash open",
    "concept": "overnight structure & gap into the cash open",
-   "status": "candidate",
+   "status": "eliminated",
    "gate": {
     "pf": 1.051208356181825,
     "wr": 0.37383177570093457,
@@ -4719,13 +4720,14 @@
     "attempt": 1,
     "pass": true
    },
-   "legacy_status": "qualified"
+   "legacy_status": "qualified",
+   "v2_note": "not certified \u2014 design best x3 pass 46% / bust 54%"
   },
   "NQ-4": {
    "lane": "MTF trend-following",
    "concept_short": "hourly trend filter + 1-min pullback reclaim",
    "concept": "hourly trend filter + 1-min pullback reclaim",
-   "status": "candidate",
+   "status": "eliminated",
    "gate": {
     "pf": 0.9689927780426231,
     "wr": 0.296398891966759,
@@ -6696,7 +6698,8 @@
     "attempt": 1,
     "pass": false
    },
-   "legacy_status": "failed_gate"
+   "legacy_status": "failed_gate",
+   "v2_note": "not certified \u2014 CERTIFICATION FAILED: design x3 pass 42%/bust 13%, but proof year PF 0.95, pass 1%, bust 57%"
   },
   "NQ-5": {
    "lane": "ICT / SMC",
@@ -8611,7 +8614,7 @@
    "lane": "Vol-regime adaptive",
    "concept_short": "volatility-regime switch between breakout & fade",
    "concept": "volatility-regime switch between breakout & fade",
-   "status": "candidate",
+   "status": "eliminated",
    "gate": {
     "pf": 1.0595417487732313,
     "wr": 0.4505928853754941,
@@ -10150,7 +10153,8 @@
     "attempt": 1,
     "pass": false
    },
-   "legacy_status": "qualified"
+   "legacy_status": "qualified",
+   "v2_note": "not certified \u2014 design best x8 pass 47% / bust 52%"
   },
   "ES-1": {
    "lane": "Session VWAP",
@@ -14829,7 +14833,7 @@
    "lane": "ML / statistical",
    "concept_short": "regularized model on engineered features",
    "concept": "regularized model on engineered features",
-   "status": "candidate",
+   "status": "eliminated",
    "gate": {
     "pf": 1.034282550144341,
     "wr": 0.54421768707483,
@@ -16532,7 +16536,8 @@
     "attempt": 1,
     "pass": false
    },
-   "legacy_status": "qualified"
+   "legacy_status": "qualified",
+   "v2_note": "not certified \u2014 walk-forward fails; true OOS PF ~0.99"
   },
   "ES-5": {
    "lane": "Order-flow proxy",
@@ -18116,7 +18121,7 @@
    "lane": "Event / time-of-day",
    "concept_short": "scheduled-time & calendar effects",
    "concept": "scheduled-time & calendar effects",
-   "status": "candidate",
+   "status": "eliminated",
    "gate": {
     "pf": 1.1496860850684238,
     "wr": 0.48,
@@ -19443,7 +19448,8 @@
     "attempt": 1,
     "pass": true
    },
-   "legacy_status": "qualified"
+   "legacy_status": "qualified",
+   "v2_note": "no certifiable edge \u2014 single daily trade; design best x6 pass 47% / bust 47%"
   },
   "NQ-7": {
    "lane": "Daily-structure patterns",
@@ -21087,22 +21093,25 @@
    "lane": "Market-profile value area",
    "concept_short": "prior-day value area / POC \"80% rule\" and acceptance/rejection",
    "concept": "prior-day value area / POC \"80% rule\" and acceptance/rejection",
-   "status": "recruiting",
-   "gate": null
+   "status": "eliminated",
+   "gate": null,
+   "v2_note": "not certified \u2014 0.26 trades/day, x8 pass 29% / bust 67%"
   },
   "NQ-10": {
    "lane": "Floor / Camarilla pivots",
    "concept_short": "classic & Camarilla pivot levels: fade or break",
    "concept": "classic & Camarilla pivot levels: fade or break",
-   "status": "recruiting",
-   "gate": null
+   "status": "eliminated",
+   "gate": null,
+   "v2_note": "not certified \u2014 break mode x? pass 50% / bust 40% (pass rises 1:1 with bust)"
   },
   "NQ-11": {
    "lane": "Fibonacci retracement",
    "concept_short": "impulse-leg Fibonacci pullback entries",
    "concept": "impulse-leg Fibonacci pullback entries",
-   "status": "recruiting",
-   "gate": null
+   "status": "eliminated",
+   "gate": null,
+   "v2_note": "not certified \u2014 raw PF 0.93-1.05, best x8 pass 23% / bust 77%"
   },
   "ES-7": {
    "lane": "Intermarket lead-lag (NQ\u2192ES)",
@@ -21116,15 +21125,17 @@
    "lane": "Ichimoku system",
    "concept_short": "Ichimoku cloud / TK-cross momentum system",
    "concept": "Ichimoku cloud / TK-cross momentum system",
-   "status": "recruiting",
-   "gate": null
+   "status": "eliminated",
+   "gate": null,
+   "v2_note": "not certified \u2014 only 30m variant has edge; 0.25 trades/day, N-sensitivity = noise"
   },
   "ES-9": {
    "lane": "Round-number levels",
    "concept_short": "psychological round-number magnets, rejection & breakout",
    "concept": "psychological round-number magnets, rejection & breakout",
-   "status": "recruiting",
-   "gate": null
+   "status": "eliminated",
+   "gate": null,
+   "v2_note": "no certifiable edge \u2014 round-number levels show no edge (oracle-phase PF 1.08)"
   },
   "ES-10": {
    "lane": "Candlestick price-action",

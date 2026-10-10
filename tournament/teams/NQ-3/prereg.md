@@ -37,3 +37,6 @@ The original morning gap continuation/fade legs showed no edge and were disabled
 Exploration of overnight segment returns on train found the Asia-session return (18:00->03:00 ET) continuing into the cash open.
 Final strategy: side = sign(open03:00 - open18:00); require 03:00->09:29 move not opposing by > 0.05 ATR; market entry at 09:30 open;
 stop 0.25*ATR10(RTH range); time exit 11:00 ET; contracts = floor(200/(stop_pts*2)) min 1. Same concept (overnight momentum into the open).
+
+## v2 amendments (2026-10-10)
+Added RISK_KEY='ARISK', TUNABLE=[AS,AMIN,ARISK,AGTOL,NATR]. No logic change. Design-window sizing sweep run; concept fails the bar (see log.md / final.md).

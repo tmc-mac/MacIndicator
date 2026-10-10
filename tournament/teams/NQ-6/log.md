@@ -12,3 +12,8 @@
 - Sensitivity (hi=99, tm 2, box60): lo .6/.65/.7/.75/.8/.9 PF 1.31(n165)/1.42/1.18/1.09/1.11/1.07 -> edge decays as regime filter loosens (supports the regime gate). box 45/60/90 at lo .7: PF 1.21/1.18/1.31.
 - Frozen: lo .7, box 90, tm 2, risk 60, cool 30, maxday 3 (fade branch disabled: hi=99). Train PF1.31 n365 0.62/d net4654 DD1498, rolling pos .79 bust 0 median score 1.22.
 - Validation (one official run): PF1.06 n253 0.65/d net770 maxDD2092; rolling pos .61 median score .05. Passes gate narrowly; no further validation tuning.
+
+## v2 rules (design 2021-09..2024-06)
+- combine_team x1/2/3/4/6 (lo .7, box 90): pass 0/0/.03/.17/.39; bust 0/0/.08/.29/.47. x8: pass .47 bust .52.
+- Grid (lo .65/.7/.75, box 60/90, tm 3, maxday 6) at x4/6/8: best lo.65 box60 x6 pass .43 bust .37; x8 pass .50 bust .45. lo .75 much worse (bust .59+). Nothing meets design bar (pass>=.40 & bust<=.30) at any size; bust grows as fast as pass.
+- Conclusion: edge too weak/peaked (PF ~1.2, ~0.6 trades/day); stop. Not certifiable.

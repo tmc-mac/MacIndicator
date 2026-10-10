@@ -14,3 +14,6 @@ Team NQ-2, trade MNQ, data NQ. Lane: Opening-Range Breakout on the US cash open.
 - Target: entry +/- TM * risk distance (TM=2.0). Time exit 15:55 ET.
 - Sizing: contracts = floor(RISK_USD / (stop distance in pts * $2)), RISK_USD=150, min 1, cap 40 (and stop dist estimated from the breakout close).
 - Parameters (5-7): RM, ENTRY_END, SF, TM, RISK_USD, WMIN/WMAX. Keep plateau-shaped; no per-year tuning.
+
+## v2 amendments (2026-10-10)
+Goal changed to pass-before-bust. Added RISK_KEY='RISK' and TUNABLE list to strategy.py; strategy logic unchanged. Did not see validation/proof data; design window (to 2024-06-30) overlaps old train.

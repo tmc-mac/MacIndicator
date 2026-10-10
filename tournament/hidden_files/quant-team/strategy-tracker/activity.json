@@ -467,5 +467,82 @@
   "team": "ES-7",
   "action": "v2-result",
   "detail": "ES-7 declared NO EDGE (NQ\u2192ES lead-lag/divergence PF 0.68-0.90 across grid; slippage on 2-6 trades/day sinks it); withdrawn."
+ },
+ {
+  "ts": "2026-10-10T23:39:22",
+  "round": "T1",
+  "team": "ES-6",
+  "action": "v2-result",
+  "detail": "ES-6 declared NO EDGE (single daily trade; design best x6 pass 47% / bust 47%); withdrawn."
+ },
+ {
+  "ts": "2026-10-10T23:39:22",
+  "round": "T1",
+  "team": "ES-9",
+  "action": "v2-result",
+  "detail": "ES-9 declared NO EDGE (round-number levels show no edge (oracle-phase PF 1.08)); withdrawn."
+ },
+ {
+  "ts": "2026-10-10T23:39:57",
+  "round": "T1",
+  "team": "NQ-4",
+  "action": "v2-result",
+  "detail": "NQ-4 NOT certified: CERTIFICATION FAILED: design x3 pass 42%/bust 13%, but proof year PF 0.95, pass 1%, bust 57%."
+ },
+ {
+  "ts": "2026-10-10T23:39:57",
+  "round": "T1",
+  "team": "NQ-2",
+  "action": "v2-result",
+  "detail": "NQ-2 NOT certified: design best x3 pass 43% / bust 56%."
+ },
+ {
+  "ts": "2026-10-10T23:39:57",
+  "round": "T1",
+  "team": "NQ-3",
+  "action": "v2-result",
+  "detail": "NQ-3 NOT certified: design best x3 pass 46% / bust 54%."
+ },
+ {
+  "ts": "2026-10-10T23:39:57",
+  "round": "T1",
+  "team": "NQ-6",
+  "action": "v2-result",
+  "detail": "NQ-6 NOT certified: design best x8 pass 47% / bust 52%."
+ },
+ {
+  "ts": "2026-10-10T23:39:57",
+  "round": "T1",
+  "team": "NQ-9",
+  "action": "v2-result",
+  "detail": "NQ-9 NOT certified: 0.26 trades/day, x8 pass 29% / bust 67%."
+ },
+ {
+  "ts": "2026-10-10T23:39:57",
+  "round": "T1",
+  "team": "NQ-10",
+  "action": "v2-result",
+  "detail": "NQ-10 NOT certified: break mode x? pass 50% / bust 40% (pass rises 1:1 with bust)."
+ },
+ {
+  "ts": "2026-10-10T23:39:57",
+  "round": "T1",
+  "team": "NQ-11",
+  "action": "v2-result",
+  "detail": "NQ-11 NOT certified: raw PF 0.93-1.05, best x8 pass 23% / bust 77%."
+ },
+ {
+  "ts": "2026-10-10T23:39:57",
+  "round": "T1",
+  "team": "ES-4",
+  "action": "v2-result",
+  "detail": "ES-4 NOT certified: walk-forward fails; true OOS PF ~0.99."
+ },
+ {
+  "ts": "2026-10-10T23:39:57",
+  "round": "T1",
+  "team": "ES-8",
+  "action": "v2-result",
+  "detail": "ES-8 NOT certified: only 30m variant has edge; 0.25 trades/day, N-sensitivity = noise."
  }
 ]

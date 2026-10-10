@@ -7,3 +7,6 @@ Weaknesses: edge is thin (model coefficients tiny; momentum from prior close/VWA
 
 ## Rework (post gate failure)
 Gate: PF 0.97 original. Model refit on 2021-09..2024-06 (C=0.01), T raised to 0.065. Honest OOS (2024-07..2025-06, not fitted): net -36, PF 0.99, 206 trades, 0.80/d, DD 1099. Simpler-feature variants and lower T all worse OOS (PF 0.6-0.99). Conclusion: the logistic momentum edge does not persist; expect roughly breakeven.
+
+## v2 verdict: NO EDGE (not certifiable)
+Design combine (model fit on design, optimistic): best x4 pass 44% / bust 31%. Honest walk-forward: best pass 41% with bust 30% or 26%/24%; never 50/25. Earlier true OOS ~break-even. Stopped.

@@ -7,3 +7,6 @@ Quarterly net: +162, -574, +1988, +1708, +112, -307, +1774, +750, +1257. Lookahe
 Sensitivity: stop 0.2-0.3 ATR PF 1.2-1.3 plateau; exit 10:30-11:30 PF 1.33-1.36 plateau; exit 09:40 fails (PF 0.98). Disagree-days traded either way: no edge.
 Weaknesses: modest edge (Asia effect t~2.7 on 30 min, small points); low profit per quarter (~$800) so rarely hits +$3k; 1-contract granularity makes sizing coarse
 (ARISK>=250 raises bust risk); frequency 0.57/d close to 0.5 gate floor; two flat quarters (2022Q1, 2023Q1) are losers; dead parameters of abandoned legs remain in PARAMS (disabled).
+
+## v2 verdict (design window 2021-09..2024-06)
+NOT certifiable. Best sizing (x3 of ARISK=200): pass 46%, bust 54%, median 27 days to pass. At x2: pass 41%, bust 50%. Bust <=30% only when pass ~0. Stop/exit/filter variants did not help. Edge (PF ~1.19, earlier validation PF ~1.05) is real-but-thin at best; concept stopped.

@@ -11,3 +11,7 @@
 - Trend-quality (clean_n), prior-close direction (htf), stronger s_min, fade module A: all worse on validate (PF .72-.91); fade PF .67-.84 both windows.
 - Vol cap max_risk1 75-100 improved both windows but cut tpd <0.5; eod 14:00 + pb 1.0 + max_risk1 90 restores tpd.
 - REWORK FROZEN: pb 1.0, eod 840 (14:00 ET), max_risk1 90. Train PF1.16 n=315 (0.55/d) DD2268 rolling bust 4% pos 69% med net $378. Validate (official, rules off) PF1.07 n=205 (0.53/d) net +630 DD1582. Lookahead clean. Thin edge; validate used ~25 looks while exploring (selection risk).
+- v2 (design data 2021-09..2024-06, combine starts every 3 sessions): rework settings: PF1.08, x4 pass .29/bust .56, x6 .31/.69; x2 pass .03.
+- Original settings (pb.6,eod955,cap150): PF1.21 n527: x2 p.18 b.10 | x2.5 p.35 b.26 | x3 p.44 b.45 | x4 p.38 b.62 | x6 p.34 b.66.
+- Variants (cap 100/250, stopk 3, slope_n 40, s_min 1/slope_n 30): all no better (pass<=.43 only with bust>=.34). Never reaches pass>=40 with bust<=30.
+- Frozen: original settings, risk=250 (x2.5): design pass .35 / bust .26. Does NOT meet design bar (40/30). Concept judged not certifiable; stopped.

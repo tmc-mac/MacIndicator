@@ -14,3 +14,5 @@
 - FROZEN: AGREE=1, AS=0.25, AMIN=659 (11:00 ET exit), ARISK=200, AGTOL=0.05, NATR=10. Train: net 6871, PF 1.28, n=331 (0.57/d), rawDD 2223.
   Rolling 3m: 53 windows, pass 0%, bust 0%, positive 70%, median score 0.54, median net +$840. Lookahead clean. Quarterly: +162,-574,+1988,+1708,+112,-307,+1774,+750,+1257.
   (Dead params from abandoned legs remain in PARAMS but are disabled: DRIFT=0, CONT=0, FADE=0.)
+- v2 (design data 2021-09..2024-06): combine_team ARISK multipliers. raw PF 1.19, 403 trades. x1: pass 0 (timeout 100%); x2 pass .41 bust .50 med 46d; x3 pass .46 bust .54 med 27d; x4 .39/.61; x6 .33/.67.
+  Wider stops (AS .4/.6), later exits (11:00->12:00/13:00), AGTOL 0: best pass .46 / bust .52 (AS .4, x4). Nowhere pass>=40% with bust<=30%. Pass/bust ratio ~0.9 = edge too thin. Stopped; no data torturing.

@@ -24,3 +24,6 @@ v1 failed validation (PF 0.98). Rework makes the regime classifier the centerpie
 - ratio > HI (1.5) = expansion/stretch: fade when |close - mean60| > Z(2.5) x std60; stop beyond the excursion by 1 ATR(15), target mean60.
 - Middle regime: no trade. Risk $60/trade, contracts=floor(60/(stop*2)). Cooldown 30 bars after any signal; max 3 trades/day; flat 15:55 ET.
 - Params: LO, HI, Z, box 30, plus fixed windows. Few sanity checks only; validation used sparingly.
+
+## v2 amendments (2026-10-10)
+Disclosure: I saw 2024-01..2025-06 validation results earlier (v1 PF 0.98, v2 PF 1.06) and used one official run to confirm v2; the v2 design (compression gate, box 90) was chosen on train before that run, but the earlier validation knowledge is not blind. Added RISK_KEY='risk', TUNABLE list. No logic changes under v2 rules; only design-window sizing sweep and a small sensitivity grid.

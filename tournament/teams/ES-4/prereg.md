@@ -37,3 +37,6 @@ judge by pseudo-OOS 2023 and consecutive-quarter consistency.
 Gate failed (validate PF 0.97). Rework plan, same lane: refit the frozen logistic model on train + 2024-01..2024-06 (C=0.01),
 score only on 2024-07..2025-06 (never fit on the scored window). Also consider higher threshold T and a simpler feature set
 (drop time-of-day / vol-ratio). Pick by train+early-validation plateau, then one official re-validation.
+
+## v2 amendments (2026-10-10)
+Added RISK_KEY='risk', TUNABLE list. Model frozen (fit through 2024-06-30). Plan: walk-forward check (fit <=2023-06, test 2023-07..2024-06); declare no edge if pass>=50%/bust<=25% not reachable.

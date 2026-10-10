@@ -1,0 +1,142 @@
+{
+ "team": "NQ-4",
+ "instrument": "NQ",
+ "checks": {
+  "proof": {
+   "ok": false,
+   "pass_rate": 0.014925373134328358,
+   "bust_rate": 0.5671641791044776,
+   "timeout_rate": 0.417910447761194,
+   "median_days_to_pass": 81.87152777777777,
+   "n_starts": 67,
+   "raw_trades": 246,
+   "raw_tpd": 0.9498069498069498,
+   "raw_pf": 0.9489004511354068,
+   "raw_net": -1419.224136315701
+  },
+  "design": {
+   "ok": true,
+   "pass_rate": 0.41743119266055045,
+   "bust_rate": 0.13302752293577982,
+   "n_starts": 218
+  },
+  "halves": {
+   "ok": false,
+   "h1": 0.0,
+   "h2": 0.029411764705882353
+  },
+  "cost_2tick": {
+   "ok": false,
+   "pass_rate": 0.0,
+   "bust_rate": 0.6119402985074627
+  },
+  "robust": {
+   "ok": false,
+   "median": 0.014925373134328358,
+   "worst": 0.0,
+   "n": 24
+  },
+  "lookahead": {
+   "ok": true
+  }
+ },
+ "reasons": [
+  "proof failed: pass_rate=0.01, bust_rate=0.57, timeout_rate=0.42, median_days_to_pass=81.87, n_starts=67, raw_trades=246, raw_tpd=0.95, raw_pf=0.95, raw_net=-1419.22",
+  "halves failed: h1=0.00, h2=0.03",
+  "cost_2tick failed: pass_rate=0.00, bust_rate=0.61",
+  "robust failed: median=0.01, worst=0.00, n=24"
+ ],
+ "design_sweep": [
+  {
+   "mult": 0.5,
+   "pass_rate": 0.0,
+   "bust_rate": 0.0,
+   "timeout_rate": 1.0,
+   "median_days_to_pass": NaN
+  },
+  {
+   "mult": 0.75,
+   "pass_rate": 0.0,
+   "bust_rate": 0.0,
+   "timeout_rate": 1.0,
+   "median_days_to_pass": NaN
+  },
+  {
+   "mult": 1,
+   "pass_rate": 0.0,
+   "bust_rate": 0.0,
+   "timeout_rate": 1.0,
+   "median_days_to_pass": NaN
+  },
+  {
+   "mult": 1.5,
+   "pass_rate": 0.0,
+   "bust_rate": 0.0,
+   "timeout_rate": 1.0,
+   "median_days_to_pass": NaN
+  },
+  {
+   "mult": 2,
+   "pass_rate": 0.08256880733944955,
+   "bust_rate": 0.05504587155963303,
+   "timeout_rate": 0.8623853211009175,
+   "median_days_to_pass": 71.21909722222222
+  },
+  {
+   "mult": 3,
+   "pass_rate": 0.41743119266055045,
+   "bust_rate": 0.13302752293577982,
+   "timeout_rate": 0.44954128440366975,
+   "median_days_to_pass": 54.88333333333333
+  },
+  {
+   "mult": 4,
+   "pass_rate": 0.5321100917431193,
+   "bust_rate": 0.3761467889908257,
+   "timeout_rate": 0.09174311926605505,
+   "median_days_to_pass": 39.72743055555556
+  },
+  {
+   "mult": 5,
+   "pass_rate": 0.44036697247706424,
+   "bust_rate": 0.5596330275229358,
+   "timeout_rate": 0.0,
+   "median_days_to_pass": 26.331944444444446
+  },
+  {
+   "mult": 6,
+   "pass_rate": 0.4036697247706422,
+   "bust_rate": 0.5963302752293578,
+   "timeout_rate": 0.0,
+   "median_days_to_pass": 20.65451388888889
+  },
+  {
+   "mult": 8,
+   "pass_rate": 0.3669724770642202,
+   "bust_rate": 0.6330275229357798,
+   "timeout_rate": 0.0,
+   "median_days_to_pass": 12.822222222222223
+  }
+ ],
+ "chosen_mult": 3,
+ "frozen_params": {
+  "hf": 8,
+  "hs": 34,
+  "pb_len": 30,
+  "atr_len": 60,
+  "depth": 0.5,
+  "look": 20,
+  "stop_mult": 2.0,
+  "rr": 2.5,
+  "risk": 180.0,
+  "max_day": 3,
+  "cooldown": 90,
+  "min_stop": 8.0,
+  "max_hold": 180,
+  "strength": 1.0,
+  "start_min": 585,
+  "end_min": 915,
+  "flat_min": 955
+ },
+ "certified": false
+}

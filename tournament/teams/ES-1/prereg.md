@@ -38,3 +38,7 @@ filter -- require the close to have stayed on the trend side of VWAP for the las
 Rework outcome: clean-trend filter (price on trend side of VWAP for N bars), prior-close direction filter, stronger slope thresholds,
 and module A fades all made validation WORSE (PF 0.72-0.91) or did not generalize. Kept: volatility-regime cap (skip trades whose 1-contract
 stop risk > $90, i.e. skip high-vol days where 2-sd stops are huge), pb 1.0, and an earlier 14:00 ET flat (frees afternoon for a second trade; trend edge decays late).
+
+## v2 amendments (2026-10-10)
+Added RISK_KEY='risk', TUNABLE list. Reverted to the original design-robust settings (pb .6, flat 15:55, max_risk1 150), discarding the
+validation-tuned rework values (pb 1.0, flat 14:00, cap 90), which were picked with many validation looks. Sizing chosen on design only.

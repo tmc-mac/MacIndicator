@@ -12,3 +12,8 @@ Changes: pb 0.6->1.0, flat 14:00 ET (eod 840), max_risk1 150->90 (skip high-vol 
 Train: PF 1.16, 315 trades (0.55/d), net +1870, DD 2268; rolling bust 4%, positive 69%, median net $378.
 Validate: PF 1.07, 205 trades (0.53/d), net +630, DD 1582. lookahead_clean True.
 Honest: edge is thin and regime dependent (strong-trend filters and fades failed validation); parameters were chosen with several validation looks.
+
+## v2 (supersedes rework)
+Reverted to original settings: s_min .5, pb .6, stopk 2, slope_n 45, cap $150, flat 15:55; risk=250 (x2.5 of 100).
+Design (2021-09..2024-06) combine: pass 0.35, bust 0.26, timeouts remainder; x3 gives .44/.45. No variant reached pass>=40% with bust<=30%.
+Conclusion: VWAP trend-pullback edge (PF ~1.2, ~41% WR, ~0.7 trades/day, one trade/day held for hours) is too weak/high-variance to certify. Not certifiable.

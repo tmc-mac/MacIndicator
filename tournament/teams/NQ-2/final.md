@@ -5,3 +5,6 @@ Train: net +13,169 (1-2 MNQ), PF 1.36, 433 trades (0.74/d), WR 52%, raw maxDD 1,
 Rolling 3-month evals (53): pass 15%, bust 0%, positive 94%, median score 1.24, median net +$1.6k.
 Weaknesses: slow (low pass rate; often net +$1-2k not +3k); stop is wide so 1 contract floor limits sizing control; chop quarters
 (2022Q4, 2023Q1) near flat; range-filter bounds untuned; choice of RM=45 was selected on train (plateau 30-60 though); no short-term mean-reversion protection.
+
+## v2 verdict
+Design-window sweep (218 starts): chosen sizing x2 (RISK=400): pass 35%, bust 29%, timeout 36%, median 55 days to pass. Does NOT meet design bar (40%/30%). No low-parameter variant (stop fraction, range length) reached it at any size. Concept certified as: NO. Validation/proof data never seen.
