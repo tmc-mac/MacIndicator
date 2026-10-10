@@ -5,7 +5,7 @@ import numpy as np
 from numba import njit
 import engine as E
 
-PARAMS = dict(lo=0.6, hi=1.5, z=2.5, box=30, risk=60.0, tm=2.0, cool=30, maxday=3, sw=15, lw=240, mw=60, trendhi=0)
+PARAMS = dict(lo=0.7, hi=99.0, z=2.5, box=90, risk=60.0, tm=2.0, cool=30, maxday=3, sw=15, lw=240, mw=60, trendhi=1)
 
 
 @njit

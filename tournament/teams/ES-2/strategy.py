@@ -4,8 +4,8 @@ import numpy as np
 from numba import njit
 import engine as E
 
-PARAMS = dict(L=15, W=390, K=2.5, stop_m=1.5, tgt_m=1.0, tmax=30, risk=100.0, trend_m=3.0,
-              start=585, end=930, flat=955, max_per_day=4, confirm=0)
+PARAMS = dict(L=75, W=780, K=2.25, stop_m=3.0, tgt_m=2.5, tmax=180, risk=130.0, trend_m=3.0,
+              start=585, end=900, flat=955, max_per_day=4, confirm=0)
 
 @njit
 def _gen(c, day, mod, mult, L, W, K, stop_m, tgt_m, tmax, risk, trend_m, start, end, flat, maxpd, confirm):
