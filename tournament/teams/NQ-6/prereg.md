@@ -16,3 +16,11 @@ inversely proportional to volatility (stop distance).
   Stop = extreme of excursion +/- 1 tick; target = OR midpoint. Skip if stop distance > 1.0 x OR width. One trade/day.
 - Sizing: contracts = floor(RISK$ (150) / (stop_pts * $2)), clamped 1..40 (volatility targeting via stop distance).
 - No parameter tuning beyond sanity checks on 3-4 plateau values (THR, TM, RISK). Parameters: OR minutes (30), lookback (20), THR, TM, FW, RISK = 6.
+
+## Amendments (rework) 2026-10-10 - written before any rework backtest
+v1 failed validation (PF 0.98). Rework makes the regime classifier the centerpiece and drops 09:30 OR geometry.
+- Regime (rolling, any time 10:00-15:30 ET): ratio = ATR(15 bars)/ATR(240 bars) of 1-min true range (continuous series).
+- ratio < LO (0.6) = compression: trade breakout of prior 30-bar box (close beyond high/low), stop box midpoint, target 2R.
+- ratio > HI (1.5) = expansion/stretch: fade when |close - mean60| > Z(2.5) x std60; stop beyond the excursion by 1 ATR(15), target mean60.
+- Middle regime: no trade. Risk $60/trade, contracts=floor(60/(stop*2)). Cooldown 30 bars after any signal; max 3 trades/day; flat 15:55 ET.
+- Params: LO, HI, Z, box 30, plus fixed windows. Few sanity checks only; validation used sparingly.

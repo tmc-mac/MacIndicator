@@ -29,3 +29,8 @@ Risk budget $150 per trade: contracts = floor(150 / (stop_pts * 2)), min 1, cap 
 ## Parameters (frozen starting set; ~9): ema fast/slow hourly (8/34), pullback EMA 30, ATR len 30, pullback depth 0.5 ATR,
 stop mult 3.0, target R 1.5, risk $150, max signals/day 3.
 Allowed tuning: only coarse grids on train around these; any change logged in log.md.
+
+## Amendments (rework), 2026-10-10
+Validation gate failed (PF 0.83). Principled fixes, declared before re-testing: (1) trend-strength gate: |EMA8-EMA34| of hourly closes must exceed
+`strength` x hourly-scale ATR (8 x ATR1m(60)) so only established trends trade; (2) fewer trades via max 2/day and longer cooldown; (3) wider stop (3 ATR)
+with risk-sized contracts. Validation used sparingly; train re-confirmed first.

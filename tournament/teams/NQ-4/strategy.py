@@ -6,12 +6,12 @@ import engine as E
 
 PARAMS = dict(hf=8, hs=34, pb_len=30, atr_len=60, depth=0.5, look=20, stop_mult=2.0, rr=2.5,
               risk=60.0, max_day=3, cooldown=90, min_stop=8.0, max_hold=180,
-              start_min=585, end_min=915, flat_min=955)
+              strength=0.0, start_min=585, end_min=915, flat_min=955)
 
 
 @njit
 def _gen(ts, o, h, l, c, day, mod, mult, hf, hs, pb_len, atr_len, depth, look, stop_mult, rr,
-         risk, max_day, cooldown, min_stop, max_hold, start_min, end_min, flat_min):
+         risk, max_day, cooldown, min_stop, max_hold, strength, start_min, end_min, flat_min):
     n = len(c)
     cap = n // 20 + 10
     ob = np.zeros(cap, np.int64); os_ = np.zeros(cap, np.int64); opx = np.zeros(cap)
@@ -47,8 +47,8 @@ def _gen(ts, o, h, l, c, day, mod, mult, hf, hs, pb_len, atr_len, depth, look, s
         if day[i] != day[i - 1]:
             continue
         lastc = c[i - 1]
-        up = ef > es and lastc > es
-        dn = ef < es and lastc < es
+        up = ef - es > strength * 8.0 * atr and lastc > es
+        dn = es - ef > strength * 8.0 * atr and lastc < es
         side = 0
         if up and i - below <= look and c[i] > pb and c[i] > h[i - 1]:
             side = 1
@@ -78,7 +78,7 @@ def generate(d, params):
     p = params
     ob, s, px, st, tg, ex, q = _gen(d.ts, d.o, d.h, d.l, d.c, d.day, d.minute_of_day_et, d.mult,
         p['hf'], p['hs'], p['pb_len'], p['atr_len'], p['depth'], p['look'], p['stop_mult'], p['rr'],
-        p['risk'], p['max_day'], p['cooldown'], p['min_stop'], p['max_hold'],
+        p['risk'], p['max_day'], p['cooldown'], p['min_stop'], p['max_hold'], p['strength'],
         p['start_min'], p['end_min'], p['flat_min'])
     ex = np.minimum(ex, d.n - 1)
     z = np.zeros(len(ob), np.int64)

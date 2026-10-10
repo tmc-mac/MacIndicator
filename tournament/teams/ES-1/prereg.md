@@ -30,3 +30,8 @@ Module A (fade 1.5-3 sd, train): PF 0.62-0.80 everywhere, 1.5-3 sd, all slope fi
 VWAP-pullback continuation. Trend condition: slope_n-bar VWAP drift in sd units |slope| >= S_MIN and close on trend side of VWAP.
 Entry: market after a bar whose low touched within PB*sd of VWAP (long) and closes back above VWAP + 0 and bullish (close>open).
 Stop: VWAP -/+ STOPK*sd (below pullback low if lower). Target: entry +/- RR*risk. Same sizing (fixed $ risk), time exit 15:55, max 3 trades/day.
+
+## Amendments (rework, 2026-10-10)
+Validation gate failed (PF 0.95, 268 trades, DD 2044; weak 2024Q1-Q3 chop and 2025Q2 whipsaw). Principled fix: trend-quality
+filter -- require the close to have stayed on the trend side of VWAP for the last HOLD_N bars before the pullback bar
+(a clean trend, not a VWAP-straddling chop whose drift is just a transient). Options tested on train first; validation used once to confirm.
