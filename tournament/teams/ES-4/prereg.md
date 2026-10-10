@@ -32,3 +32,8 @@ RTH only, no entries after 15:00 ET. No other filters planned.
 ## Overfit guards
 Few features, strong regularization, single threshold, report sensitivity over C, T, k; accept only plateaus;
 judge by pseudo-OOS 2023 and consecutive-quarter consistency.
+
+## Amendments (rework) 2026-10-10
+Gate failed (validate PF 0.97). Rework plan, same lane: refit the frozen logistic model on train + 2024-01..2024-06 (C=0.01),
+score only on 2024-07..2025-06 (never fit on the scored window). Also consider higher threshold T and a simpler feature set
+(drop time-of-day / vol-ratio). Pick by train+early-validation plateau, then one official re-validation.

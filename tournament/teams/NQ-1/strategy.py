@@ -5,12 +5,12 @@ from numba import njit
 import engine as E
 
 PARAMS = dict(K=20, brk=1.0, N=20, rrmin=1.5, cz=1.0, risk=60.0, maxstop=7.0, stopbuf=0.5,
-              t_start=210, t_end=900, flat=955, max_day=3, rrcap=4.0, lvmask=127, off=2.0, minconf=0, tr=0, trs=1)
+              t_start=210, t_end=900, flat=955, max_day=3, rrcap=4.0, lvmask=127, off=2.0, minconf=0, maxpts=1e9, tr=0, trs=1)
 
 
-@njit(cache=True)
+@njit
 def _gen(ts, o, h, l, c, v, day, mod, K, brk, N, rrmin, cz, risk, maxstop, stopbuf,
-         t_start, t_end, flat, max_day, rrcap, lvmask, off, minconf, tr, trs, mult, out):
+         t_start, t_end, flat, max_day, rrcap, lvmask, off, minconf, maxpts, tr, trs, mult, out):
     n = len(c)
     NL = 7
     lv = np.full(NL, np.nan)
@@ -111,7 +111,7 @@ def _gen(ts, o, h, l, c, v, day, mod, K, brk, N, rrmin, cz, risk, maxstop, stopb
             stop = mx + stopbuf * atr
             rk = stop - E0
         used[bk, 0 if bside == 1 else 1] = d
-        if rk > maxstop * atr or rk < 1.0:
+        if rk > maxstop * atr or rk < 1.0 or rk > maxpts:
             continue
         # target: nearest level beyond L with distance >= rrmin*rk
         tgt = np.nan
@@ -144,6 +144,6 @@ def generate(d, p):
     out = np.zeros((200000, 8))
     m = _gen(d.ts, d.o, d.h, d.l, d.c, d.v.astype(np.float64), d.day, d.minute_of_day_et,
              p['K'], p['brk'], p['N'], p['rrmin'], p['cz'], p['risk'], p['maxstop'], p['stopbuf'],
-             p['t_start'], p['t_end'], p['flat'], p['max_day'], p['rrcap'], p['lvmask'], p['off'], p['minconf'], p['tr'], p['trs'], d.mult, out)
+             p['t_start'], p['t_end'], p['flat'], p['max_day'], p['rrcap'], p['lvmask'], p['off'], p['minconf'], p['maxpts'], p['tr'], p['trs'], d.mult, out)
     o = out[:m]
     return E.make_signals(o[:, 0], o[:, 1], np.ones(m, np.int64), o[:, 2], o[:, 3], o[:, 4], o[:, 5], o[:, 6], o[:, 7])

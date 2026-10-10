@@ -73,6 +73,7 @@ def gate():
         clean = E.lookahead_check(d, m.generate, m.PARAMS)
         ok = r['pf'] > 1.0 and r['trades'] >= 100 and r['trades_per_day'] >= 0.5 and clean
         t = s['teams'][k]
+        if t.get('gate') and not t.get('gate1'): t['gate1'] = dict(t['gate'])
         t['gate'] = dict(pf=r['pf'], wr=r['win_rate'], trades=r['trades'], tpd=r['trades_per_day'], net=r['net'],
                          max_dd=r['max_dd'], pass_=bool(ok), lookahead_clean=bool(clean), attempt=(t.get('gate') or {}).get('attempt', 0) + 1)
         t['gate']['pass'] = bool(ok)

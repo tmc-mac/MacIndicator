@@ -5,3 +5,4 @@
 - Fine grid around off2/ms6 shows PF 0.91-1.18 scattered (noise); frozen center-of-plateau-ish off=2, maxstop=7, rrmin=1.5, N=20: train n=1181 PF1.07 net+3704 DD2855; rolling bust 34%, pos 53%, pass 0%. lookahead_clean True.
 - Counter-trend filter, minconf, max_day 1/2 all tested: no improvement (log of numbers: tr390 PF1.04; max_day1 PF1.05 DD2913).
 - NOTE: shared scratchpad q.py was overwritten by another team mid-run; one accidental run executed it (printed only NQ-5 quarterly sums). Not used. Own helper now nq1_q.py.
+- REWORK 2026-10-10: validate gate failed (PF .96). Added maxpts (absolute stop cap, skip trades), removed numba cache. Testing on train.

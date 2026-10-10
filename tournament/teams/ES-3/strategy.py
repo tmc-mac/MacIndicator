@@ -9,7 +9,7 @@ PARAMS = dict(buf=0.0, sk=2.0, tg=2.0, rmin=0.5, rmax=2.0, risk=150.0,
               mode=1,            # 0 breakout, 1 fade
               t_end=300, t_exit=510, hist=20)
 
-@njit(cache=True)
+@njit
 def _gen(c, h, l, day, mod, mult, buf, sk, tg, rmin, rmax, risk, mode, t_end, t_exit, hist):
     n = len(c)
     ob = np.zeros(n, np.int64); osd = np.zeros(n, np.int64); ostop = np.zeros(n)

@@ -1,0 +1,121 @@
+[
+ {
+  "ts": "2026-10-10T23:00:47",
+  "round": "T1",
+  "team": "NQ-1",
+  "action": "gate",
+  "detail": "NQ-1 FAIL PF=0.96 n=785 (2.03/d) net=-1603 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:00:50",
+  "round": "T1",
+  "team": "NQ-2",
+  "action": "gate",
+  "detail": "NQ-2 PASS PF=1.12 n=270 (0.70/d) net=2949 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:00:53",
+  "round": "T1",
+  "team": "NQ-3",
+  "action": "gate",
+  "detail": "NQ-3 PASS PF=1.05 n=214 (0.55/d) net=900 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:00:55",
+  "round": "T1",
+  "team": "NQ-4",
+  "action": "gate",
+  "detail": "NQ-4 FAIL PF=0.83 n=1003 (2.59/d) net=-7148 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:01:10",
+  "round": "T1",
+  "team": "NQ-5",
+  "action": "gate",
+  "detail": "NQ-5 PASS PF=1.71 n=344 (0.89/d) net=8519 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:01:21",
+  "round": "T1",
+  "team": "NQ-1",
+  "action": "gate",
+  "detail": "NQ-1 FAIL PF=0.96 n=785 (2.03/d) net=-1603 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:01:24",
+  "round": "T1",
+  "team": "NQ-2",
+  "action": "gate",
+  "detail": "NQ-2 PASS PF=1.12 n=270 (0.70/d) net=2949 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:01:27",
+  "round": "T1",
+  "team": "NQ-3",
+  "action": "gate",
+  "detail": "NQ-3 PASS PF=1.05 n=214 (0.55/d) net=900 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:01:29",
+  "round": "T1",
+  "team": "NQ-4",
+  "action": "gate",
+  "detail": "NQ-4 FAIL PF=0.83 n=1003 (2.59/d) net=-7148 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:01:44",
+  "round": "T1",
+  "team": "NQ-5",
+  "action": "gate",
+  "detail": "NQ-5 PASS PF=1.71 n=344 (0.89/d) net=8519 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:01:46",
+  "round": "T1",
+  "team": "NQ-6",
+  "action": "gate",
+  "detail": "NQ-6 FAIL PF=0.98 n=365 (0.94/d) net=-314 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:01:49",
+  "round": "T1",
+  "team": "ES-1",
+  "action": "gate",
+  "detail": "ES-1 FAIL PF=0.95 n=268 (0.69/d) net=-754 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:01:50",
+  "round": "T1",
+  "team": "ES-2",
+  "action": "gate",
+  "detail": "ES-2 FAIL PF=0.71 n=641 (1.66/d) net=-7506 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:01:52",
+  "round": "T1",
+  "team": "ES-3",
+  "action": "gate",
+  "detail": "ES-3 PASS PF=1.13 n=195 (0.50/d) net=724 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:01:55",
+  "round": "T1",
+  "team": "ES-4",
+  "action": "gate",
+  "detail": "ES-4 FAIL PF=0.97 n=474 (1.22/d) net=-431 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:01:58",
+  "round": "T1",
+  "team": "ES-5",
+  "action": "gate",
+  "detail": "ES-5 PASS PF=1.29 n=261 (0.67/d) net=3441 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:01:59",
+  "round": "T1",
+  "team": "ES-6",
+  "action": "gate",
+  "detail": "ES-6 PASS PF=1.15 n=200 (0.52/d) net=926 lookahead_clean=True"
+ }
+]

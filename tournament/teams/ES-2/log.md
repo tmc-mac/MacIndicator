@@ -1,3 +1,4 @@
 # ES-2 log (train 2021-09-27..2023-12-31, rules off unless noted)
 - v1 prereg params (L15 K2.5 stop1.5u tgt1.0u t30 risk100): net -8484 PF 0.76 WR56% n921 (1.6/d) DD 8488; rolling pos 4%. Fails. lookahead clean.
 - Sweep 1 (72 combos: L{10,30,60} K{2,2.5,3} stop{1.5,3}u tgt{1,2}u tmax{30,60}), train raw: nearly all negative; best L60 K2 stop1.5 tgt2 t60 net+889 PF1.05 DD1256 (noise-level). Short-horizon z-fade has ~no edge on MES after 1-tick slippage; shorter L worse. Next: longer horizons + reversal confirmation (amendment appended to prereg).
+- Sweep 2 (W=780, end=900 i.e. 15:00 ET; L{60,120,240} K{2,2.5} stop{2,3}u tgt{1.5,3}u tmax{120,240} confirm{0,1}), train raw: 43/96 PF>1; plateau at L60-120, K2, stop 3u. Best: L60 K2 stop3 tgt3 t240 net+4106 PF1.16 DD1061; L60 K2 stop3 tgt1.5 t120 net+2978 PF1.16 DD862 n627. Confirm filter not helpful. Next: neighborhood + rolling eval.

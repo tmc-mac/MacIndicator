@@ -8,7 +8,7 @@ import engine as E
 PARAMS = dict(lookback=20, thr=1.0, tm=2.0, fw=15, risk=60.0, or_end=600, last_dec=840, flat=955)
 
 
-@njit(cache=True)
+@njit
 def _gen(o, h, l, c, day, mod, lookback, thr, tm, fw, risk, mult, or_end, last_dec, flat):
     n = len(c)
     cap = n // 200 + 100

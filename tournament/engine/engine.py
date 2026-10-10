@@ -77,7 +77,7 @@ def make_signals(bar, side, kind, px, stop, target, exit_by, cancel_by, contract
     return {k: v[o] for k, v in s.items()}
 
 
-@njit(cache=True)
+@njit
 def _sim(ts, o, h, l, c, day, mult, i0, i1,
          sbar, sside, skind, spx, sstop, starget, sexit, scancel, sqty, sn, enforce,
          out_trades, out_dday, out_dpnl):
