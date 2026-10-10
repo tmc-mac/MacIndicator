@@ -9,3 +9,6 @@ Quarters positive 7/9 (see log). Long +1463 / short +404.
 Weaknesses: modest return per quarter (~$350 median; never reaches +3k target within 3 months); concept reduced to one window after
 event-release modules failed (amended prereg disclosed); effect size modest and depends on a single daily trade; Tue/Wed flat; k/stop chosen on train
 (plateau-shaped, PF 1.16-1.38 across grid). Raising risk raises DD proportionally (200 -> DD 1256).
+
+## v2 verdict: NO EDGE for certification
+Design window: best sizing x6 gives pass 47% but bust 47% (needs bust<=30%); x4 gives pass 23%/bust 23%. Adding 08:30 leg worsens. Single daily trade (PF 1.4, 0.56/d) cannot reach +$3k in 60 sessions without ruinous size. Stopped; not recommended for certification.

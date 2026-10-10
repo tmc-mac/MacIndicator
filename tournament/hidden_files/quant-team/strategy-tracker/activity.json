@@ -460,5 +460,12 @@
   "team": "ES-10",
   "action": "v2-result",
   "detail": "ES-10 declared NO CERTIFIABLE EDGE (no pattern reaches PF>1.1 at >=0.5 trades/day); withdrawn."
+ },
+ {
+  "ts": "2026-10-10T23:39:12",
+  "round": "T1",
+  "team": "ES-7",
+  "action": "v2-result",
+  "detail": "ES-7 declared NO EDGE (NQ\u2192ES lead-lag/divergence PF 0.68-0.90 across grid; slippage on 2-6 trades/day sinks it); withdrawn."
  }
 ]

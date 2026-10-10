@@ -36,3 +36,6 @@ Expectation: directional momentum after genuine spikes; fade alternative is NOT 
 v0 (continuation at all events) lost at 10:00 and 14:00 (PF 0.64 / 0.41) and was too sparse (0.33 trades/day). Amendment: allow a
 per-event `fade` set (trade against the impulse, stop beyond the window extreme) and lower thresholds / extra clock events
 to reach >=0.5 trades/day. All such choices were made on train only.
+
+## v2 amendments (2026-10-10)
+Added RISK_KEY='risk_usd' and TUNABLE list. Goal now pass-before-bust. No new legs adopted beyond one test of 08:30 continuation.

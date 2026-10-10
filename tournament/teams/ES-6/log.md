@@ -5,3 +5,5 @@
 - k/stop sweep (risk 120): k1-3 x stop4-6 all PF 1.16-1.38, positive plateau; 0.58-0.84 tr/d. Chose moc_k=3, moc_stop=5 (>=0.5/d with margin). Risk 160: net+2594 PF1.34 n336 DD969; risk 200 DD1256 (too high).
 - Diagnostics: 7/9 quarters positive (2023Q2,Q3 slightly neg); long +1463, short +404; DOW Tue/Wed flat, Mon/Thu/Fri positive - NOT filtered (overfit risk).
 - FROZEN: use_a=False (release-impulse module dropped: noise/negative at 10:00,14:00; fade loses), MOC-only, risk 160.
+- v2 (design 2021-09..2024-06): combine x1..x8 pass/bust: x1 0/0, x2 0/0, x3 .03/.07, x4 .23/.23, x6 .47/.47, x8 .43/.57 (PF 1.40, 395 trades, 0.56/d).
+  Adding 08:30 continuation: x4 .35/.52, x6 .43/.55 (worse). Pass>=40% only with bust ~47% -> fails bust<=30%. NO EDGE for certification; stopped.

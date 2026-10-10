@@ -7,3 +7,6 @@ Weaknesses: thin edge (PF ~1.1), never reaches the $3k target in a quarter at th
 
 ## Rework outcome
 Added trend-strength gate (strength=1.0). Train: PF 1.20, 536 trades (0.92/d), DD $1587, net $3375. Validation: PF 0.97, 361 trades (0.93/d), net -$421, DD $2167 -> still fails PF>1. Sensitivity on validation (0.5: 0.93, 1.5: 0.84) shows no region with PF>1. Honest conclusion: no demonstrated out-of-sample edge.
+
+## v2 verdict: NO EDGE (not certifiable)
+Design (strength 1.0, risk $60 x3): pass 42%, bust 13%, median 55 days; x4 pass 53%/bust 38%. Only a narrow sizing band clears the design bar, and the identical logic had PF 0.97 on 2024-01..2025-06 (seen earlier; contaminates proof-year knowledge). Expected to fail proof and cost stress. Declared no edge; not curve-fitting further.

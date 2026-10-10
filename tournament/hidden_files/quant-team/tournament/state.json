@@ -21108,8 +21108,9 @@
    "lane": "Intermarket lead-lag (NQ\u2192ES)",
    "concept_short": "trade ES from NQ/ES relative-strength divergence and lead-lag",
    "concept": "trade ES from NQ/ES relative-strength divergence and lead-lag",
-   "status": "recruiting",
-   "gate": null
+   "status": "eliminated",
+   "gate": null,
+   "v2_note": "no certifiable edge \u2014 lead-lag has no gross edge on 1-min bars (PF 0.68-0.90)"
   },
   "ES-8": {
    "lane": "Ichimoku system",
