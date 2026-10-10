@@ -34,3 +34,6 @@ Allowed tuning: only coarse grids on train around these; any change logged in lo
 Validation gate failed (PF 0.83). Principled fixes, declared before re-testing: (1) trend-strength gate: |EMA8-EMA34| of hourly closes must exceed
 `strength` x hourly-scale ATR (8 x ATR1m(60)) so only established trends trade; (2) fewer trades via max 2/day and longer cooldown; (3) wider stop (3 ATR)
 with risk-sized contracts. Validation used sparingly; train re-confirmed first.
+
+## v2 amendments (2026-10-10)
+Disclosure: I saw validation-window (2024-01..2025-06) results earlier in the rework (PF 0.83, then 0.97/0.93/0.84 for strength variants). That window overlaps the proof year, so my knowledge is contaminated; design-only evidence below. Plan: run combine_team on current params (strength 1.0) and strength 0 / 0.5 as the one principled variant; if design pass<40% or bust>30% at any size, declare no edge.

@@ -107,3 +107,7 @@ def _ema(x, a):
     for i in range(1, len(x)):
         y[i] = y[i - 1] + a * (x[i] - y[i - 1])
     return y
+
+
+RISK_KEY = 'risk'
+TUNABLE = ['k_disp', 'atr_n', 'frac', 'lookback', 'disp_win', 'rr', 'kz_start', 'kz_end', 'exit_min', 'min_stop', 'max_stop', 'buf_ticks', 'cancel']

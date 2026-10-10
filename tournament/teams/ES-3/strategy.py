@@ -74,3 +74,6 @@ def generate(d, p):
     oex = np.minimum(oex, d.n - 1)
     return E.make_signals(ob[:k], osd[:k], np.zeros(k, np.int64), np.zeros(k), ostop[:k], otg[:k], oex[:k],
                           oex[:k], oq[:k])
+
+RISK_KEY = 'risk'
+TUNABLE = ['buf', 'sk', 'tg', 'rmin', 'rmax', 't_end', 't_exit']

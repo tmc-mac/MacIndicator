@@ -172,3 +172,7 @@ def _asia(o, h, l, c, mod, day, AS, ARISK, AMIN, AGREE, ATHR, NATR, mult, DFAC, 
             out[k, 0] = i; out[k, 1] = side; out[k, 2] = c[i] - side * sd; out[k, 3] = np.nan
             out[k, 4] = i + (AMIN - 569); out[k, 5] = q; k += 1
     return out[:k]
+
+
+RISK_KEY = 'ARISK'
+TUNABLE = ['AS', 'AMIN', 'ARISK', 'AGTOL', 'NATR']

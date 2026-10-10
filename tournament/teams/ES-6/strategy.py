@@ -3,6 +3,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 import numpy as np
 import engine as E
 
+RISK_KEY = 'risk_usd'
+TUNABLE = ['moc_k', 'moc_stop', 'k_imp', 'close_frac', 'stop_cap', 'tgt_r']
 PARAMS = dict(events=(510, 600, 840), k_imp=3.0, close_frac=0.30, stop_cap=12.0, tgt_r=1.5, hold_a=45,
               moc_k=3.0, moc_stop=5.0, risk_usd=160.0, lookback=60, use_moc=True, use_a=False, fade=())
 

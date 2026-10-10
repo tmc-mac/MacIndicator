@@ -84,3 +84,6 @@ def generate(d, params):
     qty = np.maximum(np.floor(p['risk'] / (sd_ * d.mult)), 1).astype(np.int64)
     exit_by = np.minimum(bar + p['hold'] + 1, bar + 1 + np.maximum(p['flat'] - mod[m], 1))
     return E.make_signals(bar, side, np.zeros(len(bar), np.int64), px, stop, target, exit_by, bar, qty)
+
+RISK_KEY = 'risk'
+TUNABLE = ['T', 'ks', 'hold', 'step', 'risk', 'first', 'last']

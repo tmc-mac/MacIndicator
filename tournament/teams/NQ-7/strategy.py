@@ -50,3 +50,6 @@ def generate(d, p):
     m = len(bars)
     return E.make_signals(bars, sides, np.zeros(m, np.int64), np.full(m, np.nan), stops,
                           np.full(m, np.nan), exits, np.zeros(m, np.int64), qty)
+
+RISK_KEY = 'risk'
+TUNABLE = ['clv_lo', 'clv_hi', 'look', 'stop_mult', 'open_min', 'entry_min', 'exit_min']

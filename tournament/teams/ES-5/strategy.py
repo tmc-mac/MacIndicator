@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'engine')
 import engine as E
 
 PARAMS = dict(VW=60, K=2.5, RW=60, LOC=0.15, CLV=0.2, ATRW=30, MINR=0.8, PAD=0.25, TM=1.5, TIME=45,
-              RISK=150.0, MAXC=20, START=585, END=930, FLAT=955, MAXDAY=3, COOL=10, MODE=2, ZT=9.0, VR=1.0, SW=6.0, TIME3=60, MAXDAY3=3, COOL3=30, S3=600, E3=900)
+              risk=150.0, MAXC=40, START=585, END=930, FLAT=955, MAXDAY=3, COOL=10, MODE=2, ZT=9.0, VR=1.0, SW=6.0, TIME3=60, MAXDAY3=3, COOL3=30, S3=600, E3=900)
 
 @njit(cache=False)
 def _roll_mean(x, w):
@@ -81,7 +81,7 @@ def generate(d, p):
     rhi = pd.Series(d.h).rolling(p['RW']).max().values
     rlo = pd.Series(d.l).rolling(p['RW']).min().values
     ob, side, st, tg, ex, q = _core(d.o, d.h, d.l, d.c, v, d.day, d.minute_of_day_et, vol_prev, atr, rhi, rlo, d.mult,
-        p['K'], p['LOC'], p['CLV'], p['MINR'], p['PAD'], p['TM'], p['TIME'], p['RISK'], p['MAXC'],
+        p['K'], p['LOC'], p['CLV'], p['MINR'], p['PAD'], p['TM'], p['TIME'], p['risk'], p['MAXC'],
         p['START'], p['END'], p['FLAT'], p['MAXDAY'], p['COOL'], p['MODE'])
     z = np.zeros(len(ob))
     return E.make_signals(ob, side, z, z, st, tg, ex, z, q)
@@ -136,10 +136,13 @@ def generate3(d, p):
     dl = pd.Series(clv * v)
     dn = (dl.rolling(10).sum() / sv.rolling(10).sum()).values
     ob, side, st, tg, ex, q = _core3(d.c, d.day, mod, z, vr, dn, atr, d.mult, p['ZT'], p['VR'], p['SW'], p['TIME3'],
-        p['RISK'], p['MAXC'], p['S3'], p['E3'], p['FLAT'], p['MAXDAY3'], p['COOL3'])
+        p['risk'], p['MAXC'], p['S3'], p['E3'], p['FLAT'], p['MAXDAY3'], p['COOL3'])
     z0 = np.zeros(len(ob))
     return E.make_signals(ob, side, z0, z0, st, tg, ex, z0, q)
 
 _gen12 = generate
 def generate(d, p):
     return generate3(d, p) if p.get('MODE') == 2 else _gen12(d, p)
+
+RISK_KEY = 'risk'
+TUNABLE = ['ZT', 'VR', 'SW', 'TIME3', 'MAXDAY3', 'COOL3', 'S3', 'E3', 'FLAT']

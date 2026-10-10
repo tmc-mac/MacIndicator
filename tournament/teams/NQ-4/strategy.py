@@ -83,3 +83,6 @@ def generate(d, params):
     ex = np.minimum(ex, d.n - 1)
     z = np.zeros(len(ob), np.int64)
     return E.make_signals(ob, s, z, px, st, tg, ex, z, q)
+
+RISK_KEY = 'risk'
+TUNABLE = ['hf', 'hs', 'pb_len', 'atr_len', 'depth', 'look', 'stop_mult', 'rr', 'cooldown', 'strength', 'start_min', 'end_min']

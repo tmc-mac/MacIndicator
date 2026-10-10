@@ -166,3 +166,6 @@ def generate_b(d, p):
 
 PARAMS = PARAMS_B
 generate = generate_b
+
+RISK_KEY = 'risk'
+TUNABLE = ['s_min', 'pb', 'stopk', 'slope_n', 'max_risk1', 'eod', 't0', 't1', 'cool']

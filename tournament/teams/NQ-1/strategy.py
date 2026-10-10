@@ -147,3 +147,6 @@ def generate(d, p):
              p['t_start'], p['t_end'], p['flat'], p['max_day'], p['rrcap'], p['lvmask'], p['off'], p['minconf'], p['maxpts'], p['tr'], p['trs'], d.mult, out)
     o = out[:m]
     return E.make_signals(o[:, 0], o[:, 1], np.ones(m, np.int64), o[:, 2], o[:, 3], o[:, 4], o[:, 5], o[:, 6], o[:, 7])
+
+RISK_KEY = 'risk'
+TUNABLE = ['K', 'brk', 'N', 'rrmin', 'cz', 'maxstop', 'stopbuf', 'off', 'maxpts', 'max_day', 't_start', 't_end']

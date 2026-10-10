@@ -75,3 +75,6 @@ def generate(d, p):
         float(p['z']), int(p['box']), float(p['risk']), float(p['tm']), int(p['cool']), int(p['maxday']),
         int(p['sw']), int(p['lw']), int(p['mw']), float(d.mult), int(p['trendhi']))
     return E.make_signals(b, s, np.zeros(len(b), np.int64), px, st, tg, ex, b, q)
+
+RISK_KEY = 'risk'
+TUNABLE = ['lo', 'box', 'tm', 'risk', 'cool', 'maxday', 'sw', 'lw']

@@ -5,6 +5,8 @@ from numba import njit
 import engine as E
 
 PARAMS = dict(RM=45, ENTRY_END=690, SF=0.75, TM=100.0, RISK=200.0, WMIN=0.5, WMAX=2.0, EXIT_MIN=955, LOOK=20)
+RISK_KEY = 'RISK'
+TUNABLE = ['RM', 'ENTRY_END', 'SF', 'WMIN', 'WMAX', 'EXIT_MIN', 'LOOK']
 
 @njit
 def _gen(day, mod, h, l, c, mult, RM, ENTRY_END, SF, TM, RISK, WMIN, WMAX, EXIT_MIN, LOOK):

@@ -70,3 +70,6 @@ def generate(d, p):
                                        p['start'], p['end'], p['flat'], p['max_per_day'], p['confirm'])
     z = np.zeros(len(bar))
     return E.make_signals(bar, side, z.astype(np.int64), z, stop, tgt, ex, z.astype(np.int64), q)
+
+RISK_KEY = 'risk'
+TUNABLE = ['L', 'W', 'K', 'stop_m', 'tgt_m', 'tmax', 'trend_m', 'start', 'end', 'flat']
