@@ -243,5 +243,166 @@
   "team": "NQ-7",
   "action": "replacement",
   "detail": "NQ-4 eliminated after failing the gate twice; NQ-7 (daily-structure patterns) admitted as a late replacement entrant. Must pre-register, train, and pass the same validation gate; Round 1 is held until then."
+ },
+ {
+  "ts": "2026-10-10T23:23:57",
+  "round": "T1",
+  "team": "NQ-1",
+  "action": "gate",
+  "detail": "NQ-1 PASS PF=1.16 n=289 (0.75/d) net=1258 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:24:00",
+  "round": "T1",
+  "team": "NQ-2",
+  "action": "gate",
+  "detail": "NQ-2 PASS PF=1.12 n=270 (0.70/d) net=2949 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:24:02",
+  "round": "T1",
+  "team": "NQ-3",
+  "action": "gate",
+  "detail": "NQ-3 PASS PF=1.05 n=214 (0.55/d) net=900 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:24:04",
+  "round": "T1",
+  "team": "NQ-4",
+  "action": "gate",
+  "detail": "NQ-4 FAIL PF=0.97 n=361 (0.93/d) net=-421 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:24:20",
+  "round": "T1",
+  "team": "NQ-5",
+  "action": "gate",
+  "detail": "NQ-5 PASS PF=1.71 n=344 (0.89/d) net=8519 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:24:21",
+  "round": "T1",
+  "team": "NQ-7",
+  "action": "gate",
+  "detail": "NQ-7 PASS PF=1.02 n=277 (0.72/d) net=396 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:24:23",
+  "round": "T1",
+  "team": "NQ-6",
+  "action": "gate",
+  "detail": "NQ-6 PASS PF=1.06 n=253 (0.65/d) net=770 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:24:26",
+  "round": "T1",
+  "team": "ES-1",
+  "action": "gate",
+  "detail": "ES-1 PASS PF=1.07 n=205 (0.53/d) net=630 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:24:28",
+  "round": "T1",
+  "team": "ES-2",
+  "action": "gate",
+  "detail": "ES-2 PASS PF=1.00 n=368 (0.95/d) net=79 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:24:29",
+  "round": "T1",
+  "team": "ES-3",
+  "action": "gate",
+  "detail": "ES-3 PASS PF=1.13 n=195 (0.50/d) net=724 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:24:33",
+  "round": "T1",
+  "team": "ES-4",
+  "action": "gate",
+  "detail": "ES-4 PASS PF=1.03 n=294 (0.76/d) net=266 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:24:37",
+  "round": "T1",
+  "team": "ES-5",
+  "action": "gate",
+  "detail": "ES-5 PASS PF=1.29 n=261 (0.67/d) net=3441 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:24:38",
+  "round": "T1",
+  "team": "ES-6",
+  "action": "gate",
+  "detail": "ES-6 PASS PF=1.15 n=200 (0.52/d) net=926 lookahead_clean=True"
+ },
+ {
+  "ts": "2026-10-10T23:24:44",
+  "round": "T1",
+  "team": "coordinator",
+  "action": "draw",
+  "detail": "Seeded random draw (seed 20261010): ES-2 vs NQ-5; NQ-1 vs NQ-3; NQ-2 vs ES-3; NQ-6 vs NQ-7; ES-5 vs ES-1; ES-4 vs ES-6"
+ },
+ {
+  "ts": "2026-10-10T23:24:44",
+  "round": "R1",
+  "team": "coordinator",
+  "action": "round-start",
+  "detail": "Round 1 window 2025-07-01 \u2192 2025-09-30"
+ },
+ {
+  "ts": "2026-10-10T23:24:57",
+  "round": "R1",
+  "team": "NQ-5",
+  "action": "match",
+  "detail": "R1 ES-2 0.00 (net -1254, dd 1661) vs NQ-5 2.83 (net 1752, dd 620) \u2192 NQ-5 advances (only finisher net-positive & alive)"
+ },
+ {
+  "ts": "2026-10-10T23:25:03",
+  "round": "R1",
+  "team": "NQ-3",
+  "action": "match",
+  "detail": "R1 NQ-1 0.00 (net -915, dd 1109) vs NQ-3 0.00 (net -878, dd 1718) \u2192 NQ-3 advances (neither scored: higher net)"
+ },
+ {
+  "ts": "2026-10-10T23:25:07",
+  "round": "R1",
+  "team": "NQ-2",
+  "action": "match",
+  "detail": "R1 NQ-2 0.30 (net 324, dd 1079) vs ES-3 0.00 (net -358, dd 731) \u2192 NQ-2 advances (only finisher net-positive & alive)"
+ },
+ {
+  "ts": "2026-10-10T23:25:09",
+  "round": "R1",
+  "team": "NQ-6",
+  "action": "match",
+  "detail": "R1 NQ-6 0.00 (net -532, dd 1320) vs NQ-7 0.00 (net -1727, dd 1928) \u2192 NQ-6 advances (neither scored: higher net)"
+ },
+ {
+  "ts": "2026-10-10T23:25:15",
+  "round": "R1",
+  "team": "ES-1",
+  "action": "match",
+  "detail": "R1 ES-5 0.00 (net -1000, dd 1419) vs ES-1 0.00 (net -215, dd 1272) \u2192 ES-1 advances (neither scored: higher net)"
+ },
+ {
+  "ts": "2026-10-10T23:25:20",
+  "round": "R1",
+  "team": "ES-4",
+  "action": "match",
+  "detail": "R1 ES-4 1.54 (net 771, dd 304) vs ES-6 0.49 (net 258, dd 523) \u2192 ES-4 advances (higher score)"
+ },
+ {
+  "ts": "2026-10-10T23:25:20",
+  "round": "R1",
+  "team": "ES-6",
+  "action": "second-chance",
+  "detail": "ES-6 re-enters as a best R1 loser (score 0.49, net 258)"
+ },
+ {
+  "ts": "2026-10-10T23:25:20",
+  "round": "R1",
+  "team": "ES-3",
+  "action": "second-chance",
+  "detail": "ES-3 re-enters as a best R1 loser (score 0.00, net -358)"
  }
 ]
