@@ -2,15 +2,20 @@
 
 **Upstream.** K-Dense Scientific Agent Skills, https://github.com/K-Dense-AI/scientific-agent-skills,
 commit 5f2bc0341354fd5590aef76a533ada1e1e5b4e62 (2026-10-26), MIT license (LICENSE.md in this folder).
-Only `statistical-analysis` and `statistical-power` were taken, not the rest of the pack.
+Only `statistical-analysis`, `statistical-power` (Mac approved 10/30), `experimental-design` and
+`scientific-critical-thinking` (Mac approved 10/30, later) were taken, not the rest of the pack.
 
-**Reviewed before vendoring (MacArthur, 10/30).** The scripts import only numpy, scipy, statsmodels, pandas and matplotlib.
-They make no network, subprocess or shell calls, and they write a file only when a `save=` path is passed.
+**Reviewed before vendoring (MacArthur, 10/30).** The scripts import only numpy, scipy, statsmodels, pandas and matplotlib
+(`experimental-design/scripts/doe_designs.py` also needs `pydoe==1.5.0`, which is not installed; add it to the environment only if a DOE matrix is needed).
+They make no network, subprocess or shell calls, and they write a file only when a save path is passed.
 
 **Local changes.**
 1. The "Citing Scientific Agent Skills" section at the end of each SKILL.md was removed. It told the agent to fetch a web
    page and add a paper citation to every report.
-2. A short "Team Mac note" was added under each SKILL.md's front matter.
+2. `scientific-critical-thinking`: the "Visual Aids (Optional)" section and the matching front-matter clause were removed.
+   They pointed to another skill that sends the prompt to a third-party API (OpenRouter). Team rule: no scripts or data
+   to outside services.
+3. A short "Team Mac note" was added under each SKILL.md's front matter.
 
 Nothing else was changed.
 
@@ -37,3 +42,21 @@ Nothing else was changed.
 - **"Proven" means** p < 0.05 **and** the result holds in more than one market type or period.
 - **Shipping is separate.** Even a proven edge ships only through Mac's do-no-harm replay rule: pooled result at
   least the baseline, max drawdown no worse, and not worse on more than 2 of the 6 days.
+
+## Planning a replay test (experimental-design)
+
+- **The block is a TradeDay.** Both arms run on the same days with the same seed and harness, so compare day by day
+  (a paired / blocked design). Don't pool trades across days as if they were independent.
+- **Write the pass rule before the runs start**, as Mac's do-no-harm rule already does. Use statistical-power to estimate
+  how many days the test needs to see the effect that matters.
+- **Stopping early** is fine when Mac rules, or when the remaining days can't change the verdict. Say which one it was.
+  Never stop because the result "looks good" partway through.
+
+## Before a number reaches Mac (scientific-critical-thinking)
+
+Check every claim against this list, and say the answer in the message:
+1. Is it the bot's real code (a replay), or a quick offline approximation? Label quick tests as quick.
+2. How many trades and how many days? Does one day or one trade make most of the result?
+3. Compared with what baseline?
+4. Exploratory (we went looking) or confirmatory (a pre-set test)? Treat exploratory results as ideas, not findings.
+5. What would make this wrong? Name the biggest open risk.
