@@ -25,7 +25,7 @@ Mac trades mostly on his phone, knows his setup, and waits for it. Every trading
 - **Calm by default.** Salience scales with opportunity. Quiet states (stand down, wait) are visually muted: neutral colours, minimal objects, no flashing. Full direction colour is reserved for "act".
 - **Chop means stand down.** Chop and no-level states are first-class states with their reason, not the absence of a signal.
 - **Stable.** Nothing flickers or jumps between bars: state changes are debounced in the display, and the layout holds still. Underlying signals stay exactly as the bot computes them.
-- **Let the chart call him.** The phone alert carries the whole plan (direction, level, entry, stop, TP1, timeframe) in two lines, so he doesn't need to stare at the chart.
+- **One notification channel: the bot.** The bot takes the trades and sends the pushes. Charts and indicators add no notifications of their own (Mac, Nov 1). The chart's job is to confirm, at a glance, the state the bot is acting on.
 - **Same truth as the bot.** What the chart says must match what the bot decides. A display may simplify; it may never disagree.
 
 ## 1. Signature element (required for any UI or artifact)
