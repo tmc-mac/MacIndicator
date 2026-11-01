@@ -149,6 +149,10 @@ Decoration is not a signature element: gradients, glow, or a big number on its o
 - **Safety first:** the safety-stage contracts (durable close obligation, ownership provenance, strict defaults) apply. MacDot reviews before anything ships.
 - **Strategy changes** pass Mac's do-no-harm replay gate on multi-seed means: more money pooled, no deeper drawdown, worse on at most 2 of 6 days. The rules are declared before testing.
 - **Owner's go:** nothing reaches the live bot without Mac's explicit go, given in chat.
+- **Prop-eval risk (Mac, Nov 1):** "no need to worry about breaching the combine account, this is why we are trading prop firms. That's not in our concern."
+  - Don't propose smaller size, or extra stop rules, only to protect an evaluation or combine from breaching. Example: the FundedNext 50K keeps 3 MNQ even though its $2,000 max loss leaves about 4–5 full stops.
+  - Size and risk changes are judged on the strategy's own evidence (replay gate), not on survival of the eval.
+  - The firm's hard rules (daily loss limit, flat by close, prohibited times) are still followed exactly.
 
 ## 7. Delivery package
 
