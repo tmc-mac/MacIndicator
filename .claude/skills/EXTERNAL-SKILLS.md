@@ -66,6 +66,18 @@ Already present: `frontend-design` (anthropics/skills, added earlier).
 | `react-view-transitions`, `deploy-to-vercel`, `vercel-cli-with-tokens`, `vercel-optimize`, `writing-guidelines` (in the same repo, not in the article) | Not our stack. The deploy skills use Vercel tokens. |
 | The article's AccessLint MCP server and agent | Not skills. Each would need its own security review and Mac's go. |
 
+## From Leonxlnx/taste-skill (added Nov 1, 2026)
+
+Mac shared https://github.com/Leonxlnx/taste-skill on Nov 1 so the team could push the phone terminal further. It's installed as `taste-skill/` (skill name `design-taste-frontend`), from commit `12af471f627f866411b4bd785b19646d3672784c`. The licence is MIT (copied in as `LICENSE`).
+
+**What it gives the team:** an "anti-slop" art-direction method. It has a researched library (directions, type, palettes, motion), a "tells" list of generated-design habits, a critique loop, and **app-screen rules for dashboards and work screens** (`references/app-screens.md`). It also has a real-browser inspector (`scripts/inspect.mjs`) that measures a page against its house rules.
+
+**Team rules** (scripts scanned; SKILL.md opening and frontmatter read):
+- **`scripts/assets.mjs` fetches images and video from the internet** (Openverse, Wikimedia Commons, the Met, the Art Institute of Chicago, archive.org, NASA). Don't run it without MacArthur's go. Trading surfaces carry no photography anyway.
+- **`scripts/inspect.mjs` and `scenes.mjs` start a local server on 127.0.0.1 and launch a headless Chrome.** They count against the one-browser-at-a-time rule: nice 19, and only after MacArthur clears the browser slot. Set `CHROME_PATH` to the pre-installed Chromium; never install another browser.
+- **`scripts/draw.mjs` writes `~/.taste-skill/history.json` and a sheet into its output folder.** Run it with the output folder in the scratchpad, never the repo.
+- **House style vs ours.** taste-skill's strict house style is a **reviewer's lens**, not a restyle order. On the phone terminal and Levels PRO, the existing tokens, the sacred level-state colours and Mac's rulings win (see Precedence). Use its tells list, critique loop and app-screen rules to find what to improve, then improve it inside our system.
+
 ## Precedence
 
 The order is: Mac's own words, then the team's standing rules (`team-briefing/QUALITY-BAR.md`, which include sacred level-state colours and the bot as the single notification channel), then the existing terminal design system, then these skills.
