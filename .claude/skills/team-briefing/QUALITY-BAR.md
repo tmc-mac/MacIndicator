@@ -41,6 +41,12 @@ Price is a **vehicle driving to a destination**. The x axis is time and the y ax
   - the period opens: 4H, 1H, 30m and 15m. The 30m Open is the bot's most-traded level (7 of 20 trades on 10/30).
   - Monthly and quarterly levels are **knowledge**: shown quietly, and only near price.
 - **The bot's alignment gate stays 15m / 1H / 4H.** The weekly is context only and never a bot gate (Mac: "it would cost too many entries").
+- **What each timeframe does in the live bot** (r13.3.7; verify against the bot before relying on it):
+  - **4H, 1H, 15m:** the alignment gate (price vs each period's open, in the trade's direction).
+  - **15m:** the control gate (control score beyond ±0.22) and the same-level ban (until a 15m close).
+  - **5m and 3m:** the **trigger**. Level events are born on 3m / 5m candles, and the bot's trigger may come from the 15m, 5m or 3m board. On 10/30, all 19 traded events were 3m / 5m-born. No-chase uses the 5m swing; the cooldown waits for a 5m close.
+  - **30m and weekly / monthly / quarterly:** levels (prices), never direction.
+  - So for Mac the lower timeframes are noise to watch, but for the bot they're where the trigger fires. A 15m chart can show **ARMED** (level + aligned + 15m control). It can't see the 3m / 5m trigger unless it's explicitly computed.
 - **Design consequence:** a surface answers **destination first, then route** (DEST, then GPS). "Chop" means price is inside the destination's range, which means stand down.
 
 ## 1. Signature element (required for any UI or artifact)
