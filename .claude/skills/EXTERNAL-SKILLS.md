@@ -44,6 +44,28 @@ Added: `design-mobile-apps`.
 
 without Mac's explicit go in chat for that specific use. Its React Native and styling notes (`implementing.md`, `styling/`) may be read as reference material.
 
+## From Snyk's "Top 8 Claude Skills for UI/UX Engineers" (added Nov 1, 2026)
+
+Mac asked on Nov 1 to "install all skills available on this page that's useful for our team": https://snyk.io/articles/top-claude-skills-ui-ux-engineers/ (article dated 2026-03-02). Every file added was security-scanned and its licence checked. The scan looked for network calls, process execution, file writes, shell lines in the frontmatter and prompt-injection phrases. The SKILL.md and Python scripts were read.
+
+| Skill (folder) | Source repo @ commit | Licence | Use on Team Mac | Team changes / rules |
+|---|---|---|---|---|
+| `web-design-guidelines` | vercel-labs/agent-skills @ `1a2c79d4` + rules from vercel-labs/web-interface-guidelines @ `434b7f91` | MIT (agent-skills' README declares MIT but the repo has no LICENSE file; the guidelines' LICENSE is copied in) | A rules audit of terminal pages and artifacts (`file:line` findings) | **Changed:** the upstream skill fetches its rules from GitHub at run time, which is a remote-instruction vector. Here the rules are **vendored and pinned** in `guidelines/command.md`, and SKILL.md reads the local copy. MacArthur re-vendors them only after reading the diff. |
+| `ui-ux-pro-max` | nextlevelbuilder/ui-ux-pro-max-skill @ `3a13158f` | MIT | Searchable design data: styles, palettes, type pairings, UX rules (`scripts/search.py`) | The scripts are local only: no network, no subprocess. `--persist` writes `design-system/<slug>/` under the working directory, so **run it with `--persist` only inside the scratchpad, never in the repo root.** The upstream test fixtures were left out. |
+| `bencium-innovative-ux-designer` | bencium/bencium-claude-code-design-skill @ `5de46a39` | MIT (the article said "not specified"; the repo now has an MIT LICENSE) | Concept rounds for a new visual language | Its "one author, no agents or panels" rule applies **only inside a concept round** an agent runs with it. It doesn't change how the team is organised. |
+| `bencium-controlled-ux-designer` | same | MIT | Disciplined UI decisions: accessibility, responsive design and motion specs (the bundled reference docs) | Its "always ask before design decisions" means **ask MacArthur** (who carries Mac's rulings). Mac's rulings in QUALITY-BAR stand without re-asking. |
+| `accessibility-scan`, `accessibility-inspect`, `accessibility-audit`, `accessibility-diff`, `accessibility-fix` (+ `accesslint-shared/`) | accesslint/claude-marketplace @ `2e9d7336` | MIT (README and plugin.json) | WCAG 2.2 checks of terminal pages and artifacts | **Changed:** the shared methodology lives in `accesslint-shared/`, and the links were rewritten from `../shared/`. **Rules:** these skills run `npx -y @accesslint/...@latest`, which installs unpinned npm packages and drives Chrome. **Don't run them without MacArthur's go, and pin a version first.** Point them only at local copies or fixtures, never at the live VPS page. **`accessibility-fix` edits files.** Never point it at the terminal's main script (the review build keeps it byte-identical), the bot, or the Pine engine; use it on prototypes and artifacts only. The article's AccessLint MCP server and agent are **not** installed. |
+
+Already present: `frontend-design` (anthropics/skills, added earlier).
+
+**Not installed, and why:**
+
+| Skill | Reason |
+|---|---|
+| `react-best-practices`, `composition-patterns`, `react-native-skills` (Vercel) | Our stack is vanilla HTML / JS (the phone terminal and artifacts) plus Pine. These are React / Next.js / React Native rules and would only add noise. |
+| `react-view-transitions`, `deploy-to-vercel`, `vercel-cli-with-tokens`, `vercel-optimize`, `writing-guidelines` (in the same repo, not in the article) | Not our stack. The deploy skills use Vercel tokens. |
+| The article's AccessLint MCP server and agent | Not skills. Each would need its own security review and Mac's go. |
+
 ## Precedence
 
 The order is: Mac's own words, then the team's standing rules (`team-briefing/QUALITY-BAR.md`, which include sacred level-state colours and the bot as the single notification channel), then the existing terminal design system, then these skills.

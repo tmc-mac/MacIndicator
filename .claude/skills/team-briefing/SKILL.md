@@ -15,6 +15,7 @@ Mac speaks in owner's terms ("futuristic", "impressive to engineers", "make it e
      - one signature move, with restraint everywhere else;
      - avoid the generated-design defaults it lists.
    - For existing surfaces (the phone terminal, Levels PRO), the established design system and Mac's rulings take precedence, per frontend-design's own rule that "the brief's own words always win". Apply its craft within that system; don't restyle the system unprompted.
+   - For review of any page (terminal or artifact), the brief also asks for a `web-design-guidelines` pass (pinned rules) and lists its findings. For accessibility, use the AccessLint skills (`accessibility-scan` / `-inspect`) **only with MacArthur's go**, because they install npm packages. The rules for every third-party skill are in `.claude/skills/EXTERNAL-SKILLS.md`.
 2. Gather the facts the agent can't get on its own: exact paths, commit and file shas, what is decided, what is live, reviewer findings (relayed verbatim, since subagents can't read #5), and Mac's rulings.
 3. Decide the acceptance criteria before writing the brief. If you can't say how you'll verify it, the brief isn't ready.
 
