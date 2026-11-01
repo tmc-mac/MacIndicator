@@ -68,6 +68,10 @@ Decoration is not a signature element: gradients, glow, or a big number on its o
 - Use one type scale. All numbers use `tabular-nums`. Spacing sits on a 4/8 px grid.
 - Status colours (good, warn, crit) are reserved and always paired with a label or icon.
 - Keep the terminal's existing tokens and components. Extend them; never fork them.
+- **Mac's look ruling (Nov 1, on the taste21 before/after frames):** he prefers the current vivid terminal over a calmer, minimal redesign: "I like the design on the left it stands out much more and isn't as boring as the design on the right. I don't think this is a beneficial change."
+  - What he chose: the glowing position card, big numbers, the Live pill, chips and strong colour.
+  - **"Anti-AI" never means quieter or plainer here.** Taste passes (taste-skill, bencium, web-design-guidelines) find problems of truth, clarity, reach and length. They don't tone down the energy, glow, contrast or boldness, and they don't replace them with flat grey lists.
+  - Show any change that reduces visual weight to Mac as an option first; never ship it as a default.
 
 **Information design**
 - Answer first: the card's main question is answered in the top line.
