@@ -29,6 +29,20 @@ Mac trades mostly on his phone, knows his setup, and waits for it. Every trading
 - **One notification channel: the bot.** The bot takes the trades and sends the pushes. Charts and indicators add no notifications of their own (Mac, Nov 1). The chart's job is to confirm, at a glance, the state the bot is acting on.
 - **Same truth as the bot.** What the chart says must match what the bot decides. A display may simplify; it may never disagree.
 
+## 0.2 How Mac reads price action (Mac, Nov 1). Every trading surface must read through this model
+
+Price is a **vehicle driving to a destination**. The x axis is time and the y axis is price.
+
+- **The destination is the weekly and 4H.** Bulls are going up, bears are going down, and chop means we're inside the range.
+- **The GPS is the 1H and 15m:** the route to the destination. When the 15m lines up with the higher-timeframe levels, that's the earliest way into a trend.
+- **The 5m, 3m and 1m show every crazy turn on the road.** They're for watching, not deciding. The 15m chart is the one that ignites; lower timeframes are labelled and never light.
+- **The levels he trades:**
+  - the weekly levels: PWH, PWL, Week Open, and the weekly event levels PWO, PWC and WTD High / Low;
+  - the period opens: 4H, 1H, 30m and 15m. The 30m Open is the bot's most-traded level (7 of 20 trades on 10/30).
+  - Monthly and quarterly levels are **knowledge**: shown quietly, and only near price.
+- **The bot's alignment gate stays 15m / 1H / 4H.** The weekly is context only and never a bot gate (Mac: "it would cost too many entries").
+- **Design consequence:** a surface answers **destination first, then route** (DEST, then GPS). "Chop" means price is inside the destination's range, which means stand down.
+
 ## 1. Signature element (required for any UI or artifact)
 
 Each UI deliverable names exactly one signature element in its design note, plus the test that proves it works. Examples of the right calibre:
