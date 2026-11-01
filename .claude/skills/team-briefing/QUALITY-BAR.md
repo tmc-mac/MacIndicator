@@ -22,7 +22,8 @@ Mac trades mostly on his phone, knows his setup, and waits for it. Every trading
 
 - **Phone first.** Design for a 390 px portrait screen in the TradingView app or the terminal. The desktop view is secondary.
 - **One glance, one answer.** The primary element answers *stand down / wait / get ready / act* in under a second, always in the same place.
-- **Calm by default.** Salience scales with opportunity. Quiet states (stand down, wait) are visually muted: neutral colours, minimal objects, no flashing. Full direction colour is reserved for "act".
+- **Calm by default.** Salience scales with opportunity. Quiet states (stand down, wait) are visually muted: minimal objects, a quiet board, no flashing. The decision chip reserves full direction colour for "act".
+- **Level-state colours are sacred.** The colours that show a level being accepted, rejected, wicked, swept or tested are part of how Mac reads price. Never change their values or strip them for calm (Mac, Nov 1). Calm comes from fewer objects and a quiet board, not from removing state colour.
 - **Chop means stand down.** Chop and no-level states are first-class states with their reason, not the absence of a signal.
 - **Stable.** Nothing flickers or jumps between bars: state changes are debounced in the display, and the layout holds still. Underlying signals stay exactly as the bot computes them.
 - **One notification channel: the bot.** The bot takes the trades and sends the pushes. Charts and indicators add no notifications of their own (Mac, Nov 1). The chart's job is to confirm, at a glance, the state the bot is acting on.
