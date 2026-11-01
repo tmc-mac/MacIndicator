@@ -72,6 +72,8 @@ Decoration is not a signature element: gradients, glow, or a big number on its o
   - What he chose: the glowing position card, big numbers, the Live pill, chips and strong colour.
   - **"Anti-AI" never means quieter or plainer here.** Taste passes (taste-skill, bencium, web-design-guidelines) find problems of truth, clarity, reach and length. They don't tone down the energy, glow, contrast or boldness, and they don't replace them with flat grey lists.
   - Show any change that reduces visual weight to Mac as an option first; never ship it as a default.
+  - Mac, confirming: "Not looking to make it a generic banking app structure. I like the liveliness and vibrance of our current bot and want to continue to make it vibrant and live in that way. Bugs can be fixed but we're not dimming down the light of our bot."
+  - So new UI work moves toward more vibrance, never less. Bugs and truth problems still get fixed, inside that style.
 
 **Information design**
 - Answer first: the card's main question is answered in the top line.
