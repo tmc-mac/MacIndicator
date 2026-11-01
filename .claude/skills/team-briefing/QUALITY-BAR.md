@@ -98,6 +98,9 @@ Decoration is not a signature element: gradients, glow, or a big number on its o
   - TradingView's binding limit is **compiled tokens ≤ 80,000**. That is not source lines and not "main-body tokens".
   - Every Pine delivery states a compiled-token estimate from a counter calibrated on known data points (scripts that compiled, and reported error counts). The target is ≤ 70,000 estimated (a 12.5% margin), with the model's uncertainty stated.
   - Also stay within the other documented limits: local scopes, plot and drawing counts, request.* calls, and script size.
+- **Runtime traps (lesson of Nov 1, when v2.5.1 compiled and then stopped with RE10045 "array.get() Index -1 is out of bounds"):**
+  - In Pine v5, `and` and `or` evaluate **both** sides. A guard like `k > 0 and array.get(a, k - 1)` still reads index −1. Guard array, string and matrix accesses with `if` or a ternary instead.
+  - Every Pine delivery runs a scan for index-guarded accesses inside `and`/`or` expressions and lists each one found. Code that runs only on `barstate.islast` or `barstate.isrealtime` gets a line-by-line read, because the historical bars never execute it.
 - **Compile risk:** there's no Pine compiler on the desk. List every construct new to the file with its documented semantics. Mac's paste is the first compile, so always ship a fallback and a three-step paste sheet.
 
 ## 5. Studies and quant research
