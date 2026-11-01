@@ -16,6 +16,18 @@ A deliverable should hold up in front of a senior engineer, a quant, and a desig
 
 It also carries one **signature element**: something that shows real engineering depth, can be explained to an engineer in one sentence, and can be verified. Mac should never have to ask for more ambition, and never have to catch a shortcut.
 
+## 0.1 Product principles for Mac's trading surfaces (indicator, phone terminal, alerts)
+
+Mac trades mostly on his phone, knows his setup, and waits for it. Every trading surface is a **decision-state display for a patient trader**:
+
+- **Phone first.** Design for a 390 px portrait screen in the TradingView app or the terminal. The desktop view is secondary.
+- **One glance, one answer.** The primary element answers *stand down / wait / get ready / act* in under a second, always in the same place.
+- **Calm by default.** Salience scales with opportunity. Quiet states (stand down, wait) are visually muted: neutral colours, minimal objects, no flashing. Full direction colour is reserved for "act".
+- **Chop means stand down.** Chop and no-level states are first-class states with their reason, not the absence of a signal.
+- **Stable.** Nothing flickers or jumps between bars: state changes are debounced in the display, and the layout holds still. Underlying signals stay exactly as the bot computes them.
+- **Let the chart call him.** The phone alert carries the whole plan (direction, level, entry, stop, TP1, timeframe) in two lines, so he doesn't need to stare at the chart.
+- **Same truth as the bot.** What the chart says must match what the bot decides. A display may simplify; it may never disagree.
+
 ## 1. Signature element (required for any UI or artifact)
 
 Each UI deliverable names exactly one signature element in its design note, plus the test that proves it works. Examples of the right calibre:
