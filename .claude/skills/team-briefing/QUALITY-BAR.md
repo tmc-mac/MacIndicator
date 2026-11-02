@@ -49,6 +49,23 @@ Price is a **vehicle driving to a destination**. The x axis is time and the y ax
   - So for Mac the lower timeframes are noise to watch, but for the bot they're where the trigger fires. A 15m chart can show **ARMED** (level + aligned + 15m control). It can't see the 3m / 5m trigger unless it's explicitly computed.
 - **Design consequence:** a surface answers **destination first, then route** (DEST, then GPS). "Chop" means price is inside the destination's range, which means stand down.
 
+## 0.3 How candles develop: waves, wicks and the turn of the hour (Mac, Nov 2). Read every entry and stop through this
+Mac: "I want the team to be able to see the charts like I do."
+
+- **Price moves in waves, almost never in a straight line.** MNQ needs liquidity to keep moving. **Wicks are liquidity sweeps**: they run the stops of the side that's on the wrong side, then price goes the other way.
+- **A higher-timeframe candle builds its wave before its body.** With the 4H direction set (say down), a new 1H candle often trades up first (the wick, a sweep), and only then makes its body and low in the 4H direction. That's how bearish candles develop; bullish ones mirror it.
+- **The turn of the hour is the danger zone, on both sides of it.** An entry in the first minutes of a new hour can be swept by that hour's opening wick. An entry late in an hour has the next hour's opening wave coming. The next hour may build its body against the trade.
+- **The lesson trade (11/02, 10:00 PT short, full stop):** the weekend gap had just filled. Price swept above PWC at 9:59, the bot sold at 10:00, and the new hour wicked 48.5 pts up to 28,607 at 10:06. That took the stop at 28,598.25; by 10:28 price was back at the entry.
+- **What the data says so far** (replay days, in-sample; `scratchpad/research/week-1102/ADDENDUM-1102-hour-open-and-NY.md`):
+  - The counter-wick is real and big. 4H-down hours trade a median 47 pts above the hour open (NY 55; a quarter of NY hours 80+), which is more than the 50-pt NY stop.
+  - Whether the wick comes FIRST is about a coin flip (53%; NY 56%). So a rule must SEE the wick print; it can't assume it.
+  - 36% of the bot's full stops were filled in minutes 0-14 of an hour (25% expected). About 6 in 10 full stops saw price come back through the entry within an hour (no baseline yet).
+  - Live-week tests (protocol (e), (b), (f), (g)) decide whether any of it becomes a rule.
+- **What every agent does with this:**
+  - Any entry, stop or exit study reports **where each trade sits in its 1H and 4H candle**: minutes into the hour, the 4H direction, whether the hour has printed its counter-wick yet, and the stop distance against that hour's typical counter-wick.
+  - A trade review that says only "stopped out" is incomplete. Say whether a higher-timeframe wave swept it.
+  - Candidate rules take this shape: "wait for the hour's sweep against the 4H, sell its failure, stop beyond the wick", or "no new entries in the hour-turn window". Each one passes the replay gate, MacDot's review and Mac's go first, like any bot change.
+
 ## 1. Signature element (required for any UI or artifact)
 
 Each UI deliverable names exactly one signature element in its design note, plus the test that proves it works. Examples of the right calibre:
