@@ -194,3 +194,26 @@ On 11/04 the bias peaked about −0.26 in the break wave and flipped to about 0 
   AND a 1m displacement candle printed our way.
 - If GROWING TURN arrives a minute after the trigger, the live re-grade (§22 grade-upgrade add) can still lift the trade.
 - 4H control (structure) stays required.
+
+## GRADE r3 (FINAL, Mac 11/04 "yes") + TIME BLOCKS (FINAL, Mac 11/04 "skip the old time blocks") — supersede GRADE (FINAL) and GRADE r2
+GATES (any fail = no trade):
+- 4H control;
+- a lane trigger: failed break + displacement shift (body ≥ 50%, range ≥ 1× the 20-bar average), or accepted break + defended retest
+  (≥ 2 closes outside, the retest doesn't close back inside);
+- breaking-wave bias peak ≥ 0.20 our way, frozen causally at the decision;
+- first retest only;
+- not mid-range (middle 50% of the 1H range) and a logical stop.
+POINTS (+1 each, equal weight):
+- TRAP at a stacked/obvious pool;
+- FORCE (leg ≥ 2× ATR5m, or shift bar ≥ 2× average range);
+- VOLUME (pullback mean 5m volume < break-candle volume);
+- TIMING (sweep/break within 60 min of the 15:00 / 00:00 / 06:30 PT opens);
+- IMPULSE BAND (0.30 ≤ wave peak < 0.40).
+CAP: wave peak ≥ 0.40 → max grade C (tag exhaustion-watch).
+A+ = 4–5, B = 3, C = 0–2. 11/04 witness = A+ (4).
+TIME BLOCKS:
+- the new model IGNORES the old time blocks: Asia 15:00–17:00, NY-open 06:30–07:10, morning hold.
+- Its own rule instead: no new-model entries in the first 30 min of a session (15:00, 00:00, 06:30 PT) or of a 4H candle.
+- News wait and session flatten/no-entry times still apply.
+- The old entry paths keep their blocks.
+- cfg tide.useTimeBlocks default FALSE; tide.openWaitMin 30.
