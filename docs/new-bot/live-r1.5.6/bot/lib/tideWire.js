@@ -286,6 +286,7 @@ function normSignal(s, version, L = null) {   // MacStructure signal -> the wiri
   return { id: s.id, setupId: s.setupId || null, leg: s.leg || null, dir: d, kind: s.kind === 'failed-break' ? 'trap' : (s.kind || null), levelName: s.level && s.level.name || null, levelPrice: s.level && isNum(s.level.price) ? s.level.price : null,
     entryType: String(s.entryType || 'market').toUpperCase() === 'LIMIT' ? 'LIMIT' : 'MARKET', entry: s.entryPrice, stop: isNum(s.chosenStop) ? s.chosenStop : s.stops && s.stops.structural, stopTf,
     grade: s.grade || null, gradePoints: isNum(s.gradeTotal) ? s.gradeTotal : null, pointDetail: isObj(s.gradePoints) ? s.gradePoints : null, evidence: s.gradeEvidence || null,
+    gradeGates: s.gradeGates || null, gradeEffectiveGates: s.gradeEffectiveGates || null, gradeGateEvidence: s.gradeGateEvidence || null, gradeGateRules: s.gradeGateRules || null, gradePolicy: s.gradePolicy || null, gradeWaived: Array.isArray(s.gradeWaived) ? s.gradeWaived : null,
     capTag: /exhaustion-watch/.test(JSON.stringify([s.tags || null, s.gradeCap || null, s.cap || null, s.capTag || null, s.warnings || null])) ? 'exhaustion-watch' : null,
     pools: tg.map(t => ({ price: t.price, name: t.name || null, major: !!t.major })), internalPools: tg.filter(t => !t.major).map(t => ({ price: t.price, name: t.name || null, major: false })),
     addZone: s.limit && isNum(s.limit.price) && String(s.entryType).toLowerCase() !== 'limit' ? { price: s.limit.price, kind: 'fvg' } : null, at: isNum(s.t) ? s.t * 1000 : null, engine: version,
@@ -416,9 +417,10 @@ function shadowStep(sh, input, cfg, gate, pointValue = 2, tickSize = 0.25) {
     else if (firstLeg) sh.fb.push({ setupId: sig.setupId || null, signalId: sig.id || null, tp1Done: false, closed: true });   // not taken: the engine's trade ends now
     const line = pushLine(sig, p, g.code);
     sigRows.push(tideRow('signal', { at: isNum(sig.at) ? sig.at : null, shadow: !liveMode, order: liveMode ? (taken ? 'live (tideOrders planner)' : 'none') : 'none (shadow)', id, setup: sig.setupId || null, leg: sig.leg || null, dir: sig.dir, side: sig.dir === 1 ? 'LONG' : 'SHORT', kind: sig.kind || null, level: sig.levelName || null, htf: sig.htf || null, htfDir: sig.htfDir ?? 0, riskMult: sig.riskMult ?? 1,
-      levelPrice: sig.levelPrice ?? null, entryType: sig.entryType || 'MARKET', entry: r2(sig.entry), evidence: sig.evidence || null, engine: sig.engine || null,
+      levelPrice: sig.levelPrice ?? null, entryType: sig.entryType || 'MARKET', entry: r2(sig.entry), evidence: sig.evidence || null, gradeGates: sig.gradeGates || null, gradeEffectiveGates: sig.gradeEffectiveGates || null, gradeGateEvidence: sig.gradeGateEvidence || null, gradeGateRules: sig.gradeGateRules || null, gradePolicy: sig.gradePolicy || null, gradeWaived: sig.gradeWaived ?? null, htfView: sig.htfView || null, engine: sig.engine || null,
       plan: p.ok ? { mode: p.mode, budgetUsd: p.budgetUsd, shadow: p.shadow || null, sizeCode: p.sizeCode, nearFloor: p.nearFloor, grade: p.grade, fromGrade: p.fromGrade, gradeDetail: p.gradeDetail, leg: p.leg, legNote: p.legNote, stop: p.stop, stopTf: p.stopTf, stopPts: p.stopPts, qty: p.qty, total: p.total, planned: p.planned,
         first: p.first, second: p.second, scaleZone: p.scaleZone, reservedQty: p.reservedQty, riskUsd: p.riskUsd, totalRiskUsd: p.totalRiskUsd, sizing: p.sizing,
+        overBudgetTake1: p.sizeCode === 'NO_FIT_TAKE1' && isNum(p.totalRiskUsd) && isNum(p.budgetUsd) ? p.totalRiskUsd > p.budgetUsd : false,
         tp1: p.exits.partial ? { price: p.exits.partial.price, qty: p.exits.partial.contracts, basis: p.exits.partial.basis, pool: p.exits.partial.pool || null } : null,   // TP1 from moneyRule.planExits on the signal's pools (a 1-lot: qty 0, the price is the BE trigger)
         tp2: { price: p.exits.tp.price, basis: p.exits.tp.basis, rr: p.exits.tp.rr, pool: p.exits.tp.pool || null }, avgEntry: p.exits.avgEntry, beStop: p.exits.beStop, R: p.exits.R,
         pyramid: { qty: p.addQty, when: 'once after TP1 on a rejected pullback, trend + 4H control held, house money only (D4)' } }
@@ -461,8 +463,8 @@ const ms1000 = t => (isNum(t) ? (t > 1e11 ? t : t * 1000) : null);
 function htfBoard(h) {
   if (!h) return null;
   const p = h.prev4h;
-  return { prev4h: p ? { dir: p.dir, hh: p.hh, ll: p.ll, o: r2(p.o), h: r2(p.h), l: r2(p.l), c: r2(p.c) } : null, cur4h: h.cur4h ? { o: isNum(h.cur4h.o) ? r2(h.cur4h.o) : null, side: h.cur4h.side } : null,
-    daily: { o: isNum(h.daily && h.daily.o) ? r2(h.daily.o) : null, side: h.daily ? h.daily.side : 0 }, dir: h.dir };
+  return { prev4h: p ? { dir: p.dir, hh: p.hh, ll: p.ll, o: r2(p.o), h: r2(p.h), l: r2(p.l), c: r2(p.c), status: p.status || null } : null, cur4h: h.cur4h ? { o: isNum(h.cur4h.o) ? r2(h.cur4h.o) : null, side: h.cur4h.side, status: h.cur4h.status || null } : null,
+    daily: { o: isNum(h.daily && h.daily.o) ? r2(h.daily.o) : null, side: isNum(h.daily && h.daily.o) ? h.daily.side : null, status: h.daily && h.daily.status || null }, availability: h.availability || null, dir: h.dir };
 }
 function boardView(st, o = {}) {
   if (!st || !Array.isArray(st.zones)) return null;

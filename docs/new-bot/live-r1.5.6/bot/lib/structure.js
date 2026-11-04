@@ -397,9 +397,14 @@ function htfStep(st, ctx) {
   const cur4h = P ? { t: P.t, o: P.O4, side: sgn(px - P.O4), control: P.control ? { dir: P.control.dir, kind: P.control.kind } : null } : null;
   const dayT = b.t - (b.t % 60) - ((((ptMin(b.t) - cfg.h4AnchorPtMin) % 1440) + 1440) % 1440) * 60;   // the 15:00 PT 4H candle of this CME day
   const dayBar = (st.cur.h4 && st.cur.h4.t === dayT ? st.cur.h4 : null) || h4.find(x => x.t === dayT) || null;
-  const daily = { t: dayT, o: dayBar ? dayBar.o : null, side: dayBar ? sgn(px - dayBar.o) : 0 };
+  const daily = { t: dayT, o: dayBar ? dayBar.o : null, side: dayBar ? sgn(px - dayBar.o) : 0, available: !!dayBar, status: 'FORMING' };
   const votes = [prev4h ? prev4h.dir : 0, hhll, daily.side], pos = votes.filter(v => v > 0).length, neg = votes.filter(v => v < 0).length;
-  st.htf = { prev4h, cur4h, daily, votes, dir: pos > neg ? 1 : neg > pos ? -1 : (cur4h ? cur4h.side : 0), tie: pos === neg };
+  // Preserve the existing votes and decision; expose their provenance and missing
+  // history separately so a neutral vote cannot be mistaken for observed data.
+  if (prev4h) prev4h.status = 'CLOSED';
+  if (cur4h) cur4h.status = 'FORMING';
+  st.htf = { prev4h, cur4h, daily, votes, availability: { prev4h: !!prev4h, priorComparison: !!prev2, cur4h: !!cur4h, daily: !!dayBar },
+    dir: pos > neg ? 1 : neg > pos ? -1 : (cur4h ? cur4h.side : 0), tie: pos === neg };
   return st.htf;
 }
 function htfTag(st, dir) { const h = st.htf; return !h || !h.dir || !dir ? 'neutral' : h.dir === dir ? 'with' : 'against'; }
@@ -461,21 +466,29 @@ function entryBiasEvidence(st, cfg, dir, T) {
 const getField = (ev, f) => f.split('.').reduce((o, k) => (o === null || o === undefined ? undefined : o[k]), ev);
 const condOk = (ev, c) => (c && Array.isArray(c.any) ? c.any.some(w => Array.isArray(w) && w.every(x => condOk(ev, x))) : OPS[c.op](getField(ev, c.field), c.value));
 const condFields = c => (c && Array.isArray(c.any) ? c.any.flat().flatMap(condFields) : [c]);
+const describeCondition = (ev, c) => c && Array.isArray(c.any)
+  ? { any: c.any.map(branch => branch.map(item => describeCondition(ev, item))) }
+  : { field: c.field, op: c.op, value: c.value, got: getField(ev, c.field) ?? null };
 // Table-driven grade (cfg.grade). Returns every gate and factor with the evidence values it read, so the journal shows WHY.
 function gradeOf(ev, g, cfg) {
-  const gates = {}, missing = [], points = {}, detail = {}, used = {}, waived = []; let total = 0;
+  const gates = Object.create(null), effectiveGates = Object.create(null), gateEvidence = Object.create(null), gateRules = [], missing = [], points = {}, detail = {}, used = {}, waived = []; let total = 0;
   const acc = ev && ev.kind === 'accepted-break';
+  const trendFloorApplies = !!(cfg && cfg.waveBiasTrend !== false && ev && (acc || (ev.control4h === true && ev.controlKind === 'trap')));
   for (const r of g.required) { let ok = r.when.every(c => condOk(ev, c)); const real = ok;
     // [r3.6] cfg.controlAsBias: the 4H control gate passes when the latest 15m and 30m bias readings are both not AGAINST the trade (Mac 11/04 08:52: 4H sellers, s15 +0.34 / s30 +0.32, LONG refused)
     if (!ok && cfg && cfg.controlAsBias !== false && r.name === 'control4h' && ev && isNum(ev.dir) && isNum(ev.bias15) && isNum(ev.bias30) && ev.dir * ev.bias15 >= 0 && ev.dir * ev.bias30 >= 0) { ok = true; waived.push('control4h->bias'); }
     // [r3.4] cfg.controlFree: an accepted break is not refused by the 4H control (Mac 11/04: the London ORH long against sellers' control ran +550)
-    if (!ok && cfg && cfg.controlFree !== false && acc && r.name === 'control4h') ok = true;
+    if (!ok && cfg && cfg.controlFree !== false && acc && r.name === 'control4h') { ok = true; waived.push('control4h->controlFree'); }
     // [r3.4] cfg.laneAccept: under trap control an accepted break the control's way may use the failed-break lane with the kind requirement dropped (displacement kept)
     // [r3.5] kind and the 2-closes-out count are waived; the retest must NOT have closed back inside the level and the displacement terms must hold (reviewer, 11/04)
-    if (!ok && cfg && cfg.laneAccept !== false && acc && r.name === 'laneTrigger' && ev.controlKind === 'trap' && ev.control4h === true && ev.retestClosedInside === false) ok = r.when.every(c => condOk(Object.assign({}, ev, { kind: 'failed-break' }), c));
+    if (!ok && cfg && cfg.laneAccept !== false && acc && r.name === 'laneTrigger' && ev.controlKind === 'trap' && ev.control4h === true && ev.retestClosedInside === false) { ok = r.when.every(c => condOk(Object.assign({}, ev, { kind: 'failed-break' }), c)); if (ok) waived.push('laneTrigger->laneAccept'); }
     // [r3.5] cfg.waveBiasTrend: a with-trend setup (same-way trap 4H control, or an accepted break) passes gate waveBias when the peak is not AGAINST it (>= 0); the 0.20 floor stays for the rest (Mac 11/04: the 08:28 London High short, peak 0.08, refused)
-    if (!ok && cfg && cfg.waveBiasTrend !== false && r.name === 'waveBias' && (acc || (ev.control4h === true && ev.controlKind === 'trap')) && isNum(ev.wavePeakBias) && ev.wavePeakBias >= 0) ok = true;
-    gates[r.name] = waived.includes('control4h->bias') && r.name === 'control4h' ? real : ok; if (!ok) missing.push(r.name); }
+    if (!ok && cfg && cfg.waveBiasTrend !== false && r.name === 'waveBias' && (acc || (ev.control4h === true && ev.controlKind === 'trap')) && isNum(ev.wavePeakBias) && ev.wavePeakBias >= 0) { ok = true; waived.push('waveBias->waveBiasTrend'); }
+    gates[r.name] = (gates[r.name] ?? true) && real; effectiveGates[r.name] = (effectiveGates[r.name] ?? true) && ok;
+    const conditions = r.when.map(c => describeCondition(ev, c));
+    gateRules.push({ name: r.name, observed: real, effective: ok, conditions });
+    if (!gateEvidence[r.name]) gateEvidence[r.name] = []; gateEvidence[r.name].push(conditions);
+    if (!ok) missing.push(r.name); }
   for (const f of g.factors) {
     const ok = f.when.every(c => condOk(ev, c)); let p = ok ? f.points : 0;
     if (p && f.group && g.groupMax && isNum(g.groupMax[f.group])) { p = Math.max(0, Math.min(p, g.groupMax[f.group] - (used[f.group] || 0))); used[f.group] = (used[f.group] || 0) + p; }
@@ -490,7 +503,15 @@ function gradeOf(ev, g, cfg) {
     const names = g.bands.map(x => x[0]), mi = names.indexOf(c.maxBand);
     if (mi >= 0 && names.indexOf(grade) < mi) { grade = c.maxBand; capped.push(c.name); }
   }
-  return { waived, grade, total, points, gates, missing, detail, uncapped, capped, tags };
+  const waveRules = (g.required || []).filter(r => r.name === 'waveBias');
+  const waveRule = waveRules.length === 1 ? waveRules[0] : null;
+  const waveCondition = waveRule && waveRule.when.length === 1 && waveRule.when[0];
+  const configuredFloor = waveCondition && waveCondition.field === 'wavePeakBias' && waveCondition.op === 'gte' && isNum(waveCondition.value) ? waveCondition.value : null;
+  return { waived, grade, total, points, gates, effectiveGates, gateEvidence, gateRules,
+    policy: { controlAsBias: !!cfg && cfg.controlAsBias !== false, controlFree: !!cfg && cfg.controlFree !== false,
+      laneAccept: !!cfg && cfg.laneAccept !== false, waveBiasTrend: !!cfg && cfg.waveBiasTrend !== false,
+      waveBiasTrendApplies: trendFloorApplies, waveBiasEffectiveFloor: configuredFloor === null ? null : trendFloorApplies ? Math.min(configuredFloor, 0) : configuredFloor },
+    missing, detail, uncapped, capped, tags };
 }
 
 // ---------------------------------------------------------------- 4H control (spec A)
@@ -1023,7 +1044,7 @@ function emit(st, ctx, s, e) {
   const gr = gradeOf(ev, cfg.grade, cfg);
   if (!gr.grade) {
     const gateWhy = gr.missing.map(n => { const r = cfg.grade.required.find(q => q.name === n); return `${n}: ${r ? r.when.flatMap(condFields).map(c => `${c.field} ${c.op} ${JSON.stringify(c.value)} got ${JSON.stringify(getField(ev, c.field) ?? null)}`).join(', ') : ''}`; });
-    E('GRADE_NO_TRADE', { setup: s.id, total: gr.total, points: gr.points, missing: gr.missing, gates: gr.gates, waived: gr.waived, why: gateWhy, htf: s.htf, htfDir });
+    E('GRADE_NO_TRADE', { setup: s.id, total: gr.total, points: gr.points, missing: gr.missing, gates: gr.gates, effectiveGates: gr.effectiveGates, gateEvidence: gr.gateEvidence, gateRules: gr.gateRules, policy: gr.policy, waived: gr.waived, why: gateWhy, htf: s.htf, htfDir });
     if (cfg.releaseOnRefusal !== false && !s.entered) {   // [r3.6] the refused setup frees its ONE_IDEA slot; the acceptance it blocked arms now
       s.refused = T; cancelSetup(st, ctx, s, `REFUSED: ${gr.missing[0]} - slot released`);
       const pend = st.pendingAcc && st.pendingAcc[d]; if (pend) { delete st.pendingAcc[d]; if (pend.pt === P.t && T - pend.T <= cfg.setupMaxBars * 300) armAccepted(st, ctx, pend.a); }
@@ -1043,20 +1064,20 @@ function emit(st, ctx, s, e) {
     stops: { structural, stopType: s.stopType, trapExtreme, hour1Wick, bounceExtreme,
       rule: s.kind === 'failed-break' ? (s.stopType === '4H' ? 'failed-breakout extreme + buf (§5 C, 4H-type / trap)' : 'current 1H wick + buf (§5 C, hour-type)') : (s.stopType === '4H' ? 'retest extreme + buf (C.1)' : '1H wick incl. the retest + buf (§5 C)') },
     chosenStop: structural, riskPts: r2(risk),
-    grade, gradePoints: gr.points, gradeTotal: gr.total, gradeGates: gr.gates, gradeWaived: gr.waived, gradeDetail: gr.detail, gradeUncapped: gr.uncapped, gradeCapped: gr.capped, tags: gr.tags, gradeEvidence: ev, evidence: ev,
+    grade, gradePoints: gr.points, gradeTotal: gr.total, gradeGates: gr.gates, gradeEffectiveGates: gr.effectiveGates, gradeGateEvidence: gr.gateEvidence, gradeGateRules: gr.gateRules, gradePolicy: gr.policy, gradeWaived: gr.waived, gradeDetail: gr.detail, gradeUncapped: gr.uncapped, gradeCapped: gr.capped, tags: gr.tags, gradeEvidence: ev, evidence: ev,
     targets, pools: targets, internalPools: targets.filter(t => !t.major), contextPools: contextPools(st, cfg, d, entry, risk), swings: swingsSnap(st, cfg), marketState: Object.assign({}, st.mstate),
     control: C ? { dir: C.dir, kind: C.kind, ext: C.ext, formedAt: ptLabel(C.formedT) } : null,
     defended: s.defended || null, shift: s.shift ? { tf: s.shift.tf, at: s.shift.at, body: s.shift.body, xAvg: s.shift.xAvg, displacement: s.shift.disp } : null,
     retest: s.kind === 'failed-break' ? (s.bounce ? { n: retestNo, extreme: s.bounce.ext, startAt: ptLabel(s.bounce.startT) } : null) : { n: retestNo, extreme: s.retest.ext, at: ptLabel(s.retest.t) },
     warnings: warn, reason,
-    htf: s.htf, htfDir, riskMult: cfg.htfAgainst === 'half' && s.htf === 'against' ? 0.5 : 1, htfView: st.htf ? { prev4h: st.htf.prev4h ? { dir: st.htf.prev4h.dir, hh: st.htf.prev4h.hh, ll: st.htf.prev4h.ll } : null, daily: st.htf.daily.side, cur4h: st.htf.cur4h ? st.htf.cur4h.side : 0 } : null,   // [r3.7]
+    htf: s.htf, htfDir, riskMult: cfg.htfAgainst === 'half' && s.htf === 'against' ? 0.5 : 1, htfView: st.htf ? { prev4h: st.htf.prev4h ? { dir: st.htf.prev4h.dir, hh: st.htf.prev4h.hh, ll: st.htf.prev4h.ll, status: st.htf.prev4h.status } : null, daily: st.htf.daily.side, cur4h: st.htf.cur4h ? st.htf.cur4h.side : 0, availability: st.htf.availability, dailyStatus: st.htf.daily.status, cur4hStatus: st.htf.cur4h ? st.htf.cur4h.status : null } : null,   // [r3.7]
   };
   reason.unshift(s.kind === 'failed-break'
     ? `${s.zones.join('+')} failed ${d < 0 ? 'above' : 'below'} (extreme ${s.ext}); shift through ${s.swing} on ${s.shift.tf} ${s.shift.at}${s.disp ? ' with displacement' : ''}; retest ${retestNo} bounce ${s.bounce ? s.bounce.ext : '?'}; 1m rejection close ${entry}`
     : `${s.zone.name} ${s.level} accepted ${d > 0 ? 'above' : 'below'}; retest ${retestNo} wick ${s.retest.ext}; 1m rejection close ${entry}`);
   s.entered = T; s.firstStop = structural; s.firstSignal = sig.id; s.entryGrade = grade; s.entryPoints = gr.total; s.entryRetestNo = retestNo;
   st.used[s.ukey] = T;
-  E('SIGNAL', { id: sig.id, dir: d, kind: s.kind, entryType: sig.entryType, entry, stop: structural, risk: sig.riskPts, grade, points: gr.total, htf: s.htf, htfDir, riskMult: sig.riskMult });
+  E('SIGNAL', { id: sig.id, dir: d, kind: s.kind, entryType: sig.entryType, entry, stop: structural, risk: sig.riskPts, grade, points: gr.total, gates: gr.gates, effectiveGates: gr.effectiveGates, gateEvidence: gr.gateEvidence, gateRules: gr.gateRules, policy: gr.policy, waived: gr.waived, htf: s.htf, htfDir, riskMult: sig.riskMult });
   ctx.sigs.push(sig);
   return sig;
 }
@@ -1111,7 +1132,7 @@ function step(state, input, cfgIn) {
   pushCap(st.m1, b, CAP.m1);
   const closed = aggregate(st, b, cfg);
   const newPeriod = periodRoll(st, ctx);
-  htfStep(st, ctx); if (newPeriod && st.htf) E('HTF', { dir: st.htf.dir, prev4h: st.htf.prev4h ? { dir: st.htf.prev4h.dir, hh: st.htf.prev4h.hh, ll: st.htf.prev4h.ll, c: st.htf.prev4h.c } : null, daily: st.htf.daily, votes: st.htf.votes });   // [r3.7]
+  htfStep(st, ctx); if (newPeriod && st.htf) E('HTF', { dir: st.htf.dir, prev4h: st.htf.prev4h, cur4h: st.htf.cur4h, daily: st.htf.daily, availability: st.htf.availability, votes: st.htf.votes });   // [r3.7]
   orbStep(st, ctx);
   if (newPeriod || !st.zones.length) buildZones(st, cfg, T);
   if (input.stoppedOut && (input.stoppedOut.dir === 1 || input.stoppedOut.dir === -1)) {

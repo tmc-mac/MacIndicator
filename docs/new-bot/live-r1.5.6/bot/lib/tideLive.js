@@ -40,21 +40,31 @@ function create(o) {
   let chain = Promise.resolve();
   const serial = fn => { const p = chain.then(fn, fn); chain = p.catch(() => {}); return p; };
 
-  function blank() { return { version: VERSION, pos: null, ids: {}, sentAt: {}, ev: 0, best: null, fillAt: null, closedAt: null, takeId: null, endTold: false, tp1Told: false, lastPx: null, guard: null, staleStop: null, pushed: {} }; }
+  function blank() { return { version: VERSION, pos: null, ids: {}, sentAt: {}, ev: 0, best: null, fillAt: null, closedAt: null, takeId: null, endTold: false, tp1Told: false, lastPx: null, guard: null, staleStop: null, pushed: {}, dispatch: null }; }
   function load() {
-    try { if (stateFile && fs.existsSync(stateFile)) { const d = JSON.parse(fs.readFileSync(stateFile, 'utf8')); if (d && d.version === VERSION) return { ...blank(), ...d }; log(`  [tide-live] state file ${path.basename(stateFile)} has another version: ignored (kept on disk).`); } }
-    catch (e) { log(`  [tide-live] state file unreadable (${e.message}): starting empty; the restart reconcile decides.`); }
+    try { if (stateFile) { const d = JSON.parse(fs.readFileSync(stateFile, 'utf8')); const obj = x => !!x && typeof x === 'object' && !Array.isArray(x);
+      const valid = obj(d) && d.version === VERSION && Object.prototype.hasOwnProperty.call(d, 'pos') && obj(d.ids) && obj(d.sentAt) && obj(d.pushed) && Number.isFinite(d.ev) &&
+        (d.pos === null || (obj(d.pos) && typeof d.pos.phase === 'string' && obj(d.pos.orders) &&
+          (DONE_PHASES.has(d.pos.phase) || (obj(d.pos.plan) && typeof d.pos.id === 'string' && d.pos.id.length > 0 && (d.pos.dir === 1 || d.pos.dir === -1) && Number.isInteger(d.pos.open) && d.pos.open >= 0))));
+      if (valid) return { ...blank(), ...d }; log('  [tide-live] state invalid or version not recognized: manual reconciliation required.'); return { ...blank(), dispatch: { kind: 'state', reason: 'invalid or unrecognized state' } }; } }
+    catch (e) { if (e.code === 'ENOENT') return blank(); log(`  [tide-live] state unreadable (${e.message}): manual reconciliation required.`); return { ...blank(), dispatch: { kind: 'state', reason: 'unreadable state' } }; }
     return blank();
   }
   function save() {
     if (!stateFile) return;
-    const tmp = `${stateFile}.tmp-${process.pid}`; fs.writeFileSync(tmp, JSON.stringify(S)); fs.renameSync(tmp, stateFile);
+    const tmp = `${stateFile}.tmp-${process.pid}`;
+    const fd = fs.openSync(tmp, 'w', 0o600);
+    try { fs.writeFileSync(fd, JSON.stringify(S)); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
+    fs.renameSync(tmp, stateFile);
+    const dir = fs.openSync(path.dirname(stateFile), 'r');
+    try { fs.fsyncSync(dir); } finally { fs.closeSync(dir); }
   }
   const ctx = () => ({ cfg: cfgFn() });
-  function owned() { return !!(S.pos && S.pos.plan && !DONE_PHASES.has(S.pos.phase)); }   // a TIDE position exists (pending, open, closing, reversed)
-  function phase() { return S.pos ? S.pos.phase : 'FLAT'; }
+  function owned() { return !!(S.dispatch || (S.pos && S.pos.plan && !DONE_PHASES.has(S.pos.phase))); }   // ambiguous dispatch retains ownership
+  function phase() { return S.dispatch ? 'UNKNOWN' : S.pos ? S.pos.phase : 'FLAT'; }
   const J = (what, data) => { try { journal({ type: 'lv_tide', phase: 'live_' + what, version: VERSION, t: now(), position: S.pos ? S.pos.id : null, take: S.takeId, ...data }); } catch (e) { /* journal only */ } };
   const P = (key, title, text, opts = { priority: 'high', tags: 'chart_with_upwards_trend' }) => { if (key && S.pushed[key]) return; if (key) S.pushed[key] = true; try { notify(title, text, opts); } catch (e) { /* push only */ } };
+  function dispatchAlert() { const msg = 'Order outcome or saved ownership is uncertain. Automatic order actions are held; check the position and all working orders directly.'; log(`  [tide-live] URGENT: ${msg}`); P('dispatch-hold', 'TIDE URGENT: order outcome unknown', msg, CRIT); }
 
   // ---- one planner step per event, then every intent executed in order; results come back as events (a queue, bounded)
   async function run(firstEvent) {
@@ -64,7 +74,7 @@ function create(o) {
       const ev = q.shift(); if (ev.id == null) ev.id = `${S.pos.id}:ev:${++S.ev}`;
       const r = T.plan(S.pos, ev, ctx()); S.pos = r.state; save();
       if (r.intents.length || (ev.type !== 'ladder' && ev.type !== 'tp1-traded')) J('step', { event: brief(ev), intents: r.intents.map(i => ({ op: i.op, kind: i.kind, qty: i.qty, price: i.price, key: i.key, code: i.code })), notes: r.notes, statePhase: r.state.phase });
-      for (const it of r.intents) { const back = await exec(it); q.push(...back); save(); }
+      for (const it of r.intents) { const back = await exec(it); q.push(...back); save(); if (S.dispatch) { dispatchAlert(); return; } }
     }
     afterRun();
   }
@@ -118,47 +128,62 @@ function create(o) {
     const e = new Error(`${last && last.message} - broker unreadable after ${READ_AT_MS.length} tries`); e.cause = last && last.cause; e.last = last; e.tries = READ_AT_MS.length; throw e;
   }
   const posSize = async () => { const p = await readRetry('position read', () => getOpenPosition(tokenOf(), accountId, contractId)); return p ? p.size : 0; };
-  async function cancelVerified(orderId) {
+  async function positionMatches(expected) {
+    const p = await readRetry('position read', () => getOpenPosition(tokenOf(), accountId, contractId));
+    return !!p && p.size === expected && (p.type === 1 ? 1 : p.type === 2 ? -1 : null) === S.pos.dir;
+  }
+  async function cancelVerified(orderId, holdAfter = false) {
+    const key = Object.keys(S.ids).find(k => String(S.ids[k]) === String(orderId));
+    const known = key && S.pos && S.pos.orders[key];
+    if (!key || !known || !stateFile) return false;
+    S.dispatch = { key, kind: 'cancel', at: now(), reason: 'cancellation pending' }; save();
     for (let i = 0; i < 3; i++) {
-      let ok = false; try { ok = await cancelOrder(tokenOf(), accountId, orderId); } catch (e) { ok = false; }
-      let open; try { open = await getOpenOrders(tokenOf(), accountId, contractId); } catch (e) { open = null; }
-      if (open && !open.some(x => String(x.id) === String(orderId))) return true;   // verified: no longer resting
-      if (ok && open === null) continue;
+      try { await cancelOrder(tokenOf(), accountId, orderId); } catch (e) { /* outcome unknown */ }
+      let h = null; try { h = await getEntryOrder(tokenOf(), accountId, contractId, orderId, S.sentAt[key] || now()); } catch (e) { /* unknown */ }
+      // Absence from an open-order snapshot is not a terminal cancellation.
+      // A new fill, even a partial fill, needs reconciliation before replacement.
+      if (h && (h.status === 3 || h.status === 4) && h.fillVolume != null && Number.isFinite(Number(h.fillVolume)) && Number(h.fillVolume) === (known.filled || 0)) { const marker = S.dispatch; S.dispatch = holdAfter ? { key, kind: 'stop-change', reason: 'old stop canceled; replacement pending', at: now() } : null; try { save(); } catch (e) { S.dispatch = marker; throw e; } return true; }
     }
     return false;
   }
   function req(it, body, extra = {}) { J('order', { key: it.key, op: it.op, kind: it.kind, side: it.side, qty: body.size, type: body.type, limitPrice: body.limitPrice ?? null, stopPrice: body.stopPrice ?? null, ...extra }); }
   async function placed(it, body) {
     if (it.kind === 'stop' && S.osPoll != null && S.osPoll === S.pollN) { if (S.osSent === S.pollN) { J('order_held', { key: it.key, why: 'stop oversized: one re-size try per poll' }); return [{ type: 'reject', key: it.key, reason: 'one re-size try per poll (stop oversized, e.g. a news lock)', lastPx: S.lastPx }]; } S.osSent = S.pollN; }
+    // Persist the possibility of a dispatch before crossing the broker boundary.
+    // An unanswered call is never inferred absent from a later open-order snapshot.
+    if (!stateFile) throw new Error('state file required before broker dispatch');
+    S.dispatch = { key: it.key, kind: it.kind, op: it.op, at: now(), reason: 'dispatch pending' };
+    save();
     req(it, body);
     try {
       const d = await placeOrder(tokenOf(), body); const id = d && (d.orderId ?? d.id);
-      if (id == null) { S.needReconcile = true; save(); return [{ type: 'no-ack', key: it.key, reason: 'no order id' }]; }
-      S.ids[it.key] = id; S.sentAt[it.key] = now(); { const hi = hist(); hi.orderIds = hi.orderIds || []; hi.orderIds.push(String(id)); while (hi.orderIds.length > 400) hi.orderIds.shift(); } save();   // [r1.2] today's TIDE order ids (the phone's model tag)
+      if (id == null) { S.dispatch.reason = 'response missing order id'; save(); return [{ type: 'no-ack', key: it.key, reason: S.dispatch.reason }]; }
+      S.ids[it.key] = id; S.sentAt[it.key] = now();
+      { const hi = hist(); hi.orderIds = hi.orderIds || []; hi.orderIds.push(String(id)); while (hi.orderIds.length > 400) hi.orderIds.shift(); }
+      // Keep the marker until the ID and its association have been durably saved.
+      save(); const marker = S.dispatch; S.dispatch = null;
+      try { save(); } catch (e) { S.dispatch = marker; throw e; }
       if (it.kind !== 'stop') return [{ type: 'ack', key: it.key }];
-      // ruling 4: the broker-ACKED level = the stop price the broker shows resting for this order id
       let px = body.stopPrice, src = 'sent';
       try { const os = await getOpenOrders(tokenOf(), accountId, contractId); const r = os.find(x => String(x.id) === String(id)); if (r && isNum(r.stopPrice)) { px = r.stopPrice; src = 'broker'; } else if (!r) src = 'not-listed'; } catch (e) { src = 'unread'; }
       J('stop_ack', { key: it.key, orderId: id, sent: body.stopPrice, acked: px, source: src });
+      if (src !== 'broker') { S.dispatch = { key: it.key, kind: 'stop', reason: 'accepted stop not visible at broker', at: now() }; save(); return [{ type: 'no-ack', key: it.key, reason: S.dispatch.reason }]; }
       return [{ type: 'ack', key: it.key, price: px }];
     } catch (e) {
-      if (e.orderRejected !== true && (it.kind === 'stop' || it.kind === 'tp1' || it.kind === 'tp2') && !placeChecked.has(it.key)) {   // [r1.5.2] (c)
-        placeChecked.add(it.key); await sleep(300); let os = null; try { os = await readRetry(`${it.kind} place check: open orders read`, () => getOpenOrders(tokenOf(), accountId, contractId)); } catch (e2) { os = null; }
-        if (os) { const ours = new Set(Object.values(S.ids).map(String)), want = body.type === OrderType.STOP ? body.stopPrice : body.limitPrice;
-          const m = os.find(x => !ours.has(String(x.id)) && x.type === body.type && x.side === body.side && x.size === body.size && (body.type === OrderType.STOP ? x.stopPrice : x.limitPrice) === want);
-          if (m) { S.ids[it.key] = m.id; S.sentAt[it.key] = now(); { const hi = hist(); hi.orderIds = hi.orderIds || []; hi.orderIds.push(String(m.id)); while (hi.orderIds.length > 400) hi.orderIds.shift(); } save();
-            log(`  [tide-live] the ${it.kind} answer was lost (${errText(e)}) but the order IS at the broker (${m.id}): adopted, not re-sent.`); J('order_found_after_error', { key: it.key, orderId: m.id, error: errText(e) });
-            if (it.kind === 'stop') { const px = isNum(m.stopPrice) ? m.stopPrice : body.stopPrice; J('stop_ack', { key: it.key, orderId: m.id, sent: body.stopPrice, acked: px, source: 'broker' }); return [{ type: 'ack', key: it.key, price: px }]; }
-            return [{ type: 'ack', key: it.key }]; }
-          { let pq = null; try { pq = await posSize(); } catch (e3) { pq = null; } const wantQ = it.kind === 'stop' ? body.size : it.expectOpen;   // [r1.5.3] re-send only onto the position it protects
-            if (pq === wantQ) { log(`  [tide-live] the ${it.kind} answer was lost (${errText(e)}) and the order is NOT at the broker (position ${pq}x as expected): sending it once more.`); J('order_resend_after_error', { key: it.key, error: errText(e), position: pq });
-              return placed(it, body); }
-            log(`  [tide-live] the ${it.kind} answer was lost (${errText(e)}), the order is NOT at the broker and the position is ${pq === null ? 'unreadable' : pq + 'x'} (expected ${wantQ}x): not re-sent, reconciling.`); J('order_resend_skipped', { key: it.key, error: errText(e), position: pq, expected: wantQ }); } }
+      if (e.orderRejected === true) {
+        const marker = S.dispatch; S.dispatch = null;
+        try { save(); } catch (saveErr) { S.dispatch = marker; throw saveErr; }
+        J('order_fail', { key: it.key, rejected: true, reason: e.message });
+        return [{ type: 'reject', key: it.key, reason: e.message, lastPx: S.lastPx }];
       }
-      J('order_fail', { key: it.key, rejected: e.orderRejected === true, reason: e.message }); if (e.orderRejected !== true) { S.needReconcile = true; save(); }   // no answer: a keyless reconcile on the next poll
-      return e.orderRejected === true ? [{ type: 'reject', key: it.key, reason: e.message, lastPx: S.lastPx }] : [{ type: 'no-ack', key: it.key, reason: e.message }];
+      if (!S.dispatch) S.dispatch = { key: it.key, kind: it.kind, op: it.op, at: now() };
+      S.dispatch.reason = 'unanswered dispatch';
+      try { save(); } catch (saveErr) { log(`  [tide-live] cannot persist dispatch hold (${saveErr.message}).`); }
+      J('order_fail', { key: it.key, rejected: false, reason: e.message });
+      return [{ type: 'no-ack', key: it.key, reason: e.message }];
     }
   }
+
   async function exec(it) {
     try {
       if (it.op === 'guard') { S.guard = it.position; save(); log(`  [tide-live] guard: position ${it.position} is planner-owned (the state machine's own post-fill path, adoption and every old-path entry are refused).`); J('guard', { position: it.position, reason: it.reason }); return []; }
@@ -174,6 +199,7 @@ function create(o) {
         return back;
       }
       if (it.op === 'place' && it.kind === 'stop') { log(`  [LIVE ORDER] TIDE stop: ${it.side} ${it.qty}x STOP @ ${it.price} (never widened; ${it.key})`);
+        if (!(await positionMatches(it.qty))) { S.dispatch = { key: it.key, kind: 'stop', reason: 'position quantity or direction changed' }; save(); dispatchAlert(); return [{ type: 'no-ack', key: it.key, reason: S.dispatch.reason }]; }
         const back = await placed(it, { ...base(), type: OrderType.STOP, side: sideNum(it.side), size: it.qty, stopPrice: it.price });
         if (back[0].type !== 'ack') P(null, 'TIDE URGENT: stop NOT placed', `The stop ${it.price} for ${it.qty}x was ${back[0].type} (${back[0].reason || ''}); the planner retries once at the same price or closes the position.`, CRIT);
         else if (S.entryPushed) P(`stopplace:${it.key}`, 'TIDE stop placed', `Stop ${back[0].price ?? it.price} for ${it.qty}x (protective, never widened).`, { ...INFO, tags: 'shield' });
@@ -181,18 +207,22 @@ function create(o) {
           P(`entrypush:${p.id}`, `TIDE ENTRY ${p.dir === 1 ? 'LONG' : 'SHORT'} ${p.grade}`, `${p.dir === 1 ? 'LONG' : 'SHORT'} ${p.grade} ${it.qty} MNQ @ ${round(e1.avgPx)} | stop ${back[0].price ?? it.price} (${p.plan.stopPts} pts, risk $${Math.round(Math.abs(e1.avgPx - (back[0].price ?? it.price)) * it.qty * ((cfgFn() || {}).pointValue || 2))}) | TP1 ${p.tp1Px}${p.tp1Qty ? ' (' + p.tp1Qty + 'x)' : ' (1 lot: BE trigger)'} | TP2 ${p.tp2Px}${p.plan.sizeCode === 'NO_FIT_TAKE1' ? ' | take1: 1 MNQ over budget' : ''}`, INFO); } }
         return back; }
       if (it.op === 'place' && (it.kind === 'tp1' || it.kind === 'tp2')) {
-        if ((await posSize()) !== it.expectOpen) return [{ type: 'reject', key: it.key, reason: `the position is not ${it.expectOpen}: target not sent` }];
+        if (!(await positionMatches(it.expectOpen))) { S.dispatch = { key: it.key, kind: 'target', reason: 'position quantity or direction changed' }; save(); dispatchAlert(); return [{ type: 'no-ack', key: it.key, reason: S.dispatch.reason }]; }
         log(`  [LIVE ORDER] TIDE ${it.kind}: ${it.side} ${it.qty}x LIMIT @ ${it.price} (${it.key})`);
         return placed(it, { ...base(), type: OrderType.LIMIT, side: sideNum(it.side), size: it.qty, limitPrice: it.price });
       }
       if (it.op === 'place' && it.kind === 'add') { J('ADD_WOULD_FIRE', { qty: it.qty, price: it.price }); log(`  [tide-live] ADD_WOULD_FIRE ${it.qty}x @ ${it.price}: Stage 2a sends no pyramid add.`); return [{ type: 'reject', key: it.key, reason: 'Stage 2a: no pyramid add (addsEnabled false)' }]; }
-      if (it.op === 'modify' && it.kind === 'stop') {   // the new stop first; the old one cancelled (verified) only after it is accepted
+      if (it.op === 'modify' && it.kind === 'stop') {   // REVIEW: cancel the old stop first; never intentionally place two stops
         log(`  [LIVE ORDER] TIDE stop change: ${it.qty}x STOP @ ${it.price} (replaces ${it.replaces}; never widened)`);
-        const back = await placed(it, { ...base(), type: OrderType.STOP, side: sideNum(it.side), size: it.qty, stopPrice: it.price });
-        if (back[0].type !== 'ack') return back;
         const old = S.ids[it.replaces];
-        if (old != null && (await cancelVerified(old))) back.push({ type: 'cancel-ack', key: it.replaces });
-        else if (old != null) { log(`  [tide-live] CRITICAL: the old stop ${old} could not be cancelled after its replacement was placed - two stops may rest. Retried every poll.`); P(null, 'TIDE URGENT: old stop not cancelled', `Order ${old} would not cancel after its replacement. Check the account.`, { priority: 'urgent', tags: 'warning' }); S.staleStop = it.replaces; }
+        if (old == null || !(await cancelVerified(old, true))) { if (!S.dispatch) { S.dispatch = { key: it.key, kind: 'stop-change', reason: 'old stop identity unknown' }; save(); } P(null, 'TIDE URGENT: stop change held', 'The old stop cancellation or its fill state is not confirmed. Check position and working orders directly.', CRIT); return [{ type: 'no-ack', key: it.key, reason: 'old stop cancellation not confirmed' }]; }
+        const pos = await readRetry('stop change: position read', () => getOpenPosition(tokenOf(), accountId, contractId));
+        if (!pos || pos.size !== it.expectOpen || (pos.type === 1 ? 1 : pos.type === 2 ? -1 : null) !== S.pos.dir) {
+          S.dispatch = { kind: 'stop-change', key: it.key, reason: 'position changed after stop cancellation' }; save(); dispatchAlert(); return [{ type: 'no-ack', key: it.key, reason: 'position changed after stop cancellation' }];
+        }
+        const back = await placed(it, { ...base(), type: OrderType.STOP, side: sideNum(it.side), size: it.qty, stopPrice: it.price });
+        if (back[0].type !== 'ack') { if (!S.dispatch) { S.dispatch = { key: it.key, kind: 'stop-change', reason: 'old stop canceled; replacement not confirmed' }; save(); } dispatchAlert(); return back; }
+        back.push({ type: 'cancel-ack', key: it.replaces });
         { const p = S.pos, px = back[0].price ?? it.price, ent = T.avgEntry(p), lockR = isNum(ent) && isNum(p.R) && p.R > 0 ? p.dir * (px - ent) / p.R : null;   // [r1.1] journal only, except the FIRST lock >= +1R
           S.stopBy = isNum(lockR) && lockR > 0.01 ? 'ladder' : p.tp1Done ? 'break-even' : 'structural';
           P(`stop:${it.key}`, 'TIDE stop moved', `Stop now ${px} for ${it.qty}x (tighter only)${isNum(lockR) ? ` = ${lockR >= 0 ? '+' : ''}${Math.round(lockR * 100) / 100}R locked` : ''}.`, { ...INFO, tags: 'shield' }); }
@@ -201,23 +231,23 @@ function create(o) {
       if (it.op === 'modify' && (it.kind === 'tp1' || it.kind === 'tp2')) {   // a target: the old one cancelled first (verified), then the new one
         const old = S.ids[it.replaces];
         if (old != null && !(await cancelVerified(old))) return [{ type: 'reject', key: it.key, reason: 'the old target could not be cancelled' }];
-        if ((await posSize()) !== it.expectOpen) return [{ type: 'reject', key: it.key, reason: `the position is not ${it.expectOpen}: target not sent` }];
+        if (!(await positionMatches(it.expectOpen))) { S.dispatch = { key: it.key, kind: 'target', reason: 'position quantity or direction changed' }; save(); dispatchAlert(); return [{ type: 'no-ack', key: it.key, reason: S.dispatch.reason }]; }
         log(`  [LIVE ORDER] TIDE ${it.kind} change: ${it.qty}x LIMIT @ ${it.price} (${it.key})`);
         return placed(it, { ...base(), type: OrderType.LIMIT, side: sideNum(it.side), size: it.qty, limitPrice: it.price });
       }
       if (it.op === 'cancel') {
         let id = S.ids[it.target];
         if (id == null) {   // no order id (never sent, or sent without an answer): never assume it is gone - match the broker's working orders first
-          await snapshot(null);   // matches an id-less order by side / type / size / price (records its id)
-          id = S.ids[it.target];
-          if (id == null) { if (S.unreadable) return [{ type: 'reject', key: it.key, reason: 'open orders unreadable: the id-less order may still rest' }]; return [{ type: 'cancel-ack', key: it.target }]; }   // a fresh read shows nothing matching: not resting
+          S.dispatch = { key: it.target, kind: 'cancel', reason: 'order identity unresolved' }; save(); dispatchAlert(); return [{ type: 'no-ack', key: it.key, reason: 'order identity unresolved' }];
         }
         log(`  [LIVE ORDER] TIDE cancel ${it.kind} ${id} (${it.reason})`); J('cancel', { key: it.key, target: it.target, orderId: id, reason: it.reason });
         if (await cancelVerified(id)) { const h = await history(it.target, { quiet: true }); return h.filter(e => e.type === 'fill').concat([{ type: 'cancel-ack', key: it.target }]); }   // a fill that won the race first
         return [{ type: 'reject', key: it.key, reason: 'cancel not verified' }];
       }
-      if (it.op === 'flatten') {   // re-read; a MARKET close of min(expectOpen, actual); NO stop cancel here (the lifecycle cancelled it, verified, before)
-        const size = Math.min(it.expectOpen, await posSize());
+      if (it.op === 'flatten') {   // close only a position on the owned side
+        const pos = await readRetry('flatten: position read', () => getOpenPosition(tokenOf(), accountId, contractId));
+        if (pos && (pos.type === 1 ? 1 : pos.type === 2 ? -1 : null) !== S.pos.dir) { S.dispatch = { key: it.key, kind: 'flatten', reason: 'position direction mismatch' }; save(); dispatchAlert(); return [{ type: 'no-ack', key: it.key, reason: 'position direction mismatch' }]; }
+        const size = Math.min(it.expectOpen, pos ? pos.size : 0);
         if (!(size > 0)) return [{ type: 'cancel-ack', key: it.key }];
         log(`  [LIVE ORDER] TIDE flatten: ${it.side} ${size}x MARKET (${it.reason})`);
         const back = await placed(it, { ...base(), type: OrderType.MARKET, side: sideNum(it.side), size });
@@ -230,7 +260,9 @@ function create(o) {
       if (it.op === 'read') return [await snapshot(it.key)];
       log(`  [tide-live] unknown intent ${it.op}/${it.kind}: not executed.`); return [{ type: 'reject', key: it.key, reason: 'unknown intent' }];
     } catch (e) {
-      log(`  [tide-live] ${it.op} ${it.kind} failed (${e.message}) - reported as unknown.`); S.needReconcile = true; save();
+      log(`  [tide-live] ${it.op} ${it.kind} failed (${e.message}) - reported as unknown.`); S.needReconcile = true;
+      if (it.op !== 'read' && !S.dispatch) S.dispatch = { key: it.key, kind: it.kind, reason: 'execution or preflight failed' };
+      try { save(); } catch (saveErr) { log(`  [tide-live] could not save hold (${saveErr.message}).`); }
       return it.op === 'read' ? [{ type: 'reject', key: it.key, reason: e.message }] : [{ type: 'no-ack', key: it.key, reason: e.message }];
     }
   }
@@ -253,12 +285,10 @@ function create(o) {
     let p, os; S.unreadable = false;
     try { p = await readRetry('reconcile: position read', () => getOpenPosition(tokenOf(), accountId, contractId)); os = await readRetry('reconcile: open orders read', () => getOpenOrders(tokenOf(), accountId, contractId)); } catch (e) { S.unreadable = true; throw e; }
     const byId = {}; for (const [k, id] of Object.entries(S.ids)) byId[String(id)] = k;
-    // an order of ours placed without an answer has no id: adopt a working broker order that matches it exactly (side, type, size, price), once
-    if (S.pos) for (const o of Object.values(S.pos.orders)) {
-      if (S.ids[o.key] != null || !['sent', 'unknown', 'working', 'cancel-sent'].includes(o.status)) continue;
-      const type = o.orderType === 'MARKET' ? OrderType.MARKET : o.orderType === 'STOP' ? OrderType.STOP : OrderType.LIMIT, side = o.side === 'BUY' ? OrderSide.BUY : OrderSide.SELL, want = o.wantPx;
-      const m = os.find(x => !byId[String(x.id)] && x.type === type && x.side === side && x.size === o.qty - (o.filled || 0) && (type === OrderType.MARKET || (type === OrderType.STOP ? x.stopPrice : x.limitPrice) === want));
-      if (m) { S.ids[o.key] = m.id; S.sentAt[o.key] = S.sentAt[o.key] || now(); byId[String(m.id)] = o.key; J('order_matched', { key: o.key, orderId: m.id }); log(`  [tide-live] the unanswered ${o.kind} ${o.key} is broker order ${m.id} (matched by side / type / size / price).`); }
+    // An absent snapshot is not terminal evidence and lookalike orders do not prove ownership.
+    if (S.pos) { const visible = new Set(os.map(x => String(x.id)));
+      const missing = Object.values(S.pos.orders).find(o => ['sent', 'unknown', 'working', 'cancel-sent'].includes(o.status) && (S.ids[o.key] == null || !visible.has(String(S.ids[o.key]))));
+      if (missing) { S.dispatch = { key: missing.key, kind: missing.kind, reason: 'saved order not visible during reconciliation' }; save(); dispatchAlert(); throw new Error('saved order not visible; manual reconciliation required'); }
     }
     return { type: 'reconcile', ...(key != null ? { key } : {}), position: { qty: p ? p.size : 0, dir: p ? (p.type === 1 ? 1 : p.type === 2 ? -1 : null) : null },
       orders: os.map(x => ({ key: byId[String(x.id)] || null, orderId: x.id, qty: x.size, price: x.type === OrderType.STOP ? x.stopPrice : x.limitPrice })) };
@@ -282,6 +312,7 @@ function create(o) {
   }
 
   async function pollInner({ lastPx, bar }) {
+    if (S.dispatch) { dispatchAlert(); return; }
     if (!owned()) return;
     S.pollN = (S.pollN || 0) + 1;
     if (isNum(lastPx)) S.lastPx = lastPx;
@@ -334,14 +365,15 @@ function create(o) {
         plannedQty: p.plan.contracts, filledQty: fq, open: p.open, avgEntry: isNum(ae) ? round(ae) : null, fillAt: S.fillAt, stopAsked: p.stopPx, stopAcked: p.protPx, stopBy: S.stopBy || (p.tp1Done ? 'break-even' : 'structural'), structuralStop: p.plan.stop,
         R: p.R, tp1: { price: p.tp1Px, qty: p.tp1Qty, done: !!p.tp1Done, filled: tp1o.reduce((a, x) => a + (x.filled || 0), 0) }, tp2: { price: p.tp2Px, done: tp2o.some(x => x.status === 'done'), filled: tp2o.reduce((a, x) => a + (x.filled || 0), 0) },
         best: S.best, lastPx: S.lastPx, openUsd: isNum(ae) && isNum(S.lastPx) && p.open > 0 ? Math.round(p.dir * (S.lastPx - ae) * p.open * pv * 100) / 100 : null, block: p.block || null, closing: !!p.closing } : null;
-      return { position, trades: h.trades.slice(), alerts: h.alerts.slice(), orderIds: [...new Set([...Object.values(S.ids || {}).map(String), ...(h.orderIds || [])])] }; },
+      return { position, blocked: S.dispatch ? 'broker-state-unknown' : null, trades: h.trades.slice(), alerts: h.alerts.slice(), orderIds: [...new Set([...Object.values(S.ids || {}).map(String), ...(h.orderIds || [])])] }; },
     // the 3 s fast poll runs while an entry may still fill, or contracts are open without an acked stop (a fill is protected within ~3 s)
-    fast: () => { if (!owned()) return false; const p = S.pos; if (S.needReconcile) return true;
+    fast: () => { if (S.dispatch) return false; if (!owned()) return false; const p = S.pos; if (S.needReconcile) return true;
       if (Object.values(p.orders).some(x => x.kind === 'entry' && ['sent', 'working', 'unknown'].includes(x.status))) return true;
       return p.open > 0 && !(p.stopKey && p.orders[p.stopKey] && p.orders[p.stopKey].status === 'working'); },
     // a taken TIDE signal. One TIDE position at a time; the planner sizes (money cfg) and refuses on its own config problem.
     signal: (sig, p, takeId) => serial(async () => {
       if (owned()) { log('  [tide-live] signal not taken: a TIDE position is already open.'); return { ok: false, why: 'owned' }; }
+      if (!stateFile) return { ok: false, why: 'state-file-required' };
       if (typeof o.preCheck === 'function') { let w; try { w = await o.preCheck(sig); } catch (e) { w = `pre-check failed (${e.message})`; } if (w) { log(`  [tide-live] signal not taken: ${w}.`); return { ok: false, why: w }; } }   // the executor's own gates now (flat FSM, session)
       // one position account-wide: the broker shows NO position and NO working order on this contract (a manual order, a position not adopted yet, the old path)
       const readT0 = now();   // [r1.5.3] a slow read (> 3 s): the executor's gates are asked again before the entry
@@ -364,15 +396,17 @@ function create(o) {
       return { ok: true, phase: phase(), id: S.pos.id };
     }),
     // every main-loop poll: fills / cancels seen at the broker, the position check, then TP1-traded (1 lot) and the ladder
-    poll: arg => serial(() => pollInner(arg || {})),
+    poll: arg => serial(async () => { try { await pollInner(arg || {}); } catch (e) { if (S.dispatch) { dispatchAlert(); return; } throw e; } }),
     // the session close / daily floor / a manual exit: the planner's flatten lifecycle (one per position; a repeat is a no-op)
-    exitAtMarket: reason => serial(async () => { if (!owned()) return false; await run({ type: 'exit-at-market', reason, lastPx: S.lastPx }); return true; }),
+    exitAtMarket: reason => serial(async () => { if (S.dispatch) { dispatchAlert(); return false; } if (!owned()) return false; await run({ type: 'exit-at-market', reason, lastPx: S.lastPx }); return true; }),
     // startup: a saved TIDE position -> the keyless reconcile (the planner re-asserts the guard; no working stop -> it closes the position at once)
     start: () => serial(async () => {
+      if (S.dispatch) { dispatchAlert(); return; }
       if (!owned()) { log(`  [tide-live] ${VERSION}: no TIDE position saved.`); return; }
+      if (Object.values(S.pos.orders || {}).some(x => ['sent', 'unknown', 'working', 'cancel-sent'].includes(x.status))) { S.dispatch = { kind: 'restart', reason: 'saved order requires exact reconciliation' }; save(); dispatchAlert(); return; }
       log(`  [tide-live] ${VERSION}: resuming TIDE position ${S.pos.id} (${S.pos.phase}, ${S.pos.open}x): reconciling with the broker.`);
       J('restart', { phase: S.pos.phase, open: S.pos.open });
-      await run(await snapshot(null));
+      try { await run(await snapshot(null)); } catch (e) { if (S.dispatch) { dispatchAlert(); return; } throw e; }
     }),
   };
 }
