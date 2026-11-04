@@ -1,0 +1,39 @@
+MAC - INSTALL BOT r1.5.2 (replace <server> with your bot server address)
+=====================================================================================
+What it fixes: the 02:13 AM PT long on 11/04 was lost to "broker state unreadable (fetch failed)".
+The cause was stale connections: the far end had closed an idle connection and the bot
+reused it. Now every broker read is retried at once on a fresh connection (then after
+0.4 / 1.2 / 2.5 s), idle connections are dropped after 2 s, and a TIDE signal is refused
+only if all 4 tries fail. If they all fail, you get an URGENT push naming the signal.
+Orders are never re-sent blindly.
+Trading is otherwise exactly r1.5.1. Live mode is kept, and so is your climax setting.
+One restart, then a ~6 min warm-up. Goes on r1.5.1, r1.5 or r1.4.
+Be FLAT in TopstepX first (no MNQ position, no working MNQ orders).
+Put MacBot-TIDE-live-r1.5.2.zip in Downloads, open PowerShell:
+
+  cd $env:USERPROFILE\Downloads
+  Get-FileHash .\MacBot-TIDE-live-r1.5.2.zip
+     (must start with A00286DE)
+  scp .\MacBot-TIDE-live-r1.5.2.zip root@<server>:/root/
+  ssh root@<server> "mkdir -p /root/tide-r1.5.2 && cd /root/tide-r1.5.2 && python3 -m zipfile -e /root/MacBot-TIDE-live-r1.5.2.zip . && ls pkg-live"
+  ssh -t root@<server> "cd /root/tide-r1.5.2/pkg-live && bash go.sh"
+     (type YES when asked)
+
+Check the warm-up (wait ~6 min, run again if the LIVE line is not there yet):
+  ssh root@<server> "journalctl -u mac-bot-live --since '-10 min' --no-pager | grep -iE 'rebuild progress|rss|LIVE: the warm-up|climax|net\]|skipped|stopped|Killed'"
+  You want: rebuild progress lines, then "[tide] LIVE: the warm-up is done". No "Killed".
+  The new "[net] ... retry 1 (at once, fresh connection): OK" lines are fine: a stale
+  connection was replaced and the read went through.
+
+Climax setting: if you already set "climax off" on r1.5.1, it STAYS off after this install
+(go.sh never changes config-local.json). Check it in the log above: "climax gate OFF".
+OPTIONAL - only if you choose "climax off" now (6-day replay: 33 trades instead of 32, +$232, same drawdown):
+  ssh -t root@<server> "cd /root/tide-r1.5.2/pkg-live && bash tools/set-tide.sh climax=off"
+     (type YES twice; one restart + warm-up; log shows "climax gate OFF")
+  Undo: same line with climax=on
+
+Turn TIDE off / go back if anything looks wrong:
+  ssh -t root@<server> "cd /root/tide-r1.5.2/pkg-live && bash tools/set-tide.sh off"
+  ssh -t root@<server> "cd /root/tide-r1.5.2/pkg-live && bash rollback.sh"     (back to what you had)
+     Back to r1.5.1: your climax setting can stay. Back to r1.5 or older: first
+  ssh -t root@<server> "cd /root/tide-r1.5.2/pkg-live && bash tools/set-tide.sh climax=on"   (if you set it off)
