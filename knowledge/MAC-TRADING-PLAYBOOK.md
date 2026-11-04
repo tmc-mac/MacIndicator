@@ -433,3 +433,11 @@ Supersedes the "+W = $200, all but one contract out, runner locked at W" exit in
   1m/5m wiggles don't move it.
 - **Climax in our favour** → tighten behind the last 5m swing.
 - Never widen a stop. No timed exits. No daily loss limit.
+
+## 21. RULING: partials and the pyramid add (Mac, 11/04)
+> "2 out of 3 and add 1 at the next pullback while it trends in our favor and dump the last 2 at TP2."
+- TP1 at the first pool: take **2/3** off. The stop goes to breakeven or better.
+- Then **add back 1/3 of the original size once**, on the next pullback that rejects, but only while the trend is still ours and only with
+  house money. The runner's locked profit must cover the add's risk, so the combined trade can't turn red.
+- **TP2** (the nearest pool ≥ 2R; for A+ the next major pool): exit everything left.
+- The R-ladder (§20) protects the combined position.
