@@ -334,3 +334,47 @@ Definitions for the bot:
 - PDH/PDL sweep at the London open (00:00 PT) and the NY open (06:30 PT) are priority trap setups. The opening-range rule (§10.6) applies.
 - Stop = sweep extreme + buffer (MNQ: STOP_BUF 2 pts or more). Size from it with the money rule (§6).
 - Displacement is required for the shift (§8.2's "full-body" rule, sharpened here).
+
+## 16. How Candace sizes and manages (ICT scalper; Mac: "I'm interested in mimicking her sizing") (Mac's study material, part 8)
+
+Her process:
+1. Higher timeframe: daily FVGs/volume imbalances, **1H FVGs** (her main HTF tool; she says the 4H "isn't that important" for her model),
+   weekly/daily highs and lows.
+2. Premium/discount.
+3. A liquidity pool must exist (equal highs/lows, a low-resistance liquidity run). No pool, no setup.
+4. A liquidity sweep inside a **kill zone**: London 2–5 am ET (23:00–02:00 PT; she never trades before 2 am ET; key times 2:30, 3:00, 3:30 ET),
+   New York around the 9:30 ET open (06:30 PT). A sweep before the kill zone does not count.
+5. Displacement + speed (watched on the 15s/30s chart), then the entry on a **valid inverted FVG (IFVG)**: a bearish FVG that a bullish candle
+   BODY closes clearly through (or the mirror), or on the FVG the displacement left. The aggressive entry inside the FVG is for experts only.
+6. Extra confluence: SMT divergence with ES, the NY-session RTH gap (the 16:00 ET close to the 09:30 open gap; 25/50/75% levels),
+   the midnight opening price (00:00 ET), the new-day/new-week opening gaps.
+
+Sizing and risk (the part Mac asked about):
+- **Fixed maximum stop by session, not "wherever structure is"**: London 20–25 pts max (15 pts last year), NY 30–40 pts.
+  "If I had to use a larger stop loss to enter, that means that is not the entry point." She does not size down to fit a wide stop.
+  She waits for a tighter entry (a closer IFVG/FVG) or skips.
+- **Size by setup grade**:
+  - A+ = many stacked confluences, e.g. a sweep plus a 1H FVG plus a daily FVG plus the NDOG, inside the kill zone, tight stop.
+    She enters full size at once (5 NQ in the example), holds longer, and targets the bigger pool.
+  - Normal: she scales in (2 + 2) on the second FVG.
+  - B/C setups: she still takes them, with SMALLER size and no scale-in. (Waiting only for A+ and then losing hurts more; B/C at small size made her more money.)
+- On a 50K Apex account she trades 2 NQ (= 20 MNQ) in London because the stops are tight. A stop-out is about $500, so she has ~4 attempts
+  before the drawdown is in danger. She calls that aggressive.
+- **Daily loss limit in dollars, not a trade count** (e.g. $3,000/day on a 150K account with buffer).
+- **The big payouts come from copy-trading the same trade across many accounts** (up to 20 Apex accounts): $4,000 × 20.
+  The per-account risk stays modest. The scale comes from the account count.
+
+Targets and management:
+- A bracket at a **minimum 1:2 R:R**, extended to the nearest liquidity pool (1H FVG, equal highs/lows, RTH-gap 25/50/75%).
+- Partial at the first internal pool. Stop to breakeven after that (risk-free trade).
+- **Trail the stop each time a minor liquidity pool (even on the 15s chart) is swept.**
+- She exits fast (often within 2–15 minutes, capturing 5–15% of the day's move) because holding through retracements costs mental capital.
+  Swing-style holding is a personality choice, not a rule.
+
+**Bot implications:**
+- The bot has no fear, so "mental capital" exits are optional. But her rule "**if the stop must be wide, it is not the entry**" is a real
+  edge: it pairs with the FVG/IFVG limit entry (§15) to give tight structural stops and bigger size at the same dollar risk.
+- Grade-based risk (A+/B/C) maps onto the bot's existing grade concept. It needs objective confluence counting.
+- Kill zones: London 23:00–02:00 PT and the NY open 06:30 PT are her prime windows. **The live bot currently BLOCKS 06:30–07:10 PT**,
+  and the 15:00–17:00 PT Asia block is outside her windows anyway.
+- Scale via accounts (copy-trading), not per-trade risk: the way to "leverage" a profitable model without risking the combine.
