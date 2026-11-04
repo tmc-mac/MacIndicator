@@ -1,0 +1,59 @@
+MacBot TIDE live r1.1 - INSTALL
+================================
+Zip: MacBot-TIDE-live-r1.1.zip   sha256 starts with b4ce9a0f
+Goes on: your current bot (lv1 r13.3.7) or the r1 package. go.sh refuses anything else.
+
+BEFORE YOU START
+- Be FLAT in TopstepX: no MNQ position and no working MNQ orders.
+- Have the zip on your computer.
+
+STEP 1 - upload and unpack (on the bot server)
+  Upload MacBot-TIDE-live-r1.1.zip to the bot server, then:
+    sha256sum MacBot-TIDE-live-r1.1.zip        (must start with b4ce9a0f)
+    unzip MacBot-TIDE-live-r1.1.zip
+    cd pkg-live
+
+STEP 2 - install (new model OFF, bot trades exactly as today)
+    bash go.sh
+  - Type YES when asked.
+  - It checks the files, backs up your current bot, installs, and restarts the bot once.
+  - If anything fails it puts your old bot back by itself.
+
+STEP 3 - turn the new model LIVE
+    bash tools/set-tide.sh live
+  - Type YES twice (once for "flat", once for "live").
+  - The bot restarts once more. The old model stops taking new entries.
+
+STEP 4 - check the startup log shows these lines
+  [tide] mode LIVE ...
+  TIDE entry blocks ON (15:00-17:00, 06:30-07:10 PT)
+  old levels path OFF (manage-only; its signal pushes silenced)
+  [money] config money-r4.1: mode flat; flatDollars 400; noFit take1; nearFloor off ...
+  then, after the warm-up (under a minute on the server; it rebuilds 6 h of market reads):
+  [tide] LIVE: the warm-up is done - TIDE signals now place real orders.
+  The new model takes NO trades before that last line.
+
+WHAT IT DOES
+- $400 risk per trade, contracts = $400 / (stop points x $2), up to 30 MNQ.
+  1 MNQ is taken on a wide stop only if it risks $400 or less; wider is skipped.
+- Stop at the structural wick, placed right after the fill, never widened.
+- 2/3 off at TP1 -> stop to breakeven + 1 tick -> profit lock steps -> rest out at TP2.
+- Re-entries after a closed trade while the trend holds.
+- One position at a time on the account.
+- No new entries 3:00-5:00 PM and 6:30-7:10 AM PT, none from 12:55 PM PT, flat at 1:05 PM PT.
+- No daily loss limit, no near-floor guard. No pyramid add yet.
+- Phone: a push for the signal, fill, stop placed, TP1, each stop move, TP2 and exit ($ and R).
+  Safety alerts (no stop, emergency close, oversized stop) are urgent.
+- Phone Flatten button closes a new-model trade.
+
+TURN IT OFF / GO BACK
+    bash tools/set-tide.sh off       new model off, your old bot trades as before
+    bash tools/set-tide.sh shadow    new model pushes signals only, no orders
+    bash rollback.sh                 puts back the exact files go.sh replaced
+                                     (run set-tide.sh off / clear first; it tells you)
+
+CHANGE SIZE LATER
+    bash tools/set-tide-money.sh flat=<dollars> take1max=<dollars>
+    bash tools/set-tide-money.sh nearfloor=on     (guard: within $1,000 of floor -> $200)
+
+If anything looks wrong: bash tools/set-tide.sh off, then message me the log lines.
