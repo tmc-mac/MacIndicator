@@ -12,3 +12,5 @@ Checks: both scripts compared to source; six synthetic cases directly executed t
 Checksums (SHA-256):
 - main `d90318d3326298a3371fb7976b95f209c0461bc9dba68496ab2d9c8fd9df6f40`
 - companion `5d277e17a7259fe276433069e7cbdb34d41551d3b27d61b956c2e6bd37cc51a4`
+
+**TradingView alert migration:** Existing TradingView alerts retain the script and input snapshot from when each alert was created. Updating or replacing the chart script does not automatically update or stop those alerts. When this candidate has been completed and approved, inspect existing alerts separately and deliberately disable, delete, or recreate the relevant alerts with the approved script and inputs; verify their chart timeframe and behavior. Do not assume an old alert has been silenced by updating the chart.
