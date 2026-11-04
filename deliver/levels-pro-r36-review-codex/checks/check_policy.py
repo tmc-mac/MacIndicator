@@ -19,3 +19,8 @@ for (ev,cfg,cd),exp in zip(cases,expected):
  got=[bool(out[1]),bool(out[2]),bool(out[3])]
  if got!=exp:raise AssertionError((ev,cfg,got,exp,out))
 print(len(cases),'synthetic required-gate comparisons passed against actual r3.6 gradeOf')
+# The pinned DEFAULT table grants C with zero points when required gates pass.
+js_zero = r'''const s=require(process.argv[1]);const ev={dir:1,kind:'accepted-break',control4h:true,controlKind:'trap',bias15:0,bias30:0,acceptClosesOut:2,retestClosedInside:false,dispBodyPct:0,dispRangeX:0,wavePeakBias:0.21,retestNo:1,midRange:false,stopLogical:true,trapStacked:false,forceLegAtrX:0,pullbackVsBreak5m:2,sweepMinutesFromOpen:-1};const g=s.gradeOf(ev,s.DEFAULTS.grade,s.DEFAULTS);console.log(JSON.stringify({grade:g.grade,total:g.total,missing:g.missing}))'''
+z=subprocess.run(['node','-e',js_zero,str(ROOT / 'checks/structure-r155.js')],text=True,capture_output=True,check=True)
+assert json.loads(z.stdout)=={'grade':'C','total':0,'missing':[]},z.stdout
+print('default zero-point grade check passed')

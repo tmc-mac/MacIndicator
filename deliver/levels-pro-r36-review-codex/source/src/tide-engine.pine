@@ -1105,7 +1105,7 @@ t_emit(TSet s, TBar b, int T) =>
     bool mid = t_mid(s.lvl)
     bool gates = controlOk and laneOk and waveOk and s.rno <= 1 and not na(mid) and not mid and logical
     s.why := not ok ? "engine skip (one per zone / open wait / climax / need shift)" : not controlOk ? "control requirement failed" : not laneOk ? "no lane trigger" : not waveOk ? "wave bias requirement failed" : na(mid) ? "1H range unknown" : mid ? "MID_RANGE" : not logical ? "no logical stop" : (observed ? "chart candidate; grade unknown" : "control waived; chart candidate; grade unknown")
-    // Only known required-gate failures release here. The chart does not compute grade points: an otherwise passing grade may still be refused by the bot.
+    // Only known required-gate failures release here. The default table grants C at zero points; non-default grade tables can differ.
     if ok and not gates and td_release
         t_cancel(s, "REFUSED required gate (chart approximation): " + s.why, T)
         int pi = d > 0 ? 0 : 1
