@@ -1,0 +1,2591 @@
+//@version=5
+// ===========================================================================
+// DAILY LEVELS PRO v2.8  -  aligned with the TIDE bot (11/04, Mac: "aligned with our current bot perspective of the market"). TWO SCRIPTS
+//   (TradingView's 80k compiled-token limit): this one keeps every level line, tag, SWEPT, heat band, PWC = last trade, the vivid look and
+//   slim mode; the companion Levels PRO TIDE v2.8 draws the bot's TIDE view (zones and their states, 4H control, the 1H state, the plan,
+//   the blocks, the TIDE chip) and never draws a level line. Here: the old model (r13.x, manage-only since ruling 16) sits behind "Old
+//   model" (default OFF): the old CTRL / behaviour words on the tags, the old Ignition chip / board / glow / wake candles and the 24 old
+//   alerts. Section 15 (the old-model PARITY / EVENTS tables) is removed; its inputs stay so saved settings keep their places.
+//   Base: v2.7.4 (never installed; v2.7.3 is the last version sent). PARITY.md: the Pine text itself vs the bot's code on the replay tape.
+// DAILY LEVELS PRO v2.7.4  -  v2.7.3 + the price is always on the level label in Mobile Mode (compact names), so each tag reads e.g. "PDL+4  28100.25" whatever the Show Price setting (11/03, Mac: label every level with its price)
+// ===========================================================================
+// DAILY LEVELS PRO v2.7.3  -  v2.7.2 + PWC from the LAST TRADE of the week (the bot's price), not CME settlement (Mac 11/03 chose option A)
+// DAILY LEVELS PRO v2.7.2  -  v2.7.1 + the level PRICE back on the calm right-edge tags (Mac 11/03: "can we put it back in the line label so i can see the price")
+// DAILY LEVELS PRO v2.7.1  -  v2.7 + MacDot 6572147917 repairs: heat counts each price once, SWEPT on closed candles in clock minutes (11/02)
+// DAILY LEVELS PRO v2.7  -  v2.6.3 slimmed (display only) + SWEPT tags, heat bands, the SET countdown, MacDot's 3 fixes (11/02)
+// DAILY LEVELS PRO v2.6.3  -  v2.6.2 + the chart's control score back on the HUD (Mac; 11/01)
+// DAILY LEVELS PRO v2.6.2  -  v2.6.1 + ARMED strictly current, 12:45 lock (MacDot 6562762875; 11/01)
+// DAILY LEVELS PRO v2.6.1  -  v2.6 + priority tag packer, month-identity guards (MacDot 6562334565; 11/01)
+// DAILY LEVELS PRO v2.6  -  IGNITION: the bot-gate mirror, glow, HUD, wake candles (display only; 11/01)
+// DAILY LEVELS PRO v2.5.4  -  v2.5.3 + the bot's HTF event levels (display only; 11/01)
+// DAILY LEVELS PRO v2.5.3  -  v2.5.2 + every drawn line carries its tag (11/01)
+// DAILY LEVELS PRO v2.5.2  -  v2.5.1 + RUNTIME FIX (RE10045 in f_ui_tags; 11/01)
+// DAILY LEVELS PRO v2.5.1  -  COMPILE-SIZE RELEASE (11/01, for Mac)
+// ---------------------------------------------------------------------------
+// v2.5 failed TradingView's compile: "Compiled code contains too many tokens:
+// 95781. The limit is 80000". v2.5.1 removes the v2.4 Compact board, the v2.3
+// Full board, their helpers and the 11 v2.4 board inputs (none ever compiled
+// on Mac's chart); Full detail adds 3 rows to the v2.5 board instead. The
+// engine, the 24 alerts, the requests, the colour functions and the PARITY /
+// EVENTS tables are unchanged (PARITY SCRIPT reads v2.5.1).
+// ===========================================================================
+// DAILY LEVELS PRO v2.5  -  THE CALM LOOK (11/01, for Mac)
+// ---------------------------------------------------------------------------
+// Same engine as v2.4.1: no level, state, signal, plan, grade, alert or PARITY
+// row changes (PARITY SCRIPT reads v2.5). DISPLAY ONLY:
+//   [CHIP] A 5-row decision board (1 column, <= 16 characters a line):
+//     STAND DOWN / WAIT / SET / NOW + the chart timeframe, the next level
+//     ahead in points, the trigger, the bias and the 15m / 1h / 4h alignment.
+//     NOW shows stop and the bot's TP1 ("Bot TP1 pts", display only). Inside a
+//     bar the chip only steps up after 20 s and never flips back; the bar
+//     close shows the engine's confirmed state.
+//   [TAGS] Right-edge tags: near-identical levels merge, the rest are packed
+//     by isotonic regression so tags never overlap; at most "Tag room"
+//     characters so they end before the price scale.
+//   [CALM] Levels outside the engine's DIST radius wait for "Full detail";
+//     line and label colours, transparency and widths stay exactly v2.4.1's
+//     (weekly / monthly lines draw solid, no longer dotted).
+//   [THEME] The board follows the chart background (chart.bg_color).
+//   [GROUPS] Inputs in 6 groups; the new ones are under "Look (v2.5)".
+//   Full detail ON = v2.4.1's density (labels packed, glyphs symbol-only).
+//   Not compiled here (no Pine compiler on the desk): the TradingView compile
+//   governs. Pine stays v5.
+// ===========================================================================
+// DAILY LEVELS PRO v2.4.1  -  COMPILE-HARDENING RELEASE (10/29, for Mac)
+// ---------------------------------------------------------------------------
+// Same indicator as v2.4 (same levels, labels, states, plan, grade, signals,
+// alerts, PARITY rows). Only these lines changed, to give the first paste the
+// best chance of compiling and running:
+//   [REQ] The intrabar read (f_v_read) now uses the classic request-inside-a-
+//     function form: untyped parameters, called only at global scope with a
+//     timeframe string built from timeframe.* only. The small helper that took
+//     two array parameters is inlined into f_v_read. Same values as v2.4.
+//   [N/A] A TF ALIGN / OPEN POS slot with no intrabar data yet prints "n/a"
+//     (was "no data"), so a box never says UNKNOWN and never says anything
+//     else for a value that cannot be read.
+//   [TF] The intrabar request's timeframe string is built only from
+//     timeframe.isminutes / multiplier / period (simple by definition). Same
+//     strings as v2.4: never above the chart's timeframe.
+//   [HDR] Title "Daily Levels PRO v2.4.1", short title "LVL 2.4.1" (9 chars),
+//     board header and PARITY SCRIPT read v2.4.1.
+//   Not compiled here (no Pine compiler on the desk): the TradingView compile
+//   governs. Pine stays v5 (the v6 notice is a warning only).
+// ===========================================================================
+// DAILY LEVELS PRO v2.4  -  CHANGELOG (10/28, for Mac)
+// ---------------------------------------------------------------------------
+// BASE: Levels PRO v2.4-dev v15 (sha256 e70523ec..., 10/21). That file is the
+//   v2.3 Mac runs (MacDot OPEN-ALIGNMENT candidate, 0667e2a1..., the one with
+//   the TF ALIGN / OPEN POS rows) plus every v2.4-dev addition, all kept as v15
+//   has them: [FIX-PDH], [OPEN-EXACT], [NEW-LVL] PWO / MO / MH / ML / PMO /
+//   PMoH / PMoL, [FAIL-LOG], [OPEN-SESSION] (15:00 Open held all session) and
+//   the hidden PARITY / EVENTS tables. See the v2.4-dev notes further down.
+// v2.4 CHANGES ARE DISPLAY ONLY. Sections 1-12 and 14 (levels, labels,
+// per-level states, triggers, plan, grade, signals, alerts) are byte-identical
+// to v15 apart from this header and the indicator() title.
+//   [UNK-FIX] TF ALIGN / OPEN POS never print "?" or UNKNOWN any more.
+//     Root cause: section 8 treats a slot as unsupported (na, shown "?")
+//     whenever the chart timeframe is LARGER than the slot or does not divide
+//     it. On a 1H chart the 15m and 30m slots were therefore always "?", and
+//     both rows always read UNKNOWN. The dashboard now reads a slot that is
+//     smaller than the chart from its last intrabar (request.security_lower_tf,
+//     no lookahead), so every row shows a real + / - / = on 1m, 3m, 5m, 15m,
+//     30m, 1H, 2H and 4H charts. "n/a on <tf>" is shown only where the chart
+//     timeframe cannot carry that slot (e.g. 15m on a 2m chart, daily charts,
+//     Heikin Ashi). A "*" after a verdict marks a display-only read: the
+//     engine's v2.3 rule (signal gate, grade, alerts) still cannot use that
+//     slot on this chart timeframe. That is unchanged on purpose; see the README
+//     ("LOGIC CHANGE candidate, not made").
+//   [COMPACT] New Layout input: Compact (the default, for phones) or Full.
+//     Full is the v2.3 board: the desktop board, or the v2.3 3-column board
+//     when Mobile Mode is on.
+//     Compact shows state + trigger, entry / stop / target while a plan is
+//     live, bias, TF ALIGN + OPEN POS, and the nearest levels (4 by default),
+//     listed top-down by price with signed distance and state / side.
+//     Cells are single-line and clipped to a fixed width. Compact has its own
+//     position (default Bottom Right), its own text size, and one toggle per
+//     row group.
+//   [BG] Board background transparency input (both layouts; default 0 = solid).
+//   [W/M-OFF] The 7 dev-line weekly / monthly levels (PWO, MO, MH, ML, PMO,
+//     PMoH, PMoL) now default OFF (coordinator, 10/28). With them off, BIAS,
+//     CTRL, the in-play level and targets use the same 20-level board as the
+//     bot and v2.3. Switch them on under "Weekly / Monthly Levels". Only the
+//     4 input defaults changed; the level code is the v15 code.
+//   [HDR] Title, short title and the Full header read v2.4. PARITY SCRIPT reads
+//     v2.4, and PARITY adds V24_DISP_* rows (the dashboard's own slot reads).
+//   All new inputs are declared after every v2.3 / v2.4-dev input, so a chart
+//   that already runs v2.3 keeps all of its saved settings when this is pasted
+//   over it.
+//   Not compiled here (no Pine compiler on the desk): the TradingView compile governs.
+//   [SIZE] 10/28 compile fix ("The main body of the script is too long"): the
+//     v2.4 dashboard, the TF ALIGN / OPEN POS reads, the section 11 label refresh
+//     and the PARITY publish now live in functions (f_v_read, f_v_rows,
+//     f_board_compact, f_board_full, f_draw_levels, f_p_publish). Their bodies are
+//     unchanged. The main body is now smaller than v2.3's. Short title is "LVLPRO 2.4"
+//     (<= 10 characters). Pine stays on v5 (the v6 notice is a warning only).
+// ===========================================================================
+// v2.4-dev v15 (10/21, Mac's ruling 15:04 PT "On all indicators and my bot"): [OPEN-SESSION] the 15:00 Open is the session's 15:00 PT opening price and is
+//   RETAINED for the whole session (15:00 PT until the 14:00 PT halt the next day), like the Daily Open. v14 blanked it at midnight (calendar-day scope).
+//   Exact-bar rule unchanged: a session whose 15:00 bar is missing shows NA (OPEN_BAR_MISSING). PARITY OPEN_1500_STATE: NOT_YET_THIS_SESSION replaces NOT_YET_TODAY.
+//   UNCOMPILED dev copy: the TradingView compile governs. No other line changed.
+// v2.4-dev (10/21): LEVELS + FIXES build on the 10/20 PARITY build. [FIX-PDH] PDH/PDL no longer include the new session's first bar.
+//   [OPEN-EXACT] Daily Open / 06:30 / 15:00 only from the bar opening at the boundary. [FAIL-LOG] EVENTS FAIL rows need a known prior
+//   cross time and a previous-bar level price. [NEW-LVL] registry slots 20-26: PWO, MO, MH, ML, PMO, PMoH, PMoL (weights 2.5/3.5/3/3/2.5/4/4,
+//   tier 3). Week/month = TradingView "W"/"M" bars (CME trading date, 15:00 PT session open). PARITY_SCHEMA 2 adds LVL_* rows.
+//   The six PARITY inputs were MOVED above the registry unchanged and in order (IDs kept); the new level toggles follow them.
+// v2.4-dev (10/20): PARITY build. ADDITIONS ONLY on top of v2.3 - no level value, name, state machine or visual changed. New code is tagged [P1]..[P5].
+// MacDot OPEN ALIGNMENT CANDIDATE: uncompiled, not deployed. TF/DRIVER use period-open possession; unknown and equality are explicit. Mobile display R1 retained.
+// BASE HISTORY ONLY (before the semantic change above): v2.3 CANDIDATE (10/17, MacShip desk) - UNCOMPILED. No Pine compiler on the desk; the TradingView compile governs.
+//   Built on v2.2c (byte-verified base). A display upgrade plus ONE detector addition. No computed level value,
+//   no existing state machine, no existing input default and no D6 / R1 / R2 code path changes.
+//   [UI1] Level lines carry a 3-tier hierarchy from the registry source groups: weekly width 3 full opacity,
+//         daily width 2 at 15% fade, session width 1 at 45% fade. In-play violet still overrides color.
+//   [UI2] One pooled halo line (width 4, violet at 85% transparency) under the level in play. Toggle in Drawing.
+//   [UI3] Event glyph pool: 12 pooled labels mark SWEEP / RECLAIM / ACCEPTANCE / REJECTION at the bar they
+//         happen, driven by the same classifier state as the text reads, expiring after Event Memory bars.
+//         The glyphs AUGMENT the on-line text states - nothing Mac reads was removed. Toggle in Drawing.
+//   [UI4] Panel v2: numeric cells in monospace, plus a one-row EVENT FEED (latest event) on desktop and mobile.
+//   [DET] REJECTION is now a per-level headline state (codes 15 / 16) beside sweep and fail: at the level, the
+//         bar pierces it and closes back on the origin side with the piercing wick at least the Rejection Wick
+//         input share of the range - the in-play trigger's geometry, tracked at every level, with its own
+//         alert and glyph. Toggle: "Rejection State at Every Level" (OFF restores v2.2 headline behaviour).
+//   [FIX] FAILED-BREAK chronology (MacDot finding, synthetic repro both directions): the fail test used to read
+//         the cross direction/age AFTER the new cross overwrote them, so an established position that reversed
+//         was mislabeled a fresh failed break in the new direction. It now judges the CAPTURED prior cross.
+//         THIS IS A BEHAVIOUR DELTA, flagged PENDING Macaveli semantics challenge - see BUILD-REPORT-v2.3.md.
+// v2.2 CANDIDATE (10/16, MacArthur desk) - UNCOMPILED. No Pine compiler on the desk; the TradingView compile governs.
+//   Built on v2.1.1. Three changes, each listed in docs/pine/LEVELS-v2.2-CHANGES.md:
+//   [D6] 1H ATR distance reference reads the LAST CLOSED hour on history AND in realtime (v2.1.1 read the forming hour live).
+//        Input "1H ATR: last closed hour (no repaint)" - OFF gives v2.1.1's exact formula back.
+//   [R1] 1m / 2m charts: the time-of-day RVOL profile has 1440 slots (was 600). A 23h session on 1m is 1380 bars, so on v2.1.1
+//        every bar after bar 599 of the session shared one slot. Charts of 3m and up never reach slot 600: unchanged.
+//   [R2] runtime: the merged-name strings (display only) are built on the last bar only. L_ON (which levels are live) is still
+//        computed on every bar, so no plan, grade, signal or alert changes.
+// v2.1.1 (10/16, MacArthur desk): HARDENING ONLY - every number the indicator computes is unchanged from v2.1.
+//   [1] every array read at the level in play uses a guaranteed-valid index (math.max(ip_i, 0)) behind the existing ip_i >= 0 guard,
+//       so no evaluation order can ever read index -1 (the RE10045 class v2 already fixed once).
+//   [2] level lines never start before bar 0 (line.set_xy1 on a chart with < 150 bars of history).
+//   [3] ASCII only (box-drawing and em-dash characters replaced), LF line endings: nothing can be mangled by copy/paste.
+indicator("Daily Levels PRO v2.8", shorttitle="LVL 2.8", overlay=true, max_lines_count=100, max_labels_count=100, max_boxes_count=50)
+
+// ===========================================================================
+// DAILY LEVELS PRO  -  v2.0  "Scalp Engine"
+// By: Jaylin "Mac" McMillan
+//
+// v1 answered "who controls this level". v2 turns it into a level-to-level
+// scalping tool: it builds an actual TRADE PLAN, and it now understands the
+// difference between HOLDING a level and CONTROLLING it.
+//
+// ---------------------------------------------------------------------------
+// THE BIG FIX:  POSITION IS NOT CONTROL
+// ---------------------------------------------------------------------------
+// v1 scored short-term control purely on which side of the level price sat,
+// volume-weighted. That is a POSITION statement, not a control statement.
+// Price could fall 20 points straight into a level and - because it was still
+// technically above it - v1 reported "BUYERS". That was wrong, and it was
+// wrong in the worst possible way: it said buy exactly as sellers took over.
+//
+// v2 measures control with three independent inputs:
+//
+//   HOLD  - which side of the level price is on, volume-weighted.
+//           Who is currently in possession.
+//
+//   PUSH  - directional momentum, ATR-normalised. Who is actually moving
+//           price right now, regardless of who holds the level.
+//
+//   FLOW  - signed delta. Who is transacting aggressively.
+//
+// When HOLD and PUSH AGREE, control is clear: BUY or SELL.
+// When HOLD and PUSH DISAGREE, control is TRANSFERRING, and the level reads
+//   ->SELL   buyers still hold it, but sellers are taking it
+//   ->BUY    sellers still hold it, but buyers are taking it
+//
+// That shifting state is the single most useful read on the board for a
+// scalper, because it is the warning that fires BEFORE the level goes.
+//
+// ---------------------------------------------------------------------------
+// OTHER CHANGES FROM v1
+// ---------------------------------------------------------------------------
+// [1] TIME-NORMALISED MEMORY - v1 measured in BARS, so "20 bars" was 60 min
+//     on a 3m chart and 5 hours on a 15m chart. Same instrument, different
+//     answers, for no real reason. Memory is now set in MINUTES. Timeframes
+//     can still disagree, and that disagreement is now REAL information.
+//
+// [2] TF ALIGNMENT TRACKER - timeframes each carry their own bias, so rather
+//     than forcing agreement, v2 watches 15m / 1h / 4h and flags the moment
+//     they start CONVERGING. That is when a scalp becomes a runner.
+//
+// [3] PER-LEVEL INTERACTION STATE - TESTING / BREAKING / RECLAIMED / LOST /
+//     SUPPORT / RESIST. v1 rendered a broken PDH as "--".
+//
+// [4] DISTANT MARKING - a level 36 points away is not "controlled", it is
+//     far. Its stale score is now damped and it reads DIST.
+//
+// [5] APPROACH VELOCITY - fast approach on expanding volume favours a BREAK,
+//     slow grind favours ABSORPTION and rejection.
+//
+// [6] ACTIVE TRADE PLAN - direction, entry, stop, next-level target, auto R:R
+//     and a letter grade. Level to level.
+//
+// [7] PRICE LADDER - sorted by price with a live price marker, reads like a
+//     DOM. Shows ALL active levels (v1's row cap silently hid Asia Low and
+//     London Low).
+//
+// BUGS FIXED FROM v1
+//   [a] Daily Open and 15:00 Open are the same bar for futures. Deduped.
+//   [b] 06:30 Open carried a stale value. Now date-stamped and invalidated.
+//   [c] Confluence reported one price counted three times as a triple stack.
+//   [d] Dashboard row cap truncated the level list.
+//   [e] RE10045 index -1 crash - Pine does not short-circuit `and`, so a
+//       bounds guard inside a while condition still evaluated the array read.
+// ===========================================================================
+
+
+// ===========================================================================
+// 1. INPUTS
+// ===========================================================================
+g_lvl  = "Levels"
+g_ctrl = "Engine (same as the bot)"
+g_plan = "Engine (same as the bot)"
+g_draw = "Full detail: chart"
+g_dash = "Full detail: board"
+
+show_pdh    = input.bool(true, "PDH / PDL",            group=g_lvl)
+show_pdc    = input.bool(true, "PDC (prev day close)", group=g_lvl)
+show_week   = input.bool(true, "Prev Week H/L + Week Open", group=g_lvl, tooltip="Weekly levels are the heaviest references on the board. Price reaching last week's high or low intraday is a genuine event, and the week open is the line every swing desk measures the week from.")
+show_dopen  = input.bool(true, "Daily Open",           group=g_lvl)
+show_asia   = input.bool(true, "Asia High / Low",      group=g_lvl)
+show_lon    = input.bool(true, "London High / Low",    group=g_lvl)
+show_opens  = input.bool(true, "06:30 / 15:00 Opens",  group=g_lvl)
+show_ib     = input.bool(true, "Initial Balance H/L",  group=g_lvl)
+show_vwap   = input.bool(true, "Session VWAP",         group=g_lvl)
+show_ropens = input.bool(true, "Rolling Opens (4H / 1H / 30m)", group=g_lvl, tooltip="Who is driving price right now. Unlike PDH or Asia High these RESET every period, so each one is a fresh referendum on the current 4 hours, hour, and half hour.")
+hide_sub    = input.bool(true, "Hide Rolling Opens At/Below Chart TF", group=g_lvl, tooltip="A 1H open on a 1H chart is just the current bar's open. It rolls every bar, can never age out of NEW, and tells you nothing. Auto-hides any rolling open whose period is not larger than your chart timeframe.")
+show_15o    = input.bool(false, "Add 15m Open", group=g_lvl, tooltip="Optional. Note that the 15m open is EXACTLY the 30m open at every :00 and :30, so half its life it is a duplicate and gets deduped away. Useful on a 1m-3m chart, noise on anything higher.")
+roll_min_age= input.int(3, "Rolling Open: Bars Before Scoring", minval=1, maxval=20, group=g_lvl, tooltip="A 30m open that is 90 seconds old has no acceptance history. Until it has this many bars it reads NEW rather than pretending to know who controls it.")
+dedupe_lvl  = input.bool(true, "Auto-Dedupe Identical Levels", group=g_lvl, tooltip="Daily Open and 15:00 Open are the same bar for futures. Hides the redundant copy so confluence stays honest.")
+
+st_min      = input.int(60,  "Short-Term Memory (minutes)", minval=5,  maxval=480,  group=g_ctrl, tooltip="Real time, not bars - same window on every chart.")
+lt_min      = input.int(360, "Long-Term Memory (minutes)",  minval=30, maxval=2880, group=g_ctrl)
+w_hold      = input.float(0.35, "Weight: HOLD (position)",  minval=0, maxval=1, step=0.05, group=g_ctrl)
+w_push      = input.float(0.40, "Weight: PUSH (momentum)",  minval=0, maxval=1, step=0.05, group=g_ctrl, tooltip="Raise this to make the engine react faster to control changing hands.")
+w_flow      = input.float(0.25, "Weight: FLOW (delta)",     minval=0, maxval=1, step=0.05, group=g_ctrl)
+shift_sens  = input.float(0.15, "Shift Sensitivity",   minval=0.05, maxval=0.5, step=0.01, group=g_ctrl, tooltip="How much opposing momentum is needed before a level reads as SHIFTING. Lower = earlier warnings.")
+band_mult   = input.float(0.25, "At-Level Band (x ATR)",    minval=0.05, step=0.05, group=g_ctrl)
+distant_atr = input.float(1.5,  "Distant Threshold (x ATR)", minval=0.5, step=0.1,  group=g_ctrl)
+ctrl_thresh = input.float(0.22, "Control Threshold",   minval=0.05, maxval=0.6, step=0.01, group=g_ctrl)
+lean_ratio  = input.float(0.45, "Lean Tier (x threshold)", minval=0.2, maxval=0.9, step=0.05, group=g_ctrl, tooltip="Scores between this fraction of the threshold and the threshold itself show as a weak lean (lowercase buy/sell) instead of a blank. Stops near-misses from reading as no-opinion.")
+confirm_bars= input.int(3,      "Break Confirm (bars)", minval=1, maxval=20, group=g_ctrl, tooltip="Closes beyond the level before a break counts as RECLAIM/LOST rather than a FAIL.")
+accept_bars = input.int(12,     "Acceptance (bars beyond)", minval=4, maxval=60, group=g_ctrl, tooltip="Closes beyond the level before price has ACCEPTED it. The level has flipped and is now behind you.")
+chop_thresh = input.float(2.5,  "Chop Threshold (crossings)", minval=1.5, maxval=6.0, step=0.5, group=g_ctrl, tooltip="Decaying count of how often price has crossed this level. Above this the level is unresolved and should not be traded at all.")
+event_life  = input.int(10,     "Event Memory (bars)", minval=3, maxval=40, group=g_ctrl, tooltip="How long a sweep or failed break stays the headline read for that level.")
+conf_tol    = input.float(0.05, "Confluence Tolerance (%)", minval=0.01, step=0.01, group=g_ctrl)
+
+engage_atr  = input.float(0.6,  "Engage Distance (x ATR)",     minval=0.1, step=0.1,  group=g_plan)
+stop_atr    = input.float(0.40, "Stop Buffer (x ATR)",         minval=0.1, step=0.05, group=g_plan)
+min_tgt_atr = input.float(0.60, "Min Target Distance (x ATR)", minval=0.2, step=0.1,  group=g_plan)
+min_rr      = input.float(1.5,  "Min R:R to Show Plan",        minval=0.5, step=0.1,  group=g_plan)
+block_shift = input.bool(true,  "Block Plans Against a Shift", group=g_plan, tooltip="Do not offer a LONG when the level in play is shifting to sellers, and vice versa. Strongly recommended ON.")
+use_pullback= input.bool(true,  "Plan Pullback Entries",   group=g_plan, tooltip="When entering at market gives poor R:R because price already ran from the level, plan a limit entry back at the level instead of skipping the trade.")
+pb_buffer   = input.float(0.10, "Pullback Buffer (x ATR)", minval=0.0, maxval=0.5, step=0.05, group=g_plan, tooltip="How far past the level to place the limit entry.")
+proj_target = input.bool(true,  "Project Target in Open Air", group=g_plan, tooltip="When price breaks past the outermost level there is nothing left to target. Use a measured ATR projection instead of killing the plan.")
+proj_mult   = input.float(1.20, "Projection Distance (x ATR)", minval=0.3, step=0.1, group=g_plan)
+req_align_sig= input.bool(true,  "Signal Needs 15m/1h/4h Aligned WITH The Plan", group=g_plan, tooltip="SCALP LONG / SCALP SHORT (and their alerts) only fire when the 15m, 1h and 4h current-period OPEN positions ALL agree with the plan direction. Equal, unavailable or unsupported slots cannot satisfy alignment. Plans shown on the dashboard are unchanged. OFF = v2 behaviour (grade B or better, any alignment).")
+
+g_trig = "Engine (same as the bot)"
+use_trig    = input.bool(true,  "Require a Bar Trigger", group=g_trig, tooltip="A plan is a STATE (conditions align). A trigger is an EVENT (this bar did the thing). With this on, FILL NOW only appears when an actual candle event fires at the level.")
+wick_pct    = input.float(0.50, "Rejection Wick (% of range)", minval=0.3, maxval=0.9, step=0.05, group=g_trig)
+rej_lvl     = input.bool(true, "Rejection State at Every Level", group=g_trig, tooltip="v2.3: track the rejection wick as a per-level headline state (REJECT+ / REJECT-) at every level, not only as a trigger at the level in play. Uses the Rejection Wick threshold above, so sensitivity is unchanged. OFF = v2.2 headline behaviour.")
+absorb_rng  = input.float(0.50, "Absorption Max Range (x ATR)", minval=0.1, maxval=1.0, step=0.05, group=g_trig)
+
+
+extend_r    = input.int(30,  "Extend Right (bars)", minval=2, maxval=200, group=g_draw)
+lookback_l  = input.int(150, "Extend Left (bars)",  minval=0,             group=g_draw)
+color_lines = input.bool(true, "Color Lines by Control", group=g_draw)
+dash_untest = input.bool(true, "Dash Untested Levels",   group=g_draw)
+lbl_state   = input.bool(true, "Show State on Labels",   group=g_draw)
+lbl_price   = input.bool(true, "Show Price on Labels",   group=g_draw)
+lbl_offset  = input.int(6, "Label Offset (bars)", minval=1, maxval=60, group=g_draw)
+lbl_size    = input.string("small", "Label Size", options=["tiny","small","normal","large"], group=g_draw)
+lbl_solid   = input.bool(true, "Solid Label Background", group=g_draw)
+show_halo   = input.bool(true, "In-Play Halo Line", group=g_draw, tooltip="v2.3: one wide, faint violet line under whichever level is in play.")
+show_ev     = input.bool(true, "Event Markers (glyphs)", group=g_draw, tooltip="v2.3: pooled on-chart markers for SWEEP / RECLAIM / ACCEPTANCE / REJECTION at the bar they happen, expiring after Event Memory bars. The text states on the level labels are unchanged - the markers are an added glance layer, and the panel EVENT feed follows this toggle.")
+
+show_dash   = input.bool(true, "Show Dashboard", group=g_dash)
+dash_pos    = input.string("Top Right", "Position", options=["Top Right","Middle Right","Bottom Right","Top Left","Bottom Left"], group=g_dash, tooltip="v2.5: the board position is set in Look (v2.5) -> Board position.")
+dash_mode   = input.string("Price Ladder", "Level Order", options=["Price Ladder","Nearest First"], group=g_dash)
+dash_txt    = input.string("small", "Text Size", options=["tiny","small","normal"], group=g_dash)
+mobile      = input.bool(false, "Mobile Mode", group=g_dash, tooltip="Compact 3-column layout for phone screens. Shows the plan, the board read, and only the nearest levels.")
+// Mobile-only display controls; original mobile OFF and calculation defaults are unchanged.
+mob_txt     = input.string("small", "Mobile: Text Size", options=["tiny","small","normal"], group=g_dash)
+mob_compact = input.bool(true, "Mobile: Compact Level Names", group=g_dash, tooltip="Show the registry abbreviation plus a count of merged aliases, e.g. NYO +5. Full names remain in the tooltip. Calculated levels and deduplication are unchanged.")
+mob_rows    = input.int(5, "Mobile: Levels Shown", minval=2, maxval=10, group=g_dash)
+mob_ev      = input.int(4, "Mobile: Event Markers Shown", minval=0, maxval=12, group=g_dash, tooltip="v2.3: on mobile, event markers are born only for this many NEAREST levels. Desktop births are uncapped (pool of 12). The pool itself is allocated identically in both modes.")
+
+
+// ===========================================================================
+// 2. COLORS
+// ===========================================================================
+// -- SEMANTIC (high contrast, tuned for dark charts) --
+col_buy    = color.new(#26D96B, 0)    // bright green  - buyers control
+col_sell   = color.new(#FF4D4D, 0)    // bright red    - sellers control
+col_shift  = color.new(#FF9F1C, 0)    // amber-orange  - control transferring
+col_mix    = color.new(#9FB3C8, 0)    // light slate   - contested, still readable
+col_dist   = color.new(#5F7C95, 0)    // muted blue    - distant, dim but VISIBLE
+col_viol   = color.new(#C4A2FF, 0)    // violet        - in play / price marker
+col_cyan   = color.new(#4DD9E8, 0)    // cyan          - info / converging
+col_amber  = color.new(#FFC53D, 0)
+col_hide   = color.new(color.gray, 100)
+
+// -- TEXT --
+txt_hi  = color.new(#EAF2FB, 0)       // values
+txt_mid = color.new(#A9BDD1, 0)       // row labels
+txt_lo  = color.new(#6C8299, 0)       // headers / secondary
+
+// -- BACKGROUNDS (zebra striping for scan-ability) --
+col_bg    = color.new(#070C15, 0)
+col_bgalt = color.new(#0C1524, 0)     // zebra alternate
+col_bg2   = color.new(#101C2E, 0)
+col_bgdiv = color.new(#050A12, 0)
+col_bgttl = color.new(#14294A, 0)
+col_brd   = color.new(#27384F, 0)
+col_grnbg = color.new(#06301A, 0)
+col_redbg = color.new(#3B0D0D, 0)
+col_ambbg = color.new(#3A2A05, 0)
+col_shbg  = color.new(#3D2408, 0)
+col_pxbg  = color.new(#1B2C4A, 0)
+col_ipbg  = color.new(#22304D, 0)     // level-in-play row
+
+// Back-compat aliases so older references keep resolving
+col_ltxt  = txt_mid
+col_dim   = txt_lo
+col_slate = col_ipbg
+
+
+// ===========================================================================
+// 3. TIME / SESSION
+// ===========================================================================
+string TZ = "America/Los_Angeles"
+newDay   = ta.change(time("D", TZ)) != 0
+// v15 [OPEN-SESSION]: session counter, +1 at every CME session roll (15:00 PT)
+var int sessN = 0
+if newDay
+    sessN += 1
+inAsia   = not na(time(timeframe.period, "1500-0000", TZ))
+inLondon = not na(time(timeframe.period, "0000-0630", TZ))
+
+asiaStart = inAsia and not inAsia[1]
+asiaEnd   = not inAsia and inAsia[1]
+lonStart  = inLondon and not inLondon[1]
+lonEnd    = not inLondon and inLondon[1]
+
+y  = year(time, TZ)
+mo = month(time, TZ)
+dd = dayofmonth(time, TZ)
+ts0630 = timestamp(TZ, y, mo, dd, 6, 30)
+ts0730 = timestamp(TZ, y, mo, dd, 7, 30)
+ts1500 = timestamp(TZ, y, mo, dd, 15, 0)
+
+cross0630 = time >= ts0630 and nz(time[1]) < ts0630
+cross1500 = time >= ts1500 and nz(time[1]) < ts1500
+inIB      = time >= ts0630 and time < ts0730
+
+// === CRITICAL FIX: NaN POISONING ===
+// math.max(na, x) returns na in Pine. ta.atr(14) is na for the first 14 bars,
+// so atr_sf was na, mom_raw was na, and the momentum EMA took an na on bar 1 -
+// which poisons an EMA permanently. PUSH read NaN forever, which meant the
+// entire shift-detection layer never ran. Every seed value is now nz-guarded.
+atr_c  = nz(ta.atr(14), 0.0)
+atr_sf = math.max(atr_c, syminfo.mintick * 4)
+
+// === DISTANCE REFERENCE ===
+// Level distances must NOT be measured in chart-timeframe ATR. On a 3m gold
+// chart ATR is ~2 points, so "1.5 ATR" was 3 points and virtually every level
+// read DIST. Distance is a property of the SESSION, not of your chart zoom, so
+// it is now measured against the 1H ATR - stable whether you are on 1m or 15m.
+// v2.2 [D6]: with lookahead_off the 1H ATR is the previous closed hour on history but the FORMING hour in realtime, so a
+// level's DIST / proximity read on the live chart differs from the same bar after reload. ta.atr(14)[1] + lookahead_on is the
+// standard non-repainting form: the last CLOSED hour, the same value on history and live. OFF = v2.1.1 exactly.
+atr_ref_closed = input.bool(true, "1H ATR: last closed hour (no repaint)", group=g_ctrl, tooltip="v2.2. ON: level distance uses the 1H ATR of the last closed hour - the same on history and live. OFF: the v2.1.1 formula (live reads the forming hour).")
+atr_ref_cl  = request.security("", "60", ta.atr(14)[1], lookahead=barmerge.lookahead_on)
+atr_ref_old = request.security("", "60", ta.atr(14), lookahead=barmerge.lookahead_off)
+atr_ref_raw = atr_ref_closed ? atr_ref_cl : atr_ref_old
+atr_ref = math.max(nz(atr_ref_raw, atr_sf * 4.0), syminfo.mintick * 20)
+
+tf_min  = math.max(timeframe.in_seconds(timeframe.period) / 60.0, 0.1)
+st_bars = math.max(math.round(st_min / tf_min), 3)
+lt_bars = math.max(math.round(lt_min / tf_min), 10)
+a_st    = 2.0 / (st_bars + 1)
+a_lt    = 2.0 / (lt_bars + 1)
+band    = atr_ref * band_mult
+
+
+// ===========================================================================
+// 4. LEVEL COMPUTATION
+// ===========================================================================
+var float dayHi = na
+var float dayLo = na
+var float prevDayHi = na
+var float prevDayLo = na
+var float prevDayC = na
+var float dayOpen = na
+
+// v2.4-dev [FIX-PDH]: on a new day the PRIOR session's high/low roll first,
+// then the new day starts from the current bar. v2.3 folded the current bar
+// into dayHi/dayLo BEFORE the new-day roll, so PDH/PDL included the new
+// session's first bar. A prior day whose start bar was not on the chart (the
+// first, partial day of history) gives NA instead of a partial high/low.
+var bool dayFull = false
+if newDay
+    prevDayHi := dayFull ? dayHi : na
+    prevDayLo := dayFull ? dayLo : na
+    prevDayC  := nz(close[1], close)
+    dayHi     := high
+    dayLo     := low
+    dayOpen   := open
+    dayFull   := true
+else
+    if na(dayHi)
+        // v2.4-dev [OPEN-EXACT]: the first chart bar is not a day boundary, so it
+        // does not get to be the Daily Open (OPEN_BAR_MISSING until the next day).
+        dayHi   := high
+        dayLo   := low
+        dayOpen := na
+    dayHi := math.max(dayHi, high)
+    dayLo := math.min(dayLo, low)
+
+var float asiaHiL = na
+var float asiaLoL = na
+var float asiaHiK = na
+var float asiaLoK = na
+if asiaStart
+    asiaHiL := high
+    asiaLoL := low
+if inAsia
+    asiaHiL := math.max(nz(asiaHiL, high), high)
+    asiaLoL := math.min(nz(asiaLoL, low),  low)
+if asiaEnd and not na(asiaHiL)
+    asiaHiK := asiaHiL
+    asiaLoK := asiaLoL
+asiaHi = inAsia ? asiaHiL : asiaHiK
+asiaLo = inAsia ? asiaLoL : asiaLoK
+
+var float lonHiL = na
+var float lonLoL = na
+var float lonHiK = na
+var float lonLoK = na
+if lonStart
+    lonHiL := high
+    lonLoL := low
+if inLondon
+    lonHiL := math.max(nz(lonHiL, high), high)
+    lonLoL := math.min(nz(lonLoL, low),  low)
+if lonEnd and not na(lonHiL)
+    lonHiK := lonHiL
+    lonLoK := lonLoL
+lonHi = inLondon ? lonHiL : lonHiK
+lonLo = inLondon ? lonLoL : lonLoK
+
+var float open0630 = na
+var int   day0630  = -1
+var float open1500 = na
+var int   sess1500 = -1   // v15 [OPEN-SESSION]: the session whose 15:00 bar set open1500
+// v2.4-dev [OPEN-EXACT]: a session open comes only from the bar that OPENS at
+// the boundary. When the first bar past 06:30 / 15:00 starts later (chart
+// timeframe not dividing the clock, or a data gap) the open is NA
+// (OPEN_BAR_MISSING) instead of a later bar's open.
+if cross0630
+    open0630 := time == ts0630 ? open : na
+    day0630  := dd
+if cross1500
+    open1500 := time == ts1500 ? open : na
+    sess1500 := sessN
+o0630 = day0630 == dd ? open0630 : na
+o1500 = sess1500 == sessN ? open1500 : na   // v15 [OPEN-SESSION]: kept until the next session roll (was: same calendar day)
+
+var float ibHiL = na
+var float ibLoL = na
+var float ibHi = na
+var float ibLo = na
+if newDay
+    ibHiL := na
+    ibLoL := na
+    ibHi  := na
+    ibLo  := na
+if inIB
+    ibHiL := math.max(nz(ibHiL, high), high)
+    ibLoL := math.min(nz(ibLoL, low),  low)
+    ibHi  := ibHiL
+    ibLo  := ibLoL
+
+var float vwPV = 0.0
+var float vwVol = 0.0
+if cross0630 or newDay
+    vwPV  := 0.0
+    vwVol := 0.0
+if time >= ts0630
+    vwPV  := vwPV + hlc3 * volume
+    vwVol := vwVol + volume
+sessVWAP = vwVol > 0 ? vwPV / vwVol : na
+
+// --- Rolling period opens: who is driving the current 4H / 1H / 30m ---
+// Weekly references. high[1]/low[1] on "W" with lookahead_on is the standard
+// non-repainting way to read the PREVIOUS completed week - the bar is closed,
+// so there is nothing to look ahead to.
+pwh_v  = request.security("", "W", high[1], lookahead=barmerge.lookahead_on)
+pwl_v  = request.security("", "W", low[1],  lookahead=barmerge.lookahead_on)
+wk_open = request.security("", "W", open,   lookahead=barmerge.lookahead_on)
+
+h4_open  = request.security("", "240", open, lookahead=barmerge.lookahead_on)
+h1_open  = request.security("", "60",  open, lookahead=barmerge.lookahead_on)
+h30_open = request.security("", "30",  open, lookahead=barmerge.lookahead_on)
+h15_open = request.security("", "15",  open, lookahead=barmerge.lookahead_on)
+
+// ---------------------------------------------------------------------------
+// 4b. v2.4-dev INPUTS + WEEKLY / MONTHLY LEVELS  [NEW-LVL]
+// Input order is input identity, and Pine needs an input declared before it is
+// used. The six PARITY inputs (in_69 .. in_74) are declared here, unchanged and
+// in their original order, so the new level toggles can follow them (in_75 ..)
+// and still be read by the registry below.
+// ---------------------------------------------------------------------------
+g_par = "PARITY (retired in v2.8: unused)"
+par_inc30 = input.bool(false, "Alignment: include 30m", group=g_par, tooltip="Adds 30m to the PARITY alignment read. OFF = 15m / 1h / 4h only.")
+par_badge = input.bool(true, "Show STALE badge on chart", group=g_par, tooltip="A small red badge at the top centre, drawn ONLY while the published state is stale. Nothing is drawn when the feed is live.")
+par_show   = input.string("Hidden (machine-readable)", "PARITY / EVENTS tables", options=["Hidden (machine-readable)", "Visible"], group=g_par)
+par_pos    = input.string("Bottom Left", "PARITY position", options=["Bottom Left", "Middle Left", "Top Left", "Bottom Center"], group=g_par)
+par_evpos  = input.string("Bottom Center", "EVENTS position", options=["Bottom Center", "Bottom Left", "Middle Left", "Top Left"], group=g_par)
+par_ctrlx  = input.bool(true, "Publish per-level CONTROL breakdown (CTRLX_*)", group=g_par)
+g_new = "Levels"
+show_pwo  = input.bool(false, "Prev Week Open (PWO)", group=g_new)
+show_mo   = input.bool(false, "Month Open (MO)", group=g_new)
+show_mhml = input.bool(false, "Month High / Low (MH / ML)", group=g_new, tooltip="Running high / low of the current month through the last CLOSED bar, built from the chart's own bars since the exact month-start bar. NA when that bar is not on the chart.")
+show_pm   = input.bool(false, "Prev Month Open / High / Low (PMO / PMoH / PMoL)", group=g_new)
+
+// Boundaries: TradingView's own "W" and "M" bars. For CME futures these follow
+// the TRADING DATE, so a week starts at the Sunday 15:00 PT session open and a
+// month at the 15:00 PT session open before its first trading day - the same
+// boundary convention as PWH / PWL / Week Open and the daily roll above.
+// Previous-period values: [1] on the period with lookahead_on = the last
+// COMPLETED period, the same non-repainting form PWH / PWL use.
+pwo_v  = request.security("", "W", open[1], lookahead=barmerge.lookahead_on)
+mo_v   = request.security("", "M", open,    lookahead=barmerge.lookahead_on)
+pmo_v  = request.security("", "M", open[1], lookahead=barmerge.lookahead_on)
+pmoh_v = request.security("", "M", high[1], lookahead=barmerge.lookahead_on)
+pmol_v = request.security("", "M", low[1],  lookahead=barmerge.lookahead_on)
+
+// Month high / low from the chart's own bars, through the last CLOSED bar (so
+// the value never moves inside a bar, and a new monthly extreme is a break of
+// MH / ML). Valid only when the bar that opens exactly at the month start was
+// on the chart; otherwise NA (MONTH_START_NOT_ON_CHART), never a partial guess.
+int  m_start_t = time("M")
+bool roll_m    = ta.change(time("M")) != 0
+var bool  mSeen   = false
+var int   mBarT   = na
+var float mHiAcc  = na
+var float mLoAcc  = na
+if roll_m
+    mSeen  := not na(m_start_t) and time == m_start_t
+    mBarT  := time
+    mHiAcc := na
+    mLoAcc := na
+mh_v = mSeen ? mHiAcc : na
+ml_v = mSeen ? mLoAcc : na
+mhml_why = not mSeen ? "MONTH_START_NOT_ON_CHART" : na(mHiAcc) ? "NO_CLOSED_BAR_YET" : "OK"
+mHiAcc := math.max(nz(mHiAcc, high), high)
+mLoAcc := math.min(nz(mLoAcc, low), low)
+
+
+// ===========================================================================
+// 5. LEVEL REGISTRY
+// ===========================================================================
+int NL = 27
+
+var string[] L_NAME = array.new_string(0)
+var float[]  L_IMP  = array.new_float(0)
+if barstate.isfirst
+    array.push(L_NAME, "PDH")
+    array.push(L_NAME, "PDL")
+    array.push(L_NAME, "PDC")
+    array.push(L_NAME, "Daily Open")
+    array.push(L_NAME, "Asia High")
+    array.push(L_NAME, "Asia Low")
+    array.push(L_NAME, "London High")
+    array.push(L_NAME, "London Low")
+    array.push(L_NAME, "06:30 Open")
+    array.push(L_NAME, "15:00 Open")
+    array.push(L_NAME, "IB High")
+    array.push(L_NAME, "IB Low")
+    array.push(L_NAME, "VWAP")
+    array.push(L_NAME, "4H Open")
+    array.push(L_NAME, "1H Open")
+    array.push(L_NAME, "30m Open")
+    array.push(L_NAME, "15m Open")
+    array.push(L_NAME, "PWH")
+    array.push(L_NAME, "PWL")
+    array.push(L_NAME, "Week Open")
+    array.push(L_NAME, "PWO")
+    array.push(L_NAME, "MO")
+    array.push(L_NAME, "MH")
+    array.push(L_NAME, "ML")
+    array.push(L_NAME, "PMO")
+    array.push(L_NAME, "PMoH")
+    array.push(L_NAME, "PMoL")
+
+    array.push(L_IMP, 3.0)
+    array.push(L_IMP, 3.0)
+    array.push(L_IMP, 2.5)
+    array.push(L_IMP, 2.0)
+    array.push(L_IMP, 2.5)
+    array.push(L_IMP, 2.5)
+    array.push(L_IMP, 2.5)
+    array.push(L_IMP, 2.5)
+    array.push(L_IMP, 3.0)
+    array.push(L_IMP, 2.5)
+    array.push(L_IMP, 2.0)
+    array.push(L_IMP, 2.0)
+    array.push(L_IMP, 3.0)
+    array.push(L_IMP, 3.0)   // 4H Open  - controls the current swing
+    array.push(L_IMP, 2.5)   // 1H Open  - controls the current hour
+    array.push(L_IMP, 2.0)   // 30m Open - controls right now
+    array.push(L_IMP, 1.5)   // 15m Open - optional, scalp resolution
+    array.push(L_IMP, 3.5)   // PWH       - heaviest reference on the board
+    array.push(L_IMP, 3.5)   // PWL
+    array.push(L_IMP, 3.0)   // Week Open - what the week is measured from
+    array.push(L_IMP, 2.5)   // PWO  - previous week open (v2.4-dev)
+    array.push(L_IMP, 3.5)   // MO   - what the month is measured from
+    array.push(L_IMP, 3.0)   // MH   - month high so far (closed bars)
+    array.push(L_IMP, 3.0)   // ML   - month low so far (closed bars)
+    array.push(L_IMP, 2.5)   // PMO  - previous month open
+    array.push(L_IMP, 4.0)   // PMoH - previous month high, heaviest on the board
+    array.push(L_IMP, 4.0)   // PMoL - previous month low
+
+var string[] L_ABBR = array.new_string(0)
+if barstate.isfirst
+    array.push(L_ABBR, "PDH")
+    array.push(L_ABBR, "PDL")
+    array.push(L_ABBR, "PDC")
+    array.push(L_ABBR, "DO")
+    array.push(L_ABBR, "AH")
+    array.push(L_ABBR, "AL")
+    array.push(L_ABBR, "LH")
+    array.push(L_ABBR, "LL")
+    array.push(L_ABBR, "NYO")
+    array.push(L_ABBR, "1500")
+    array.push(L_ABBR, "IBH")
+    array.push(L_ABBR, "IBL")
+    array.push(L_ABBR, "VW")
+    array.push(L_ABBR, "4HO")
+    array.push(L_ABBR, "1HO")
+    array.push(L_ABBR, "30O")
+    array.push(L_ABBR, "15O")
+    array.push(L_ABBR, "PWH")
+    array.push(L_ABBR, "PWL")
+    array.push(L_ABBR, "WO")
+    array.push(L_ABBR, "PWO")
+    array.push(L_ABBR, "MO")
+    array.push(L_ABBR, "MH")
+    array.push(L_ABBR, "ML")
+    array.push(L_ABBR, "PMO")
+    array.push(L_ABBR, "PMoH")
+    array.push(L_ABBR, "PMoL")
+
+var float[] L_PX = array.new_float(NL, na)
+var bool[]  L_ON = array.new_bool(NL, false)
+
+array.set(L_PX, 0,  prevDayHi)
+array.set(L_PX, 1,  prevDayLo)
+array.set(L_PX, 2,  prevDayC)
+array.set(L_PX, 3,  dayOpen)
+array.set(L_PX, 4,  asiaHi)
+array.set(L_PX, 5,  asiaLo)
+array.set(L_PX, 6,  lonHi)
+array.set(L_PX, 7,  lonLo)
+array.set(L_PX, 8,  o0630)
+array.set(L_PX, 9,  o1500)
+array.set(L_PX, 10, ibHi)
+array.set(L_PX, 11, ibLo)
+array.set(L_PX, 12, sessVWAP)
+array.set(L_PX, 13, h4_open)
+array.set(L_PX, 14, h1_open)
+array.set(L_PX, 15, h30_open)
+array.set(L_PX, 16, h15_open)
+array.set(L_PX, 17, pwh_v)
+array.set(L_PX, 18, pwl_v)
+array.set(L_PX, 19, wk_open)
+array.set(L_PX, 20, pwo_v)
+array.set(L_PX, 21, mo_v)
+array.set(L_PX, 22, mh_v)
+array.set(L_PX, 23, ml_v)
+array.set(L_PX, 24, pmo_v)
+array.set(L_PX, 25, pmoh_v)
+array.set(L_PX, 26, pmol_v)
+
+array.set(L_ON, 0,  show_pdh)
+array.set(L_ON, 1,  show_pdh)
+array.set(L_ON, 2,  show_pdc)
+array.set(L_ON, 3,  show_dopen)
+array.set(L_ON, 4,  show_asia)
+array.set(L_ON, 5,  show_asia)
+array.set(L_ON, 6,  show_lon)
+array.set(L_ON, 7,  show_lon)
+array.set(L_ON, 8,  show_opens)
+array.set(L_ON, 9,  show_opens)
+array.set(L_ON, 10, show_ib)
+array.set(L_ON, 11, show_ib)
+array.set(L_ON, 12, show_vwap)
+// A rolling open only carries information when its period is LONGER than the
+// chart timeframe. On a 1H chart the 1H open IS the current bar's open: it
+// rolls every single bar, is permanently age 0, and reads NEW forever. That is
+// what filled the 5m/30m/1h panels with meaningless NEW rows.
+array.set(L_ON, 13, show_ropens and (not hide_sub or 240.0 > tf_min))
+array.set(L_ON, 14, show_ropens and (not hide_sub or 60.0  > tf_min))
+array.set(L_ON, 15, show_ropens and (not hide_sub or 30.0  > tf_min))
+array.set(L_ON, 16, show_ropens and show_15o and (not hide_sub or 15.0 > tf_min))
+array.set(L_ON, 17, show_week)
+array.set(L_ON, 18, show_week)
+array.set(L_ON, 19, show_week)
+array.set(L_ON, 20, show_pwo)
+array.set(L_ON, 21, show_mo)
+array.set(L_ON, 22, show_mhml)
+array.set(L_ON, 23, show_mhml)
+array.set(L_ON, 24, show_pm)
+array.set(L_ON, 25, show_pm)
+array.set(L_ON, 26, show_pm)
+
+// Merged names so a deduped level is absorbed VISIBLY rather than silently
+// disappearing from the ladder. "06:30 Open +1500 +DO" tells you three
+// levels sit on that price; hiding two of them just looked like a bug.
+var string[] L_MRG = array.new_string(NL, "")
+// v2.2 [R2]: the merged names are display-only (ladder, level labels, target name - all drawn on the last bar), so the
+// strings are built on the last bar only. Which levels are ON is still decided on every bar below.
+if barstate.islast
+    for i = 0 to NL - 1
+        array.set(L_MRG, i, "")
+
+if dedupe_lvl
+    for i = 0 to NL - 2
+        float pxi = array.get(L_PX, i)
+        if array.get(L_ON, i) and not na(pxi)
+            for j = i + 1 to NL - 1
+                float pxj = array.get(L_PX, j)
+                if array.get(L_ON, j) and not na(pxj)
+                    if math.abs(pxi - pxj) <= syminfo.mintick * 2
+                        if array.get(L_IMP, j) <= array.get(L_IMP, i)
+                            array.set(L_ON, j, false)
+                            if barstate.islast
+                                array.set(L_MRG, i, array.get(L_MRG, i) + " +" + array.get(L_ABBR, j))
+                        else
+                            array.set(L_ON, i, false)
+                            if barstate.islast
+                                array.set(L_MRG, j, array.get(L_MRG, j) + " +" + array.get(L_ABBR, i))
+
+
+// ===========================================================================
+// 6. ORDER FLOW PRIMITIVES + GLOBAL PUSH / FLOW
+//    THE FIX: control needs direction of travel, not just which side price
+//    happens to be sitting on.
+// ===========================================================================
+bar_rng  = math.max(high - low, syminfo.mintick)
+buy_vol  = volume * (close - low)  / bar_rng
+sell_vol = volume * (high - close) / bar_rng
+delta_n  = nz(volume) > 0 ? nz((buy_vol - sell_vol) / volume, 0.0) : 0.0
+vol_avg  = ta.sma(volume, 20)
+vol_w    = nz(vol_avg) > 0 ? nz(math.min(volume / vol_avg, 3.0), 1.0) : 1.0
+vol_exp  = vol_avg > 0 and volume > vol_avg * 1.4
+
+f_clamp(v, lo, hi) => math.max(math.min(v, hi), lo)
+
+// PUSH - who is moving price. EMA of ATR-normalised per-bar returns; scaling
+// by the window length turns "average move per bar" into "total move over the
+// window", expressed in ATR. 2 ATR over the window = full conviction.
+mom_raw = (close - nz(close[1], close)) / atr_sf
+var float mom_st_e = 0.0
+var float mom_lt_e = 0.0
+var float flw_st_e = 0.0
+var float flw_lt_e = 0.0
+mom_st_e := nz(mom_st_e) * (1 - a_st) + nz(mom_raw) * a_st
+mom_lt_e := nz(mom_lt_e) * (1 - a_lt) + nz(mom_raw) * a_lt
+flw_st_e := nz(flw_st_e) * (1 - a_st) + nz(delta_n) * a_st
+flw_lt_e := nz(flw_lt_e) * (1 - a_lt) + nz(delta_n) * a_lt
+
+push_st = f_clamp(mom_st_e * st_bars * 0.50, -1.0, 1.0)
+push_lt = f_clamp(mom_lt_e * lt_bars * 0.35, -1.0, 1.0)
+flow_st = f_clamp(flw_st_e * 2.5, -1.0, 1.0)
+flow_lt = f_clamp(flw_lt_e * 2.5, -1.0, 1.0)
+
+wsum_c  = math.max(w_hold + w_push + w_flow, 0.01)
+
+// PUSH/FLOW DIVERGENCE - price advancing while delta bleeds means the move is
+// being absorbed, not driven. It is the tell that precedes a stall or reversal
+// and it deserves its own line rather than being buried inside a blended score.
+pf_diverge = (push_st > 0.15 and flow_st < -0.08) or (push_st < -0.15 and flow_st > 0.08)
+pf_note = pf_diverge ? (push_st > 0 ? "DIVERGENCE - price up, flow down (absorption)" : "DIVERGENCE - price down, flow up (accumulation)") : (push_st > 0 and flow_st > 0) ? "Aligned up" : (push_st < 0 and flow_st < 0) ? "Aligned down" : "Neutral"
+pf_col = pf_diverge ? col_shift : (push_st > 0 and flow_st > 0) ? col_buy : (push_st < 0 and flow_st < 0) ? col_sell : col_mix
+
+
+// ===========================================================================
+// TAPE ENGINE - the two volume reads that actually change a scalp decision
+//
+// [1] RVOL (relative volume by TIME OF DAY)
+//     "Volume vs the last 20 bars" is nearly useless intraday, because gold at
+//     3am ALWAYS has low volume and 6:30am ALWAYS spikes. A 20-bar average just
+//     re-learns the time of day. What matters is: is participation unusual FOR
+//     THIS HOUR? Cumulative session volume is compared against what this same
+//     point in the session normally carries, averaged over prior sessions.
+//     Heavy tape = breakouts carry. Dead tape = levels hold and breaks fail.
+//
+// [2] EFFORT vs RESULT
+//     Volume is effort, price movement is result. The ratio tells you what the
+//     tape is doing with its effort:
+//       heavy volume + no progress  = ABSORBING  -> the level is holding
+//       heavy volume + progress     = DRIVING    -> the move has backing
+//       light volume + progress     = THIN       -> a vacuum move, it reverses
+//     The THIN case is the one nothing else in this indicator was catching:
+//     price travelling on no participation is a move to fade, not to chase.
+// ===========================================================================
+
+// --- bar index within the session ---
+var int bod = 0
+bod := newDay ? 0 : bod + 1
+int vidx = math.min(bod, 1439)   // v2.2 [R1]: was 599; a 1m Globex session is 1380 bars
+
+var float cum_vol = 0.0
+cum_vol := newDay ? nz(volume, 0.0) : cum_vol + nz(volume, 0.0)
+
+var float[] VP_AVG = array.new_float(1440, 0.0)
+var int[]   VP_N   = array.new_int(1440, 0)
+
+// Read the prior-session average BEFORE folding today into it
+float vp_prior = array.get(VP_AVG, vidx)
+int   vp_n     = array.get(VP_N, vidx)
+rvol = vp_n > 0 and vp_prior > 0 ? cum_vol / vp_prior : na
+
+if barstate.isconfirmed
+    array.set(VP_AVG, vidx, vp_n > 0 ? (vp_prior * vp_n + cum_vol) / (vp_n + 1) : cum_vol)
+    array.set(VP_N,   vidx, math.min(vp_n + 1, 20))
+
+tape_heavy = not na(rvol) and rvol >= 1.5
+tape_dead  = not na(rvol) and rvol < 0.70
+rvol_str = na(rvol) ? "building history" : str.tostring(rvol, "0.00") + "x  " + (rvol >= 1.5 ? "HEAVY - moves carry" : rvol >= 1.0 ? "Normal" : rvol >= 0.70 ? "Light" : "DEAD - fade breakouts")
+rvol_col = na(rvol) ? txt_lo : rvol >= 1.5 ? col_buy : rvol >= 1.0 ? col_mix : rvol >= 0.70 ? col_amber : col_sell
+
+// --- EFFORT vs RESULT over a short window ---
+int eff_n = 5
+float progress = math.abs(close - nz(close[eff_n], close)) / atr_sf
+float vol_win  = math.sum(nz(volume, 0.0), eff_n)
+float vol_norm = nz(vol_avg) > 0 ? vol_win / (vol_avg * eff_n) : 1.0
+int   eff_dir  = close > nz(close[eff_n], close) ? 1 : -1
+
+bool eff_heavy = vol_norm > 1.20
+bool eff_move  = progress > 0.35
+
+effort_str = eff_heavy and not eff_move ? "ABSORBING - effort, no progress" : eff_heavy and eff_move ? (eff_dir > 0 ? "DRIVING UP - volume behind it" : "DRIVING DOWN - volume behind it") : not eff_heavy and eff_move ? "THIN - moving on no volume" : "Quiet"
+effort_col = eff_heavy and not eff_move ? col_shift : eff_heavy and eff_move ? (eff_dir > 0 ? col_buy : col_sell) : not eff_heavy and eff_move ? col_amber : txt_lo
+
+tape_absorbing = eff_heavy and not eff_move
+tape_driving   = eff_heavy and eff_move
+tape_thin      = not eff_heavy and eff_move
+
+
+// ===========================================================================
+// 7. PER-LEVEL STATE
+// ===========================================================================
+// Control codes: 2 BUY, 1 ->BUY (shifting up), 0 MIXED, -1 ->SELL, -2 SELL, 9 DIST
+var float[] HOLD_ST = array.new_float(NL, 0.0)
+var float[] HOLD_LT = array.new_float(NL, 0.0)
+var float[] DLT     = array.new_float(NL, 0.0)
+var float[] DEF     = array.new_float(NL, 0.0)
+var bool[]  TESTED  = array.new_bool(NL, false)
+var bool[]  INBAND  = array.new_bool(NL, false)
+var int[]   TOUCH   = array.new_int(NL, 0)
+var int[]   SIDE    = array.new_int(NL, 0)
+var int[]   XAGE    = array.new_int(NL, 9999)
+var int[]   XDIR    = array.new_int(NL, 0)
+var int[]   STATE   = array.new_int(NL, 0)
+// -- LEVEL BEHAVIOUR --------------------------------------------------------
+// STATE only ever described WHICH SIDE price sat on. These describe what price
+// actually DID at the level, which is the language a level is read in.
+var int[]   BEH     = array.new_int(NL, 0)
+var int[]   SWP     = array.new_int(NL, 0)     // last sweep direction
+var int[]   SWPAGE  = array.new_int(NL, 9999)
+var int[]   FAILD   = array.new_int(NL, 0)     // last failed-break direction
+var int[]   FAILAGE = array.new_int(NL, 9999)
+var int[]   REJ     = array.new_int(NL, 0)     // v2.3: last rejection direction (+1 refused from below / -1 refused from above)
+var int[]   REJAGE  = array.new_int(NL, 9999)  // v2.3: bars since that rejection
+var bool[]  REJDEAD = array.new_bool(NL, false) // v2.3: rejection invalidated by a newer contradictory cross
+var float[] XCNT    = array.new_float(NL, 0.0) // decaying crossing count
+var int[]   TCHAGE  = array.new_int(NL, 9999)  // bars since last in-band
+var float[] SC_ST   = array.new_float(NL, 0.0)
+var float[] SC_LT   = array.new_float(NL, 0.0)
+var int[]   CTL_ST  = array.new_int(NL, 0)
+var int[]   CTL_LT  = array.new_int(NL, 0)
+var float[] SCORE   = array.new_float(NL, 0.0)
+var float[] PREVSC  = array.new_float(NL, 0.0)
+var int[]   FLIPA   = array.new_int(NL, 9999)
+
+// -- ROLLING LEVELS ---------------------------------------------------------
+// PDH and Asia High sit still all session. The 4H / 1H / 30m opens RESET to a
+// brand-new price every period. Without special handling a fresh 30m open
+// silently inherits the previous one's acceptance, delta and defense history,
+// so the engine would report confident control over a level that did not exist
+// sixty seconds ago. Rolling levels get their state wiped on every roll, and
+// are held back from scoring until they have enough bars to mean anything.
+var bool[]  L_ROLL = array.new_bool(NL, false)
+array.set(L_ROLL, 13, true)
+array.set(L_ROLL, 14, true)
+array.set(L_ROLL, 15, true)
+array.set(L_ROLL, 16, true)
+array.set(L_ROLL, 17, true)
+array.set(L_ROLL, 18, true)
+array.set(L_ROLL, 19, true)
+for i = 20 to 26
+    array.set(L_ROLL, i, true)
+
+var float[] L_LAST = array.new_float(NL, na)
+var int[]   L_AGE  = array.new_int(NL, 0)
+
+// BUGFIX: roll_min_age was a flat bar count, so on a 15m chart a 30m open
+// (which lives only 2 bars) could NEVER age out of "NEW". Minimum age now
+// scales to each level's own period, then clamps to the user setting.
+var float[] L_PERIOD = array.new_float(NL, 0.0)
+array.set(L_PERIOD, 13, 240.0)
+array.set(L_PERIOD, 14, 60.0)
+array.set(L_PERIOD, 15, 30.0)
+array.set(L_PERIOD, 16, 15.0)
+array.set(L_PERIOD, 17, 10080.0)
+array.set(L_PERIOD, 18, 10080.0)
+array.set(L_PERIOD, 19, 10080.0)
+array.set(L_PERIOD, 20, 10080.0)
+for i = 21 to 26
+    array.set(L_PERIOD, i, 43200.0)
+
+// v2.3 display tiers, from the registry's own source groups (section 5):
+// 3 = weekly (PWH / PWL / Week Open), 2 = daily (prev-day set, Daily Open,
+// VWAP), 1 = session (Asia / London ranges, the session opens, IB, and the
+// rolling opens). Display only - L_IMP still drives every score, the board
+// weighting and the plan, exactly as before.
+var int[] L_TIER = array.new_int(NL, 1)
+array.set(L_TIER, 0, 2)
+array.set(L_TIER, 1, 2)
+array.set(L_TIER, 2, 2)
+array.set(L_TIER, 3, 2)
+array.set(L_TIER, 12, 2)
+array.set(L_TIER, 17, 3)
+array.set(L_TIER, 18, 3)
+array.set(L_TIER, 19, 3)
+for i = 20 to 26
+    array.set(L_TIER, i, 3)
+
+// Roll detection is TIME based, not price based. Two consecutive 30m bars can
+// open on the identical tick in a quiet market, and a price-change test would
+// silently miss that roll and carry stale state into the new period.
+// ta.change(time(tf)) cannot miss it.
+roll_4h = ta.change(time("240")) != 0
+roll_1h = ta.change(time("60"))  != 0
+roll_30 = ta.change(time("30"))  != 0
+roll_15 = ta.change(time("15"))  != 0
+roll_w  = ta.change(time("W"))   != 0
+
+var bool[] L_ROLLNOW = array.new_bool(NL, false)
+array.set(L_ROLLNOW, 13, roll_4h)
+array.set(L_ROLLNOW, 14, roll_1h)
+array.set(L_ROLLNOW, 15, roll_30)
+array.set(L_ROLLNOW, 16, roll_15)
+array.set(L_ROLLNOW, 17, roll_w)
+array.set(L_ROLLNOW, 18, roll_w)
+array.set(L_ROLLNOW, 19, roll_w)
+array.set(L_ROLLNOW, 20, roll_w)
+for i = 21 to 26
+    array.set(L_ROLLNOW, i, roll_m)
+
+for i = 0 to NL - 1
+    float pxn = array.get(L_PX, i)
+    if array.get(L_ROLL, i)
+        float lastp = array.get(L_LAST, i)
+        bool rolled = array.get(L_ROLLNOW, i)
+        if rolled or (not na(pxn) and na(lastp))
+            array.set(HOLD_ST, i, 0.0)
+            array.set(HOLD_LT, i, 0.0)
+            array.set(DLT,     i, 0.0)
+            array.set(DEF,     i, 0.0)
+            array.set(SIDE,    i, 0)
+            array.set(XAGE,    i, 9999)
+            array.set(XDIR,    i, 0)
+            array.set(STATE,   i, 0)
+            array.set(TESTED,  i, false)
+            array.set(INBAND,  i, false)
+            array.set(TOUCH,   i, 0)
+            array.set(PREVSC,  i, 0.0)
+            array.set(L_AGE,   i, 0)
+        else
+            array.set(L_AGE, i, array.get(L_AGE, i) + 1)
+        array.set(L_LAST, i, pxn)
+    else
+        array.set(L_AGE, i, math.min(array.get(L_AGE, i) + 1, 99999))
+
+if newDay
+    for i = 0 to NL - 1
+        array.set(TESTED, i, false)
+        array.set(TOUCH,  i, 0)
+
+for i = 0 to NL - 1
+    float px = array.get(L_PX, i)
+    if na(px) or px == 0
+        array.set(HOLD_ST, i, array.get(HOLD_ST, i) * 0.95)
+        array.set(HOLD_LT, i, array.get(HOLD_LT, i) * 0.98)
+        array.set(DLT,     i, array.get(DLT,     i) * 0.95)
+        array.set(DEF,     i, array.get(DEF,     i) * 0.98)
+        array.set(STATE,   i, 0)
+    else
+        // ---- HOLD: volume-weighted possession ----
+        float inc = (close > px ? 1.0 : -1.0) * vol_w
+        array.set(HOLD_ST, i, nz(array.get(HOLD_ST, i)) * (1 - a_st) + nz(inc) * a_st)
+        array.set(HOLD_LT, i, nz(array.get(HOLD_LT, i)) * (1 - a_lt) + nz(inc) * a_lt)
+
+        // ---- Delta inside the fight zone only ----
+        bool at_lvl = low <= px + band and high >= px - band
+        if at_lvl
+            array.set(DLT, i, nz(array.get(DLT, i)) * (1 - a_st) + nz(delta_n) * a_st)
+            array.set(TESTED, i, true)
+            if not array.get(INBAND, i)
+                array.set(TOUCH, i, array.get(TOUCH, i) + 1)
+        else
+            array.set(DLT, i, array.get(DLT, i) * 0.995)
+        array.set(INBAND, i, at_lvl)
+
+        // ---- Defense events ----
+        bool bdef = low  < px and close > px and open >= px
+        bool sdef = high > px and close < px and open <= px
+        float dv = array.get(DEF, i) * 0.99 + (bdef ? 1.0 : 0.0) - (sdef ? 1.0 : 0.0)
+        array.set(DEF, i, f_clamp(dv, -3.0, 3.0))
+
+        // v2.3 [FIX-FAIL]: capture the PRIOR cross state before this bar's
+        // cross overwrites it. The failed-break test further down must judge
+        // the break that just ended, not the one that just started.
+        int xd_prev = array.get(XDIR, i)
+        int xa_prev = array.get(XAGE, i)
+
+        // ---- Cross tracking ----
+        int ns = close > px ? 1 : -1
+        int os = array.get(SIDE, i)
+        if os != 0 and ns != os
+            array.set(XDIR, i, ns)
+            array.set(XAGE, i, 0)
+        else
+            array.set(XAGE, i, math.min(array.get(XAGE, i) + 1, 9999))
+        array.set(SIDE, i, ns)
+
+        // ---- Interaction state (legacy position read, kept for the plan) ----
+        int xa = array.get(XAGE, i)
+        int xd = array.get(XDIR, i)
+        int stt = at_lvl ? 1 : xa < confirm_bars and xd != 0 ? (xd > 0 ? 2 : 3) : xa >= confirm_bars and xa <= 60 and xd != 0 ? (xd > 0 ? 4 : 5) : (ns > 0 ? 6 : 7)
+        array.set(STATE, i, stt)
+
+        // === LEVEL BEHAVIOUR ===============================================
+        // SWEEP: wick pierces the level and price closes back on the origin
+        // side. Liquidity taken and refused - the single most tradeable event
+        // at any level, and the old STATE machine had no name for it at all.
+        bool sw_up = high > px and close < px and open < px
+        bool sw_dn = low  < px and close > px and open > px
+        if sw_up
+            array.set(SWP, i, 1)
+            array.set(SWPAGE, i, 0)
+        else if sw_dn
+            array.set(SWP, i, -1)
+            array.set(SWPAGE, i, 0)
+        else
+            array.set(SWPAGE, i, math.min(array.get(SWPAGE, i) + 1, 9999))
+
+        // ---- REJECTION (v2.3): the wick defence, tracked per level ----
+        // The same geometry as the in-play bar trigger in section 10: the bar
+        // is at the level (inside the band), pierces it, and closes back on
+        // the origin side inside the same bar, with the piercing wick at
+        // least wick_pct of the bar's range. A sweep pierces and fails on
+        // open/close position alone; a rejection is defined by the WICK
+        // SHARE - that is the whole difference, and the two can share a bar.
+        // (Wicks are computed here because rng_bar / up_wick are declared in
+        // section 10, after this loop - same values, local names.)
+        float wk_rng = math.max(high - low, syminfo.mintick)
+        float wk_up  = high - math.max(open, close)
+        float wk_dn  = math.min(open, close) - low
+        bool rj_up = at_lvl and low  < px and close > px and wk_dn >= wk_rng * wick_pct
+        bool rj_dn = at_lvl and high > px and close < px and wk_up >= wk_rng * wick_pct
+        if rj_up
+            array.set(REJ, i, 1)
+            array.set(REJAGE, i, 0)
+            array.set(REJDEAD, i, false)
+        else if rj_dn
+            array.set(REJ, i, -1)
+            array.set(REJAGE, i, 0)
+            array.set(REJDEAD, i, false)
+        else
+            array.set(REJAGE, i, math.min(array.get(REJAGE, i) + 1, 9999))
+
+        // A rejection is a timestamped EVENT, not a standing state: it ages
+        // out on event_life (the cascade below) and it INVALIDATES - a newer
+        // cross closing against the defence kills it immediately and for
+        // good, however young it is. A cross is newer than the rejection
+        // when XAGE < REJAGE.
+        if array.get(REJ, i) != 0 and not array.get(REJDEAD, i)
+            int  rjd = array.get(REJ, i)
+            int  xdd = array.get(XDIR, i)
+            bool contra = (rjd > 0 and xdd < 0) or (rjd < 0 and xdd > 0)
+            if contra and array.get(XAGE, i) < array.get(REJAGE, i)
+                array.set(REJDEAD, i, true)
+
+        // FAILED BREAK: closed through, then closed back before it could be
+        // confirmed. A trap for whoever chased the break.
+        if os != 0 and ns != os
+            if xd_prev != 0 and xa_prev < confirm_bars
+                array.set(FAILD, i, xd_prev)
+                array.set(FAILAGE, i, 0)
+            array.set(XCNT, i, array.get(XCNT, i) + 1.0)
+        array.set(FAILAGE, i, array.get(FAILAGE, i) + (array.get(FAILAGE, i) < 9999 ? 1 : 0))
+        array.set(XCNT, i, array.get(XCNT, i) * 0.93)
+
+        // Touch memory, for telling a defended level from a quiet one
+        if at_lvl
+            array.set(TCHAGE, i, 0)
+        else
+            array.set(TCHAGE, i, math.min(array.get(TCHAGE, i) + 1, 9999))
+
+        int   swa  = array.get(SWPAGE, i)
+        int   fla  = array.get(FAILAGE, i)
+        int   rja  = array.get(REJAGE, i)
+        int   tca  = array.get(TCHAGE, i)
+        float dist_lv = math.abs(close - px) / atr_ref
+        bool  choppy  = array.get(XCNT, i) >= chop_thresh
+        bool  defended = tca >= 2 and tca <= 20 and dist_lv > 0.35 and xa > tca
+
+        // Priority cascade - most actionable read wins.
+        int bh = 0
+        if choppy
+            bh := 12                                            // CHOP - stand down
+        else if swa <= event_life
+            bh := array.get(SWP, i) > 0 ? 2 : 3                 // SWEEP up / down
+        else if fla <= event_life
+            bh := array.get(FAILD, i) > 0 ? 4 : 5               // FAIL up / down
+        else if rej_lvl and rja <= event_life and not array.get(REJDEAD, i)
+            bh := array.get(REJ, i) > 0 ? 15 : 16               // v2.3 REJECT+ (defended) / REJECT- (refused)
+        else if at_lvl
+            bh := 1                                             // TESTING right now
+        else if xd != 0 and xa >= accept_bars
+            bh := xd > 0 ? 8 : 9                                // ACCEPTED above / below
+        else if xd != 0 and xa >= confirm_bars
+            bh := xd > 0 ? 6 : 7                                // RECLAIMED / LOST
+        else if defended
+            bh := ns > 0 ? 10 : 11                              // HOLD as support / resist
+        else if not array.get(TESTED, i)
+            bh := 0                                             // UNTESTED
+        else
+            bh := ns > 0 ? 13 : 14                              // quiet support / resist
+        array.set(BEH, i, bh)
+
+// --- Composite scores + control classification (HOLD vs PUSH vs FLOW) ---
+for i = 0 to NL - 1
+    float px = array.get(L_PX, i)
+    float sc_st = 0.0
+    float sc_lt = 0.0
+    int   c_st  = 0
+    int   c_lt  = 0
+    float comp  = 0.0
+
+    if not na(px)
+        float dist_a = math.abs(close - px) / atr_ref
+        bool  distant = dist_a > distant_atr
+
+        float h_st = f_clamp(array.get(HOLD_ST, i) / 1.5, -1.0, 1.0)
+        float h_lt = f_clamp(array.get(HOLD_LT, i) / 1.5, -1.0, 1.0)
+        float dl   = f_clamp(array.get(DLT, i) * 2.0, -1.0, 1.0)
+        float df   = f_clamp(array.get(DEF, i) / 3.0, -1.0, 1.0)
+
+        // At-level delta reinforces FLOW when price is actually in the zone
+        float flow_eff_st = array.get(INBAND, i) ? f_clamp((flow_st + dl) / 1.6, -1.0, 1.0) : flow_st
+
+        sc_st := (w_hold * h_st + w_push * push_st + w_flow * flow_eff_st) / wsum_c
+        sc_lt := (w_hold * h_lt + w_push * push_lt + w_flow * flow_lt) / wsum_c
+
+        // ---- SHIFT DETECTION: possession and momentum disagree ----
+        int holder_st = h_st >  0.10 ? 1 : h_st < -0.10 ? -1 : 0
+        int mover_st  = push_st >  shift_sens ? 1 : push_st < -shift_sens ? -1 : 0
+        int holder_lt = h_lt >  0.10 ? 1 : h_lt < -0.10 ? -1 : 0
+        int mover_lt  = push_lt >  shift_sens ? 1 : push_lt < -shift_sens ? -1 : 0
+
+        // A rolling open only minutes old has no acceptance history yet.
+        // Reporting confident control over it would be inventing information.
+        float per_bars = array.get(L_PERIOD, i) / tf_min
+        int   min_age   = math.max(1, math.min(roll_min_age, int(math.round(per_bars * 0.15))))
+        bool too_new = array.get(L_ROLL, i) and array.get(L_AGE, i) < min_age
+        if too_new
+            c_st := 8
+            c_lt := 8
+        else if distant
+            c_st := 9
+            c_lt := 9
+        else
+            // Lean tier removes the knife-edge: a 0.21 score against a 0.22
+            // threshold is not "no opinion", it is a weak buy. Reporting it
+            // as blank threw away real information.
+            float lean_t = ctrl_thresh * lean_ratio
+            c_st := holder_st != 0 and mover_st != 0 and holder_st != mover_st ? mover_st : sc_st >= ctrl_thresh ? 2 : sc_st <= -ctrl_thresh ? -2 : sc_st >= lean_t ? 3 : sc_st <= -lean_t ? -3 : 0
+            c_lt := holder_lt != 0 and mover_lt != 0 and holder_lt != mover_lt ? mover_lt : sc_lt >= ctrl_thresh ? 2 : sc_lt <= -ctrl_thresh ? -2 : sc_lt >= lean_t ? 3 : sc_lt <= -lean_t ? -3 : 0
+
+        float raw  = 0.55 * sc_st + 0.25 * sc_lt + 0.12 * dl + 0.08 * df
+        float damp = distant ? math.max(0.25, distant_atr / dist_a) : 1.0
+        comp := raw * damp
+
+    array.set(SC_ST,  i, sc_st)
+    array.set(SC_LT,  i, sc_lt)
+    array.set(CTL_ST, i, c_st)
+    array.set(CTL_LT, i, c_lt)
+    array.set(SCORE,  i, comp)
+
+    float prev = array.get(PREVSC, i)
+    bool flip = (prev <= -ctrl_thresh and comp >= ctrl_thresh) or (prev >= ctrl_thresh and comp <= -ctrl_thresh)
+    array.set(FLIPA, i, flip ? 0 : math.min(array.get(FLIPA, i) + 1, 9999))
+    array.set(PREVSC, i, comp)
+
+f_ctl_str(c) => c == 8 ? "NEW" : c == 9 ? "DIST" : c == 2 ? "BUY" : c == -2 ? "SELL" : c == 3 ? "buy" : c == -3 ? "sell" : c == 1 ? "->BUY" : c == -1 ? "->SELL" : "--"
+f_ctl_col(c) => c == 8 ? col_cyan : c == 9 ? col_dist : c == 2 ? col_buy : c == -2 ? col_sell : c == 3 ? color.new(#26D96B, 42) : c == -3 ? color.new(#FF4D4D, 42) : c == 1 ? col_shift : c == -1 ? col_shift : col_mix
+// Behaviour vocabulary. Each name maps to one action, which is the whole point:
+// you should not have to interpret it, you should just read it.
+f_beh_str(b) => b == 12 ? "CHOP" : b == 2 ? "SWEEP UP" : b == 3 ? "SWEEP DN" : b == 4 ? "FAIL UP" : b == 5 ? "FAIL DN" : b == 1 ? "TESTING" : b == 8 ? "ACCEPT+" : b == 9 ? "ACCEPT-" : b == 6 ? "RECLAIM" : b == 7 ? "LOST" : b == 10 ? "HOLD+" : b == 11 ? "HOLD-" : b == 13 ? "support" : b == 14 ? "resist" : b == 15 ? "REJECT+" : b == 16 ? "REJECT-" : "untested"
+// Which way each behaviour points. Sweeps and failed breaks point AGAINST the
+// direction that was rejected: a sweep up means sellers just refused it.
+f_beh_dir(b) => b == 3 or b == 5 or b == 6 or b == 8 or b == 10 or b == 15 ? 1 : b == 2 or b == 4 or b == 7 or b == 9 or b == 11 or b == 16 ? -1 : 0
+f_beh_col(b) => b == 12 ? col_shift : b == 2 or b == 4 or b == 7 or b == 9 ? col_sell : b == 3 or b == 5 or b == 6 or b == 8 ? col_buy : b == 1 ? col_amber : b == 15 or b == 16 ? col_viol : b == 10 ? color.new(#26D96B, 45) : b == 11 ? color.new(#FF4D4D, 45) : b == 13 ? color.new(#26D96B, 60) : b == 14 ? color.new(#FF4D4D, 60) : col_dist
+// How much conviction each behaviour carries on its own
+f_beh_wt(b)  => b == 2 or b == 3 ? 1.0 : b == 4 or b == 5 ? 0.9 : b == 15 or b == 16 ? 0.85 : b == 6 or b == 7 ? 0.8 : b == 8 or b == 9 ? 0.7 : b == 10 or b == 11 ? 0.6 : 0.0
+
+f_st_str(s)  => s == 1 ? "TESTING" : s == 2 ? "BREAK UP" : s == 3 ? "BREAK DN" : s == 4 ? "RECLAIMED" : s == 5 ? "LOST" : s == 6 ? "SUPPORT" : s == 7 ? "RESIST" : "--"
+f_st_col(s)  => s == 1 ? col_shift : s == 2 ? col_buy : s == 4 ? col_buy : s == 3 ? col_sell : s == 5 ? col_sell : s == 6 ? color.new(#26D96B, 50) : s == 7 ? color.new(#FF4D4D, 50) : col_dist
+
+
+
+// ===========================================================================
+// 7b. EVENT MARKERS: removed in v2.5.1 to fit TradingView's compiled-token limit.
+// The v2.3 glyph pool was display only: no level, state, signal, plan, grade,
+// alert or PARITY row read it. The latest event is on the board (Full detail),
+// read from the PARITY EVENTS log (section 15).
+
+// ===========================================================================
+// 8. MULTI-TIMEFRAME ALIGNMENT
+// ===========================================================================
+// Current chart price vs immutable current-period open, NOT EMA trend.
+// A lower-timeframe request on a larger/non-dividing chart is not a complete
+// current-candle observation. Mark that slot UNKNOWN instead of guessing.
+chart_seconds = timeframe.in_seconds()
+f_open_state(float period_open, int slot_seconds) =>
+    bool supported = chart.is_standard and not na(chart_seconds) and chart_seconds > 0 and chart_seconds <= slot_seconds and slot_seconds % chart_seconds == 0
+    int state = not supported or na(close) or na(period_open) ? na : close > period_open ? 1 : close < period_open ? -1 : 0
+    state
+
+f_open_sign(int state) =>
+    na(state) ? "?" : state > 0 ? "+" : state < 0 ? "-" : "="
+
+s15  = f_open_state(h15_open, 900)
+s60  = f_open_state(h1_open, 3600)
+s240 = f_open_state(h4_open, 14400)
+s30  = f_open_state(h30_open, 1800)
+align_known = not na(s15) and not na(s60) and not na(s240)
+align_bull = (nz(s15) > 0 ? 1 : 0) + (nz(s60) > 0 ? 1 : 0) + (nz(s240) > 0 ? 1 : 0)
+align_net = align_known ? s15 + s60 + s240 : na
+align_abs = math.abs(align_net)
+align_prev = align_abs[10]
+converging = align_known and not na(align_prev) and align_abs > align_prev
+aligned_full = align_known and align_abs == 3
+
+// DRIVER uses the same open-possession rule on 4H / 1H / 30m (+ optional 15m).
+// Neutral and unavailable slots must never be counted as bearish.
+drive_n = show_15o ? 4 : 3
+drive_known = not na(s240) and not na(s60) and not na(s30) and (not show_15o or not na(s15))
+drive_bull = (nz(s240) > 0 ? 1 : 0) + (nz(s60) > 0 ? 1 : 0) + (nz(s30) > 0 ? 1 : 0) + (show_15o and nz(s15) > 0 ? 1 : 0)
+drive_bear = (nz(s240) < 0 ? 1 : 0) + (nz(s60) < 0 ? 1 : 0) + (nz(s30) < 0 ? 1 : 0) + (show_15o and nz(s15) < 0 ? 1 : 0)
+drive_str = "4H" + f_open_sign(s240) + " 1H" + f_open_sign(s60) + " 30m" + f_open_sign(s30) + (show_15o ? " 15m" + f_open_sign(s15) : "")
+drive_note = not drive_known ? "UNKNOWN" : drive_bull == drive_n ? "BUYERS DRIVING" : drive_bear == drive_n ? "SELLERS DRIVING" : drive_bull == 0 and drive_bear == 0 ? "AT OPENS" : "MIXED OPENS"
+drive_col = not drive_known ? col_amber : drive_bull == drive_n ? col_buy : drive_bear == drive_n ? col_sell : col_shift
+
+align_str = "15m" + f_open_sign(s15) + " 1h" + f_open_sign(s60) + " 4h" + f_open_sign(s240)
+align_note = not align_known ? "UNKNOWN" : aligned_full ? (align_net > 0 ? "ALIGNED BULL" : "ALIGNED BEAR") : converging ? "CONVERGING" : align_abs == 0 ? "FLAT / SPLIT" : "MIXED"
+align_col = not align_known ? col_amber : aligned_full ? (align_net > 0 ? col_buy : col_sell) : converging ? col_cyan : col_amber
+
+
+// ===========================================================================
+// 9. BOARD BIAS
+// ===========================================================================
+float bnum = 0.0
+float bden = 0.0
+float stsum = 0.0
+float ltsum = 0.0
+float wsum = 0.0
+int nb = 0
+int nsl = 0
+int nsh = 0
+int nx = 0
+
+for i = 0 to NL - 1
+    float px = array.get(L_PX, i)
+    if not na(px) and array.get(L_ON, i)
+        float prox = 1.0 / (1.0 + math.abs(close - px) / atr_ref)
+        float w = array.get(L_IMP, i) * prox
+        bnum  := bnum + nz(array.get(SCORE, i)) * w
+        bden  := bden + w
+        stsum := stsum + nz(array.get(SC_ST, i)) * w
+        ltsum := ltsum + nz(array.get(SC_LT, i)) * w
+        wsum  := wsum + w
+        int c = array.get(CTL_ST, i)
+        if c == 2
+            nb := nb + 1
+        else if c == -2
+            nsl := nsl + 1
+        else if c == 1 or c == -1
+            nsh := nsh + 1
+        else
+            nx := nx + 1
+
+bias_score = bden > 0 ? bnum / bden : 0.0
+st_bias = wsum > 0 ? stsum / wsum : 0.0
+lt_bias = wsum > 0 ? ltsum / wsum : 0.0
+
+// -- DRIVER EXHAUSTION ------------------------------------------------------
+// DRIVER measures possession of the period opens. CONTROL measures momentum
+// and flow. When every open is held but flow has gone flat or negative, the
+// move off those opens is running out of fuel - that gap is the exhaustion
+// tell, and it was previously invisible because the two rows never spoke.
+//
+// ORDERING NOTE: this MUST live after st_bias exists. It was previously placed
+// up in the DRIVER CASCADE block, which reads st_bias ~40 lines before Pine
+// declares it - an undeclared-identifier error that stopped the whole script
+// from compiling.
+drive_exhaust = drive_known and ((drive_bull == drive_n and (st_bias < 0 or flow_st < -0.10)) or (drive_bear == drive_n and (st_bias > 0 or flow_st > 0.10)))
+drive_tag = drive_exhaust ? (drive_bull == drive_n ? "opens held, flow fading" : "opens lost, flow turning") : drive_note
+
+// Board-level shift: possession leans one way, momentum the other
+board_holder = st_bias > 0.05 ? 1 : st_bias < -0.05 ? -1 : 0
+board_mover  = push_st > shift_sens ? 1 : push_st < -shift_sens ? -1 : 0
+board_shift  = board_holder != 0 and board_mover != 0 and board_holder != board_mover
+
+bias_str = board_shift ? (board_mover > 0 ? "SHIFTING TO BUYERS" : "SHIFTING TO SELLERS") : bias_score >= 0.45 ? "STRONG BUYER CONTROL" : bias_score >= ctrl_thresh ? "BUYERS IN CONTROL" : bias_score <= -0.45 ? "STRONG SELLER CONTROL" : bias_score <= -ctrl_thresh ? "SELLERS IN CONTROL" : bias_score >= ctrl_thresh * lean_ratio ? "BUYERS LEANING" : bias_score <= -ctrl_thresh * lean_ratio ? "SELLERS LEANING" : "CONTESTED"
+bias_col = board_shift ? col_shift : bias_score >= ctrl_thresh ? col_buy : bias_score <= -ctrl_thresh ? col_sell : bias_score >= ctrl_thresh * lean_ratio ? color.new(#26D96B, 40) : bias_score <= -ctrl_thresh * lean_ratio ? color.new(#FF4D4D, 40) : col_amber
+bias_bg  = board_shift ? col_shbg : bias_score >= ctrl_thresh ? col_grnbg : bias_score <= -ctrl_thresh ? col_redbg : col_ambbg
+
+st_str = board_shift ? (board_mover > 0 ? "->BUYERS" : "->SELLERS") : st_bias >= ctrl_thresh ? "BUYERS" : st_bias <= -ctrl_thresh ? "SELLERS" : st_bias >= ctrl_thresh * lean_ratio ? "buyers lean" : st_bias <= -ctrl_thresh * lean_ratio ? "sellers lean" : "MIXED"
+lt_str = lt_bias >= ctrl_thresh ? "BUYERS" : lt_bias <= -ctrl_thresh ? "SELLERS" : lt_bias >= ctrl_thresh * lean_ratio ? "buyers lean" : lt_bias <= -ctrl_thresh * lean_ratio ? "sellers lean" : "MIXED"
+st_col = board_shift ? col_shift : st_bias >= ctrl_thresh ? col_buy : st_bias <= -ctrl_thresh ? col_sell : col_amber
+lt_col = lt_bias >= ctrl_thresh ? col_buy : lt_bias <= -ctrl_thresh ? col_sell : col_amber
+
+
+// ===========================================================================
+// 10. TRADE PLAN  -  STRUCTURAL ENTRY MODEL
+//
+// v2.1 entered "at market" wherever price happened to be, and anchored the
+// stop to current price rather than to structure. That produced nonsense like
+// "LONG at market, 9 points below a resistance level sellers control, stop an
+// arbitrary 0.4 ATR under spot, target projected straight THROUGH that
+// resistance." Every number was internally consistent and the trade was junk.
+//
+// v2.2 rules, in plain terms:
+//   1. Every entry sits AT a level. Never mid-range, never "wherever we are".
+//   2. Every stop sits on the far side of that level. Structure, not padding.
+//   3. Every target is the NEXT REAL LEVEL. A projection is only used when
+//      there is genuinely no level left in that direction, and it can never
+//      project through one.
+//   4. Direction depends on WHICH SIDE of the level price is on and whether
+//      we expect it to hold or break - not merely on who "controls" it.
+// ===========================================================================
+
+int   ip_i  = -1
+float ip_px = na
+float ip_d  = 1e12
+for i = 0 to NL - 1
+    float px = array.get(L_PX, i)
+    if not na(px) and array.get(L_ON, i)
+        float d = math.abs(close - px)
+        if d < ip_d
+            ip_d  := d
+            ip_i  := i
+            ip_px := px
+
+bool engaged = ip_i >= 0 and ip_d <= atr_ref * engage_atr
+
+// --- Approach velocity toward the level in play ---
+float ip_dprev = 1e12
+if ip_i >= 0 and not na(ip_px)
+    ip_dprev := math.abs(nz(close[3], close) - ip_px)
+approach_v = (ip_i >= 0 and ip_dprev < 1e11) ? (ip_dprev - ip_d) / atr_ref / 3.0 : 0.0
+fast_approach = approach_v > 0.05 and vol_exp
+slow_approach = approach_v > 0 and approach_v <= 0.025
+approach_str = ip_i < 0 ? "--" : fast_approach ? "FAST - favours BREAK" : slow_approach ? "SLOW - favours REJECT" : approach_v > 0 ? "Closing" : "Moving away"
+approach_col = fast_approach ? col_cyan : slow_approach ? col_amber : txt_lo
+
+int   ip_state = ip_i >= 0 ? array.get(STATE, math.max(ip_i, 0)) : 0
+int   ip_ctl   = ip_i >= 0 ? array.get(CTL_ST, math.max(ip_i, 0)) : 0
+float ip_sc    = ip_i >= 0 ? array.get(SC_ST, math.max(ip_i, 0)) : 0.0
+
+// -- SETUP CLASSIFICATION ---------------------------------------------------
+// 0 none | 1 BOUNCE LONG | 2 BOUNCE SHORT | 3 BREAK LONG | 4 BREAK SHORT
+// 5 RETEST LONG | 6 RETEST SHORT
+bool lvl_above = ip_i >= 0 and not na(ip_px) and ip_px > close
+bool lvl_below = ip_i >= 0 and not na(ip_px) and ip_px < close
+
+// BUGFIX: the old classifier demanded fast_approach (velocity AND volume
+// expansion) before it would call a break. That threw away the single highest
+// conviction setup on the board: a resistance level reading ->BUY while the
+// driver cascade is 4/4, timeframes are aligned, and flow is positive. Sellers
+// hold the level, buyers are taking it, everything agrees - and the tool said
+// "stand down". A shift AT the level in the direction everything else points
+// is a breakout, not a reason to stand aside.
+bool board_up = align_known and drive_known and align_net > 0 and drive_bull >= drive_n - 1
+bool board_dn = align_known and drive_known and align_net < 0 and drive_bear >= drive_n - 1
+bool bulls_taking = ip_ctl == 1 or ip_ctl == 2
+bool bears_taking = ip_ctl == -1 or ip_ctl == -2
+bool bulls_hold   = ip_ctl >= 1
+bool bears_hold   = ip_ctl <= -1
+
+// -- BEHAVIOUR-LED SETUP SELECTION ------------------------------------------
+// What price DID at the level now leads, and control/flow confirms. Previously
+// the classifier only knew which side price was on, so a sweep - the cleanest
+// signal a level produces - was invisible to it.
+int   ip_beh = ip_i >= 0 ? array.get(BEH, math.max(ip_i, 0)) : 0
+int   beh_dir = f_beh_dir(ip_beh)
+bool  beh_chop = ip_beh == 12
+
+int setup = 0
+if engaged and not beh_chop and beh_dir != 0
+    // Behaviour points somewhere and the tape is not fighting it
+    bool flow_ok = beh_dir > 0 ? flow_st > -0.15 : flow_st < 0.15
+    if flow_ok and not tape_thin
+        if ip_beh == 2 or ip_beh == 3
+            setup := beh_dir > 0 ? 1 : 2                 // sweep -> fade the rejection
+        else if ip_beh == 4 or ip_beh == 5
+            setup := beh_dir > 0 ? 1 : 2                 // failed break -> trade the trap
+        else if ip_beh == 15 or ip_beh == 16
+            setup := beh_dir > 0 ? 1 : 2                 // v2.3 rejection -> fade the refusal, like a sweep
+        else if ip_beh == 6
+            setup := 5                                   // reclaimed -> buy the retest
+        else if ip_beh == 7
+            setup := 6                                   // lost -> sell the retest
+        else if ip_beh == 8
+            setup := 5                                   // accepted above -> level is support
+        else if ip_beh == 9
+            setup := 6                                   // accepted below -> level is resistance
+        else if ip_beh == 10
+            setup := 1                                   // held as support -> bounce
+        else if ip_beh == 11
+            setup := 2                                   // held as resistance -> fade
+
+// Fall back to the positional classifier only when behaviour is silent
+if engaged and setup == 0 and not beh_chop
+    if lvl_above
+        // Resistance. Either buyers take it, or it rejects them.
+        if bulls_taking and (fast_approach or board_up or flow_st > 0.10)
+            setup := 3                                              // BREAK LONG
+        else if bears_hold or slow_approach
+            setup := 2                                              // FADE SHORT
+    else if lvl_below
+        // Support. Either it holds, or sellers take it.
+        if ip_state == 4 or ip_state == 6
+            if bulls_hold
+                setup := 5                                          // RETEST LONG
+            else if bears_taking and (fast_approach or board_dn)
+                setup := 4                                          // BREAK SHORT
+        else if bears_taking and (fast_approach or board_dn or flow_st < -0.10)
+            setup := 4                                              // BREAK SHORT
+        else if bulls_hold
+            setup := 1                                              // BOUNCE LONG
+
+// ===========================================================================
+// BAR-LEVEL ENTRY TRIGGERS
+// A plan says conditions are aligned. A trigger says THIS BAR did the thing.
+// That distinction is the whole difference between "price is near a level" and
+// an actual entry, and it is what the tool was missing.
+// ===========================================================================
+rng_bar  = math.max(high - low, syminfo.mintick)
+up_wick  = high - math.max(open, close)
+dn_wick  = math.min(open, close) - low
+at_ip    = ip_i >= 0 and not na(ip_px) and low <= ip_px + band and high >= ip_px - band
+
+// Rejection: pierced the level and got refused inside the same bar
+trig_rej_dn = at_ip and high > ip_px and close < ip_px and up_wick >= rng_bar * wick_pct
+trig_rej_up = at_ip and low  < ip_px and close > ip_px and dn_wick >= rng_bar * wick_pct
+// Reclaim: first close back through the level, with volume behind it
+trig_rc_up  = ip_i >= 0 and not na(ip_px) and close > ip_px and nz(close[1], close) <= ip_px and vol_exp
+trig_rc_dn  = ip_i >= 0 and not na(ip_px) and close < ip_px and nz(close[1], close) >= ip_px and vol_exp
+// Absorption: heavy volume, tight range, no progress - someone is soaking it up
+trig_absorb = at_ip and vol_exp and rng_bar < atr_ref * absorb_rng
+
+trig_bull = trig_rej_up or trig_rc_up
+trig_bear = trig_rej_dn or trig_rc_dn
+trig_str  = trig_rej_up ? "REJECTION WICK up" : trig_rej_dn ? "REJECTION WICK down" : trig_rc_up ? "RECLAIM CLOSE up" : trig_rc_dn ? "RECLAIM CLOSE down" : trig_absorb ? "ABSORPTION at level" : "none this bar"
+trig_col  = trig_bull ? col_buy : trig_bear ? col_sell : trig_absorb ? col_cyan : txt_lo
+
+setup_str = setup == 1 ? "BOUNCE LONG" : setup == 2 ? "FADE SHORT" : setup == 3 ? "BREAK LONG" : setup == 4 ? "BREAK SHORT" : setup == 5 ? "RETEST LONG" : setup == 6 ? "RETEST SHORT" : "--"
+plan_dir = setup == 1 or setup == 3 or setup == 5 ? 1 : setup == 2 or setup == 4 or setup == 6 ? -1 : 0
+
+// A level price has sliced back and forth through is not a level, it is noise.
+// Nothing downstream should be allowed to build a plan on it.
+if beh_chop
+    plan_dir := 0
+    setup    := 0
+
+// Never trade into an active shift running against us
+if block_shift and plan_dir != 0
+    if (plan_dir > 0 and ip_ctl == -1) or (plan_dir < 0 and ip_ctl == 1)
+        plan_dir := 0
+        setup    := 0
+
+// -- STRUCTURAL ENTRY + STOP ------------------------------------------------
+// Entry is always pinned to the level. Stop is always on the far side of it.
+float entry_px = na
+float stop_px  = na
+string entry_type = "--"
+if plan_dir != 0 and not na(ip_px)
+    float buf = atr_ref * pb_buffer
+    float stp = atr_ref * stop_atr
+    if setup == 1 or setup == 5
+        entry_px := ip_px + buf                 // buy just above support / reclaimed level
+        stop_px  := ip_px - stp
+        entry_type := close <= entry_px + atr_ref * 0.03 ? "MARKET" : "LIMIT"
+    else if setup == 3
+        entry_px := ip_px + buf                 // buy stop above resistance
+        stop_px  := ip_px - stp
+        entry_type := close >= entry_px ? "MARKET" : "STOP"
+    else if setup == 2 or setup == 6
+        entry_px := ip_px - buf                 // sell just below resistance / lost level
+        stop_px  := ip_px + stp
+        entry_type := close >= entry_px - atr_ref * 0.03 ? "MARKET" : "LIMIT"
+    else if setup == 4
+        entry_px := ip_px - buf                 // sell stop below support
+        stop_px  := ip_px + stp
+        entry_type := close <= entry_px ? "MARKET" : "STOP"
+
+// -- TARGET: the next REAL level beyond entry -------------------------------
+// No minimum-distance filter. If the next level is close, the trade simply has
+// poor R:R and should be reported as such - inventing a farther target that
+// sits beyond untraded resistance is how v2.1 produced a fake 3.0:1.
+float tgt_px = na
+string tgt_nm = "--"
+if plan_dir != 0 and not na(entry_px)
+    float bestgap = 1e12
+    for i = 0 to NL - 1
+        float px = array.get(L_PX, i)
+        if not na(px) and array.get(L_ON, i)
+            float gap = plan_dir > 0 ? px - entry_px : entry_px - px
+            if gap > syminfo.mintick * 4 and gap < bestgap
+                bestgap := gap
+                tgt_px  := px
+                tgt_nm  := array.get(L_NAME, i) + array.get(L_MRG, i)
+
+bool tgt_projected = false
+if plan_dir != 0 and na(tgt_px) and proj_target and not na(entry_px)
+    // Genuinely nothing left in this direction - open air. Only now project.
+    tgt_px := plan_dir > 0 ? entry_px + atr_ref * proj_mult : entry_px - atr_ref * proj_mult
+    tgt_nm := "ATR projection"
+    tgt_projected := true
+
+float risk = na
+float reward = na
+float rr = 0.0
+if plan_dir != 0 and not na(stop_px) and not na(tgt_px) and not na(entry_px)
+    risk   := plan_dir > 0 ? entry_px - stop_px : stop_px - entry_px
+    reward := plan_dir > 0 ? tgt_px - entry_px  : entry_px - tgt_px
+    rr     := risk > 0 ? reward / risk : 0.0
+
+plan_valid = plan_dir != 0 and rr >= min_rr and not na(tgt_px) and not na(stop_px) and reward > 0
+
+// Names kept for downstream compatibility
+is_limit  = entry_type == "LIMIT" or entry_type == "STOP"
+mkt_valid = plan_valid and not is_limit
+pb_valid  = plan_valid and is_limit
+eff_entry = entry_px
+eff_risk  = risk
+eff_rew   = reward
+eff_rr    = rr
+
+// Distance you must wait for before the order fills
+float to_entry = not na(entry_px) ? math.abs(close - entry_px) : na
+// A trigger is required for FILL NOW when enabled: proximity alone is not an
+// entry. Without a trigger the plan still shows, it just says WAIT.
+trig_ok   = not use_trig or (plan_dir > 0 and trig_bull) or (plan_dir < 0 and trig_bear)
+ready_now = not na(to_entry) and to_entry <= atr_ref * 0.05 and trig_ok
+
+// -- GRADE ------------------------------------------------------------------
+float g = 0.0
+if plan_valid
+    g := g + math.min(math.abs(ip_sc) / 0.45, 1.0) * 2.0
+    g := g + (aligned_full and align_net * plan_dir > 0 ? 2.5 : align_abs >= 2 and align_net * plan_dir > 0 ? 1.6 : converging ? 0.8 : 0.0)
+    // R:R is NOT free quality. A higher R:R means a more DISTANT target, and a
+    // more distant target is mechanically less likely to be reached. Scoring
+    // rr linearly upward built a top tier made of the farthest targets - which
+    // is precisely why A setups showed the WORST win rate on the scorecard.
+    // Expectancy peaks in the 2-3 range for level-to-level scalps; past that
+    // the hit rate falls faster than the payoff rises.
+    g := g + (rr <= 1.0 ? 0.0 : rr <= 2.0 ? (rr - 1.0) * 2.0 : rr <= 3.0 ? 2.0 : math.max(2.0 - (rr - 3.0) * 0.6, 0.4))
+    // Conviction now comes from WHAT HAPPENED at the level, not from which
+    // side of it price sits on. A sweep is worth more than a quiet hold.
+    g := g + f_beh_wt(ip_beh) * 2.0
+    g := g + (beh_dir != 0 and beh_dir == plan_dir ? 0.8 : 0.0)
+    g := g + ((plan_dir > 0 and flow_st > 0) or (plan_dir < 0 and flow_st < 0) ? 1.0 : 0.0)
+    // Approach must agree with the setup, not fight it
+    g := g + ((setup == 3 or setup == 4) and fast_approach ? 1.0 : (setup == 1 or setup == 2) and slow_approach ? 1.0 : 0.0)
+    g := g - ((setup == 3 or setup == 4) and slow_approach ? 1.5 : 0.0)
+    g := g - ((setup == 1 or setup == 2) and fast_approach ? 1.0 : 0.0)
+    g := g - (tgt_projected ? 1.0 : 0.0)
+    g := g - (pf_diverge ? 1.0 : 0.0)
+    g := g + ((plan_dir > 0 and trig_bull) or (plan_dir < 0 and trig_bear) ? 1.0 : 0.0)
+    g := g - (trig_absorb and (setup == 3 or setup == 4) ? 1.0 : 0.0)
+    // Tape context. A breakout into a dead tape is the classic failed break,
+    // and a move travelling on no volume is a move that gives itself back.
+    g := g - ((setup == 3 or setup == 4) and tape_dead ? 1.5 : 0.0)
+    g := g + ((setup == 3 or setup == 4) and tape_heavy and tape_driving ? 1.2 : 0.0)
+    g := g + ((setup == 1 or setup == 2) and tape_absorbing ? 1.0 : 0.0)
+    g := g - (tape_thin ? 1.2 : 0.0)
+    // Trading against the board's own bias should never grade well. Your 4h
+    // panel offered BOUNCE LONG while BIAS read SELLERS LEANING and LT control
+    // read SELLERS - that setup deserved a C, not a clean number.
+    g := g - ((plan_dir > 0 and bias_score <= -ctrl_thresh) or (plan_dir < 0 and bias_score >= ctrl_thresh) ? 1.8 : 0.0)
+    g := g - ((plan_dir > 0 and lt_bias <= -ctrl_thresh) or (plan_dir < 0 and lt_bias >= ctrl_thresh) ? 0.8 : 0.0)
+    g := g - (drive_exhaust ? 0.8 : 0.0)
+
+grade_str = not plan_valid ? "--" : g >= 8.5 ? "A" : g >= 7.0 ? "A-" : g >= 6.0 ? "B" : g >= 5.0 ? "B-" : g >= 4.0 ? "C" : "D"
+grade_col = not plan_valid ? txt_lo : g >= 7.0 ? col_buy : g >= 5.0 ? col_cyan : g >= 4.0 ? col_amber : col_sell
+
+action_str = not engaged ? "NO LEVEL IN PLAY - wait for price to reach one" : beh_chop ? "CHOP at " + array.get(L_NAME, math.max(ip_i, 0)) + " - unresolved, stand down" : setup == 0 ? (ip_ctl == 1 or ip_ctl == -1 ? "SHIFT IN PROGRESS - stand down" : "AT LEVEL - no clean setup") : not plan_valid ? setup_str + " but R:R " + str.tostring(rr, "0.0") + ":1 - no edge" : f_beh_str(ip_beh) + " -> " + setup_str + "  " + array.get(L_NAME, math.max(ip_i, 0)) + (ready_now ? "  [FILL NOW]" : "  [WAIT]")
+action_col = not plan_valid ? txt_lo : plan_dir > 0 ? col_buy : col_sell
+
+sig_align_ok_long  = not req_align_sig or (aligned_full and align_net > 0)
+sig_align_ok_short = not req_align_sig or (aligned_full and align_net < 0)
+plan_long  = plan_valid and plan_dir > 0 and g >= 6.0 and sig_align_ok_long
+plan_short = plan_valid and plan_dir < 0 and g >= 6.0 and sig_align_ok_short
+sig_long   = plan_long  and not plan_long[1]
+sig_short  = plan_short and not plan_short[1]
+
+
+// ===========================================================================
+// 11. DRAWING
+// ===========================================================================
+// Display-only helper: never changes L_NAME, L_MRG, L_ON or any engine array.
+f_mobile_name(i) =>
+    string merged = array.get(L_MRG, i)
+    int aliases = array.size(str.split(merged, "+")) - 1
+    array.get(L_ABBR, i) + (aliases > 0 ? " +" + str.tostring(aliases) : "")
+
+lsz = lbl_size == "tiny" ? size.tiny : lbl_size == "normal" ? size.normal : lbl_size == "large" ? size.large : size.small
+
+var line[]  LN = array.new_line(0)
+var label[] LB = array.new_label(0)
+var line    HALO = na   // v2.3: the single pooled in-play halo line
+if barstate.isfirst
+    for i = 0 to NL - 1
+        array.push(LN, line.new(bar_index, close, bar_index + 1, close, color=col_hide, width=1))
+        array.push(LB, label.new(bar_index, close, "", style=label.style_label_left, size=size.tiny, color=col_hide, textcolor=col_hide))
+    HALO := line.new(bar_index, close, bar_index + 1, close, color=col_hide, width=4)
+
+// v2.4: the per-bar label / line refresh, as a function so it is not part of
+// the main body (TradingView main-body size limit). Body unchanged.
+f_draw_levels() =>
+    // v2.3 halo: one wide, faint line under the level in play - depth spent
+    // only where it means something. Hidden whenever nothing is engaged.
+    if show_halo and engaged and ip_i >= 0 and not na(ip_px)
+        line.set_xy1(HALO, math.max(bar_index - lookback_l, 0), ip_px)
+        line.set_xy2(HALO, bar_index + extend_r, ip_px)
+        line.set_color(HALO, color.new(col_viol, 85))
+        line.set_width(HALO, 4)
+        line.set_style(HALO, line.style_solid)
+    else
+        line.set_color(HALO, col_hide)
+
+    for i = 0 to NL - 1
+        line  ln = array.get(LN, i)
+        label lb = array.get(LB, i)
+        float px = array.get(L_PX, i)
+        if na(px) or not array.get(L_ON, i)
+            line.set_color(ln, col_hide)
+            label.set_color(lb, col_hide)
+            label.set_textcolor(lb, col_hide)
+            label.set_text(lb, "")
+        else
+            int   c   = array.get(CTL_ST, i)
+            int   stt = array.get(STATE, i)
+            bool  tst = array.get(TESTED, i)
+            bool  isip = i == ip_i and engaged
+            color cc = color_lines ? f_ctl_col(c) : col_mix
+
+            line.set_xy1(ln, math.max(bar_index - lookback_l, 0), px)
+            line.set_xy2(ln, bar_index + extend_r,   px)
+            int   tier = array.get(L_TIER, i)
+            color tcc  = color.new(cc, tier == 3 ? 0 : tier == 2 ? 15 : 45)
+            line.set_color(ln, isip ? col_viol : tcc)
+            // Rolling opens draw dotted so you can see at a glance that they move
+            line.set_style(ln, array.get(L_ROLL, i) ? line.style_dotted : dash_untest and not tst ? line.style_dashed : line.style_solid)
+            int tw = tier == 3 ? 3 : tier == 2 ? 2 : 1
+            line.set_width(ln, isip ? math.max(tw, 3) : tw)
+
+            string tag = (mobile and mob_compact ? f_mobile_name(i) : array.get(L_NAME, i) + array.get(L_MRG, i)) + "  " + f_ctl_str(c) + (lbl_state ? "  " + f_beh_str(array.get(BEH, i)) : "") + ((lbl_price or (mobile and mob_compact)) ? "  " + str.tostring(px, format.mintick) : "") + (tst ? "" : "  *")
+            // Stagger labels that would collide: count how many visible levels
+            // sit within a hair of this one and higher, and push this label
+            // that many slots further right.
+            int stack = 0
+            for q = 0 to NL - 1
+                if q != i and array.get(L_ON, q)
+                    float pq = array.get(L_PX, q)
+                    if not na(pq) and math.abs(pq - px) < atr_ref * 0.18 and pq > px
+                        stack := stack + 1
+            label.set_xy(lb, bar_index + lbl_offset + stack * 7, px)
+            label.set_text(lb, tag)
+            label.set_tooltip(lb, array.get(L_NAME, i) + array.get(L_MRG, i))
+            label.set_color(lb, lbl_solid ? color.new(#060B14, 8) : color.new(cc, 78))
+            label.set_textcolor(lb, isip ? col_viol : cc)
+            label.set_size(lb, lsz)
+            label.set_style(lb, label.style_label_left)
+    0
+
+if barstate.islast
+    f_draw_levels()
+
+
+// ===========================================================================
+// 12. CONFLUENCE
+// ===========================================================================
+// v2.5.1: the confluence read is removed with the v2.3 Full board, its only reader
+// (TradingView's compiled-token limit). The Confluence Tolerance input stays (input order).
+
+
+// ===========================================================================
+// 13. DASHBOARD  -  v2.4: Compact phone board (default) + the v2.3 Full board
+// ===========================================================================
+// v2.4 inputs. They are declared AFTER every v2.3 / v2.4-dev input on purpose:
+// TradingView keys saved settings by input order, so a chart that already runs
+// v2.3 keeps every one of its settings when v2.4 is pasted over it.
+// ---------------------------------------------------------------------------
+// v2.5 LOOK inputs. Declared after every earlier input (input order is input
+// identity, so a chart's saved settings keep their IDs). Display only: none of
+// them reaches a level, state, signal, plan, grade, alert or PARITY row.
+// ---------------------------------------------------------------------------
+g_look      = "Look (v2.5)"
+ui_detail   = input.bool(false, "Full detail", group=g_look, tooltip="Off (default): the calm v2.5 chart. Levels far from price (outside the engine's DIST radius) wait, the right-edge tags are short, merged and packed so they never overlap, and the board is the decision card. Line and label colours are exactly v2.4.1's. On: v2.4.1's density (levels labelled with control, behaviour and price; a monthly / quarterly tag that would crowd a weekly / engine / in-play tag is hidden, its line stays) and no extra board rows (v2.6.3). Display only.")
+ui_board    = input.string("Standard", "Board", options=["Standard", "Chip only", "Off"], group=g_look, tooltip="Standard: the decision chip (STAND DOWN / WAIT / SET / NOW), then the next level ahead, the trigger, the bias and the 15m / 1h / 4h alignment. 1 column, 5 rows. Chip only: just the chip. Display only.")
+ui_pos      = input.string("Middle Left", "Board position", options=["Middle Left", "Top Left", "Top Center", "Top Right", "Middle Right", "Bottom Right"], group=g_look, tooltip="Where the board sits (both the calm board and the Full detail board). Middle Left keeps it off the newest bars and out from under TradingView's legend. Bottom Left / Bottom Center are kept free for the hidden PARITY / EVENTS tables.")
+ui_theme    = input.string("Auto", "Theme", options=["Auto", "Dark", "Light"], group=g_look, tooltip="Board colours. Auto reads your chart background and picks the dark or light set (the phone terminal's colours). Level line and label colours never change with the theme: they are v2.4.1's.")
+ui_chart_px = input.int(480, "Chart height (px)", minval=200, maxval=2000, step=10, group=g_look, tooltip="Roughly how tall your chart is on screen (480 = a phone in portrait). Used only to space the right-edge tags. If tags touch, lower it; if close levels share one tag, raise it.")
+ui_vis_bars = input.int(70, "Bars on screen", minval=20, maxval=500, step=10, group=g_look, tooltip="About how many bars your chart shows (70 = a phone in portrait). Used only to space the right-edge tags (from the price range of these bars). If tags touch when you zoom out further, raise it; if close levels share one tag (e.g. 30O+2), lower it.")
+ui_tag_room = input.int(6, "Tag room (characters)", minval=3, maxval=24, group=g_look, tooltip="The longest right-edge tag, so it ends before the price scale. 6 fits a 10-bar right margin on a phone. The level's state word (e.g. SWEEP DN) is added when it fits: raise this to 12 to see it. A plain name (VWAP, 4H Open) is used when it fits, else the short name (VW, 4HO). Raise it if you keep a wider right margin.")
+ui_tag_px   = input.bool(true, "Price on tags", group=g_look, tooltip="v2.7.2: each right-edge tag ends with its level's price (the tag's own level when close levels share one tag). Off = the v2.7.1 tag without a price. Display only.")
+ui_tp1      = input.float(15.0, "Bot TP1 pts", minval=0.25, step=0.25, group=g_look, tooltip="mirrors the bot's tp1Pts; display only")
+
+// Board colours: chart.bg_color luma picks the dark or light token set (the phone
+// terminal's). Used by the board and the NOW bracket lines only.
+bool  ui_dk  = ui_theme == "Dark" or (ui_theme == "Auto" and not (0.299 * color.r(chart.bg_color) + 0.587 * color.g(chart.bg_color) + 0.114 * color.b(chart.bg_color) >= 128))
+color u_fill = ui_dk ? #0f151c : #ffffff
+color u_bd   = ui_dk ? #1e2a36 : #dbe2e9
+color u_t1   = ui_dk ? #e6edf3 : #0d1620
+color u_t2   = ui_dk ? #8b98a5 : #5b6b7a
+color u_acc  = ui_dk ? #7fe3ee : #0b6f7a
+
+// ---------------------------------------------------------------------------
+// v2.4 [UNK-FIX] DISPLAY-ONLY slot reads for the TF ALIGN / OPEN POS rows.
+// Section 8 (s15 / s30 / s60 / s240, align_*, drive_*) is NOT touched: the
+// grade, board_up / board_dn, SCALP signals and alerts keep v2.3's rule
+// exactly. This block only decides what the dashboard PRINTS:
+//   - slot >= chart TF and divisible by it: the engine's own read, unchanged.
+//   - slot <  chart TF and divides it (15m / 30m on a 30m / 1H / 2H / 4H chart,
+//     1h on a 2H / 4H chart): price vs the open of the CURRENT slot period,
+//     taken from the last intrabar of request.security_lower_tf. No lookahead.
+//     The open is fixed once that intrabar starts, and price develops live like
+//     every other row (history: the chart bar's close).
+//   - anything else (the chart TF does not divide the slot, or the chart is
+//     not an intraday standard-candle chart): an honest "n/a on <tf>". Never
+//     UNKNOWN and never a guess.
+// ---------------------------------------------------------------------------
+v_cs    = timeframe.in_seconds()
+v_div   = math.max(nz(v_cs, 0), 1)
+v_intra = timeframe.isintraday and nz(v_cs, 0) > 0
+// Each timeframe argument is lower than the chart's when an intrabar read is
+// needed. Otherwise it is the chart's own timeframe, so the request can never
+// ask for a timeframe above the chart. v2.4.1: built only from
+// timeframe.isminutes / timeframe.multiplier / timeframe.period (all simple),
+// so the request's timeframe is a simple string with no nz() or
+// timeframe.in_seconds() in its chain. Same strings as v2.4 on every time
+// chart: hours are minutes on TradingView ("60", "240"), and seconds, daily,
+// weekly and monthly charts always request their own timeframe.
+v_mins  = timeframe.isminutes ? timeframe.multiplier : 0
+v_tf15  = v_mins > 15 ? "15" : timeframe.period
+v_tf30  = v_mins > 30 ? "30" : timeframe.period
+v_tf60  = v_mins > 60 ? "60" : timeframe.period
+
+// [state, source]. state: +1 above, -1 below, 0 equal, na not available.
+// source: 0 chart read (the engine's own value), 1 intrabar read, 2 n/a (the
+// chart TF does not divide the slot), 3 n/a (not an intraday standard-candle
+// chart), 4 no data yet.
+// v2.7: the sign of x: +1 / -1 / 0, and 0 for na (as the comparisons it replaces: na compares false both ways)
+f_v_sg(float x) =>
+    x > 0 ? 1 : x < 0 ? -1 : 0
+
+f_v_slot(int eng, float ltf_open, int slot_s, bool has_ltf) =>
+    bool std  = chart.is_standard and v_intra
+    bool same = std and v_cs <= slot_s and slot_s % v_div == 0
+    bool sub  = std and has_ltf and v_cs > slot_s and v_cs % slot_s == 0
+    int  st   = same ? eng : sub and not na(ltf_open) ? f_v_sg(close - ltf_open) : na
+    int  src  = not std ? 3 : not same and not sub ? 2 : na(st) ? 4 : same ? 0 : 1
+    [st, src]
+
+// The intrabar read for one slot. Both requests live in this helper, which is
+// called 3 times at global scope (15m, 30m, 1h): 6 request.security_lower_tf
+// in total, as before. tf is a simple string built from timeframe.* only and is
+// never above the chart's timeframe.
+// The open of the CURRENT slot period is the last intrabar's open. In realtime
+// that intrabar must still be live (its period not over by more than 5 s);
+// otherwise na, never a stale period's open.
+// v2.4.1: untyped parameters (the classic request-inside-a-function form, the
+// same shape as the Pine manual's f_secureSecurity), and the intrabar pick is
+// inlined here, so no function takes an array parameter. Same values as v2.4.
+f_v_read(tf, eng, slot_s, slot_ms) =>
+    float[] o = request.security_lower_tf(syminfo.tickerid, tf, open)
+    int[]   t = request.security_lower_tf(syminfo.tickerid, tf, time)
+    float po = na
+    int n = array.size(o)
+    if n > 0 and array.size(t) == n
+        int lt = array.get(t, n - 1)
+        if not barstate.isrealtime or timenow < lt + slot_ms + 5000
+            po := array.get(o, n - 1)
+    f_v_slot(eng, po, slot_s, true)
+
+[v15_s, v15_src]   = f_v_read(v_tf15, s15, 900,  900000)
+[v30_s, v30_src]   = f_v_read(v_tf30, s30, 1800, 1800000)
+[v60_s, v60_src]   = f_v_read(v_tf60, s60, 3600, 3600000)
+[v240_s, v240_src] = f_v_slot(s240, na, 14400, false)
+
+// Chart timeframe as a short label for the n/a marker: 2m, 45m, 2H, D, ...
+f_v_tfl() =>
+    int    m = timeframe.multiplier
+    string u = timeframe.isseconds ? "s" : timeframe.isminutes ? (m % 60 == 0 ? "H" : "m") : timeframe.isdaily ? "D" : timeframe.isweekly ? "W" : timeframe.ismonthly ? "M" : ""
+    u == "" ? timeframe.period : u == "H" ? str.tostring(m / 60, "0") + u : m == 1 and u != "s" and u != "m" ? u : str.tostring(m) + u
+v_tfl = f_v_tfl()
+// v2.7 (MacDot fix 2): the HUD's timeframe prefix, 3 characters at most: the chart's own label when it fits (5m, 30m, 4H, D,
+// 12M), else HTF / LTF (above / below the bot's 15m: a 100m or 1439m chart reads HTF). The full label stays in the tooltips.
+v_tfc = str.length(v_tfl) > 3 ? (tf_min > 15 ? "HTF" : "LTF") : v_tfl
+// Why a slot has no read: long form (Full) and short form (Compact, <= 7).
+f_v_why(int src) =>
+    src == 4 ? "n/a (no data yet)" : src == 3 and not chart.is_standard ? "n/a on this chart type" : "n/a on " + v_tfl
+f_v_srcname(int src) =>
+    array.get(str.split("CHART,INTRABAR,NA_TF_NOT_DIVISIBLE,NA_CHART_TYPE,NO_DATA", ","), src)
+// One slot as a token, e.g. " 15m+". Slots without a read are left out (the
+// verdict cell names them).
+f_v_tok(string lbl, int st) =>
+    na(st) ? "" : " " + lbl + str.substring("-=+", st + 1, st + 2)
+
+// v2.7: how many of four conditions hold (the slot counts below)
+f_v_n(bool a, bool b, bool c, bool d) =>
+    (a ? 1 : 0) + (b ? 1 : 0) + (c ? 1 : 0) + (d ? 1 : 0)
+
+// The TF ALIGN / OPEN POS verdicts, as one function called on every bar at
+// global scope (so xa_abs[10] keeps its history). Same rules as section 8.
+f_v_rows(int a15, int a30, int a60, int a240, int r15, int r30, int r60, int r240) =>
+    // TF ALIGN (15m / 1h / 4h): the same verdict rules as section 8.
+    xa_n     = f_v_n(not na(a15), not na(a60), not na(a240), false)
+    xa_known = xa_n == 3
+    xa_net   = a15 + a60 + a240
+    xa_abs   = math.abs(xa_net)
+    xa_prev  = xa_abs[10]
+    xa_conv  = xa_abs > xa_prev
+    xa_full  = xa_abs == 3
+    xa_bsrc  = na(a15) ? r15 : na(a60) ? r60 : r240
+    xa_blbl  = na(a15) ? "15m" : na(a60) ? "1h" : "4h"
+    // "*" = a display-only read: section 8 still cannot use it on this chart TF, so
+    // the SCALP signal gate / grade / TF alerts do not see it (v2.3 rule, unchanged).
+    xa_star  = xa_known and not align_known ? "*" : ""
+    xa_tok_f = str.trim(f_v_tok("15m", a15) + f_v_tok("1h", a60) + f_v_tok("4h", a240))
+    xa_note  = xa_known ? (xa_full ? (xa_net > 0 ? "ALIGNED BULL" : "ALIGNED BEAR") : xa_conv ? "CONVERGING" : xa_abs == 0 ? "FLAT / SPLIT" : "MIXED") : (xa_n == 2 ? xa_blbl + " " : "") + f_v_why(xa_bsrc)
+
+    // OPEN POS (4h / 1h / 30m, + 15m when the 15m Open is on): the same rules as
+    // section 8's DRIVER, including the exhaustion read.
+    xd_n     = show_15o ? 4 : 3
+    xd_unk   = f_v_n(na(a240), na(a60), na(a30), show_15o and na(a15))
+    xd_known = xd_unk == 0
+    xd_bull  = f_v_n(nz(a240) > 0, nz(a60) > 0, nz(a30) > 0, show_15o and nz(a15) > 0)
+    xd_bear  = f_v_n(nz(a240) < 0, nz(a60) < 0, nz(a30) < 0, show_15o and nz(a15) < 0)
+    xd_exh   = xd_known and ((xd_bull == xd_n and (st_bias < 0 or flow_st < -0.10)) or (xd_bear == xd_n and (st_bias > 0 or flow_st > 0.10)))
+    xd_bsrc  = na(a240) ? r240 : na(a60) ? r60 : na(a30) ? r30 : r15
+    xd_blbl  = na(a240) ? "4h" : na(a60) ? "1h" : na(a30) ? "30m" : "15m"
+    xd_star  = xd_known and not drive_known ? "*" : ""
+    xd_tok_f = str.trim(f_v_tok("4H", a240) + f_v_tok("1H", a60) + f_v_tok("30m", a30) + (show_15o ? f_v_tok("15m", a15) : ""))
+    xd_note  = xd_known ? (xd_bull == xd_n ? "BUYERS DRIVING" : xd_bear == xd_n ? "SELLERS DRIVING" : xd_bull == 0 and xd_bear == 0 ? "AT OPENS" : "MIXED OPENS") : (xd_unk == 1 ? xd_blbl + " " : "") + f_v_why(xd_bsrc)
+    xd_tag   = xd_exh ? (xd_bull == xd_n ? "opens held, flow fading" : "opens lost, flow turning") : xd_note
+    [xa_tok_f, xa_note, xa_star, xd_tok_f, xd_tag, xd_star]
+
+[v_a_tok_f, v_a_note, v_a_star, v_d_tok_f, v_d_tag, v_d_star] = f_v_rows(v15_s, v30_s, v60_s, v240_s, v15_src, v30_src, v60_src, v240_src)
+
+// ---------------------------------------------------------------------------
+// Board placement (v2.5.1: the v2.4 Compact and v2.3 Full boards are removed;
+// "Full detail" adds 3 rows to the v2.5 board, section 16)
+// ---------------------------------------------------------------------------
+// v2.7: Look -> Board position's six options (v2.6.3's f_dpos folded in: the same position for each option)
+dp = ui_pos == "Top Right" ? position.top_right : ui_pos == "Middle Right" ? position.middle_right : ui_pos == "Bottom Right" ? position.bottom_right : ui_pos == "Top Left" ? position.top_left : ui_pos == "Top Center" ? position.top_center : position.middle_left
+// The opens use lookahead_on because a period's open is known when the period starts. No future close / high / low is requested.
+// (v2.7: open_tip removed: nothing has read it since v2.5.1)
+
+var table T = table.new(dp, 1, 8, bgcolor=u_fill, border_color=u_bd, border_width=1, frame_color=u_bd, frame_width=1)
+
+f_cut(string s, int w) =>
+    str.substring(s, 0, math.min(w, str.length(s)))
+
+
+if barstate.islast
+    table.clear(T, 0, 0, 0, 7)
+
+
+// ===========================================================================
+// 15. (v2.8) The PARITY / EVENTS layer is removed (old model only; TradingView's compiled-token budget). Two of its pieces
+// stay, unchanged: PWC = the week's last trade (v2.7.3) and the SWEPT read (v2.7.1, MacDot 6572147917 #2).
+// ===========================================================================
+p_pwc_set = request.security("", "W", close[1], lookahead=barmerge.lookahead_on)   // CME settlement (TradingView's weekly close)
+// v2.7.3 (Mac 11/03, option A): the bot's PWC is the week's LAST TRADE (the close of the last chart bar before the weekly roll),
+// so the chart uses the same price. Falls back to the settlement above only until the chart's history reaches a weekly roll.
+var float pwc_lt = na
+if ta.change(time("W")) != 0 and bar_index > 0
+    pwc_lt := close[1]
+p_pwc = na(pwc_lt) ? p_pwc_set : pwc_lt
+// v2.7.1 (MacDot 6572147917 #2): the SWEPT tag reads the engine's cross as of the last CLOSED bar (written only on a closed
+// bar, so a forming bar's provisional cross or close back never sets or clears it) and the close time of the bar that crossed.
+var bool[]   SW_ON   = array.new_bool(NL, false)
+var int[]    SW_T    = array.new_int(NL, na)
+for i = 0 to NL - 1
+    float lpx = array.get(L_PX, i)
+    if na(lpx)
+        continue
+    int  xa  = array.get(XAGE, i)
+    int  xd  = array.get(XDIR, i)
+    if barstate.isconfirmed
+        array.set(SW_ON, i, xd != 0 and xa < confirm_bars and array.get(FAILAGE, i) != xa + 1)
+        if xa == 0
+            array.set(SW_T, i, time_close)
+
+
+// ===========================================================================
+// 16. v2.5 LOOK  -  decision chip, calm levels, packed tags (DISPLAY ONLY)
+// v2.5.1: no NOW bracket and no event glyphs (TradingView compiled-token limit)
+// ===========================================================================
+// Everything in this section READS engine outputs and writes only drawing
+// objects (the pooled lines / labels, three bracket lines / labels) and the
+// board table T. No level, state, signal, plan, grade, alert or PARITY row
+// reads anything defined here; the Look inputs and "Bot TP1 pts" feed nothing
+// but these functions. Section 13's [UNK-FIX] reads are reused, unchanged.
+
+// ---------------------------------------------------------------------------
+// 16H. v2.5.4 BOT HTF LEVELS (display only). The 15 monthly / quarterly / weekly
+// event levels the live bot trades (levelEvent.js htfLevels + weeklyLevels,
+// r13.3.7), with the bot's names, values and merge rule. Only this section and
+// the tag layout read them: no level, state, signal, plan, grade, alert or
+// PARITY row changes, and the engine's own W / M extras stay as they were.
+// Month = the bot's TradeDay month: the calendar month of t + 3 h (UTC), for
+// the chart bar's own time (the bot: the last completed trigger bar's time).
+// Every value comes from COMPLETED bars, the PWH / PMoH form: [1..5] on
+// TradingView's own M / D bars with lookahead_on, or a period's open.
+//   PMH / PML / PMO / CMO: the existing M requests; PWO / PWC: the existing W ones.
+//   QO / PQH / PQL: one M request (open[2], high / low [2..5]).
+//   CMH / CML / QH / QL / WTD High / WTD Low: one D request, the running high /
+//   low of the completed days (yesterday's value, [1]). Absent unless the daily
+//   history reaches back before the month / quarter / week began (the bot's own
+//   QH / QL rule; its 250 daily bars always do).
+// ---------------------------------------------------------------------------
+ui_hw = input.bool(true, "Weekly event levels", group=g_look, tooltip="ON: the bot's weekly event levels PWO, PWC, WTD High, WTD Low (with the bot's names and values, from completed bars) at the weight of the weekly tier (PWH / PWL / Week Open). The calm view draws them within twice the DIST radius, each with its tag; Full detail draws all. Display only: the engine never reads them.")
+ui_hm = input.bool(true, "Monthly / quarterly levels", group=g_look, tooltip="ON: the bot's monthly / quarterly event levels QO, PQH, PQL, QH, QL, CMO, PMH, PML, PMO, CMH, CML (the bot trades them too). For knowledge: thin, faint lines; the calm view draws them only inside the DIST radius, and their tags merge into a nearby tag (+n) before they would move a weekly or in-play tag. One level per price, named like the bot (the other names are in the tooltip). Display only.")
+int HN = 15
+var string[] HT_NM = str.split("QO,PQH,PQL,QH,QL,CMO,PMH,PML,PMO,CMH,CML,PWO,PWC,WTD High,WTD Low", ",")
+// the bot's tdMonth(): year * 12 + month (0-based) of t + 3 h, UTC
+f_htf_k(int t) =>
+    year(t + 10800000, "UTC") * 12 + month(t + 10800000, "UTC") - 1
+// Runs on TradingView's D bars: the running high / low of the month, the quarter
+// and the week through each day (na for a period whose start is not in the data).
+// Returned as [1]: through YESTERDAY, so today is never counted (the bot's rule).
+f_htf_d() =>
+    int w_m = f_htf_k(time)
+    int w_q = w_m - w_m % 3
+    int w_w = time("W")
+    var int w_m0 = w_m
+    var int w_t0 = time
+    var float w_mh = na
+    var float w_ml = na
+    var float w_qh = na
+    var float w_ql = na
+    var float w_wh = na
+    var float w_wl = na
+    w_mh := w_m != w_m[1] ? (w_m0 < w_m ? high : na) : math.max(w_mh, high)
+    w_ml := w_m != w_m[1] ? (w_m0 < w_m ? low : na) : math.min(w_ml, low)
+    w_qh := w_q != w_q[1] ? (w_m0 < w_q ? high : na) : math.max(w_qh, high)
+    w_ql := w_q != w_q[1] ? (w_m0 < w_q ? low : na) : math.min(w_ql, low)
+    w_wh := w_w != w_w[1] ? (w_t0 < w_w ? high : na) : math.max(w_wh, high)
+    w_wl := w_w != w_w[1] ? (w_t0 < w_w ? low : na) : math.min(w_wl, low)
+    [w_mh[1], w_ml[1], w_qh[1], w_ql[1], w_wh[1], w_wl[1], w_m[1], w_w[1]]
+[h_cmh, h_cml, h_qh, h_ql, h_wh, h_wl, h_dm, h_dw] = request.security("", "D", f_htf_d(), lookahead=barmerge.lookahead_on)
+[h_o2, h_h2, h_h3, h_h4, h_h5, h_l2, h_l3, h_l4, h_l5, h_t1, h_t2, h_t3, h_t4, h_t5] = request.security("", "M", [open[2], high[2], high[3], high[4], high[5], low[2], low[3], low[4], low[5], time[1], time[2], time[3], time[4], time[5]], lookahead=barmerge.lookahead_on)
+// h_j: how many M bars back the quarter's first month is (0..2; -1 = the bot's
+// month is already the next quarter's). h_mok: the M bar's month is the bot's.
+int   h_now = f_htf_k(time)
+// v2.6.1 (MacDot 6562334565): month identity, like the bot's byMonth.get(month). PMH / PML / PMO need the M bar one back
+// to be exactly the previous month; QO the bar it reads to be the quarter's first month; PQH / PQL the deepest bar they use
+// (offset h_j + 3) to be exactly that month (months strictly increase, so every bar between is right too). Else absent.
+int   h_mk  = f_htf_k(m_start_t)
+int   h_j   = h_mk - h_now + h_now % 3
+bool  h_cok = h_j == h_now % 3
+bool  h_p1  = f_htf_k(h_t1) == h_mk - 1
+bool  h_mok = h_cok and h_p1
+bool  h_pok = f_htf_k(h_j == 0 ? h_t3 : h_j == 1 ? h_t4 : h_t5) == h_mk - h_j - 3
+bool  h_dq  = h_dm - h_dm % 3 == h_now - h_now % 3
+float h_qo  = h_j == 0 ? mo_v : h_j == 1 and h_p1 ? pmo_v : h_j == 2 and f_htf_k(h_t2) == h_mk - 2 ? h_o2 : na
+float h_pqh = not h_pok or h_j > 2 ? na : math.max(h_h3, h_j == 0 ? pmoh_v : h_j == 1 ? h_h4 : h_h5, h_j == 2 ? h_h4 : h_h2)
+float h_pql = not h_pok or h_j > 2 ? na : math.min(h_l3, h_j == 0 ? pmol_v : h_j == 1 ? h_l4 : h_l5, h_j == 2 ? h_l4 : h_l2)
+float[] HT_PX = array.from(h_qo, h_pqh, h_pql, h_dq ? h_qh : na, h_dq ? h_ql : na, h_cok ? mo_v : na, h_mok ? pmoh_v : na, h_mok ? pmol_v : na, h_mok ? pmo_v : na, h_dm == h_now ? h_cmh : na, h_dm == h_now ? h_cml : na, pwo_v, p_pwc, h_dw == time("W") ? h_wh : na, h_dw == time("W") ? h_wl : na)
+
+// Pools: 15 lines + 15 labels, allocated once. The one combined tag layout keys the engine's levels 0..NL-1 and the HTF ones
+// NL..NL+HN-1. v2.7: U_NM holds their names from one string (the registry's L_NAME, then HT_NM; validate 34 pins it), and
+// f_ui_lb (below) returns a key's label (v2.6.3's U_LB copy; U_AB's one reader now takes L_ABBR or the 16H name directly).
+var line[]   HLN   = array.new_line(0)
+var label[]  HLB   = array.new_label(0)
+var string[] U_NM  = str.split("PDH,PDL,PDC,Daily Open,Asia High,Asia Low,London High,London Low,06:30 Open,15:00 Open,IB High,IB Low,VWAP,4H Open,1H Open,30m Open,15m Open,PWH,PWL,Week Open,PWO,MO,MH,ML,PMO,PMoH,PMoL,QO,PQH,PQL,QH,QL,CMO,PMH,PML,PMO,CMH,CML,PWO,PWC,WTD High,WTD Low", ",")
+var bool[]   HT_ON = array.new_bool(HN, false)
+var string[] HT_AL = array.new_string(HN, "")
+if barstate.isfirst
+    for i = 0 to HN - 1
+        array.push(HLN, line.new(bar_index, close, bar_index + 1, close, color=col_hide, width=i < 11 ? 1 : 3))
+        array.push(HLB, label.new(bar_index, close, "", style=label.style_label_left, size=lsz, color=col_hide, textcolor=col_hide))
+// the label of key k: the registry's LB for k < NL, else the 16H HLB (both indices clamped, whichever branch runs)
+f_ui_lb(int k) =>
+    k < NL ? array.get(LB, math.min(k, NL - 1)) : array.get(HLB, math.max(k - NL, 0))
+
+// The last-bar pass, before the tag layout. One level per price, as the bot:
+// among the 11 monthly / quarterly names the highest in the bot's HIERARCHY
+// keeps the line and the others join its name (CMO = QO in a quarter's first
+// month); PWO / PWC / WTD stay separate (the bot's weeklyLevels). Mac 11/01:
+// weekly is the prominent tier, monthly / quarterly is for knowledge. Weekly:
+// v2.4.1's weekly style (width 3, dotted, transparency 0) in col_mix (v2.4.1's
+// colour for a level with no control read). Monthly / quarterly: the same style
+// at width 1 and v2.4.1's faintest tier transparency (45). No new hue. A level
+// not drawn is parked hidden at the last close, so it never stretches the scale.
+// v2.7: one helper spans a line over v2.4.1's level x range (lookback left, extend right) at price y
+f_ui_ln(l, float y) =>
+    line.set_xy1(l, math.max(bar_index - lookback_l, 0), y)
+    line.set_xy2(l, bar_index + extend_r, y)
+
+f_htf_draw(bool full) =>
+    for w_j = 0 to HN - 1
+        float  w_p  = array.get(HT_PX, w_j)
+        bool   w_dp = false
+        string w_al = ""
+        if w_j < 11
+            for w_i = 0 to 10
+                if w_i != w_j and array.get(HT_PX, w_i) == w_p
+                    w_dp := w_dp or w_i < w_j
+                    w_al += w_i > w_j ? "=" + array.get(HT_NM, w_i) : ""
+        bool  w_wk = w_j >= 11
+        color w_c  = w_wk ? col_mix : color.new(col_mix, 45)
+        bool  w_on = (w_wk ? ui_hw : ui_hm) and not na(w_p) and not w_dp and (full or math.abs(close - w_p) <= atr_ref * distant_atr * (w_wk ? 2 : 1))
+        float w_y  = w_on ? w_p : close
+        line  w_hl = array.get(HLN, w_j)
+        label w_hb = array.get(HLB, w_j)
+        array.set(HT_ON, w_j, w_on)
+        array.set(HT_AL, w_j, w_al)
+        f_ui_ln(w_hl, w_y)
+        line.set_color(w_hl, w_on ? w_c : col_hide)
+        line.set_style(w_hl, line.style_dotted)
+        label.set_xy(w_hb, bar_index + lbl_offset, w_y)
+        label.set_text(w_hb, w_on ? array.get(HT_NM, w_j) + w_al : "")
+        label.set_color(w_hb, w_on ? (lbl_solid ? color.new(#060B14, 8) : color.new(col_mix, 78)) : col_hide)
+        label.set_textcolor(w_hb, w_on ? w_c : col_hide)
+    0
+
+// ---------------------------------------------------------------------------
+// 16I. v2.6 IGNITION (display only). A mirror of the bot's own entry gates on
+// the 15m chart, for ANY drawn level within reach (the engine's band), side =
+// the side of the level price is on (above = long setup, below = short):
+//   1 level    |close - level| <= band (registry + 15m Open + the 16H levels)
+//   2 aligned  close vs the 15m / 1H / 4H period opens all on that side
+//              (the bot's levelsAlignment + levelsAlignDir, period-open rule)
+//   3 control  this chart's 15m engine score, the bot's controlDisplaySnapshot
+//              rule: |score| >= 0.22 on that side; 15m chart only
+//   4 size     the run beyond the level (this bar + the previous one; a rolling
+//              open only within its own period) <= 60.5 pts: 3 contracts at
+//              $375 on the bot's structural stop (sweep extreme -/+ 2)
+// ARMED = all four, outside the bot's 12:55-15:00 PT session close (locked from the 12:45 bar open). The bot's
+// 3m / 5m sweep is the fire (Mac 11/01: option a + c); nothing here detects it.
+// Nothing outside this section, the tag layout and the board reads these names.
+// ---------------------------------------------------------------------------
+ui_wake = input.bool(true, "Wake candles", group=g_look, tooltip="ON: in STAND DOWN (no level within reach, chop or control shifting) the candles go quiet (the chart's own text colour, 72% transparent). Normal otherwise. Display only.")
+// v2.8 input: declared after every earlier input (input order is input identity: saved settings keep their places).
+g_tide   = "Old model (v2.8)"
+old_on   = input.bool(false, "Old model (r13.x, manage-only)", group=g_tide, tooltip="OFF (v2.8 default): the bot trades TIDE only (ruling 16), so the old levels-path reads are hidden: the per-level CTRL / behaviour words on the tags, the old Ignition chip / board / glow / wake candles, the 24 old alerts. The TIDE view is the companion script Levels PRO TIDE v2.8. ON: v2.7.4 exactly.")
+bool ig_15   = timeframe.period == "15"
+int  ig_al   = close > h15_open and close > h1_open and close > h4_open ? 1 : close < h15_open and close < h1_open and close < h4_open ? -1 : 0
+int  ig_ct   = ig_15 and math.abs(bias_score) >= 0.22 ? (bias_score > 0 ? 1 : -1) : 0
+bool ig_lock = not na(time(timeframe.period, "1245-1500", TZ))   // v2.6.2: bar-open time; the 12:45 bar holds the bot's 12:55
+bool ig_p30  = time("30") != time
+bool ig_p60  = time("60") != time
+bool ig_p240 = time("240") != time
+// keys 0..NL-1 = the registry (16 = the 15m Open, eligible even when hidden), NL.. = the 16H levels. Every index is
+// clamped into range, so no path can read out of bounds however the ternary is evaluated (RE10045 lesson).
+f_ig_px(int k) =>
+    k < NL ? array.get(L_PX, math.max(math.min(k, NL - 1), 0)) : array.get(HT_PX, math.min(math.max(k - NL, 0), HN - 1))
+f_ig_on(int k) =>
+    k < NL ? (array.get(L_ON, math.max(math.min(k, NL - 1), 0)) or k == 16) : k >= NL + 11 ? ui_hw : ui_hm
+// The best level: most segments in the bot's order (cumulative), then the nearest.
+f_ig() =>
+    int   w_bn = 0
+    int   w_bk = -1
+    int   w_bs = 0
+    float w_bd = 1e12
+    for w_k = 0 to NL + HN - 1
+        float w_p = f_ig_px(w_k)
+        float w_d = close - w_p
+        if f_ig_on(w_k) and not na(w_p) and math.abs(w_d) <= band
+            int   w_sd = w_d >= 0 ? 1 : -1
+            bool  w_pv = w_k == 16 ? false : w_k == 15 ? ig_p30 : w_k == 14 ? ig_p60 : w_k == 13 ? ig_p240 : true
+            float w_x  = w_sd > 0 ? w_p - math.min(low, w_pv ? low[1] : low) : math.max(high, w_pv ? high[1] : high) - w_p
+            int   w_n  = ig_al != w_sd ? 1 : ig_ct != w_sd ? 2 : w_x > 60.5 ? 3 : 4
+            if w_n > w_bn or (w_n == w_bn and math.abs(w_d) < w_bd)
+                w_bn := w_n
+                w_bk := w_k
+                w_bs := w_sd
+                w_bd := math.abs(w_d)
+    [w_bn, w_bk, w_bs]
+[ig_n, ig_k, ig_sd] = f_ig()
+// 3 ARMED (all four, 15m chart only; the bot has no chop gate, so ARMED comes first), 0 STAND DOWN (no level within
+// reach, or the engine's in-play level in chop / control shifting), 1 WAIT, 2 SET
+int ig_rank = ig_n == 4 and not ig_lock ? 3 : ig_n == 0 or (engaged and (beh_chop or (setup == 0 and (ip_ctl == 1 or ip_ctl == -1)))) ? 0 : ig_n >= 2 ? 2 : 1
+barcolor(old_on and ui_wake and ig_rank == 0 ? color.new(chart.fg_color, 72) : na)   // v2.8: the old gate mirror, Old model only
+f_ig_m(int n) =>
+    str.substring("▰▰▰▰", 0, n) + str.substring("▱▱▱▱", 0, 4 - n)
+
+// Glow (ARMED only): 3 stacked lines in the armed level's own line colour,
+// widths 6 / 10 / 16 at 70 / 84 / 93 % transparency, pooled once. (Heat bands
+// move to v2.6.1 with no-chase: the TradingView source-token ceiling.)
+int IGN = 3
+var line[] IG_GL = array.new_line(0)
+if barstate.isfirst
+    for i = 0 to IGN - 1
+        array.push(IG_GL, line.new(bar_index, close, bar_index + 1, close, color=col_hide, width=i == 0 ? 6 : i == 1 ? 10 : 16))
+
+// 16J. v2.7 HEAT (display only): "levels stacked here" (Ignition spec r2 section 5 on r1 section 4). At each listed level, what the OTHER
+// listed levels stack there: S = sum of w x exp(-0.5 x (gap / h)^2), h = the engine's band (at least 4 ticks); two levels
+// within 2 ticks count once (the engine's dedupe rule). w: monthly / quarterly 1.0 flat; weekly L_IMP x 1.5 (the 16H weekly
+// four: PWO's 2.5 x 1.5); PDH / PDL / PDC / Daily Open / VWAP L_IMP x 1.2; the rest L_IMP. Hot S >= 8, very hot >= 12 (10/30's
+// p85 / p95). Hot levels within h of the band above join it; a band is never anchored on a monthly / quarterly level. Drawn:
+// the band nearest above price (box 0), the one around price (1), the nearest below (2), in the chart's own text colour at
+// 93 / 88 % (very hot) transparency, no border, "levels stacked here" at its left. Never on charts below 15m; hidden while
+// ARMED (the glow is the focus). The 10/30 test was not significant (p = 0.089): it says stacked, never edge.
+int HBN = 3
+var box[] HB = array.new_box(0)
+if barstate.isfirst
+    for i = 0 to HBN - 1
+        array.push(HB, box.new(bar_index, close, bar_index + 1, close, border_color=col_hide, text="levels stacked here", text_size=size.tiny, text_halign=text.align_left))
+// one band: top t, bottom u, its highest S s (s < 8 = hidden, parked at the last close)
+f_ui_box(b, float t, float u, float s) =>
+    box.set_lefttop(b, math.max(bar_index - ui_vis_bars, 0), t)
+    box.set_rightbottom(b, bar_index + extend_r, u)
+    box.set_bgcolor(b, s >= 8 ? color.new(chart.fg_color, s >= 12 ? 88 : 93) : col_hide)
+    box.set_text_color(b, s >= 8 ? color.new(chart.fg_color, 60) : col_hide)
+f_ig_draw(int st) =>
+    bool  w_on = old_on and st == 3 and ig_k >= 0   // v2.8: Old model only
+    float w_p  = w_on ? f_ig_px(ig_k) : close
+    color w_c  = col_mix
+    if ig_k >= 0 and ig_k < NL
+        w_c := engaged and ig_k == ip_i ? col_viol : color_lines ? f_ctl_col(array.get(CTL_ST, ig_k)) : col_mix
+    for w_g = 0 to IGN - 1
+        line w_gl = array.get(IG_GL, w_g)
+        f_ui_ln(w_gl, w_p)
+        line.set_color(w_gl, w_on ? color.new(w_c, w_g == 0 ? 70 : w_g == 1 ? 84 : 93) : col_hide)
+    0
+
+// Display tiers (v2.5): 1 = HTF (D / W / M), 2 = session opens, 3 = intraday.
+// A NEW array: v2.3's L_TIER is published in PARITY (LVL_* rows) and untouched.
+// v2.5.4: + 15 entries for the bot HTF levels (keys NL..NL+HN-1): 4 = monthly / quarterly (knowledge; never anchors a merged tag), 1 = weekly
+// v2.7: as a function of the key (v2.6.3's 42-entry UI_TIER array, value for value): PDH / PDL / PDC, the registry W / M levels
+// (17..26) and the 16H weekly (38..41) 1; Daily Open, 06:30 / 15:00 Opens 2; the 16H monthly / quarterly (27..37) 4; others 3
+f_ut(int k) =>
+    k < 3 or (k > 16 and k < NL) or k > NL + 10 ? 1 : k >= NL ? 4 : k == 3 or k == 8 or k == 9 ? 2 : 3
+
+
+// Label height in price units = label pixels (Label Size: tiny 16, small 20, normal 24, large 30) x price span on
+// screen / chart pixels. The span is the last "Bars on screen" bars' range plus
+// TradingView's scale margins (assumed 10% + 8%: assuming margins only spaces
+// tags farther apart). It ratchets up within a session (only on a >= 20% rise)
+// and resets at the session roll, so tags do not move unless a level moves.
+f_ui_hgt() =>
+    float w_hi = ta.highest(high, ui_vis_bars)
+    float w_lo = ta.lowest(low, ui_vis_bars)
+    // v2.7 (MacDot fix 1): v2.6.2's label-size map is back, so tags drawn at normal / large never touch
+    float w_px = lbl_size == "tiny" ? 16.0 : lbl_size == "normal" ? 24.0 : lbl_size == "large" ? 30.0 : 20.0
+    float w_raw = w_px * (w_hi - w_lo) / 0.82 / ui_chart_px
+    var float w_hq = na
+    if newDay or na(w_hq) or w_raw > w_hq * 1.2
+        w_hq := w_raw
+    w_hq
+ui_h = f_ui_hgt()
+
+// v2.6: the chip's state is the bot-gate mirror's rank (section 16I); v2.5's f_ui_branch / f_ui_rank are removed.
+
+// Chip debounce (display only). Inside a realtime bar the chip only steps UP
+// (STAND DOWN < WAIT < SET < NOW) and never steps down, so it cannot flip back
+// and forth inside a bar. A history bar or the bar-close update shows the
+// engine's confirmed state, so a reload shows the same chips.
+f_ui_deb(bool rt, int eng, int live, int bt, int committed) =>
+    int w_l = live
+    int w_b = bt
+    if not rt
+        w_l := eng
+        w_b := time
+    else
+        if w_b != time
+            w_b := time
+            w_l := committed
+        if eng > w_l
+            w_l := eng
+    [w_l, w_b]
+
+var   int ui_chip_c = 1
+varip int ui_live   = 1
+varip int ui_bar    = 0
+ui_eng = ig_rank   // v2.6: the bot-gate mirror (section 16I); no R:R, no plan_valid
+ui_rt  = barstate.isrealtime and not barstate.isconfirmed
+[d_live, d_bar] = f_ui_deb(ui_rt, ui_eng, ui_live, ui_bar, ui_chip_c)
+ui_live := d_live
+ui_bar  := d_bar
+ui_chip_c := ui_rt ? ui_chip_c : ui_eng
+// v2.6.2 (MacDot 6562762875): ARMED only when THIS tick qualifies (ig_rank == 3 for the current ig_k); a held state is at most SET
+ui_chip = ig_rank == 3 ? 3 : math.min(ui_rt ? ui_live : ui_eng, 2)
+
+// ---------------------------------------------------------------------------
+// Copy helpers. One glossary: the registry's own L_NAME (plain) and L_ABBR
+// (short) arrays. The plain name is used whenever the line fits.
+// ---------------------------------------------------------------------------
+
+
+
+// Which levels the calm view draws: inside the engine's own DIST radius
+// (Distant Threshold x 1H ATR), HTF tier up to twice that. Farther levels wait
+// for Full detail; the board's AHEAD row still names the next level.
+// (v2.7: that test and the hide of a level line the calm view does not draw run inside f_ui_tags' one pass over the keys;
+// v2.6.3's UI_DR / f_ui_drawn0 / f_ui_prep are folded in, the same test, the same col_hide.)
+
+// v2.7: a level tag that carries nothing is blanked (col_hide only; validate 24)
+f_ui_hide(l) =>
+    label.set_color(l, col_hide)
+    label.set_textcolor(l, col_hide)
+    label.set_text(l, "")
+
+
+// ---------------------------------------------------------------------------
+// Calm lines. Mac's rule (11/01): every level line keeps EXACTLY v2.4.1's
+// colour, transparency and width. f_draw_levels (section 11) still sets them,
+// and nothing here recolours a level. The calm view only hides the levels
+// outside the engine's DIST radius, and draws the weekly / monthly levels solid
+// (v2.4.1 drew them dotted only because they roll weekly / monthly; dashed still
+// means untested). The NOW bracket (entry / stop / bot TP1) is new.
+// ---------------------------------------------------------------------------
+// (v2.6.3: f_ui_lines folded into f_ui_prep's loop: the same col_hide on every level line the calm view does not draw)
+
+// ---------------------------------------------------------------------------
+// The tag layout (v2.5 signature element), on the last bar only.
+// Items, sorted by price high to low (ties: lower key first):
+//   calm  - every level the calm view draws, plus the NOW bracket (keys 100+);
+//   full  - every live level (v2.4.1's own labels, re-placed only).
+// 1. Merge (calm): a level less than half a label height below the previous
+//    level joins its group; the bracket never merges. The group's anchor is
+//    the level in play if the group holds it, else its best display tier,
+//    else its highest price.
+// 2. Pack: isotonic regression by pool-adjacent-violators on the anchors'
+//    prices, so y[k-1] - y[k] >= h, price order is kept, and the total squared
+//    distance from each anchor's own price is the least possible.
+// 3. Clamp: a calm tag is at most "Tag room" characters (plain name when it
+//    fits, else the glossary abbreviation), so it ends inside the plot.
+// Positions depend only on the drawn levels, their prices and h, never on the
+// chip state; a calm tag that is not a carrier keeps its slot, hidden.
+// A level tag keeps v2.4.1's own label colours (set by f_draw_levels): only its
+// text, place and tooltip change.
+// ---------------------------------------------------------------------------
+f_ui_tags(int st, bool full) =>
+    float w_h = nz(ui_h, atr_ref * 0.1)
+    float[] w_ip = array.new_float(0)
+    int[]   w_ik = array.new_int(0)
+    // v2.7: one pass over every key, registry 0..NL-1 then the 16H levels drawn by f_htf_draw (NL..NL+HN-1). A registry level is
+    // listed when calm draws it (inside the engine's DIST radius, HTF tier up to twice it) or, in Full detail, when it is live;
+    // calm hides the line of one it does not draw. Each listed level is inserted in price order, high to low: keys ascend, so a
+    // tie keeps the lower key first (v2.6.3's insertion sort, the same order).
+    for w_k = 0 to NL + HN - 1
+        float w_px = f_ig_px(w_k)
+        bool  w_in = false
+        if w_k < NL
+            float w_d = math.abs(close - w_px)
+            float w_r = atr_ref * distant_atr
+            w_in := not na(w_px) and array.get(L_ON, w_k) and (full or w_d <= w_r or (f_ut(w_k) == 1 and w_d <= w_r * 2))
+            if not (w_in or full)
+                line.set_color(array.get(LN, w_k), col_hide)
+        else
+            w_in := array.get(HT_ON, w_k - NL)
+        if w_in
+            int  w_s  = array.size(w_ip)
+            bool w_go = w_s > 0
+            while w_go
+                if array.get(w_ip, w_s - 1) < w_px
+                    w_s -= 1
+                    w_go := w_s > 0
+                else
+                    w_go := false
+            array.insert(w_ip, w_s, w_px)
+            array.insert(w_ik, w_s, w_k)
+    int w_n = array.size(w_ip)
+    // v2.7 F1 heat (16J): S at each listed level, high to low (w_a == w_n closes the last band). The open band is drawn when the
+    // next one opens: above price into box 0 (each later one is nearer), around price into 1, below into 2 (the first is nearest).
+    float w_hh = math.max(band, syminfo.mintick * 4)
+    float w_zt = na
+    float w_zb = na
+    float w_zm = 0.0
+    bool  w_z2 = false
+    for w_b = 0 to HBN - 1
+        f_ui_box(array.get(HB, w_b), close, close, 0)
+    if tf_min >= 15 and st < 3
+        for w_a = 0 to w_n
+            float w_hs = 0.0
+            float w_pa = na
+            if w_a < w_n
+                w_pa := array.get(w_ip, w_a)
+                int w_ka = array.get(w_ik, w_a)
+                if w_ka < 21 or w_ka > NL + 10
+                    // v2.7.1 (MacDot 6572147917 #1): one price counts once, at its strongest weight. w_ip runs high to low, so levels
+                    // within 2 ticks of each other sit together: w_cm keeps the run's best term, added when the next price starts.
+                    float w_cp = na
+                    float w_cm = 0.0
+                    for w_b = 0 to w_n - 1
+                        float w_pb = array.get(w_ip, w_b)
+                        float w_dd = math.abs(w_pa - w_pb)
+                        int   w_kb = array.get(w_ik, w_b)
+                        float w_w  = 1.0
+                        if w_kb < 21
+                            w_w := array.get(L_IMP, w_kb) * (w_kb > 16 ? 1.5 : array.get(L_TIER, w_kb) == 2 ? 1.2 : 1.0)
+                        else if w_kb > NL + 10
+                            w_w := 3.75
+                        if na(w_cp) or math.abs(w_cp - w_pb) > syminfo.mintick * 2
+                            w_hs += w_cm
+                            w_cm := 0.0
+                            w_cp := w_pb
+                        if w_dd > syminfo.mintick * 2
+                            w_cm := math.max(w_cm, w_w * math.exp(-0.5 * (w_dd / w_hh) * (w_dd / w_hh)))
+                    w_hs += w_cm
+            if w_hs >= 8 and w_zb - w_pa <= w_hh
+                w_zb := w_pa
+                w_zm := math.max(w_zm, w_hs)
+            else if w_hs >= 8 or w_a == w_n
+                if not na(w_zt)
+                    int w_q = w_zb > close ? 0 : w_zt < close ? 2 : 1
+                    if w_q < 2 or not w_z2
+                        f_ui_box(array.get(HB, w_q), w_zt + w_hh / 2, w_zb - w_hh / 2, w_zm)
+                    w_z2 := w_z2 or w_q == 2
+                w_zt := w_pa
+                w_zb := w_pa
+                w_zm := w_hs
+    float[]  w_gw = array.new_float(0)
+    int[]    w_ga = array.new_int(0)
+    int[]    w_gn = array.new_int(0)
+    bool[]   w_gq = array.new_bool(0)
+    string[] w_gt = array.new_string(0)
+    int w_ipk = engaged ? ip_i : -1
+    float w_lnp = na   // v2.5.4: the last non-M/Q level (M/Q tags never chain two other tags together)
+    int   w_gk  = -1   // v2.6.1: the group that holds the armed level (its tag carries the meter)
+    if w_n > 0
+        for w_k = 0 to w_n - 1
+            int    w_key = array.get(w_ik, w_k)
+            float  w_p   = array.get(w_ip, w_k)
+            int    w_g   = array.size(w_gw) - 1
+            // v2.5.2: Pine v5 evaluates both sides of `and`; guard the k-1 read with an if (RE10045 on Mac's chart)
+            bool   w_mq  = f_ut(w_key) == 4
+            bool   w_jn  = false
+            if not full and w_k > 0
+                w_jn := w_mq or array.get(w_gq, w_g) ? array.get(w_ip, w_k - 1) - w_p < w_h : w_lnp - w_p < w_h * 0.5
+            if not w_mq
+                w_lnp := w_p
+            string w_nm  = array.get(U_NM, w_key) + (w_key < NL ? array.get(L_MRG, math.min(w_key, NL - 1)) : array.get(HT_AL, math.max(w_key - NL, 0)))
+            if w_jn
+                int w_ca = array.get(w_ga, w_g)
+                array.set(w_gn, w_g, array.get(w_gn, w_g) + 1)
+                array.set(w_gt, w_g, array.get(w_gt, w_g) + " + " + w_nm)
+                array.set(w_gq, w_g, array.get(w_gq, w_g) and w_mq)
+                if w_ca != w_ipk and (w_key == w_ipk or f_ut(w_key) < f_ut(w_ca))
+                    array.set(w_ga, w_g, w_key)
+                    array.set(w_gw, w_g, w_p)
+            else
+                array.push(w_gw, w_p)
+                array.push(w_ga, w_key)
+                array.push(w_gn, 1)
+                array.push(w_gq, w_mq)
+                array.push(w_gt, w_nm)
+            if w_key == ig_k
+                w_gk := array.size(w_gw) - 1
+    int w_m = array.size(w_gw)
+    float[] w_bs = array.new_float(0)
+    int[]   w_bc = array.new_int(0)
+    // v2.6.1 (MacDot 6562334565): pool-adjacent-violators over the groups holding a weekly / engine / in-play level ONLY,
+    // so their places never depend on a monthly / quarterly level; those groups come second (see below).
+    int[]   w_t1 = array.new_int(0)
+    float[] w_gy = array.new_float(w_m, na)
+    bool[]  w_va = array.new_bool(NL + HN, false)
+    if w_m > 0
+        for w_k = 0 to w_m - 1
+            if not array.get(w_gq, w_k)
+                array.push(w_bs, array.get(w_gw, w_k) + array.size(w_t1) * w_h)
+                array.push(w_bc, 1)
+                array.push(w_t1, w_k)
+                bool w_more = array.size(w_bs) > 1
+                while w_more
+                    int w_nb = array.size(w_bs)
+                    if array.get(w_bs, w_nb - 2) / array.get(w_bc, w_nb - 2) < array.get(w_bs, w_nb - 1) / array.get(w_bc, w_nb - 1)
+                        // index w_nb - 2 is the same block before and after the pop (second to last, then last)
+                        array.set(w_bs, w_nb - 2, array.get(w_bs, w_nb - 2) + array.pop(w_bs))
+                        array.set(w_bc, w_nb - 2, array.get(w_bc, w_nb - 2) + array.pop(w_bc))
+                        w_more := w_nb > 2
+                    else
+                        w_more := false
+        int w_i = 0
+        if array.size(w_bs) > 0
+            for w_b = 0 to array.size(w_bs) - 1
+                float w_z = array.get(w_bs, w_b) / array.get(w_bc, w_b)
+                for w_c = 1 to array.get(w_bc, w_b)
+                    array.set(w_gy, array.get(w_t1, w_i), w_z - w_i * w_h)
+                    w_i += 1
+        // a monthly / quarterly group: at its own price when that is one tag height clear of the nearest placed tag, else it
+        // merges into that tag (+n). Placed tags never move.
+        for w_q = 0 to w_m - 1
+            if array.get(w_gq, w_q)
+                float w_p  = array.get(w_gw, w_q)
+                int   w_nr = -1
+                float w_bd = 1e12
+                for w_r = 0 to w_m - 1
+                    float w_yr = array.get(w_gy, w_r)
+                    if not na(w_yr) and math.abs(w_p - w_yr) < w_bd
+                        w_nr := w_r
+                        w_bd := math.abs(w_p - w_yr)
+                float w_y = w_p
+                if w_bd < w_h
+                    array.set(w_gn, w_nr, array.get(w_gn, w_nr) + array.get(w_gn, w_q))
+                    array.set(w_gt, w_nr, array.get(w_gt, w_nr) + " + " + array.get(w_gt, w_q))
+                    w_gk := w_gk == w_q ? w_nr : w_gk
+                    w_y := na
+                array.set(w_gy, w_q, w_y)
+        for w_q = 0 to w_m - 1
+            int   w_a  = array.get(w_ga, w_q)
+            float w_y  = array.get(w_gy, w_q)
+            label w_lb = f_ui_lb(w_a)
+            if na(w_y)
+                f_ui_hide(w_lb)
+            else
+                label.set_xy(w_lb, bar_index + (full ? lbl_offset : 1), w_y)
+                // v2.8 Full detail: without "Old model" a level label is its name (+ price), not the old CTRL / behaviour words
+                if full and w_a < NL and not old_on
+                    int w_ak = math.min(w_a, NL - 1)
+                    label.set_text(w_lb, (mobile and mob_compact ? f_mobile_name(w_ak) : array.get(L_NAME, w_ak) + array.get(L_MRG, w_ak)) + ((lbl_price or (mobile and mob_compact)) ? "  " + str.tostring(array.get(L_PX, w_ak), format.mintick) : "") + (array.get(TESTED, w_ak) ? "" : "  *"))
+            if not (na(w_y) or full)
+                int    w_cnt = array.get(w_gn, w_q)
+                string w_suf = w_cnt > 1 ? "+" + str.tostring(w_cnt - 1) : ""
+                string w_pn  = array.get(U_NM, w_a)
+                string w_nm2 = str.length(w_pn) <= ui_tag_room - str.length(w_suf) ? w_pn : w_a < NL ? array.get(L_ABBR, math.min(w_a, NL - 1)) : w_pn
+                // v2.5.4: engine arrays (BEH / CTL_ST) are read only for engine keys, inside an if (never an `and` guard)
+                int    w_bh  = 0
+                string w_st  = "bot event level (display only)"
+                string w_sw  = ""
+                if w_a < NL
+                    w_bh := array.get(BEH, w_a)
+                    w_st := old_on ? f_ctl_str(array.get(CTL_ST, w_a)) + " / " + f_beh_str(w_bh) : ""
+                    // v2.7 F4 SWEPT: the engine's latest cross on this level (a close through it: XDIR / XAGE, section 7) is younger
+                    // than Break Confirm bars and is not itself a close back (FAILAGE == XAGE + 1 marks the engine's FAIL: the reclaim).
+                    // v2.7.1 (MacDot 6572147917 #2): read as of the last CLOSED bar (SW_ON, section P4); the age is clock minutes since the
+                    // crossing bar closed (SW_T), not bars x timeframe; "now" = only the forming bar is through it (not closed).
+                    bool w_nw = not barstate.isconfirmed and array.get(XAGE, w_a) == 0 and array.get(XDIR, w_a) != 0 and array.get(FAILAGE, w_a) != 1
+                    if array.get(SW_ON, w_a) or w_nw
+                        float w_am = ((barstate.isrealtime ? timenow : time_close) - array.get(SW_T, w_a)) / 60000.0
+                        w_sw := " SWEPT" + (w_nw ? " now" : na(w_am) ? "" : " " + str.tostring(math.floor(math.max(w_am, 0))) + "m")
+                        w_st += w_nw ? "  SWEPT now: the forming candle is through this level. It has not closed, so this can still go away. A close back is the reclaim, not the sweep." : "  SWEPT: a closed candle went through this level (age = clock minutes since it closed) and no closed candle has come back yet. A close back is the reclaim (the engine's FAIL): the trade is the reclaim, not the sweep. After Break Confirm bars it is a break."
+                string w_t0  = w_nm2 + w_suf
+                string w_t1  = w_t0 + " " + f_beh_str(w_bh)
+                string w_pz  = ui_tag_px ? " " + str.tostring(array.get(w_gw, w_q), format.mintick) : ""   // v2.7.2: the price back on the tag (Mac 11/03)
+                // v2.8: the old behaviour word and the old meter only with "Old model"; SWEPT stays (Mac 11/02)
+                label.set_text(w_lb, (old_on and w_sw == "" and str.length(w_t1) <= ui_tag_room and w_bh != 0 ? w_t1 : f_cut(w_t0, ui_tag_room) + w_sw) + w_pz + (old_on and w_q == w_gk and st > 0 ? " " + (ig_15 ? "" : v_tfc) + f_ig_m(st == 3 ? 4 : math.min(ig_n, 3)) : ""))
+                label.set_tooltip(w_lb, array.get(w_gt, w_q) + (old_on or w_sw != "" ? "  " + w_st : ""))
+                array.set(w_va, w_a, true)
+    if not full
+        for w_i2 = 0 to NL + HN - 1
+            if not array.get(w_va, w_i2)
+                f_ui_hide(f_ui_lb(w_i2))
+    w_m
+
+// ---------------------------------------------------------------------------
+// v2.6 HUD: 1 column, <= 16 characters a line, size.small, one neutral fill.
+// Row 0: the state + meter, then the detail (the (c) trigger line when ARMED);
+// row 1: DEST (weekly + 4H, context only); row 2: GPS (1H + 15m vs DEST).
+// No R:R anywhere. Off the 15m chart the meter carries that chart's timeframe,
+// muted, and never lights.
+// ---------------------------------------------------------------------------
+// v2.7: every board cell through one helper (column 0, size.small, the board fill, left-aligned; tooltip na = none)
+f_ui_cell(int r, string s, color c, string tip) =>
+    table.cell(T, 0, r, s, text_color=c, text_size=size.small, bgcolor=u_fill, text_halign=text.align_left, tooltip=tip)
+f_ui_board(int st) =>
+    string w_nm = ig_k >= 0 ? array.get(U_NM, math.max(ig_k, 0)) : ""
+    string w_m  = (ig_15 or st != ig_rank ? "" : v_tfc + " ") + f_ig_m(st == 3 ? 4 : math.min(ig_n, 3))   // v2.7: a held row drops the prefix (" held" takes its room)
+    string w_s0 = (st == 0 ? "STAND DOWN" : (st == 1 ? "WAIT " : st == 2 ? "SET " : "ARMED ") + w_m) + (st != ig_rank ? " held" : "")
+    // v2.7 F3 (Ignition spec r2 section 3): SET on a live bar counts down to the next 3m / 5m candle close (the bot's trigger candles)
+    int    w_sc = math.floor(timenow / 1000.0)
+    int    w_rs = math.min(180 - w_sc % 180, 300 - w_sc % 300)
+    string w_s1 = f_cut(st == 0 ? (ig_n == 0 ? "no level in play" : beh_chop ? "chop @ " + array.get(L_NAME, math.max(ip_i, 0)) : "control shifting") : st == 3 ? (ig_sd > 0 ? "▲" : "▼") + " sweep " + w_nm : ig_lock ? "bot stops 12:55" : st == 2 and ig_rank == 2 and barstate.isrealtime ? "3m/5m close " + str.tostring(math.floor(w_rs / 60.0)) + (w_rs % 60 < 10 ? ":0" : ":") + str.tostring(w_rs % 60) : "at " + w_nm, 16)
+    string w_tip = "Ignition mirrors the bot's entry gates for the level within reach: aligned 15m / 1H / 4H, 15m control (this chart's 15m engine score, |score| >= 0.22; the light assumes it matches the bot's control read), size (run beyond the level <= 60.5 pts: 3 contracts at $375). The bot's 3m / 5m sweep is the fire; it also checks no-chase, cooldown and position, which this chart cannot see. Lights on the 15m chart (the bot's board) only. In SET on a live bar the second line counts down to the next 3m / 5m candle close: the bot's trigger candles, where a sweep forming at the level is decided at the latest (the bot may act sooner on its 1m read). It moves only when ticks arrive."
+    f_ui_cell(0, w_s0 + "\n" + w_s1, not ig_15 or st == 0 ? u_t2 : st == 1 ? u_t1 : u_acc, w_tip)
+    if ui_board == "Standard"
+        int w_w  = f_v_sg(close - array.get(L_PX, 19))   // Week Open (registry 19)
+        int w_4  = f_v_sg(close - h4_open)
+        int w_d  = w_w == w_4 and math.abs(close - h4_open) > band ? w_w : 0
+        int w_1  = f_v_sg(close - h1_open)
+        int w_15 = f_v_sg(close - h15_open)
+        string w_g = w_d != 0 ? (w_1 == w_d and w_15 == w_d ? (w_d > 0 ? "GPS ▲ on course" : "GPS ▼ on course") : w_15 == -w_d ? (w_15 > 0 ? "GPS ▲ rerouting" : "GPS ▼ rerouting") : "GPS ~ mixed") : w_1 == w_15 and w_1 != 0 ? (w_1 > 0 ? "GPS ▲ 1H+ 15m+" : "GPS ▼ 1H- 15m-") : "GPS ~ mixed"
+        f_ui_cell(1, w_d > 0 ? "DEST ▲ W+ 4H+" : w_d < 0 ? "DEST ▼ W- 4H-" : "DEST = range", u_t2, "DEST: weekly + 4H (price vs Week Open and vs the 4H Open). The weekly is context, not a bot check; the bot's alignment gate is 15m / 1H / 4H.")
+        f_ui_cell(2, w_g, u_t2, na)
+        // v2.6.3: this chart's engine control score (Mac); the arrow only beyond the bot's +/-0.22 line, off the 15m prefixed and muted
+        string w_cv = na(bias_score) ? "--" : (bias_score >= 0 ? "+" : "") + str.tostring(bias_score, "0.00") + (math.abs(bias_score) >= 0.22 ? (bias_score > 0 ? " ▲" : " ▼") : " ·")
+        f_ui_cell(3, (ig_15 ? "" : v_tfc + " ") + "CTRL " + w_cv, ig_ct != 0 ? u_t1 : u_t2, ig_15 ? "This chart's 15m engine score; the bot gates on its own control read at +/-0.22. Not yet measured against the bot's." : "This " + v_tfl + " chart's own engine score, for reference: the bot gates on its 15m control read at +/-0.22, so off the 15m chart this row stays grey and never lights the meter.")
+    0
+
+
+// The last-bar pass: Full detail keeps v2.4.1's drawing (labels re-placed by
+// the packing) and its board; the calm view restyles the same pools.
+f_ui_last(int st) =>
+    f_htf_draw(ui_detail)
+    f_ig_draw(st)
+    f_ui_tags(st, ui_detail)
+    if show_dash and ui_board != "Off" and old_on   // v2.8: the old gate-mirror board, Old model only (the TIDE board is the companion's)
+        f_ui_board(st)
+    0
+
+if barstate.islast
+    f_ui_last(ui_chip)
+
+// ===========================================================================
+// 14. ALERTS (v2.8: moved to the end; the old model's 24 fire only with "Old model" ON)
+// ===========================================================================
+alertcondition(old_on and (sig_long), "SCALP LONG",  "Levels PRO v2: LONG at level - grade B or better")
+alertcondition(old_on and (sig_short), "SCALP SHORT", "Levels PRO v2: SHORT at level - grade B or better")
+alertcondition(old_on and (plan_valid and not plan_valid[1]), "PLAN ACTIVE",   "Levels PRO v2: tradeable level plan is valid")
+alertcondition(old_on and (engaged and not engaged[1]), "LEVEL ENGAGED", "Levels PRO v2: price reached a key level")
+alertcondition(old_on and (board_shift and not board_shift[1]), "CONTROL SHIFTING", "Levels PRO v2: control is changing hands")
+alertcondition(old_on and (any_shift and not any_shift[1]), "LEVEL SHIFTING",   "Levels PRO v2: a level is shifting to the other side")
+alertcondition(old_on and (any_flip), "CONTROL FLIP", "Levels PRO v2: control flipped at a level")
+alertcondition(old_on and (pb_valid and not pb_valid[1]), "ORDER TO PLACE", "Levels PRO v2: structural limit/stop entry planned at a level")
+alertcondition(old_on and (ready_now and plan_valid and not (ready_now[1] and plan_valid[1])), "FILL NOW", "Levels PRO v2: price has reached the planned entry")
+alertcondition(old_on and (pf_diverge and not pf_diverge[1]), "PUSH/FLOW DIVERGENCE", "Levels PRO v2: price and delta disagree - move is being absorbed")
+alertcondition(old_on and (trig_bull and not trig_bull[1]), "TRIGGER BULL", "Levels PRO: bullish bar trigger fired at the level")
+alertcondition(old_on and (trig_bear and not trig_bear[1]), "TRIGGER BEAR", "Levels PRO: bearish bar trigger fired at the level")
+alertcondition(old_on and (drive_exhaust and not drive_exhaust[1]), "DRIVER EXHAUSTION", "Levels PRO: period opens still held but flow is fading - move losing fuel")
+alertcondition(old_on and (tape_thin and not tape_thin[1]), "THIN MOVE", "Levels PRO: price moving on no volume - vacuum move, expect it back")
+alertcondition(old_on and (tape_dead and not tape_dead[1]), "DEAD TAPE", "Levels PRO: relative volume collapsed - fade breakouts, expect levels to hold")
+alertcondition(old_on and (tape_heavy and not tape_heavy[1]), "HEAVY TAPE", "Levels PRO: relative volume elevated for this hour - moves carry")
+alertcondition(old_on and (ip_i >= 0 and (ip_beh == 2 or ip_beh == 3) and not (ip_beh[1] == 2 or ip_beh[1] == 3)), "SWEEP", "Levels PRO: liquidity swept at the level and refused")
+alertcondition(old_on and (ip_i >= 0 and (ip_beh == 4 or ip_beh == 5) and not (ip_beh[1] == 4 or ip_beh[1] == 5)), "FAILED BREAK", "Levels PRO: break failed at the level - trap")
+alertcondition(old_on and (ip_i >= 0 and (ip_beh == 8 or ip_beh == 9) and not (ip_beh[1] == 8 or ip_beh[1] == 9)), "ACCEPTANCE", "Levels PRO: level accepted - it has flipped and is now behind price")
+alertcondition(old_on and (rej_lvl and ip_i >= 0 and (ip_beh == 15 or ip_beh == 16) and not (ip_beh[1] == 15 or ip_beh[1] == 16)), "REJECTION", "Levels PRO: rejection at the level - the wick was refused")
+alertcondition(old_on and (beh_chop and not beh_chop[1]), "LEVEL CHOP", "Levels PRO: level is unresolved - stand down")
+alertcondition(old_on and (trig_absorb), "ABSORPTION", "Levels PRO: heavy volume, tight range at the level - someone is soaking it up")
+alertcondition(old_on and (aligned_full and not aligned_full[1]), "TF FULLY ALIGNED", "Levels PRO v2: 15m / 1h / 4h aligned")
+alertcondition(old_on and (converging and not converging[1]), "TF CONVERGING",    "Levels PRO v2: timeframes starting to align")

@@ -1,0 +1,2153 @@
+//@version=5
+// ===========================================================================
+// LEVELS PRO TIDE r3.6 REVIEW — chart-only approximation, not the bot's live state.
+// Extends the v2.8 r3.2 port with selected r3.6 control, lane, wave, rule 18, and refusal behavior.
+// Policy inputs are user-adjustable; confirm actual bot settings separately. Bias is approximate.
+// This does not calculate grade points, observe news/broker/fills, or fully reproduce live exits.
+// Thus missing grade-only refusals may change pending setup lifecycle, targets and subsequent chart state.
+// Trigger alerts are limited to 1m chart bars and may collapse simultaneous signals. REVIEW ONLY.
+// ===========================================================================
+indicator("Levels PRO TIDE r3.6 chart approximation — REVIEW", shorttitle="TIDE r3.6", overlay=true, max_lines_count=20, max_labels_count=20, max_boxes_count=40)
+g_tide   = "TIDE (v2.8): the bot's model"
+td_on    = input.bool(true, "TIDE layer", group=g_tide, tooltip="REVIEW ONLY: approximate chart model with selected r3.6 policy. Configuration must be verified; grade points, news, broker, actual fills and some exits are not available. Never a live bot signal.")
+td_hist  = input.int(3000, "TIDE history (1m bars)", minval=1500, maxval=20000, group=g_tide, tooltip="How many 1m bars back the engine starts. The bot warms on its last 2000 1m bars (ruling 6: at least ~1500). More = slower load.")
+td_zones = input.bool(true, "Zone bands + round numbers", group=g_tide)
+td_plan  = input.bool(true, "Plan (E / SL / TP1 / TP2)", group=g_tide, tooltip="On a signal: the engine's entry, structural stop, TP1 (2/3) and TP2. On an armed setup: the reference entry and stop only (contract r1.4: TP1 / TP2 stay empty until entered).")
+td_shade = input.bool(true, "Blocks, open wait, 12:55 / 13:05", group=g_tide)
+td_hud   = input.bool(true, "TIDE board", group=g_tide)
+td_pos   = input.string("Bottom Left", "Board position", options=["Bottom Left", "Bottom Center", "Middle Left", "Top Left", "Top Center", "Top Right", "Middle Right", "Bottom Right"], group=g_tide, tooltip="Bottom Left by default: Daily Levels PRO's board offers no Bottom Left position, so the two boards never overlap.")
+td_glow  = input.bool(true, "Glow on ARMED", group=g_tide)
+td_wake  = input.bool(true, "Wake candles", group=g_tide, tooltip="In STAND DOWN the candles go quiet (the chart's text colour, 72% transparent), as in Daily Levels PRO v2.7. Turn it off there if both are on.")
+td_theme = input.string("Auto", "Board theme", options=["Auto", "Dark", "Light"], group=g_tide)
+extend_r   = input.int(30, "Extend right (bars)", minval=2, maxval=200, group=g_tide)
+lookback_l = input.int(150, "Extend left (bars)", minval=0, group=g_tide)
+// Appended after the v2.8 inputs; reported policy and source defaults require confirmation against the running bot.
+g_policy = "TIDE policy (chart approximation; verify bot settings)"
+td_stale_r = input.float(2.0, "Rule 18 multiplier", minval=0.0, group=g_policy, tooltip="Source default 2. Set to 0 to disable. Verify against the running bot.")
+td_control_bias = input.bool(true, "Allow control via 15m/30m bias", group=g_policy)
+td_control_free = input.bool(true, "Allow accepted break without 4H alignment", group=g_policy, tooltip="Source default ON; actual running configuration has not been verified.")
+td_lane_accept = input.bool(true, "Allow aligned trap displacement lane", group=g_policy)
+td_wave_trend = input.bool(true, "Relax wave threshold for trend", group=g_policy)
+td_release = input.bool(true, "Release refusal and remember blocked acceptance", group=g_policy)
+td_climax = input.bool(true, "Block with-trend climax entries", group=g_policy, tooltip="Source default ON; verify the running configuration.")
+// Mac's palette (Daily Levels PRO section 2) and board tokens (section 13)
+col_buy   = color.new(#26D96B, 0)
+col_sell  = color.new(#FF4D4D, 0)
+col_mix   = color.new(#9FB3C8, 0)
+col_viol  = color.new(#C4A2FF, 0)
+col_amber = color.new(#FFC53D, 0)
+col_hide  = color.new(color.gray, 100)
+bool  ui_dk  = td_theme == "Dark" or (td_theme == "Auto" and not (0.299 * color.r(chart.bg_color) + 0.587 * color.g(chart.bg_color) + 0.114 * color.b(chart.bg_color) >= 128))
+color u_fill = ui_dk ? #0f151c : #ffffff
+color u_bd   = ui_dk ? #1e2a36 : #dbe2e9
+color u_t1   = ui_dk ? #e6edf3 : #0d1620
+color u_t2   = ui_dk ? #8b98a5 : #5b6b7a
+color u_acc  = ui_dk ? #7fe3ee : #0b6f7a
+// the same references Daily Levels PRO reads (its section 3 / 4): the last closed hour's ATR (distance radius), the weekly levels (bias board)
+atr_raw = request.security("", "60", ta.atr(14)[1], lookahead=barmerge.lookahead_on)
+atr_ref = math.max(nz(atr_raw, nz(ta.atr(14)) * 4.0), syminfo.mintick * 20)
+float distant_atr = 1.5
+tf_min  = math.max(timeframe.in_seconds(timeframe.period) / 60.0, 0.1)
+pwh_v   = request.security("", "W", high[1], lookahead=barmerge.lookahead_on)
+pwl_v   = request.security("", "W", low[1],  lookahead=barmerge.lookahead_on)
+wk_open = request.security("", "W", open,    lookahead=barmerge.lookahead_on)
+// == TIDE ENGINE BEGIN ======================================================
+// 17. TIDE (v2.8): the bot's TIDE r2 structure engine, ported line by line from
+// tide/v2/pkg-live/bot/lib/structure.js r3.2 (sha16 2a2249f1; "S:n" = its line n),
+// the shadow/live wiring lib/tideWire.js r2.5 ("W:n") and lib/moneyRule.js ("M:n").
+// It steps on CLOSED 1m bars (request.security_lower_tf "1"), the bot's own input,
+// and aggregates 5m / 15m / 1H / 4H itself (S:12, S:251). DISPLAY ONLY: nothing
+// above this section reads it. APPROXIMATE (labelled "≈" on the chart): the bias
+// score (the bot reads its own levelsPro score on the forming 15m / 30m; ported in
+// 17B), and whatever the bot's broker / news / grade-volume state would change.
+// ===========================================================================
+type TBar
+    int   t
+    float o
+    float h
+    float l
+    float c
+    float v
+type TPiv
+    int   t
+    float p
+    int   cf
+type TMem
+    string nm
+    float  p
+    string key
+    string src
+    bool   t4
+    bool   maj
+    int    w
+    bool   stp
+    float  lo
+    float  hi
+    int    tch
+    int    z
+type TZone
+    float  lo
+    float  hi
+    string key
+    string nm
+    float  p
+    string src
+    bool   t4
+    int    w
+    bool   maj
+    bool   stp
+    bool   o4
+    int    tch
+    string mem
+type TEp
+    string key
+    int    side
+    int    st
+    float  spx
+    int    n
+    float  ext
+    int    extT
+    bool   bb
+    bool   acc
+    bool   disp
+    float  breakBody
+    float  breakXavg
+type TFail
+    int    dir
+    TZone  z
+    float  ext
+    int    extT
+    int    failT
+    int    brkT
+    float  sw
+    bool   live
+    bool   arm
+    bool   pend
+    string ptf
+    float  pbody
+    float  pxa
+    bool   pdisp
+    int    puntil
+type TSet
+    string id
+    int    kind
+    int    dir
+    int    stat
+    TZone  z
+    string zs
+    float  lvl
+    string ukey
+    bool   s4
+    float  ext
+    int    extT
+    float  sw
+    int    armT
+    float  legx
+    int    legT
+    bool   bnc
+    float  bx
+    float  bref
+    int    bT
+    int    rno
+    bool   fvg
+    float  flo
+    float  fhi
+    int    expT
+    int    brkT
+    int    swT
+    float  away
+    bool   rt
+    float  rx
+    float  rref
+    bool   rci
+    int    ncl
+    float  dbody
+    float  dxa
+    int    ent
+    int    clo
+    float  stop
+    int    doneT
+    string why
+    float  breakBody
+    float  breakXavg
+type TVt
+    string id
+    int    dir
+    float  e
+    float  stop
+    float  R
+    float  tp1
+    float  tp2
+    bool   t1
+    float  best
+    bool   strc
+    bool   cl
+type TG
+    int    lastT = 0
+    int    seq = 0
+    int    pT
+    float  pO4
+    float  pHi
+    float  pLo
+    int    pWait
+    int    cDir = 0
+    string cKind = ""
+    float  cExt
+    int    cT
+    int    kDir = 0
+    float  kExt
+    bool   kSeen = false
+    int    hDir = 0
+    int    hN = 0
+    string ms = "TRANSITION"
+    int    msDir = 0
+    float  msHi
+    float  msLo
+    bool   msK = false
+    int    clDir = 0
+    int    clT
+    int    nsUp
+    int    nsDn
+    float  lO4
+    float  lO1
+    float  lPDH
+    float  lPDL
+    float  lAH
+    float  lAL
+    float  lLH
+    float  lLL
+    float  b15
+    float  b30
+    int    sigT
+    string sigTxt = ""
+    float  sigE
+    float  sigS
+    float  sigT1
+    float  sigT2
+    int    sigDir = 0
+    float  wH
+    float  wL
+    float  wO
+    int    wId
+
+// S:18-101 DEFAULTS used here (the engine's own values; the indicator never lets Mac change them)
+float TK = 0.25
+var TG G = TG.new()
+var array<TBar> M1 = array.new<TBar>()
+var array<TBar> B5 = array.new<TBar>()
+var array<TBar> B15 = array.new<TBar>()
+var array<TBar> B60 = array.new<TBar>()
+var array<TBar> B240 = array.new<TBar>()
+var array<TBar> CUR = array.from(TBar.new(), TBar.new(), TBar.new(), TBar.new())   // forming 5m, 15m, 1H, 4H (t na = none)
+var array<TPiv> I5H = array.new<TPiv>()
+var array<TPiv> I5L = array.new<TPiv>()
+var array<TPiv> P5H = array.new<TPiv>()
+var array<TPiv> P5L = array.new<TPiv>()
+var array<TPiv> PHH = array.new<TPiv>()
+var array<TPiv> PHL = array.new<TPiv>()
+var array<TPiv> P4H = array.new<TPiv>()
+var array<TPiv> P4L = array.new<TPiv>()
+var array<TZone> ZS = array.new<TZone>()
+var array<TMem> RAW = array.new<TMem>()
+var array<string> ZBK = array.new<string>()
+var array<int> ZBT = array.new<int>()
+var array<TEp> EPS = array.new<TEp>()
+var array<TFail> FL = array.new<TFail>()
+var array<TSet> SU = array.new<TSet>()
+// r3.6 pending acceptance per direction: retained until a grade refusal or expiry/period check.
+var array<TZone> PA_Z = array.new<TZone>(2, na)
+var array<TEp> PA_E = array.new<TEp>(2, na)
+var array<bool> PA_OW = array.new_bool(2, false)
+var array<int> PA_T = array.new_int(2, na)
+var array<int> PA_PERIOD = array.new_int(2, na)
+var array<string> USED = array.new<string>()
+var array<string> RTK = array.new<string>()
+var array<int> RTN = array.new<int>()
+var array<int> BRT = array.new<int>()
+var array<float> BR15 = array.new<float>()
+var array<float> BR30 = array.new<float>()
+var array<TVt> VT = array.new<TVt>()
+var array<string> FBID = array.new<string>()
+var array<int> FBST = array.new<int>()
+// opening ranges (S:363-372): Asia 15:00, London 00:00, NY 06:30, 4H; t0 na = none yet
+var array<string> ORK = array.from("Asia", "London", "NY", "4H")
+var array<int> ORT = array.new<int>(4, na)
+var array<float> ORH = array.new<float>(4, na)
+var array<float> ORL = array.new<float>(4, na)
+var array<bool> ORD = array.new<bool>(4, false)
+var array<int> ORSEQ = array.new<int>(4, 0)   // insertion order of the engine's st.orb keys (S:285 iterates Object.keys)
+
+// ---------------------------------------------------------------- clock (S:169-187)
+t_ptm(int ts) =>
+    hour(ts * 1000, "America/Los_Angeles") * 60 + minute(ts * 1000, "America/Los_Angeles")
+t_inw(int m, int a, int b) =>
+    a <= b ? m >= a and m < b : m >= a or m < b
+t_bk(int tf, int ts) =>
+    tf == 240 ? ts - ts % 60 - (((t_ptm(ts) - 900) % 1440 + 1440) % 1440 % 240) * 60 : ts - (ts % (tf * 60) + tf * 60) % (tf * 60)
+t_r2(float x) =>
+    na(x) ? na : math.round(x * 100) / 100.0
+t_rng(TBar b) =>
+    b.h - b.l
+t_bp(TBar b) =>
+    b.h - b.l > 0 ? math.abs(b.c - b.o) / (b.h - b.l) : 0.0
+// S:244 the average range of the n bars before index e (exclusive)
+t_avgr(array<TBar> a, int n, int e) =>
+    float s = 0.0
+    int k = 0
+    for i = math.max(0, e - n) to e - 1
+        if e > 0
+            s += t_rng(array.get(a, i))
+            k += 1
+    k > 0 ? s / k : na
+// S:245-250 ATR over the bars array
+t_atr(array<TBar> a, int n) =>
+    int k = array.size(a)
+    float r = na
+    if k == 1
+        r := t_rng(array.get(a, 0))
+    else if k >= 2
+        float s = 0.0
+        int m = 0
+        for i = math.max(1, k - n) to k - 1
+            TBar b = array.get(a, i)
+            float p = array.get(a, i - 1).c
+            s += math.max(b.h - b.l, math.abs(b.h - p), math.abs(b.l - p))
+            m += 1
+        r := s / m
+    r
+t_cap(array<TBar> a, int n) =>
+    while array.size(a) > n
+        array.remove(a, 0)
+    0
+t_capp(array<TPiv> a, int n) =>
+    while array.size(a) > n
+        array.remove(a, 0)
+    0
+// S:263-270 confirms the bar `rt` bars back
+t_piv(array<TBar> a, int lf, int rt, int T, array<TPiv> hi, array<TPiv> lo) =>
+    int n = array.size(a)
+    int i = n - 1 - rt
+    if i - lf >= 0
+        TBar p = array.get(a, i)
+        bool isH = true
+        bool isL = true
+        for k = i - lf to n - 1
+            if k != i
+                TBar q = array.get(a, k)
+                if k < i
+                    isH := isH and not (q.h >= p.h)
+                    isL := isL and not (q.l <= p.l)
+                else
+                    isH := isH and not (q.h > p.h)
+                    isL := isL and not (q.l < p.l)
+        if isH
+            array.push(hi, TPiv.new(p.t, p.h, T))
+            t_capp(hi, 60)
+        if isL
+            array.push(lo, TPiv.new(p.t, p.l, T))
+            t_capp(lo, 60)
+    0
+t_last(array<TBar> a) =>
+    array.size(a) > 0 ? array.get(a, array.size(a) - 1) : na
+// S:271 the forming bar, else the last closed one
+t_fol(int k, array<TBar> a) =>
+    TBar c = array.get(CUR, k)
+    na(c.t) ? t_last(a) : c
+t_tfi(int k) =>
+    k == 0 ? 5 : k == 1 ? 15 : k == 2 ? 60 : 240
+
+// ---------------------------------------------------------------- bias readings (S:383-394): the last 40 (CAP.bias)
+t_rd_now(int T) =>
+    int n = array.size(BRT)
+    n > 0 ? array.get(BRT, n - 1) == T : false
+t_ourway(float a, float b, int d) =>
+    na(a) and na(b) ? na : na(a) ? d * b : na(b) ? d * a : math.max(d * a, d * b)
+// S:387-393 the peak bias our way in [f, t]
+t_wave(int d, int f, int t) =>
+    float best = na
+    for i = 0 to array.size(BRT) - 1
+        if array.size(BRT) > 0
+            int rt = array.get(BRT, i)
+            float v = t_ourway(array.get(BR15, i), array.get(BR30, i), d)
+            if rt >= f and rt <= t and not na(v) and (na(best) or v > best)
+                best := v
+    na(best) ? na : math.round(best * 10000) / 10000.0
+
+// ---------------------------------------------------------------- zones (S:274-345)
+var array<string> NRK = str.split("4H Open|PDH|PDL|EQH|EQL|Asia High|Asia Low|London High|London Low|4H ORH|4H ORL|Asia ORH|Asia ORL|London ORH|London ORL|NY ORH|NY ORL|1H Open|Round", "|")
+t_nrank(string n) =>
+    int r = array.indexof(NRK, n)
+    r < 0 ? 99 : r
+// S:321-325 memberOrder: weight first (strong 3 > obvious 2 > minor 1), then the name rank. < 0 = a before b
+t_mo(int wa, string na_, int wb, string nb_) =>
+    int w = wb - wa
+    w != 0 ? w : t_nrank(na_) - t_nrank(nb_)
+t_add(string nm, float p, string key, string src, bool t4, bool maj, int w, bool stp) =>
+    if not na(p)
+        array.push(RAW, TMem.new(nm, p, key == "" ? nm + "@" + str.tostring(p) : key, src, t4, maj, w, stp, p - 2.0, p + 2.0, 0, -1))
+    0
+// S:326-345 equal highs / lows from the confirmed 5m pivots (2/2)
+t_eq(array<TPiv> pv, bool hiSide, int T) =>
+    array<TPiv> pts = array.new<TPiv>()
+    for x in pv
+        if x.t >= T - 1440 * 60
+            int j = array.size(pts)
+            while j > 0
+                if array.get(pts, j - 1).p > x.p
+                    j -= 1
+                else
+                    break
+            array.insert(pts, j, x)
+    int i = 0
+    int n = array.size(pts)
+    while i < n
+        int j = i
+        while j + 1 < n
+            if array.get(pts, j + 1).p - array.get(pts, i).p <= 2.0
+                j += 1
+            else
+                break
+        if j > i
+            float mx = array.get(pts, i).p
+            float mn = mx
+            int lt = array.get(pts, i).t
+            int ft = lt
+            for k = i to j
+                TPiv q = array.get(pts, k)
+                mx := math.max(mx, q.p)
+                mn := math.min(mn, q.p)
+                lt := math.max(lt, q.t)
+                ft := math.min(ft, q.t)
+            bool taken = false
+            int k = array.size(B5) - 1
+            while k >= 0
+                if array.get(B5, k).t > lt and not taken
+                    TBar b = array.get(B5, k)
+                    taken := hiSide ? b.c > mx : b.c < mn
+                    k -= 1
+                else
+                    break
+            if not taken
+                string nm = hiSide ? "EQH" : "EQL"
+                array.push(RAW, TMem.new(nm, hiSide ? mx : mn, nm + "@" + str.tostring(ft), "eq", false, true, 3, true, mn - TK, mx + TK, j - i + 1, -1))
+        i := j + 1
+    0
+t_build(int T) =>
+    array.clear(RAW)
+    int pm = t_ptm(T)
+    float px = array.size(M1) > 0 ? array.get(M1, array.size(M1) - 1).c : na
+    t_add("4H Open", na(G.pT) ? G.lO4 : G.pO4, "", "board", true, true, 3, true)
+    t_add("PDH", G.lPDH, "", "board", true, true, 3, true)
+    t_add("PDL", G.lPDL, "", "board", true, true, 3, true)
+    if not t_inw(pm, 900, 1440)
+        t_add("Asia High", G.lAH, "", "board", false, true, 2, true)
+        t_add("Asia Low", G.lAL, "", "board", false, true, 2, true)
+    if not t_inw(pm, 0, 390)
+        t_add("London High", G.lLH, "", "board", false, true, 2, true)
+        t_add("London Low", G.lLL, "", "board", false, true, 2, true)
+    TBar h1 = t_fol(2, B60)
+    t_add("1H Open", not na(G.lO1) ? G.lO1 : na(h1) ? na : h1.o, "", "board", false, false, 1, true)
+    for q = 1 to 4
+        for k = 0 to 3
+            if array.get(ORSEQ, k) == q and array.get(ORD, k)
+                string nm = array.get(ORK, k)
+                int t0 = array.get(ORT, k)
+                bool ok = k == 3 ? (not na(G.pT) and t0 == G.pT) : t_inw(pm, k == 0 ? 900 : k == 1 ? 0 : 390, k == 0 ? 1440 : k == 1 ? 390 : 780) and T - t0 <= 86400
+                if ok
+                    t_add(nm + " ORH", array.get(ORH, k), nm + " ORH@" + str.tostring(t0), "or", false, false, 2, true)
+                    t_add(nm + " ORL", array.get(ORL, k), nm + " ORL@" + str.tostring(t0), "or", false, false, 2, true)
+    t_eq(P5H, true, T)
+    t_eq(P5L, false, T)
+    if not na(px)
+        float p = math.ceil((px - 400) / 50) * 50.0
+        while p <= px + 400
+            t_add("Round", p, "Round@" + str.tostring(p), "round", false, false, 1, false)
+            p += 50
+    // stable sort by lo, then hi (S:298)
+    array<TMem> rs = array.new<TMem>()
+    for r in RAW
+        int j = array.size(rs)
+        while j > 0
+            if (array.get(rs, j - 1).lo > r.lo or (array.get(rs, j - 1).lo == r.lo and array.get(rs, j - 1).hi > r.hi))
+                j -= 1
+            else
+                break
+        array.insert(rs, j, r)
+    array.clear(RAW)
+    // merge (S:299-305); a context-only Round is its own zone and does not break the chain
+    array<float> zlo = array.new<float>()
+    array<float> zhi = array.new<float>()
+    int cur = -1
+    for r in rs
+        int zi = -1
+        if r.src == "round"
+            array.push(zlo, r.lo)
+            array.push(zhi, r.hi)
+            zi := array.size(zlo) - 1
+        else if cur >= 0 ? r.lo <= array.get(zhi, cur) + 1.0 and math.max(array.get(zhi, cur), r.hi) - math.min(array.get(zlo, cur), r.lo) <= 14.0 : false
+            array.set(zlo, cur, math.min(array.get(zlo, cur), r.lo))
+            array.set(zhi, cur, math.max(array.get(zhi, cur), r.hi))
+            zi := cur
+        else
+            array.push(zlo, r.lo)
+            array.push(zhi, r.hi)
+            cur := array.size(zlo) - 1
+            zi := cur
+        r.z := zi
+        array.push(RAW, r)
+    // zones sorted by lo, hi (stable): an index order
+    array<int> ord = array.new<int>()
+    for i = 0 to array.size(zlo) - 1
+        if array.size(zlo) > 0
+            int j = array.size(ord)
+            while j > 0
+                if (array.get(zlo, array.get(ord, j - 1)) > array.get(zlo, i) or (array.get(zlo, array.get(ord, j - 1)) == array.get(zlo, i) and array.get(zhi, array.get(ord, j - 1)) > array.get(zhi, i)))
+                    j -= 1
+                else
+                    break
+            array.insert(ord, j, i)
+    array.clear(ZS)
+    for oi in ord
+        TMem best = na
+        bool t4 = false
+        bool maj = false
+        bool stp = false
+        bool o4 = false
+        int tch = 0
+        string mem = "|"
+        for r in RAW
+            if r.z == oi
+                if na(best) ? true : t_mo(r.w, r.nm, best.w, best.nm) < 0
+                    best := r
+                t4 := t4 or r.t4
+                maj := maj or r.maj
+                stp := stp or r.stp
+                o4 := o4 or r.nm == "4H Open"
+                tch := math.max(tch, r.tch)
+                mem += r.nm + "|"
+        float lo = array.get(zlo, oi)
+        float hi = array.get(zhi, oi)
+        if tch == 0
+            for x in P5H
+                tch += x.t >= T - 86400 and x.p >= lo - TK and x.p <= hi + TK ? 1 : 0
+            for x in P5L
+                tch += x.t >= T - 86400 and x.p >= lo - TK and x.p <= hi + TK ? 1 : 0
+        array.push(ZS, TZone.new(lo, hi, best.key, best.nm, best.p, best.src, t4, best.w, maj, stp, o4, tch, mem))
+    // zone birth (S:317-319)
+    array<string> nk = array.new<string>()
+    array<int> nt = array.new<int>()
+    for z in ZS
+        int b = T
+        for i = 0 to array.size(ZBK) - 1
+            if array.size(ZBK) > 0 ? (array.get(ZBK, i) == z.key) : false
+                b := array.get(ZBT, i)
+        array.push(nk, z.key)
+        array.push(nt, b)
+    array.clear(ZBK)
+    array.clear(ZBT)
+    for i = 0 to array.size(nk) - 1
+        if array.size(nk) > 0
+            array.push(ZBK, array.get(nk, i))
+            array.push(ZBT, array.get(nt, i))
+    0
+t_birth(string key) =>
+    int b = 0
+    for i = 0 to array.size(ZBK) - 1
+        if array.size(ZBK) > 0 ? (array.get(ZBK, i) == key) : false
+            b := array.get(ZBT, i)
+    b
+
+// ---------------------------------------------------------------- setups helpers
+t_cancel(TSet s, string why, int T) =>
+    s.stat := 3
+    s.why := why
+    s.doneT := T
+    0
+t_used(string k) =>
+    bool u = false
+    for x in USED
+        u := u or x == k
+    u
+// S:765-768 the retest count of ONE break
+t_noteRt(TSet s) =>
+    string k = str.tostring(s.kind) + "|" + s.z.key + "|" + str.tostring(s.dir) + "|" + str.tostring(s.brkT)
+    int n = 1
+    int at = -1
+    for i = 0 to array.size(RTK) - 1
+        if array.size(RTK) > 0 ? (array.get(RTK, i) == k) : false
+            at := i
+    if at >= 0
+        n := array.get(RTN, at) + 1
+        array.set(RTN, at, n)
+    else
+        array.push(RTK, k)
+        array.push(RTN, 1)
+    n
+// S:752-764 the FVG the displacement left (5m); bounded to the bars since the sweep
+t_fvg(TSet s) =>
+    int n = array.size(B5)
+    int i = n - 1
+    while i >= 2
+        if array.get(B5, i).t >= s.extT
+            TBar c1 = array.get(B5, i - 2)
+            TBar c3 = array.get(B5, i)
+            float lo = s.dir < 0 ? c3.h : c1.h
+            float hi = s.dir < 0 ? c1.l : c3.l
+            if hi - lo >= 1.0
+                bool hit = false
+                int k = array.size(M1) - 1
+                while k >= 0
+                    TBar x = array.get(M1, k)
+                    if x.t < c3.t + 300 or hit
+                        break
+                    hit := s.dir < 0 ? x.h >= lo : x.l <= hi
+                    k -= 1
+                if not hit and (not s.fvg or (s.dir < 0 ? lo < s.flo : hi > s.fhi))
+                    s.fvg := true
+                    s.flo := lo
+                    s.fhi := hi
+            i -= 1
+        else
+            break
+    0
+// S:895-898 mid-range: na = unknown (fails the gate), false = not in the middle 50 %
+t_mid(float lvl) =>
+    not G.msK ? na : G.ms != "RANGE" ? false : lvl > G.msLo + (G.msHi - G.msLo) * 0.25 and lvl < G.msHi - (G.msHi - G.msLo) * 0.25
+// W:109-115 the wire's open wait at the bar close T (minutes)
+t_owW(int T) =>
+    int m = t_ptm(T)
+    ((m - 900) % 1440 + 1440) % 1440 < 30 or ((m - 0) % 1440 + 1440) % 1440 < 30 or ((m - 390) % 1440 + 1440) % 1440 < 30 or ((m - 900) % 240 + 240) % 240 < 30
+// S:374-380 the engine's open wait at T (first 30 min of the 4H, and of each session)
+t_owE(int T) =>
+    int m = t_ptm(T - 60)
+    (not na(G.pT) and T <= G.pT + 1800) or ((m - 900) % 1440 + 1440) % 1440 < 30 or ((m - 0) % 1440 + 1440) % 1440 < 30 or ((m - 390) % 1440 + 1440) % 1440 < 30
+// W:24 + W:105 TIDE's own blocks 15:00-17:00 and 06:30-07:10 PT (ruling 11 / 16)
+t_blk(int T) =>
+    int m = t_ptm(T)
+    (m >= 900 and m < 1020) or (m >= 390 and m < 430)
+// ruling 8: no TIDE entry from 12:55 PT, flat at 13:05 PT (to the 15:00 open)
+t_sc(int T) =>
+    int m = t_ptm(T)
+    m >= 775 and m < 900
+t_fl(int T) =>
+    int m = t_ptm(T)
+    m >= 785 and m < 900
+// M:85-86 tick rounding toward profit / toward entry
+t_tp(float p, int d) =>
+    d > 0 ? math.ceil(p / TK - 1e-9) * TK : math.floor(p / TK + 1e-9) * TK
+t_te(float p, int d) =>
+    d > 0 ? math.floor(p / TK + 1e-9) * TK : math.ceil(p / TK - 1e-9) * TK
+
+// ---------------------------------------------------------------- pools + TP1 / TP2 (S:980-1001, W:262-277, M:254-275)
+t_tgts(int d, float e, bool fb, array<float> tp, array<bool> tm) =>
+    array<float> p0 = array.new<float>()
+    array<bool> m0 = array.new<bool>()
+    string MJ = "|4H Open|PDH|PDL|Asia High|Asia Low|London High|London Low|EQH|EQL|"
+    for r in RAW
+        if r.src != "round" and (d < 0 ? r.p < e - TK : r.p > e + TK)
+            array.push(p0, r.p)
+            array.push(m0, r.maj or str.contains(MJ, "|" + r.nm + "|"))
+    array<float> bd = array.from(G.lPDH, G.lPDL, G.lAH, G.lAL, G.lLH, G.lLL)
+    for x in bd
+        if not na(x) and (d < 0 ? x < e - TK : x > e + TK)
+            array.push(p0, x)
+            array.push(m0, true)
+    for k = 0 to 3
+        if array.get(ORD, k) and G.lastT - array.get(ORT, k) <= 86400
+            for x in array.from(array.get(ORH, k), array.get(ORL, k))
+                if d < 0 ? x < e - TK : x > e + TK
+                    array.push(p0, x)
+                    array.push(m0, false)
+    array<TPiv> hs = d < 0 ? PHL : PHH
+    for i = math.max(0, array.size(hs) - 8) to array.size(hs) - 1
+        if array.size(hs) > 0
+            float x = array.get(hs, i).p
+            if d < 0 ? x < e - TK : x > e + TK
+                array.push(p0, x)
+                array.push(m0, false)
+    array<TPiv> fs = d < 0 ? P4L : P4H
+    for i = math.max(0, array.size(fs) - 6) to array.size(fs) - 1
+        if array.size(fs) > 0
+            float x = array.get(fs, i).p
+            if d < 0 ? x < e - TK : x > e + TK
+                array.push(p0, x)
+                array.push(m0, true)
+    if G.ms == "RANGE"
+        float x = d < 0 ? G.msLo : G.msHi
+        if d < 0 ? x < e - TK : x > e + TK
+            array.push(p0, x)
+            array.push(m0, true)
+    if fb and not na(G.pT)
+        float x = d < 0 ? G.pLo : G.pHi
+        if d < 0 ? x < e - TK : x > e + TK
+            array.push(p0, x)
+            array.push(m0, false)
+    // nearest first (stable), dedupe within 0.5, minors capped at 12; then the wire's PDH / PDL (W:262-267)
+    array<int> ix = array.new<int>()
+    for i = 0 to array.size(p0) - 1
+        if array.size(p0) > 0
+            int j = array.size(ix)
+            while j > 0
+                if math.abs(array.get(p0, array.get(ix, j - 1)) - e) > math.abs(array.get(p0, i) - e)
+                    j -= 1
+                else
+                    break
+            array.insert(ix, j, i)
+    int mn = 0
+    for i in ix
+        float x = array.get(p0, i)
+        int q = -1
+        for k = 0 to array.size(tp) - 1
+            if array.size(tp) > 0 ? (q < 0 and math.abs(array.get(tp, k) - x) <= 0.5) : false
+                q := k
+        if q >= 0
+            array.set(tm, q, array.get(tm, q) or array.get(m0, i))
+        else
+            array.push(tp, x)
+            array.push(tm, array.get(m0, i))
+    int j = 0
+    while j < array.size(tp)
+        if not array.get(tm, j)
+            mn += 1
+        if not array.get(tm, j) and mn > 12
+            array.remove(tp, j)
+            array.remove(tm, j)
+        else
+            j += 1
+    0
+t_plan(int d, float e, float stop, bool fb) =>
+    array<float> tp = array.new<float>()
+    array<bool> tm = array.new<bool>()
+    t_tgts(d, e, fb, tp, tm)
+    for x in array.from(G.lPDH, G.lPDL)
+        bool near = false
+        for y in tp
+            near := near or math.abs(y - x) <= TK + 1e-9
+        if not na(x) and d * (x - e) > TK and not near
+            array.push(tp, x)
+            array.push(tm, true)
+    float R = d * (e - stop)
+    float p2 = t_tp(e + d * 2 * R, d)
+    float t2 = na
+    float bx = na
+    for k = 0 to array.size(tp) - 1
+        if array.size(tp) > 0
+            float x = d * array.get(tp, k)
+            if x >= d * p2 - 1e-9 and (na(bx) or x < bx)
+                bx := x
+                t2 := math.max(d * t_te(array.get(tp, k), d), d * p2) * d
+    t2 := na(t2) ? p2 : t_r2(t2)
+    float x1 = d * t_tp(e + d * R, d)
+    float f1 = na
+    for k = 0 to array.size(tp) - 1
+        if array.size(tp) > 0 ? (not array.get(tm, k)) : false
+            float x = d * t_te(array.get(tp, k), d)
+            if x >= d * e + TK - 1e-9 and x < d * t2 - 1e-9 and (na(f1) or x < f1)
+                f1 := x
+    float t1 = t_r2(d * (not na(f1) and f1 <= x1 + 1e-9 ? f1 : x1))
+    [t1, t2, t_r2(R)]
+
+// ---------------------------------------------------------------- 5m close (S:482-549)
+t_launch(TEp ep, int side, int T) =>
+    // S:551-561 the last internal swing the trapped side defended
+    array<TPiv> pv = side > 0 ? I5L : I5H
+    float r = na
+    bool done = false
+    int minT = ep.st - 24 * 300
+    int i = array.size(pv) - 1
+    while i >= 0 and not done
+        TPiv p = array.get(pv, i)
+        if p.t < ep.extT and p.cf <= T
+            if p.t < minT
+                done := true
+            else
+                r := p.p
+                done := true
+        i -= 1
+    if na(r)
+        for x in B5
+            if x.t >= ep.st and x.t < ep.extT
+                if na(r) or (side > 0 ? x.l < r : x.h > r)
+                    r := side > 0 ? x.l : x.h
+    if na(r)
+        for x in B5
+            if x.t < ep.extT
+                r := side > 0 ? x.l : x.h
+    r
+t_on5m(TBar bar, int T, array<TFail> fails, array<TZone> az, array<TEp> ae, array<bool> aw) =>
+    int n = array.size(B5)
+    TBar prev = n >= 2 ? array.get(B5, n - 2) : na
+    t_piv(B5, 1, 1, T, I5H, I5L)
+    t_piv(B5, 2, 2, T, P5H, P5L)
+    t_build(T)
+    array<string> keys = array.new<string>()
+    for z in ZS
+        if z.stp
+            for side in array.from(1, -1)
+                string k = z.key + "|" + str.tostring(side)
+                array.push(keys, k)
+                TEp ep = na
+                int ei = -1
+                for i = 0 to array.size(EPS) - 1
+                    if array.size(EPS) > 0
+                        if array.get(EPS, i).key == k
+                            ei := i
+                if ei >= 0
+                    ep := array.get(EPS, ei)
+                bool beyond = side > 0 ? bar.h > z.hi : bar.l < z.lo
+                bool go = true
+                if na(ep)
+                    bool born = t_birth(z.key) > (na(prev) ? 0 : prev.t + 300)
+                    bool frm = born ? (side > 0 ? bar.o <= z.hi and bar.c > z.hi : bar.o >= z.lo and bar.c < z.lo) : na(prev) ? false : (side > 0 ? math.min(prev.c, bar.o) <= z.p : math.max(prev.c, bar.o) >= z.p)
+                    if beyond and frm
+                        ep := TEp.new(k, side, bar.t, na(prev) ? bar.o : prev.c, 0, side > 0 ? bar.h : bar.l, bar.t, false, false, false)
+                        array.push(EPS, ep)
+                        ei := array.size(EPS) - 1
+                    else
+                        go := false
+                if go
+                    if side > 0 ? bar.h > ep.ext : bar.l < ep.ext
+                        ep.ext := side > 0 ? bar.h : bar.l
+                        ep.extT := bar.t
+                    bool out = side > 0 ? bar.c > z.hi : bar.c < z.lo
+                    bool back = side > 0 ? bar.c < z.lo : bar.c > z.hi
+                    if out
+                        ep.n += 1
+                        if not ep.bb
+                            ep.bb := true
+                            float a = t_avgr(B5, 20, n - 1)
+                            ep.breakBody := t_r2(t_bp(bar))
+                            ep.breakXavg := na(a) or a == 0 ? na : t_r2(t_rng(bar) / a)
+                            ep.disp := not na(a) and t_bp(bar) >= 0.5 and t_rng(bar) >= a and (side > 0 ? bar.c > bar.o : bar.c < bar.o)
+                        if not ep.acc and ep.n >= 2
+                            ep.acc := true
+                            // S:518-519 the reading is journalled; it only feeds CONTROL_CANCEL
+                            bool ow = false
+                            if t_rd_now(T)
+                                float s15 = array.get(BR15, array.size(BR15) - 1)
+                                float s30 = array.get(BR30, array.size(BR30) - 1)
+                                ow := (not na(s15) and side * s15 >= 0.15) or (not na(s30) and side * s30 >= 0.15)
+                            array.push(az, z)
+                            array.push(ae, ep)
+                            array.push(aw, ow)
+                    else if back
+                        int bfe = math.round((bar.t - ep.extT) / 300) + 1
+                        float depth = side > 0 ? ep.ext - z.hi : z.lo - ep.ext
+                        if bfe <= 3 and depth >= 1.0
+                            TFail f = TFail.new(-side, z, ep.ext, ep.extT, T, ep.st, t_launch(ep, side, T), true, false, false)
+                            array.push(FL, f)
+                            array.push(fails, f)
+                        array.remove(EPS, ei)
+    // S:536 eps of zones that left the board
+    int i = array.size(EPS) - 1
+    while i >= 0
+        if not array.includes(keys, array.get(EPS, i).key)
+            array.remove(EPS, i)
+        i -= 1
+    // S:562-579 climax warning (5m)
+    if not na(G.clT) and (T - G.clT) / 300 >= 12
+        G.clDir := 0
+        G.clT := na
+    if n >= 8
+        array<float> vv = array.new<float>()
+        for j = math.max(0, n - 21) to n - 2
+            if array.get(B5, j).v > 0
+                array.push(vv, array.get(B5, j).v)
+        float vm = array.size(vv) > 0 ? array.median(vv) : na
+        array<TBar> pre = array.slice(B5, 0, n - 1)
+        float a = t_atr(pre, 14)
+        float lh = -1e12
+        float ll = 1e12
+        for j = n - 7 to n - 2
+            lh := math.max(lh, array.get(B5, j).h)
+            ll := math.min(ll, array.get(B5, j).l)
+        if not na(a) and a != 0
+            float up = bar.h >= lh ? bar.h - ll : 0.0
+            float dn = bar.l <= ll ? lh - bar.l : 0.0
+            float rg = t_rng(bar) == 0 ? 1.0 : t_rng(bar)
+            bool hv = not na(vm) and bar.v >= 2.0 * vm
+            if up >= 2.5 * a and (bar.c - bar.l) / rg <= 0.5
+                if hv
+                    G.clDir := 1
+                    G.clT := T
+            else if dn >= 2.5 * a and (bar.h - bar.c) / rg <= 0.5
+                if hv
+                    G.clDir := -1
+                    G.clT := T
+    // S:540-547 setup cancels on the 5m close (and a trap setup picks up its FVG)
+    for s in SU
+        if s.stat == 0
+            if s.kind == 0 and not s.fvg
+                t_fvg(s)
+            if s.kind == 0
+                float cx = s.dir < 0 ? math.min(s.sw, s.z.hi) : math.max(s.sw, s.z.lo)
+                if s.dir < 0 ? bar.c > cx : bar.c < cx
+                    t_cancel(s, "RECLAIM: a 5m close back through the broken swing / level", T)
+            else if s.dir > 0 ? bar.c < s.z.lo : bar.c > s.z.hi
+                t_cancel(s, "ACCEPT_LOST: a 5m close back inside", T)
+    0
+
+// ---------------------------------------------------------------- 1H state (S:592-613)
+t_on1h(int T) =>
+    t_piv(B60, 2, 2, T, PHH, PHL)
+    TBar last = t_last(B60)
+    string st = "TRANSITION"
+    int dr = 0
+    float hi = na
+    float lo = na
+    int nh = array.size(PHH)
+    int nl = array.size(PHL)
+    if nh >= 2 and nl >= 2
+        float ha = array.get(PHH, nh - 2).p
+        float hb = array.get(PHH, nh - 1).p
+        float la = array.get(PHL, nl - 2).p
+        float lb = array.get(PHL, nl - 1).p
+        if hb > ha and lb > la and last.c > lb
+            st := "TREND"
+            dr := 1
+        else if hb < ha and lb < la and last.c < hb
+            st := "TREND"
+            dr := -1
+    if st != "TREND"
+        int minT = last.t - 48 * 3600
+        float a = nz(t_atr(B60, 14))
+        float mx = na
+        float mn = na
+        int ch = 0
+        int cl = 0
+        for p in PHH
+            if p.t >= minT
+                mx := na(mx) ? p.p : math.max(mx, p.p)
+                ch += 1
+        for p in PHL
+            if p.t >= minT
+                mn := na(mn) ? p.p : math.min(mn, p.p)
+                cl += 1
+        if ch >= 2 and cl >= 2
+            int th = 0
+            int tl = 0
+            for p in PHH
+                th += p.t >= minT and p.p >= mx - 0.5 * a ? 1 : 0
+            for p in PHL
+                tl += p.t >= minT and p.p <= mn + 0.5 * a ? 1 : 0
+            if th >= 2 and tl >= 2 and last.c <= mx and last.c >= mn
+                st := "RANGE"
+                hi := mx
+                lo := mn
+    G.ms := st
+    G.msDir := dr
+    G.msHi := hi
+    G.msLo := lo
+    G.msK := nh >= 2 and nl >= 2
+    0
+
+// ---------------------------------------------------------------- 4H control (S:443-479)
+t_control(TBar b, int T, array<TFail> fails) =>
+    if not na(G.pT)
+        if G.cDir != 0 and G.cKind == "trap" and (G.cDir < 0 ? b.h > G.cExt : b.l < G.cExt)
+            G.cDir := 0
+            G.cKind := ""
+        for f in fails
+            if f.z.o4
+                if G.kDir != f.dir or (f.dir < 0 ? f.ext > G.kExt : f.ext < G.kExt)
+                    G.kDir := f.dir
+                    G.kExt := f.ext
+                    G.kSeen := false
+        bool after = T > G.pWait
+        if G.kDir != 0 and (G.kDir < 0 ? b.h > G.kExt : b.l < G.kExt)
+            G.kDir := 0
+        if after and G.kDir != 0
+            bool sideOk = G.kDir < 0 ? b.c < G.pO4 : b.c > G.pO4
+            if sideOk and G.cKind == "trap" and G.cDir == -G.kDir
+                G.kSeen := true   // S:457-460 the trap control holds (ruling 1)
+            else if sideOk and not (G.cKind == "trap" and G.cDir == G.kDir)
+                G.cDir := G.kDir
+                G.cKind := "trap"
+                G.cExt := G.kExt
+                G.cT := T
+                G.kDir := 0
+        int d = 0
+        if after and t_rd_now(T)
+            float s15 = array.get(BR15, array.size(BR15) - 1)
+            float s30 = array.get(BR30, array.size(BR30) - 1)
+            if b.c < G.pO4 and ((not na(s15) and s15 <= -0.15) or (not na(s30) and s30 <= -0.15))
+                d := -1
+            else if b.c > G.pO4 and ((not na(s15) and s15 >= 0.15) or (not na(s30) and s30 >= 0.15))
+                d := 1
+        if d != 0 and d == G.hDir
+            G.hN += 1
+        else
+            G.hDir := d
+            G.hN := d != 0 ? 1 : 0
+        if G.cDir == 0 and G.hDir != 0 and G.hN >= 3
+            G.cDir := G.hDir
+            G.cKind := G.hDir < 0 ? "below" : "above"
+            G.cExt := na
+            G.cT := T
+    0
+
+// ---------------------------------------------------------------- shift + arm (S:616-676)
+t_armF(TFail f, string tf, float body, float xa, bool disp, int T) =>
+    array<TFail> grp = array.new<TFail>()
+    for g in FL
+        if g.live and not g.arm and g.dir == f.dir and not na(g.sw) and math.abs(g.sw - f.sw) < 1e-9
+            g.arm := true
+            int j = array.size(grp)
+            while j > 0
+                if (t_mo(g.z.w, g.z.nm, array.get(grp, j - 1).z.w, array.get(grp, j - 1).z.nm) < 0 or (t_mo(g.z.w, g.z.nm, array.get(grp, j - 1).z.w, array.get(grp, j - 1).z.nm) == 0 and (f.dir < 0 ? g.ext > array.get(grp, j - 1).ext : g.ext < array.get(grp, j - 1).ext)))
+                    j -= 1
+                else
+                    break
+            array.insert(grp, j, g)
+    TFail p = array.get(grp, 0)
+    float ext = p.ext
+    string zs = "|"
+    for g in grp
+        ext := f.dir < 0 ? math.max(ext, g.ext) : math.min(ext, g.ext)
+        zs += g.z.nm + "|"
+    G.clDir := 0
+    G.clT := na
+    string uk = str.tostring(G.pT) + "|" + p.z.key + "|0|" + str.tostring(f.dir)
+    bool ok = not t_used(uk)
+    if ok
+        for o in SU
+            if o.stat == 0 and o.dir == f.dir and na(o.ent)
+                t_cancel(o, "SUPERSEDED: the trap setup on " + p.z.nm + " replaces it (one idea per direction)", T)
+        for o in SU
+            if o.dir == f.dir and not na(o.ent) and na(o.clo)
+                ok := false
+    if ok
+        float lx = na
+        int lt = T - 60
+        for x in M1
+            if x.t >= p.extT
+                if na(lx) or (f.dir < 0 ? x.l <= lx : x.h >= lx)
+                    lx := f.dir < 0 ? x.l : x.h
+                    lt := x.t
+        G.seq += 1
+        TSet s = TSet.new("S" + str.tostring(G.seq), 0, f.dir, 0, p.z, zs, p.z.p, uk, p.z.t4 or G.cKind == "trap", ext, p.extT, f.sw, T, lx, lt, false, na, na, na, 0, false, na, na, T + 36 * 300, p.brkT, p.extT, 0.0, false, na, na, false, 0, body, xa)
+        t_fvg(s)
+        array.push(SU, s)
+    0
+t_shift(int k, array<TBar> bars, TBar bar, int T) =>
+    int n = array.size(bars)
+    if n >= 2
+        TBar prev = array.get(bars, n - 2)
+        float a = t_avgr(bars, 20, n - 1)
+        for f in FL
+            if f.live and not f.arm and not na(f.sw) and not (k == 1 and bar.t + 900 < f.extT)
+                float sw = f.sw
+                bool crosses = f.dir < 0 ? bar.c < sw and prev.c >= sw : bar.c > sw and prev.c <= sw
+                bool dirOk = f.dir < 0 ? bar.c < bar.o : bar.c > bar.o
+                float bp = t_bp(bar)
+                if crosses and dirOk and bp >= 0.5 and not f.arm
+                    bool disp = not na(a) and bp >= 0.5 and t_rng(bar) >= a
+                    float xa = na(a) ? na : t_r2(t_rng(bar) / a)
+                    if disp or k == 1
+                        t_armF(f, k == 1 ? "15m" : "5m", t_r2(bp), xa, disp, T)
+                    else if not f.pend
+                        f.pend := true
+                        f.ptf := "5m"
+                        f.pbody := t_r2(bp)
+                        f.pxa := xa
+                        f.pdisp := disp
+                        f.puntil := t_bk(15, bar.t) + 900
+    0
+// r3.6 rule 18: an un-retested trap gives way only if it is far and the new acceptance is nearer.
+t_farTrap(float px, float level, float ext, int retestNo, float staleR) =>
+    bool valid = not na(px) and not na(level) and not na(ext) and not na(retestNo) and staleR > 0
+    float risk = math.abs(level - ext)
+    valid and retestNo == 0 and risk > 0 and math.abs(px - level) > math.max(staleR * risk, 60.0)
+// S:726-749 an accepted break arms a continuation setup
+t_armA(TZone z, TEp ep, bool ow, int T) =>
+    int d = ep.side
+    if G.clDir != 0 and G.clDir != d
+        G.clDir := 0
+        G.clT := na
+    if G.cDir == -d and G.cKind != "trap" and G.cKind != "" and z.o4 and ow
+        G.cDir := 0
+        G.cKind := ""
+        G.hDir := 0
+        G.hN := 0
+    string uk = str.tostring(G.pT) + "|" + z.key + "|1|" + str.tostring(d)
+    bool ok = not t_used(uk)
+    for s in SU
+        if s.ukey == uk and s.stat == 0
+            ok := false
+    if ok
+        float currentPx = array.size(M1) > 0 ? array.get(M1, array.size(M1) - 1).c : na
+        for s in SU
+            if s.stat == 0 and s.dir == d and na(s.ent) and s.kind == 0 and t_farTrap(currentPx, s.lvl, s.ext, s.rno, td_stale_r) and math.abs(currentPx - z.p) < math.abs(currentPx - s.lvl)
+                t_cancel(s, "FAR: nearer acceptance replaces unretested trap (rule 18)", T)
+        TSet blocker = na
+        for s in SU
+            if na(blocker) and s.dir == d and ((s.stat == 0 and s.kind == 0) or (not na(s.ent) and na(s.clo)))
+                blocker := s
+        if not na(blocker)
+            if td_release and na(blocker.ent)
+                int pi = d > 0 ? 0 : 1
+                array.set(PA_Z, pi, z)
+                array.set(PA_E, pi, ep)
+                array.set(PA_OW, pi, ow)
+                array.set(PA_T, pi, T)
+                array.set(PA_PERIOD, pi, G.pT)
+            ok := false
+    if ok
+        for o in SU
+            if o.stat == 0 and o.dir == d and o.kind == 1 and na(o.ent)
+                t_cancel(o, "SUPERSEDED: the newer acceptance at " + z.nm + " replaces it", T)
+        for s in SU
+            if s.stat == 0 and s.kind == 0 and s.dir == d and str.contains(s.zs, "|" + z.nm + "|")
+                ok := false
+    if ok
+        G.seq += 1
+        TSet s = TSet.new("S" + str.tostring(G.seq), 1, d, 0, z, "|" + z.nm + "|", z.p, uk, z.t4, na, na, na, T, na, T - 60, false, na, na, na, 0, false, na, na, T + 36 * 300, ep.st, ep.st, 0.0, false, na, na, false, ep.n, na, na)
+        s.dbody := ep.disp ? 1.0 : 0.0
+        s.breakBody := ep.breakBody
+        s.breakXavg := ep.breakXavg
+        array.push(SU, s)
+    0
+
+// Observed alignment is separate from policy eligibility; latest bias values are chart approximations.
+t_policy(int d, int kind, int controlDir, string controlKind, float b15, float b30, int ncl, bool rci, float body, float xavg, float wp) =>
+    bool observed = controlDir == d
+    bool biasWaive = not observed and td_control_bias and not na(b15) and not na(b30) and d * b15 >= 0 and d * b30 >= 0
+    bool freeWaive = not observed and not biasWaive and td_control_free and kind == 1
+    bool controlOk = observed or biasWaive or freeWaive
+    bool laneBase = kind == 0 ? not na(body) and not na(xavg) and body >= 0.5 and xavg >= 1.0 : ncl >= 2 and not rci
+    bool laneWaive = not laneBase and td_lane_accept and kind == 1 and controlKind == "trap" and observed and not rci and not na(body) and not na(xavg) and body >= 0.5 and xavg >= 1.0
+    bool laneOk = laneBase or laneWaive
+    bool waveWaive = td_wave_trend and (kind == 1 or (observed and controlKind == "trap"))
+    bool waveOk = not na(wp) and wp >= (waveWaive ? 0.0 : 0.20)
+    [observed, controlOk, laneOk, waveOk, biasWaive, freeWaive, laneWaive, waveWaive]
+
+// ---------------------------------------------------------------- the decision (S:899-979): gates, stop, plan
+t_emit(TSet s, TBar b, int T) =>
+    int d = s.dir
+    bool ok = not t_used(s.ukey) and not t_owE(T) and not (td_climax and G.clDir != 0 and G.clDir == d)
+    int ns = d > 0 ? G.nsUp : G.nsDn
+    if not na(ns) and not (s.kind == 0 ? s.armT > ns : s.armT > ns and s.dbody > 0)
+        ok := false
+    // S:924-940 stops (playbook §5 option C)
+    TBar h1 = t_fol(2, B60)
+    float hw = na(h1) ? na : d < 0 ? h1.h + 2 : h1.l - 2
+    float te = s.kind == 0 ? (d < 0 ? s.ext + 2 : s.ext - 2) : na
+    float stp = na
+    if s.kind == 0
+        stp := s.s4 ? te : hw
+    else
+        float rx = d < 0 ? s.rx + 2 : s.rx - 2
+        stp := s.s4 or na(hw) ? rx : d < 0 ? math.max(hw, rx) : math.min(hw, rx)
+    bool logical = true
+    if na(stp) or not (d < 0 ? stp > b.c : stp < b.c)
+        if not na(te) and (d < 0 ? te > b.c : te < b.c)
+            stp := te
+        else
+            logical := false
+    // S:831-843 the breaking-wave peak, frozen at the decision: sweep -> the start of the pullback (S:694-708)
+    int legB = s.legT - s.legT % 300
+    int sb = legB
+    for p in (d < 0 ? I5L : I5H)
+        if p.t >= legB and p.cf <= T
+            sb := p.t
+    float wp = t_wave(d, s.swT, math.min(T, sb + 300))
+    // S:79-101 the required gates of GRADE r3 (the points only shape A+ / B / C, which the chart does not claim)
+    float lb15 = array.size(BR15) > 0 ? array.get(BR15, array.size(BR15) - 1) : na
+    float lb30 = array.size(BR30) > 0 ? array.get(BR30, array.size(BR30) - 1) : na
+    [observed, controlOk, laneOk, waveOk, biasWaive, freeWaive, laneWaive, waveWaive] = t_policy(d, s.kind, G.cDir, G.cKind, lb15, lb30, s.ncl, s.rci, s.kind == 0 ? s.dbody : s.breakBody, s.kind == 0 ? s.dxa : s.breakXavg, wp)
+    bool mid = t_mid(s.lvl)
+    bool gates = controlOk and laneOk and waveOk and s.rno <= 1 and not na(mid) and not mid and logical
+    s.why := not ok ? "engine skip (one per zone / open wait / climax / need shift)" : not controlOk ? "control requirement failed" : not laneOk ? "no lane trigger" : not waveOk ? "wave bias requirement failed" : na(mid) ? "1H range unknown" : mid ? "MID_RANGE" : not logical ? "no logical stop" : (observed ? "chart candidate; grade unknown" : "control waived; chart candidate; grade unknown")
+    // Only known required-gate failures release here. The chart does not compute grade points: an otherwise passing grade may still be refused by the bot.
+    if ok and not gates and td_release
+        t_cancel(s, "REFUSED required gate (chart approximation): " + s.why, T)
+        int pi = d > 0 ? 0 : 1
+        TZone pz = array.get(PA_Z, pi)
+        TEp pe = array.get(PA_E, pi)
+        bool pow = array.get(PA_OW, pi)
+        int pt = array.get(PA_T, pi)
+        int pp = array.get(PA_PERIOD, pi)
+        array.set(PA_Z, pi, na)
+        array.set(PA_E, pi, na)
+        array.set(PA_T, pi, na)
+        array.set(PA_PERIOD, pi, na)
+        if not na(pz) and not na(pe) and not na(pt) and not na(pp) and pp == G.pT and T - pt <= 36 * 300
+            t_armA(pz, pe, pow, T)
+    if ok and gates
+        s.ent := T
+        s.stop := stp
+        array.push(USED, s.ukey)
+    ok and gates ? stp : na
+
+// ---------------------------------------------------------------- 1m: setups (S:769-822)
+t_setups(TBar b, int T, array<TSet> sig) =>
+    float a5 = nz(t_atr(B5, 14))
+    TBar pv = array.size(M1) >= 2 ? array.get(M1, array.size(M1) - 2) : na
+    for s in SU
+        if s.stat == 0 and s.armT != T
+            int d = s.dir
+            if T > s.expT
+                s.stat := 4
+                s.doneT := T
+                s.why := "no retest in time"
+            else if s.kind == 0
+                if d < 0 ? b.h > s.ext : b.l < s.ext
+                    t_cancel(s, "TRAP_UNDONE: price took back the failed-breakout extreme", T)
+                else if not s.bnc
+                    float thr = s.legx + 0.5 * (s.sw - s.legx)
+                    float area = d < 0 ? math.min(s.sw, s.z.lo) : math.max(s.sw, s.z.hi)
+                    float near = d < 0 ? area - 6 : area + 6
+                    bool ce = math.abs((d < 0 ? b.h : b.l) - area) <= a5 or (d < 0 ? b.h >= area : b.l <= area)
+                    bool reach = ce and (d < 0 ? (b.h >= thr or b.h >= near or (s.fvg and b.h >= s.flo)) : (b.l <= thr or b.l <= near or (s.fvg and b.l <= s.fhi)))
+                    bool counter = na(pv) ? false : d < 0 ? b.h > pv.h : b.l < pv.l
+                    if reach and counter
+                        s.bnc := true
+                        s.bx := d < 0 ? b.h : b.l
+                        s.bref := d < 0 ? b.l : b.h
+                        s.bT := T
+                        s.rno := t_noteRt(s)
+                    else if d < 0 ? b.l <= s.legx : b.h >= s.legx
+                        s.legx := d < 0 ? b.l : b.h
+                        s.legT := b.t
+                else if d < 0 ? b.h > s.bx : b.l < s.bx
+                    s.bx := d < 0 ? b.h : b.l
+                    s.bref := d < 0 ? b.l : b.h
+                else if d < 0 ? b.c < s.bref : b.c > s.bref
+                    s.stat := 2
+                    s.doneT := T
+                    array.push(sig, s)
+            else
+                if not s.rt
+                    float away = d > 0 ? b.h - s.z.hi : s.z.lo - b.l
+                    if away >= s.away
+                        s.away := away
+                        s.legT := b.t
+                    if s.away >= 10
+                        bool touch = d > 0 ? b.l <= s.z.hi + 6 - (s.z.hi - s.z.p) : b.h >= s.z.lo - 6 + (s.z.p - s.z.lo)
+                        if touch
+                            float thru = d > 0 ? s.lvl - b.l : b.h - s.lvl
+                            s.rno := t_noteRt(s)
+                            if thru > a5 / 3
+                                t_cancel(s, "RETEST_DEEP: through the level by " + str.tostring(t_r2(thru)) + " > ATR5/3", T)
+                            else
+                                s.rt := true
+                                s.rx := d > 0 ? b.l : b.h
+                                s.rref := d > 0 ? b.h : b.l
+                                s.bT := T
+                else if d > 0 ? b.l < s.rx : b.h > s.rx
+                    float thru = d > 0 ? s.lvl - b.l : b.h - s.lvl
+                    if thru > a5 / 3
+                        t_cancel(s, "RETEST_DEEP: through the level by " + str.tostring(t_r2(thru)), T)
+                    else
+                        s.rx := d > 0 ? b.l : b.h
+                        s.rref := d > 0 ? b.h : b.l
+                        if d > 0 ? b.c < s.lvl : b.c > s.lvl
+                            s.rci := true
+                else if d > 0 ? b.c > s.rref : b.c < s.rref
+                    if d > 0 ? b.c < s.lvl : b.c > s.lvl
+                        s.rci := true
+                    s.stat := 2
+                    s.doneT := T
+                    array.push(sig, s)
+                else if d > 0 ? b.c < s.lvl : b.c > s.lvl
+                    s.rci := true
+    0
+
+// ---------------------------------------------------------------- the wire's virtual trade (W:333-353; M:283-317), run on each bar BEFORE the engine step (W:366-378)
+t_vbar(TBar b, int T) =>
+    int stopped = 0
+    for v in VT
+        if not v.cl
+            int d = v.dir
+            bool ex = false
+            if d < 0 ? b.h >= v.stop : b.l <= v.stop
+                ex := true
+                stopped := v.strc ? d : stopped
+            else
+                if not v.t1 and not na(v.tp1) and (d < 0 ? b.l <= v.tp1 : b.h >= v.tp1)
+                    v.t1 := true
+                    float be = t_tp(v.e + d * TK, d)
+                    if d * be > d * v.stop
+                        v.stop := be
+                        v.strc := false
+                if d < 0 ? b.l <= v.tp2 : b.h >= v.tp2
+                    ex := true
+                else
+                    v.best := d < 0 ? math.min(v.best, b.l) : math.max(v.best, b.h)
+                    float bR = d * (v.best - v.e) / v.R
+                    if bR >= 1 - 1e-9
+                        float lk = math.max(0, math.floor(bR / 0.5 + 1e-9) * 0.5 - 1)
+                        float want = lk > 0 ? t_tp(v.e + d * lk * v.R, d) : t_tp(v.e + d * TK, d)
+                        if d * want > d * v.stop + 1e-9 and d * (b.c - v.stop) > 1e-9
+                            if d * (b.c - want) >= TK - 1e-9
+                                v.stop := want
+                                v.strc := false
+                            else if d * (b.c - want) <= 1e-9
+                                ex := true
+                    ex := ex or t_fl(T)
+            if ex
+                v.cl := true
+                array.push(FBID, v.id)
+    stopped
+
+// ---------------------------------------------------------------- the board the bot reads (its levelsPro rules), from the same 1m bars
+t_cmeday(int ts) =>
+    int m = t_ptm(ts)
+    int off = int(((m - (ts / 60) % 1440) % 1440 + 2160) % 1440 - 720)   // PT offset, minutes (-480 / -420)
+    int(math.floor((ts + off * 60 + 9 * 3600) / 86400))
+// one shared state object for the board, so f_board (a function) may update it
+type TBd
+    int   key
+    float hi
+    float lo
+    float pdh
+    float pdl
+    float ahL
+    float alL
+    float ahK
+    float alK
+    float lhL
+    float llL
+    float lhK
+    float llK
+    bool  inA = false
+    bool  inL = false
+var TBd BD = TBd.new()
+t_board(TBar b) =>
+    int k = t_cmeday(b.t)
+    int m = t_ptm(b.t)
+    if na(BD.key)
+        BD.key := k
+        BD.hi := b.h
+        BD.lo := b.l
+    else if k != BD.key
+        BD.pdh := BD.hi
+        BD.pdl := BD.lo
+        BD.key := k
+        BD.hi := b.h
+        BD.lo := b.l
+    else
+        BD.hi := math.max(BD.hi, b.h)
+        BD.lo := math.min(BD.lo, b.l)
+    bool ia = m >= 900
+    bool il = m < 390
+    if ia and not BD.inA
+        BD.ahL := b.h
+        BD.alL := b.l
+    if ia
+        BD.ahL := na(BD.ahL) ? b.h : math.max(BD.ahL, b.h)
+        BD.alL := na(BD.alL) ? b.l : math.min(BD.alL, b.l)
+    if not ia and BD.inA and not na(BD.ahL)
+        BD.ahK := BD.ahL
+        BD.alK := BD.alL
+    if il and not BD.inL
+        BD.lhL := b.h
+        BD.llL := b.l
+    if il
+        BD.lhL := na(BD.lhL) ? b.h : math.max(BD.lhL, b.h)
+        BD.llL := na(BD.llL) ? b.l : math.min(BD.llL, b.l)
+    if not il and BD.inL and not na(BD.lhL)
+        BD.lhK := BD.lhL
+        BD.llK := BD.llL
+    BD.inA := ia
+    BD.inL := il
+    G.lPDH := BD.pdh
+    G.lPDL := BD.pdl
+    G.lAH := ia ? BD.ahL : BD.ahK
+    G.lAL := ia ? BD.alL : BD.alK
+    G.lLH := il ? BD.lhL : BD.lhK
+    G.lLL := il ? BD.llL : BD.llK
+    G.lO1 := t_fol(2, B60).o
+    G.lO4 := t_fol(3, B240).o
+    0
+
+// ---------------------------------------------------------------- aggregate (S:251-262): returns the closed 5m / 15m / 1H / 4H as a bit mask
+t_agg(TBar b) =>
+    int cl = 0
+    for k = 0 to 3
+        int tf = t_tfi(k)
+        int s = t_bk(tf, b.t)
+        TBar c = array.get(CUR, k)
+        array<TBar> A = k == 0 ? B5 : k == 1 ? B15 : k == 2 ? B60 : B240
+        if not na(c.t) and c.t != s
+            array.push(A, TBar.new(c.t, c.o, c.h, c.l, c.c, c.v))
+            cl += k == 0 ? 1 : k == 1 ? 2 : k == 2 ? 4 : 8
+            c.t := na
+        if na(c.t)
+            c.t := s
+            c.o := b.o
+            c.h := b.h
+            c.l := b.l
+            c.c := b.c
+            c.v := b.v
+        else
+            c.h := math.max(c.h, b.h)
+            c.l := math.min(c.l, b.l)
+            c.c := b.c
+            c.v += b.v
+        if b.t + 60 >= s + tf * 60
+            array.push(A, TBar.new(c.t, c.o, c.h, c.l, c.c, c.v))
+            cl += k == 0 ? 1 : k == 1 ? 2 : k == 2 ? 4 : 8
+            c.t := na
+        t_cap(A, k == 0 ? 400 : k == 1 ? 200 : k == 2 ? 240 : 60)
+    cl
+
+// ---------------------------------------------------------------- period (4H) + opening ranges (S:348-372)
+t_period(TBar b) =>
+    int s4 = t_bk(240, b.t)
+    bool nw = false
+    if not na(G.pT) and G.pT == s4
+        if not na(G.lO4) and G.lO4 != G.pO4 and b.t - G.pT < 300
+            G.pO4 := G.lO4
+        G.pHi := math.max(G.pHi, b.h)
+        G.pLo := math.min(G.pLo, b.l)
+    else
+        float o4 = not na(G.lO4) and (na(G.pT) or G.lO4 != G.pO4) ? G.lO4 : b.o
+        G.pT := s4
+        G.pO4 := o4
+        G.pHi := b.h
+        G.pLo := b.l
+        G.pWait := s4 + 1800
+        G.cDir := 0
+        G.cKind := ""
+        G.cExt := na
+        G.kDir := 0
+        G.hDir := 0
+        G.hN := 0
+        array<TSet> keep = array.new<TSet>()
+        for s in SU
+            if s.stat == 0
+                s.stat := not na(s.ent) ? 2 : 4
+                s.doneT := b.t + 60
+                s.why := "4H closed"
+            if not na(s.ent) and na(s.clo)
+                array.push(keep, s)
+        array.clear(SU)
+        for s in keep
+            array.push(SU, s)
+        array.clear(FL)
+        array.clear(EPS)
+        array.clear(RTK)
+        array.clear(RTN)
+        nw := true
+    // the opening ranges
+    int m = t_ptm(b.t)
+    for k = 0 to 3
+        bool st = k == 3 ? b.t == G.pT : m == (k == 0 ? 900 : k == 1 ? 0 : 390)
+        if st
+            if na(array.get(ORT, k))
+                int q = 0
+                for x in ORSEQ
+                    q := math.max(q, x)
+                array.set(ORSEQ, k, q + 1)
+            array.set(ORT, k, b.t)
+            array.set(ORH, k, b.h)
+            array.set(ORL, k, b.l)
+            array.set(ORD, k, false)
+        if not na(array.get(ORT, k)) and not array.get(ORD, k)
+            if b.t > array.get(ORT, k)
+                array.set(ORH, k, math.max(array.get(ORH, k), b.h))
+                array.set(ORL, k, math.min(array.get(ORL, k), b.l))
+            if b.t + 60 >= array.get(ORT, k) + 1800
+                array.set(ORD, k, true)
+    nw
+
+// ---------------------------------------------------------------- 17B. the bias score ≈ (APPROXIMATE): the bot's levelsPro biasScore on the FORMING 15m and 30m candle
+// (lib/levelsPro.js :421-429; the port of tide/study/tide_setups.py LevelsPro, itself within 0.0005 median of the JS). 20-level board, dedupe off,
+// the 15m Open never counts, the 30m Open only on the 15m read (hide_sub). VWAP is the bot's 5m build. H1 ATR(14) Wilder with the forming hour.
+// It differs from the bot by its warm-up (the bot warms on 2000 closed 15m bars; this starts at the chart's first 1m bar) and by the W levels' source.
+type TBi
+    int   t
+    float o
+    float h
+    float l
+    float c
+    float v
+    float mS = 0.0
+    float mL = 0.0
+    float fS = 0.0
+    float fL = 0.0
+    float pc
+    int   n = 0
+var TBi BI15 = TBi.new()
+var TBi BI30 = TBi.new()
+var array<float> BV15 = array.new<float>()
+var array<float> BV30 = array.new<float>()
+// per level x TF: hold st, hold lt, delta, defense, has-last (1/0), last roll id; index = tf * 20 + level
+var array<float> LHS = array.new<float>(40, 0.0)
+var array<float> LHL = array.new<float>(40, 0.0)
+var array<float> LDT = array.new<float>(40, 0.0)
+var array<float> LDF = array.new<float>(40, 0.0)
+var array<bool>  LHAS = array.new<bool>(40, false)
+var array<int>   LRID = array.new<int>(40, na)
+var array<float> LIMP = array.from(3.0, 3.0, 2.5, 2.0, 2.5, 2.5, 2.5, 2.5, 3.0, 2.5, 2.0, 2.0, 3.0, 3.0, 2.5, 2.0, 1.5, 3.5, 3.5, 3.0)
+type TDy
+    float dHi
+    float dLo
+    float dO
+    float pdc
+    float o630
+    float o1500
+    float ibH
+    float ibL
+    float vpv = 0.0
+    float vvol = 0.0
+    int   vm = -1
+    int   vk = -1
+    int   v5k = -1
+    float pc
+    float a1
+    int   a1n = 0
+    float a1s = 0.0
+    float hc
+var TDy DY = TDy.new()
+t_bstep(int tf, TBi S, array<float> vols, array<float> px, array<int> ids, float atrR, bool commit) =>
+    int base = tf == 15 ? 0 : 20
+    int stB = math.max(math.round(60 / tf), 3)
+    int ltB = math.max(math.round(360 / tf), 10)
+    float aS = 2.0 / (stB + 1)
+    float aL = 2.0 / (ltB + 1)
+    float bnd = atrR * 0.25
+    float rg = math.max(S.h - S.l, 0.0001)
+    float dn = S.v > 0 ? (S.v * (S.c - S.l) / rg - S.v * (S.h - S.c) / rg) / S.v : 0.0
+    float sv = S.v
+    int nv = 1
+    for x in vols
+        sv += x
+        nv += 1
+    float va = sv / nv
+    float vw = va > 0 ? math.min(S.v / va, 3.0) : 1.0
+    float mr = (S.c - (na(S.pc) ? S.c : S.pc)) / atrR
+    float mS = S.mS * (1 - aS) + mr * aS
+    float mL = S.mL * (1 - aL) + mr * aL
+    float fS = S.fS * (1 - aS) + dn * aS
+    float fL = S.fL * (1 - aL) + dn * aL
+    float pS = math.max(math.min(mS * stB * 0.5, 1), -1)
+    float pL = math.max(math.min(mL * ltB * 0.35, 1), -1)
+    float wS = math.max(math.min(fS * 2.5, 1), -1)
+    float wL = math.max(math.min(fL * 2.5, 1), -1)
+    float bn = 0.0
+    float bd = 0.0
+    for k = 0 to 19
+        int j = base + k
+        float p = array.get(px, k)
+        float hs = array.get(LHS, j)
+        float hl = array.get(LHL, j)
+        float dl = array.get(LDT, j)
+        float df = array.get(LDF, j)
+        bool has = array.get(LHAS, j)
+        int rid = array.get(LRID, j)
+        if k >= 13
+            int nid = array.get(ids, k - 13)
+            bool rolled = has and not na(rid) and not na(nid) and nid != rid
+            if rolled or (not na(p) and not has)
+                hs := 0.0
+                hl := 0.0
+                dl := 0.0
+                df := 0.0
+            has := not na(p)
+            rid := nid
+        if na(p)
+            hs *= 0.95
+            hl *= 0.98
+            dl *= 0.95
+            df *= 0.98
+        else
+            float inc = (S.c > p ? 1.0 : -1.0) * vw
+            hs := hs * (1 - aS) + inc * aS
+            hl := hl * (1 - aL) + inc * aL
+            bool at = S.l <= p + bnd and S.h >= p - bnd
+            dl := at ? dl * (1 - aS) + dn * aS : dl * 0.995
+            bool bdf = S.l < p and S.c > p and S.o >= p
+            bool sdf = S.h > p and S.c < p and S.o <= p
+            df := math.max(math.min(df * 0.99 + (bdf ? 1 : 0) - (sdf ? 1 : 0), 3), -3)
+            float da = math.abs(S.c - p) / atrR
+            float h1 = math.max(math.min(hs / 1.5, 1), -1)
+            float h2 = math.max(math.min(hl / 1.5, 1), -1)
+            float dd = math.max(math.min(dl * 2.0, 1), -1)
+            float ff = math.max(math.min(df / 3.0, 1), -1)
+            float fe = at ? math.max(math.min((wS + dd) / 1.6, 1), -1) : wS
+            float sS = (0.35 * h1 + 0.40 * pS + 0.25 * fe) / 1.0
+            float sL = (0.35 * h2 + 0.40 * pL + 0.25 * wL) / 1.0
+            float raw = 0.55 * sS + 0.25 * sL + 0.12 * dd + 0.08 * ff
+            float comp = raw * (da > 1.5 ? math.max(0.25, 1.5 / da) : 1.0)
+            bool on = k < 13 or (k == 13) or (k == 14) or (k == 15 and tf == 15) or k >= 17
+            if on
+                float w = array.get(LIMP, k) * (1.0 / (1.0 + math.abs(S.c - p) / atrR))
+                bn += comp * w
+                bd += w
+        if commit
+            array.set(LHS, j, hs)
+            array.set(LHL, j, hl)
+            array.set(LDT, j, dl)
+            array.set(LDF, j, df)
+            array.set(LHAS, j, has)
+            array.set(LRID, j, rid)
+    if commit
+        S.mS := mS
+        S.mL := mL
+        S.fS := fS
+        S.fL := fL
+        S.pc := S.c
+        S.n += 1
+        array.push(vols, S.v)
+        if array.size(vols) > 19
+            array.remove(vols, 0)
+    bd > 0 ? bn / bd : 0.0
+// one TF's forming bar from the 1m bar b; true = this bar closes it
+t_bbar(TBi S, int tf, TBar b) =>
+    int s = t_bk(tf, b.t)
+    if na(S.t) or S.t != s
+        S.t := s
+        S.o := b.o
+        S.h := b.h
+        S.l := b.l
+        S.c := b.c
+        S.v := b.v
+    else
+        S.h := math.max(S.h, b.h)
+        S.l := math.min(S.l, b.l)
+        S.c := b.c
+        S.v += b.v
+    b.t + 60 >= s + tf * 60
+t_bias(TBar b, int T) =>
+    int m = t_ptm(b.t)
+    int ky = t_cmeday(b.t)
+    // the day levels the bot's levelsPro builds (same rules as f_board; one 1m pass serves both TFs)
+    if na(DY.dO)
+        DY.dHi := b.h
+        DY.dLo := b.l
+        DY.dO := b.o
+    if DY.vk != ky and DY.vk != -1
+        DY.pdc := DY.pc
+        DY.dHi := b.h
+        DY.dLo := b.l
+        DY.dO := b.o
+        DY.ibH := na
+        DY.ibL := na
+    else
+        DY.dHi := math.max(DY.dHi, b.h)
+        DY.dLo := math.min(DY.dLo, b.l)
+    if m == 390
+        DY.o630 := b.o
+    if m == 900
+        DY.o1500 := b.o
+    if m >= 390 and m < 450
+        DY.ibH := na(DY.ibH) ? b.h : math.max(DY.ibH, b.h)
+        DY.ibL := na(DY.ibL) ? b.l : math.min(DY.ibL, b.l)
+    // VWAP, the bot's 5m build: reset on the 5m bar crossing into 06:30 or a new CME day; 5m hlc3 x volume while PT >= 06:30
+    TBar c5 = t_fol(0, B5)
+    int m5 = t_ptm(c5.t)
+    int k5 = t_cmeday(c5.t)
+    bool rs = (m5 >= 390 and DY.vm < 390 and DY.vm >= 0) or (DY.v5k != k5 and DY.v5k != -1)
+    float pv = rs ? 0.0 : DY.vpv
+    float vo = rs ? 0.0 : DY.vvol
+    if m5 >= 390
+        pv += (c5.h + c5.l + c5.c) / 3 * c5.v
+        vo += c5.v
+    bool c5c = na(array.get(CUR, 0).t)
+    if c5c
+        DY.vpv := pv
+        DY.vvol := vo
+        DY.vm := m5
+        DY.v5k := k5
+    float vwp = vo > 0 ? pv / vo : na
+    // H1 ATR(14) Wilder; the forming hour joins as one more TR (tide_setups ctx)
+    TBar hb = t_fol(2, B60)
+    bool hcl = na(array.get(CUR, 2).t)
+    float pch = DY.hc
+    float tr = na(pch) ? hb.h - hb.l : math.max(hb.h - hb.l, math.abs(hb.h - pch), math.abs(hb.l - pch))
+    float atr = na
+    if hcl
+        DY.a1n += 1
+        if DY.a1n <= 14
+            DY.a1s += tr
+            DY.a1 := DY.a1n == 14 ? DY.a1s / 14 : na
+        else
+            DY.a1 := (DY.a1 * 13 + tr) / 14
+        DY.hc := hb.c
+        atr := DY.a1
+    else
+        atr := na(DY.a1) ? na : (DY.a1 * 13 + tr) / 14
+    float atrR = math.max(nz(atr), 0.05)
+    DY.vk := ky
+    DY.pc := b.c
+    array<float> px = array.from(G.lPDH, G.lPDL, DY.pdc, DY.dO, G.lAH, G.lAL, G.lLH, G.lLL, DY.o630, DY.o1500, DY.ibH, DY.ibL, vwp, t_fol(3, B240).o, hb.o, na, na, G.wH, G.wL, G.wO)
+    bool z15 = t_bbar(BI15, 15, b)
+    bool z30 = t_bbar(BI30, 30, b)
+    array<int> i15 = array.from(t_fol(3, B240).t, hb.t, BI30.t, BI15.t, G.wId, G.wId, G.wId)
+    array<int> i30 = array.from(t_fol(3, B240).t, hb.t, BI30.t, BI30.t, G.wId, G.wId, G.wId)
+    array.set(px, 15, BI30.o)
+    float s15 = t_bstep(15, BI15, BV15, px, i15, atrR, z15)
+    float s30 = t_bstep(30, BI30, BV30, px, i30, atrR, z30)
+    [BI15.n >= 20 and not na(DY.a1) ? s15 : na, BI30.n >= 20 and not na(DY.a1) ? s30 : na]
+
+// ---------------------------------------------------------------- one CLOSED 1m bar (S:1017-1063 + the wire around it, W:361-429)
+// ov: true = the board and the bias were set by the caller for this bar (the parity harness only)
+t_step(int tms, float o, float h, float l, float c, float v, bool ov, float s15, float s30) =>
+    int t = int(tms / 1000)
+    if t > G.lastT
+        TBar b = TBar.new(t, o, math.max(h, o, c), math.min(l, o, c), c, nz(v))
+        int T = t + 60
+        // W:366-378 the virtual trades run on this bar first; their ends feed this step (S:1033-1041)
+        int so = t_vbar(b, T)
+        G.lastT := t
+        array.push(M1, b)
+        t_cap(M1, 400)
+        int cl = t_agg(b)
+        if not ov
+            t_board(b)
+            [x15, x30] = t_bias(b, T)
+            G.b15 := x15
+            G.b30 := x30
+        else
+            G.b15 := s15
+            G.b30 := s30
+        if not na(G.b15) or not na(G.b30)
+            array.push(BRT, T)
+            array.push(BR15, G.b15)
+            array.push(BR30, G.b30)
+            if array.size(BRT) > 40
+                array.remove(BRT, 0)
+                array.remove(BR15, 0)
+                array.remove(BR30, 0)
+        bool nw = t_period(b)
+        if nw or array.size(ZS) == 0
+            t_build(T)
+        if so != 0
+            if so > 0
+                G.nsUp := T
+            else
+                G.nsDn := T
+            for s in SU
+                if s.stat == 0 and s.dir == so
+                    t_cancel(s, "STOPPED_OUT: a new trigger needs a new internal shift (C.4)", T)
+        for id in FBID
+            for s in SU
+                if s.id == id
+                    s.clo := T
+                    if s.stat == 0
+                        s.stat := 2
+        array.clear(FBID)
+        array<TFail> fails = array.new<TFail>()
+        array<TZone> az = array.new<TZone>()
+        array<TEp> ae = array.new<TEp>()
+        array<bool> aw = array.new<bool>()
+        if cl % 2 == 1
+            t_on5m(array.get(B5, array.size(B5) - 1), T, fails, az, ae, aw)
+        if math.floor(cl / 4) % 2 == 1
+            t_on1h(T)
+        if math.floor(cl / 8) % 2 == 1
+            t_piv(B240, 1, 1, T, P4H, P4L)
+        t_control(b, T, fails)
+        if cl % 2 == 1
+            t_shift(0, B5, array.get(B5, array.size(B5) - 1), T)
+        if math.floor(cl / 2) % 2 == 1
+            t_shift(1, B15, array.get(B15, array.size(B15) - 1), T)
+        for f in FL
+            if f.live and not f.arm and f.pend and T >= f.puntil
+                t_armF(f, f.ptf, f.pbody, f.pxa, f.pdisp, T)
+        array<TFail> keepF = array.new<TFail>()
+        for f in FL
+            if f.live and not f.arm
+                if f.dir < 0 ? b.h > f.ext : b.l < f.ext
+                    f.live := false
+                else if (T - f.failT) / 300 > 12
+                    f.live := false
+            if f.live and not f.arm
+                array.push(keepF, f)
+        array.clear(FL)
+        for f in keepF
+            array.push(FL, f)
+        for i = 0 to array.size(az) - 1
+            if array.size(az) > 0
+                t_armA(array.get(az, i), array.get(ae, i), array.get(aw, i), T)
+        array<TSet> sig = array.new<TSet>()
+        t_setups(b, T, sig)
+        // S:870-878 the engine's own view of an open trade: a full stop or 480 min ends it
+        for s in SU
+            if not na(s.ent) and na(s.clo)
+                if s.dir < 0 ? b.h >= s.stop : b.l <= s.stop
+                    s.clo := T
+                    if s.dir > 0
+                        G.nsUp := T
+                    else
+                        G.nsDn := T
+                else if T - s.ent >= 480 * 60
+                    s.clo := T
+        // S:1055-1056
+        for s in SU
+            if s.kind == 0 and s.armT > nz(G.nsUp, 2147483647) and s.dir == 1
+                G.nsUp := na
+            if s.kind == 0 and s.armT > nz(G.nsDn, 2147483647) and s.dir == -1
+                G.nsDn := na
+        // S:899-904 + S:1057-1062: the rejections of this minute (a 2nd retest is never traded); the first signal goes to the wire (W:297)
+        TSet first = na
+        float fstop = na
+        for s in sig
+            if s.rno <= 1
+                float stp = t_emit(s, b, T)
+                if not na(stp) and (na(first) ? true : first.kind == 1 and s.kind == 0)
+                    first := s
+                    fstop := stp
+            else
+                s.why := "RETEST_NOT_FIRST: only the first retest of a break is traded (§13.7)"
+        if not na(first)
+            int d = first.dir
+            [t1, t2, R] = t_plan(d, c, fstop, first.kind == 0)
+            bool opn = false
+            for x in VT
+                opn := opn or not x.cl
+            // W:119-129 the kept gates at the bar close, and the take1 ceiling (W:166): 1 MNQ only while its risk <= $400
+            bool tk = math.abs(c - fstop) * 2 <= 400 and not t_sc(T) and not t_owW(T) and not t_blk(T) and not opn
+            G.sigT := T
+            G.sigDir := d
+            G.sigE := c
+            G.sigS := fstop
+            bool fit = math.abs(c - fstop) * 2 <= 400
+            G.sigT1 := fit ? t1 : na
+            G.sigT2 := fit ? t2 : na
+            G.sigTxt := tk ? "chart-fit" : t_sc(T) ? "SESSION_CLOSE" : t_owW(T) ? "OPEN_WAIT" : t_blk(T) ? "TIME_BLOCK" : opn ? "TIDE_OPEN" : "GRADE_NO_FIT_CEILING"
+            if tk
+                array.push(VT, TVt.new(first.id, d, c, fstop, R, t1, t2, false, c, true, false))
+            else
+                array.push(FBID, first.id)
+        array<TVt> kv = array.new<TVt>()
+        for x in VT
+            if not x.cl
+                array.push(kv, x)
+        array.clear(VT)
+        for x in kv
+            array.push(VT, x)
+        // A remembered acceptance may have armed during a refusal; include it in the retained state.
+        array<TSet> keepS = array.new<TSet>()
+        for s in SU
+            if s.stat == 0 or (not na(s.ent) and na(s.clo)) or s.armT >= T - 3600
+                array.push(keepS, s)
+        array.clear(SU)
+        for s in keepS
+            array.push(SU, s)
+    0
+
+// ---------------------------------------------------------------- 17C. a zone in the board's words (contract r1.4, the same rules as MacLive's snapshot.tide.board r1.4)
+// state: watching / broken / accepted / failed / armed / retest-pending / rejected / cancelled / expired; codes = blockedBy
+t_zs(TZone z, int T) =>
+    TSet last = na
+    TSet live = na
+    TSet arm = na
+    for s in SU
+        if s.z.key == z.key or str.contains(s.zs, "|" + z.nm + "|")
+            last := s
+            if not na(s.ent) and na(s.clo) and na(live)
+                live := s
+            if s.stat == 0 and na(s.ent) and na(arm)
+                arm := s
+    TSet act = na(live) ? arm : live
+    TSet s0 = na(act) ? last : act
+    TFail failure = na
+    for f in FL
+        if f.live and f.z.key == z.key and na(failure)
+            failure := f
+    TEp ep = na
+    for e in EPS
+        if e.key == z.key + "|1" or e.key == z.key + "|-1"
+            if na(ep)
+                ep := e
+            else if (e.acc and not ep.acc) or (e.acc == ep.acc and not e.acc and e.st > ep.st)
+                ep := e
+    string st = "watching"
+    int dir = 0
+    int lane = -1
+    bool ended = na(s0) ? false : na(s0.ent) and (s0.stat == 2 or s0.stat == 3 or s0.stat == 4)
+    bool endedNewer = ended ? (na(failure) ? true : s0.armT >= failure.failT) : false
+    if not na(act)
+        st := act.rno > 0 ? "retest-pending" : "armed"
+        dir := act.dir
+        lane := act.kind
+    else if endedNewer
+        st := s0.stat == 2 ? "rejected" : s0.stat == 3 ? "cancelled" : "expired"
+        dir := s0.dir
+        lane := s0.kind
+    else if not na(failure)
+        st := "failed"
+        dir := failure.dir
+        lane := 0
+    else if not na(ep)
+        st := ep.acc ? "accepted" : "broken"
+        lane := ep.acc ? 1 : -1
+    else if ended
+        st := s0.stat == 2 ? "rejected" : s0.stat == 3 ? "cancelled" : "expired"
+        dir := s0.dir
+        lane := s0.kind
+    string cd = ""
+    if z.src == "round"
+        cd += "ROUND_NUMBER "
+    bool md = t_mid(na(s0) ? z.p : s0.lvl)
+    if not na(md) and md
+        cd += "MID_RANGE "
+    if t_blk(T)
+        cd += "TIME_BLOCK "
+    if t_owE(T) or t_owW(T)
+        cd += "OPEN_WAIT "
+    if t_sc(T)
+        cd += "SESSION_CLOSE "
+    if G.cDir != 0 and dir != 0 and dir != G.cDir
+        cd += "CONTROL_OPPOSED_OBSERVED "
+    if na(s0) ? false : (na(live) ? t_used(s0.ukey) : false)
+        cd += "ZONE_USED "
+    if na(s0) ? false : (not na(arm) or s0.stat == 2) and s0.rno >= 2
+        cd += "RETEST_NOT_FIRST "
+    [st, dir, lane, s0, str.trim(cd)]
+
+// == TIDE DISPLAY BEGIN (17D-17E: drawing only; the parity harness runs the engine above it) ==========
+// ---------------------------------------------------------------- 17D. TIDE on the chart (display only): the 1m feed, the focus level, the chip
+// One request: the chart bar's CLOSED 1m bars (intrabars), the bot's own input. On a 1m chart this is the bar itself.
+[tx_t, tx_o, tx_h, tx_l, tx_c, tx_v] = request.security_lower_tf(syminfo.tickerid, "1", [time, open, high, low, close, volume], ignore_invalid_timeframe=true)
+bool td_ok = td_on and timeframe.isintraday and not timeframe.isseconds and timeframe.multiplier <= 60 and chart.is_standard
+if td_ok and (last_bar_index - bar_index) * tf_min <= td_hist
+    G.wH := pwh_v
+    G.wL := pwl_v
+    G.wO := wk_open
+    G.wId := time("W")
+    int n = array.size(tx_t)
+    if n > 0
+        for i = 0 to n - 1
+            // a realtime chart bar's last intrabar is still forming until the chart bar closes
+            if not barstate.isrealtime or i < n - 1 or barstate.isconfirmed
+                t_step(array.get(tx_t, i), array.get(tx_o, i), array.get(tx_h, i), array.get(tx_l, i), array.get(tx_c, i), array.get(tx_v, i), false, na, na)
+int td_T = G.lastT + 60
+// the registry key of a TIDE board level (tags, glow): 13 4H Open, 0 PDH, 1 PDL, 4/5 Asia, 6/7 London, 14 1H Open
+t_key(string nm) =>
+    nm == "4H Open" ? 13 : nm == "PDH" ? 0 : nm == "PDL" ? 1 : nm == "Asia High" ? 4 : nm == "Asia Low" ? 5 : nm == "London High" ? 6 : nm == "London Low" ? 7 : nm == "1H Open" ? 14 : -1
+t_arrow(int d) =>
+    d > 0 ? "▲" : d < 0 ? "▼" : ""
+t_srcl(string s) =>
+    s == "board" ? "B" : s == "or" ? "OR" : s == "eq" ? "EQ" : "R"
+// the global gates of this minute (the chip's STAND DOWN reasons), in the board's codes
+t_glob(int T) =>
+    t_blk(T) ? "TIME_BLOCK" : t_owE(T) or t_owW(T) ? "OPEN_WAIT" : t_sc(T) ? "SESSION_CLOSE" : not G.msK ? "1H range unknown" : ""
+// the focus: retest-pending > armed > broken / accepted / failed > watching, then the nearest to price
+t_focus(int T) =>
+    TZone fz = na
+    int fr = -1
+    float fd = 1e12
+    for z in ZS
+        if z.src != "round"
+            [st, dr, ln, s0, cd] = t_zs(z, T)
+            int r = st == "retest-pending" ? 3 : st == "armed" ? 2 : st == "broken" or st == "accepted" or st == "failed" ? 1 : 0
+            float d = math.abs(close - z.p)
+            if r > fr or (r == fr and d < fd)
+                fz := z
+                fr := r
+                fd := d
+    fz
+TZone td_z = td_ok ? t_focus(td_T) : na
+[td_st, td_dir, td_lane, td_s, td_cd] = t_zs(na(td_z) ? TZone.new(0.0, 0.0, "-", "-", 0.0, "round") : td_z, td_T)
+string td_g = td_ok ? t_glob(td_T) : "TIDE off"
+bool td_against = td_dir != 0 and G.cDir != 0 and td_dir != G.cDir
+// Observed opposition can be waived by r3.6; do not turn it into an unconditional stand-down.
+int td_rank = not td_ok or na(td_z) or td_g != "" ? 0 : td_st == "retest-pending" ? 3 : td_st == "armed" ? 2 : 1
+bool td_m0 = na(td_z) ? false : t_mid(na(td_s) ? td_z.p : td_s.lvl)
+bool td_mid = na(td_m0) ? true : td_m0
+int td_n = (G.cDir != 0 ? 1 : 0) + (td_st == "failed" or td_st == "accepted" or td_st == "armed" or td_st == "retest-pending" ? 1 : 0) + (G.msK and not td_mid ? 1 : 0) + ((na(td_s) ? 0 : td_s.rno) <= 1 and td_g == "" ? 1 : 0)
+int td_k = na(td_z) ? -1 : t_key(td_z.nm)
+float td_px = na(td_z) ? close : td_z.p
+// the reference stop of an armed setup (contract r1.4): the engine's stop rule + stopBuf; null until the accepted retest exists
+t_refstop(TSet s) =>
+    TBar h1 = t_fol(2, B60)
+    float hw = na(h1) ? na : s.dir < 0 ? h1.h + 2 : h1.l - 2
+    float r = na
+    if s.kind == 0
+        r := s.s4 ? (s.dir < 0 ? s.ext + 2 : s.ext - 2) : hw
+    else if s.rt
+        float rx = s.dir < 0 ? s.rx + 2 : s.rx - 2
+        r := s.s4 or na(hw) ? rx : s.dir < 0 ? math.max(hw, rx) : math.min(hw, rx)
+    r
+// the HUD rows (17E reads them)
+t_ctlrow() =>
+    G.cDir == 0 ? "4H none" + (td_T <= nz(G.pWait) ? " · wait " + str.format_time(G.pWait * 1000, "HH:mm", "America/Los_Angeles") : "") : "4H " + t_arrow(G.cDir) + (G.cKind == "trap" ? " TRAP " + str.tostring(G.cExt, format.mintick) : " BIAS≈") + " · " + str.format_time(G.cT * 1000 - 60000, "HH:mm", "America/Los_Angeles")
+t_msrow() =>
+    not G.msK ? "1H unknown" : G.ms == "RANGE" ? "1H RANGE " + str.tostring(G.msLo, "#") + "-" + str.tostring(G.msHi, "#") : G.ms == "TREND" ? "1H TREND " + t_arrow(G.msDir) : "1H TRANSITION"
+t_bsrow() =>
+    "CTRL≈ 15m " + (na(G.b15) ? "--" : (G.b15 >= 0 ? "+" : "") + str.tostring(G.b15, "0.00")) + " 30m " + (na(G.b30) ? "--" : (G.b30 >= 0 ? "+" : "") + str.tostring(G.b30, "0.00"))
+
+// ---------------------------------------------------------------- 17E. TIDE drawings (pooled, last bar only)
+int TDN = 10
+var box[] TDB = array.new_box(0)
+var box[] TDR = array.new_box(0)
+var box[] TDP = array.new_box(0)
+var box   TDM = na
+var box   TDX = na
+var line[] TDV = array.new_line(0)
+var label[] TDL = array.new_label(0)
+if barstate.isfirst
+    for i = 0 to TDN - 1
+        array.push(TDB, box.new(bar_index, close, bar_index + 1, close, border_color=col_hide, bgcolor=col_hide, text_size=size.tiny, text_halign=text.align_left, text_color=col_hide))
+    for i = 0 to 3
+        array.push(TDR, box.new(bar_index, close, bar_index + 1, close, border_color=col_hide, bgcolor=col_hide, text_size=size.tiny, text_halign=text.align_right, text_color=col_hide))
+        array.push(TDP, box.new(bar_index, close, bar_index + 1, close, border_color=col_hide, bgcolor=col_hide, text_size=size.tiny, text_halign=text.align_right, text_color=col_hide))
+    TDM := box.new(bar_index, close, bar_index + 1, close, border_color=col_hide, bgcolor=col_hide, text="1H RANGE mid band: no TIDE entry (MID_RANGE)", text_size=size.tiny, text_halign=text.align_left, text_color=col_hide)
+    TDX := box.new(bar_index, close, bar_index + 1, close, border_color=col_hide, bgcolor=col_hide, text_size=size.tiny, text_halign=text.align_left, text_color=col_hide)
+    for i = 0 to 1
+        array.push(TDV, line.new(time, close, time, close + 1, xloc=xloc.bar_time, extend=extend.both, color=col_hide, style=i == 0 ? line.style_dashed : line.style_solid))
+        array.push(TDL, label.new(time, close, "", xloc=xloc.bar_time, style=label.style_label_down, size=size.tiny, color=col_hide, textcolor=col_hide))
+t_bx(box b, float top, float bot, color bg, color bc, string txt, color tc) =>
+    box.set_lefttop(b, math.max(bar_index - lookback_l, 0), top)
+    box.set_rightbottom(b, bar_index + extend_r, bot)
+    box.set_bgcolor(b, bg)
+    box.set_border_color(b, bc)
+    box.set_text(b, txt)
+    box.set_text_color(b, tc)
+t_hide(box b) =>
+    t_bx(b, close, close, col_hide, col_hide, "", col_hide)
+t_draw() =>
+    color fg = chart.fg_color
+    // zone bands: the TIDE zones nearest price (non-round)
+    array<TZone> zs = array.new<TZone>()
+    for z in ZS
+        if z.src != "round" and math.abs(close - z.p) <= atr_ref * distant_atr * 2
+            int j = array.size(zs)
+            while j > 0
+                if math.abs(close - array.get(zs, j - 1).p) > math.abs(close - z.p)
+                    j -= 1
+                else
+                    break
+            array.insert(zs, j, z)
+    for i = 0 to TDN - 1
+        box b = array.get(TDB, i)
+        if td_zones and i < array.size(zs)
+            TZone z = array.get(zs, i)
+            [st, dr, ln, s0, cd] = t_zs(z, td_T)
+            color c = st == "watching" or dr == 0 ? color.new(fg, 94) : color.new(dr > 0 ? col_buy : col_sell, st == "retest-pending" ? 78 : 88)
+            t_bx(b, z.hi, z.lo, c, col_hide, z.nm + " " + t_srcl(z.src) + " · " + st + t_arrow(dr) + (na(s0) ? "" : s0.rno > 0 ? " R" + str.tostring(s0.rno) : "") + (cd != "" ? "  ✕ " + cd : ""), color.new(fg, 40))
+        else
+            t_hide(b)
+    // rounds: context only, never a target or a setup (r3.2 ruling 2): the 2 nearest above and below
+    int ra = 0
+    int rb = 0
+    for i = 0 to 3
+        t_hide(array.get(TDR, i))
+    for z in ZS
+        if td_zones and z.src == "round" and math.abs(z.p - close) <= 100
+            int slot = z.p > close ? (ra < 2 ? ra : -1) : (rb < 2 ? 2 + rb : -1)
+            if slot >= 0
+                t_bx(array.get(TDR, slot), z.p + 0.25, z.p - 0.25, color.new(fg, 90), col_hide, "R " + str.tostring(z.p, "#") + " ctx · never a target", color.new(fg, 60))
+                ra += z.p > close ? 1 : 0
+                rb += z.p > close ? 0 : 1
+    // the 1H mid band and the 4H trap extreme
+    if td_ok and G.msK and G.ms == "RANGE"
+        float w = G.msHi - G.msLo
+        t_bx(TDM, G.msHi - w * 0.25, G.msLo + w * 0.25, color.new(fg, 95), col_hide, "1H RANGE " + str.tostring(G.msLo, "#") + "-" + str.tostring(G.msHi, "#") + " mid band: no TIDE entry (MID_RANGE)", color.new(fg, 55))
+    else
+        t_hide(TDM)
+    if td_ok and G.cKind == "trap"
+        t_bx(TDX, G.cExt + 0.25, G.cExt - 0.25, color.new(G.cDir < 0 ? col_sell : col_buy, 70), col_hide, "4H TRAP " + t_arrow(G.cDir) + " ext " + str.tostring(G.cExt, format.mintick) + ": control holds until taken back or the 4H closes", color.new(fg, 30))
+    else
+        t_hide(TDX)
+    // the plan: the engine's numbers on a signal (an hour, or while the virtual trade is open); on an armed focus the reference stop only
+    bool vo = false
+    for x in VT
+        vo := vo or not x.cl
+    bool sg = td_ok and td_plan and not na(G.sigT) and (td_T - G.sigT <= 3600 or vo)
+    array<float> pv = sg ? array.from(G.sigE, G.sigS, G.sigT1, G.sigT2) : array.from(float(na), na, na, na)
+    array<string> pn = array.from("TIDE E ", "SL ", "TP1 2/3 ", "TP2 ")
+    if not sg and td_ok and td_plan and (na(td_s) ? false : td_s.stat == 0 and na(td_s.ent))
+        array.set(pv, 0, td_s.lvl)
+        array.set(pv, 1, t_refstop(td_s))
+        array.set(pn, 0, "ref E ")
+        array.set(pn, 1, "ref SL ")
+    for i = 0 to 3
+        float p = array.get(pv, i)
+        if na(p)
+            t_hide(array.get(TDP, i))
+        else
+            color c = i == 1 ? col_sell : i == 0 ? col_viol : col_buy
+            t_bx(array.get(TDP, i), p + 0.25, p - 0.25, color.new(c, 40), col_hide, array.get(pn, i) + str.tostring(p, format.mintick) + (i == 0 and sg ? (G.sigDir > 0 ? " LONG " : " SHORT ") + G.sigTxt : ""), color.new(c, 10))
+    // 12:55 no entry and 13:05 flat (ruling 8), for the session in play (early-close days are not known to the chart)
+    int ts = time + (t_ptm(int(time / 1000)) >= 900 ? 86400000 : 0)
+    for i = 0 to 1
+        int x = timestamp("America/Los_Angeles", year(ts, "America/Los_Angeles"), month(ts, "America/Los_Angeles"), dayofmonth(ts, "America/Los_Angeles"), i == 0 ? 12 : 13, i == 0 ? 55 : 5)
+        line v = array.get(TDV, i)
+        label lb = array.get(TDL, i)
+        line.set_xy1(v, x, close)
+        line.set_xy2(v, x, close + 1)
+        line.set_color(v, td_ok and td_shade ? color.new(i == 0 ? col_amber : col_sell, 45) : col_hide)
+        label.set_xy(lb, x, high + atr_ref * 0.5)
+        label.set_text(lb, td_ok and td_shade ? (i == 0 ? "12:55 TIDE no entry" : "13:05 flat") : "")
+        label.set_textcolor(lb, td_ok and td_shade ? color.new(i == 0 ? col_amber : col_sell, 20) : col_hide)
+    0
+// TIDE time shading: blocks 15:00-17:00 / 06:30-07:10 darker, the open wait lighter, the session close (12:55-15:00) amber
+int td_bT = int(time / 1000) + 60
+bgcolor(td_ok and td_shade ? (t_blk(td_bT) ? color.new(chart.fg_color, 93) : t_owE(td_bT) or t_owW(td_bT) ? color.new(chart.fg_color, 96) : t_sc(td_bT) ? color.new(col_amber, 94) : na) : na, title="TIDE blocks / open wait / session close")
+// == TIDE ENGINE END ========================================================
+
+// ---------------------------------------------------------------- 17F. glow, wake candles, the chip (Daily Levels PRO v2.6 / v2.7 look)
+int IGN = 3
+var line[] IG_GL = array.new_line(0)
+if barstate.isfirst
+    for i = 0 to IGN - 1
+        array.push(IG_GL, line.new(bar_index, close, bar_index + 1, close, color=col_hide, width=i == 0 ? 6 : i == 1 ? 10 : 16))
+barcolor(td_ok and td_wake and td_rank == 0 ? color.new(chart.fg_color, 72) : na)
+t_meter(int n) =>
+    str.substring("▰▰▰▰", 0, n) + str.substring("▱▱▱▱", 0, 4 - n)
+// chip debounce (v2.5): inside a realtime bar the chip only steps UP and never back; history and the bar close show the engine's state
+var   int ui_chip_c = 1
+varip int ui_live   = 1
+varip int ui_bar    = 0
+bool ui_rt = barstate.isrealtime and not barstate.isconfirmed
+if not ui_rt
+    ui_live := td_rank
+    ui_bar := time
+else
+    if ui_bar != time
+        ui_bar := time
+        ui_live := ui_chip_c
+    if td_rank > ui_live
+        ui_live := td_rank
+ui_chip_c := ui_rt ? ui_chip_c : td_rank
+int ui_chip = td_rank == 3 ? 3 : math.min(ui_rt ? ui_live : td_rank, 2)
+var table T = table.new(td_pos == "Bottom Left" ? position.bottom_left : td_pos == "Bottom Center" ? position.bottom_center : td_pos == "Middle Left" ? position.middle_left : td_pos == "Top Left" ? position.top_left : td_pos == "Top Center" ? position.top_center : td_pos == "Top Right" ? position.top_right : td_pos == "Middle Right" ? position.middle_right : position.bottom_right, 1, 4, bgcolor=u_fill, border_color=u_bd, border_width=1, frame_color=u_bd, frame_width=1)
+t_cell(int r, string s, color c, string tip) =>
+    table.cell(T, 0, r, s, text_color=c, text_size=size.small, bgcolor=u_fill, text_halign=text.align_left, tooltip=tip)
+t_mmss(int r) =>
+    str.tostring(math.floor(r / 60.0)) + (r % 60 < 10 ? ":0" : ":") + str.tostring(r % 60)
+t_hud(int st) =>
+    string nm = na(td_z) ? "" : td_z.nm
+    string s0 = (st == 0 ? "STAND DOWN" : (st == 1 ? "WAIT " : st == 2 ? "SET " : "ARMED ") + t_meter(st == 3 ? 4 : td_n)) + (st != td_rank ? " held" : "")
+    int sc = math.floor(timenow / 1000.0)
+    // the SET countdown on TIDE's candles: the 5m close decides a break / acceptance / failure / shift, the 1m close the rejection
+    string cdn = not barstate.isrealtime ? "" : td_st == "retest-pending" ? " · 1m " + t_mmss(60 - sc % 60) : td_st == "broken" or td_st == "failed" or td_st == "accepted" ? " · 5m " + t_mmss(300 - sc % 300) : ""
+    string s1 = st == 0 ? (td_g != "" ? td_g : td_against ? "AGAINST_CONTROL" : "no TIDE zone") : nm + " " + td_st + t_arrow(td_dir) + cdn
+    t_cell(0, "r3.6 CHART APPROX — NOT BOT FACT\n" + s0 + "\n" + str.substring(s1, 0, math.min(26, str.length(s1))), st == 0 ? u_t2 : st == 1 ? u_t1 : u_acc, "CHART APPROXIMATION: STAND DOWN = a chart-visible time block, open wait, session close, unknown 1H range, or no focused zone. Opposed 4H control is an observation and can be waived by policy. SET / ARMED describe the chart model, not a bot decision. Meter is descriptive; grade, news, actual bot settings, broker and fills are unknown.")
+    t_cell(1, t_ctlrow(), G.cDir == 0 ? u_t2 : u_t1, "4H control (structure.js 443-479): TRAP = a failed break of the 4H Open after the 30 min wait; it holds until its extreme is taken back or the 4H closes. BIAS ≈ = price on its side of the 4H Open with the 15m / 30m score past 0.15 for 3 readings (the score is ported, ≈). Time = when it formed (PT).")
+    t_cell(2, t_msrow(), u_t2, "1H state from confirmed 1H swings (2/2): TREND / RANGE (2 touches a side, 48 h) / TRANSITION. Unknown until 2 swing highs and lows exist: the bot then takes no trade (not-mid-range fails closed).")
+    t_cell(3, t_bsrow(), u_t2, "≈ the bot's bias score on the FORMING 15m / 30m candle (levelsPro biasScore, ported; PARITY.md). TIDE's line is 0.15.")
+    0
+if barstate.islast
+    t_draw()
+    bool gon = td_ok and td_glow and ui_chip == 3 and not na(td_z)
+    for g = 0 to IGN - 1
+        line gl = array.get(IG_GL, g)
+        line.set_xy1(gl, math.max(bar_index - lookback_l, 0), td_px)
+        line.set_xy2(gl, bar_index + extend_r, td_px)
+        line.set_color(gl, gon ? color.new(td_dir > 0 ? col_buy : col_sell, g == 0 ? 70 : g == 1 ? 84 : 93) : col_hide)
+    table.clear(T, 0, 0, 0, 3)
+    if td_ok and td_hud
+        t_hud(ui_chip)
+
+// ---------------------------------------------------------------- 17G. TIDE alerts (the bot pushes only its signals: "TIDE LIVE SHORT ... @entry stop ... TP1 ... TP2 ...", W:209 / W:414)
+int td_alert_control = G.cDir
+int td_na = 0
+int td_nr = 0
+for x in SU
+    td_na += x.stat == 0 and x.rno == 0 ? 1 : 0
+    td_nr += x.stat == 0 and x.rno > 0 ? 1 : 0
+int td_sg = nz(G.sigT)
+bool td_alert_tf = timeframe.isminutes and timeframe.multiplier == 1  // Only 1m bars can report each 1m signal at its close.
+alertcondition(td_ok and td_alert_control != 0 and td_alert_control != td_alert_control[1], "TIDE CONTROL", "TIDE 4H control formed or changed (trap / bias), chart view")
+alertcondition(td_ok and td_na > td_na[1], "TIDE SETUP ARMED", "TIDE setup armed (failed break + shift, or accepted break), chart view")
+alertcondition(td_ok and td_nr > td_nr[1], "TIDE RETEST", "TIDE first retest of an armed setup: the 1m rejection close is the trigger, chart view")
+alertcondition(td_ok and td_alert_tf and td_sg != td_sg[1] and G.sigTxt == "chart-fit", "TIDE TRIGGER", "TIDE r3.6 chart approximation: required chart gates passed; grade and actual bot eligibility are unknown")
+// the same trigger with the bot's push words, for "Any alert() function call" alerts
+if td_ok and td_alert_tf and td_sg != td_sg[1] and G.sigTxt == "chart-fit" and barstate.isrealtime
+    alert("TIDE r3.6 CHART APPROX (not bot signal) " + (G.sigDir > 0 ? "LONG" : "SHORT") + " @" + str.tostring(G.sigE, format.mintick) + " stop " + str.tostring(G.sigS, format.mintick) + " TP1 " + (na(G.sigT1) ? "?" : str.tostring(G.sigT1, format.mintick)) + " TP2 " + (na(G.sigT2) ? "?" : str.tostring(G.sigT2, format.mintick)) + " | " + G.sigTxt + " | grade and bot eligibility unknown", alert.freq_once_per_bar_close)

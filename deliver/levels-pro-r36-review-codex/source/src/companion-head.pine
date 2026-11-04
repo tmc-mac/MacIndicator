@@ -1,0 +1,53 @@
+//@version=5
+// ===========================================================================
+// LEVELS PRO TIDE r3.6 REVIEW — chart-only approximation, not the bot's live state.
+// Extends the v2.8 r3.2 port with selected r3.6 control, lane, wave, rule 18, and refusal behavior.
+// Policy inputs are user-adjustable; confirm actual bot settings separately. Bias is approximate.
+// This does not calculate grade points, observe news/broker/fills, or fully reproduce live exits.
+// Thus missing grade-only refusals may change pending setup lifecycle, targets and subsequent chart state.
+// Trigger alerts are limited to 1m chart bars and may collapse simultaneous signals. REVIEW ONLY.
+// ===========================================================================
+indicator("Levels PRO TIDE r3.6 chart approximation — REVIEW", shorttitle="TIDE r3.6", overlay=true, max_lines_count=20, max_labels_count=20, max_boxes_count=40)
+g_tide   = "TIDE (v2.8): the bot's model"
+td_on    = input.bool(true, "TIDE layer", group=g_tide, tooltip="REVIEW ONLY: approximate chart model with selected r3.6 policy. Configuration must be verified; grade points, news, broker, actual fills and some exits are not available. Never a live bot signal.")
+td_hist  = input.int(3000, "TIDE history (1m bars)", minval=1500, maxval=20000, group=g_tide, tooltip="How many 1m bars back the engine starts. The bot warms on its last 2000 1m bars (ruling 6: at least ~1500). More = slower load.")
+td_zones = input.bool(true, "Zone bands + round numbers", group=g_tide)
+td_plan  = input.bool(true, "Plan (E / SL / TP1 / TP2)", group=g_tide, tooltip="On a signal: the engine's entry, structural stop, TP1 (2/3) and TP2. On an armed setup: the reference entry and stop only (contract r1.4: TP1 / TP2 stay empty until entered).")
+td_shade = input.bool(true, "Blocks, open wait, 12:55 / 13:05", group=g_tide)
+td_hud   = input.bool(true, "TIDE board", group=g_tide)
+td_pos   = input.string("Bottom Left", "Board position", options=["Bottom Left", "Bottom Center", "Middle Left", "Top Left", "Top Center", "Top Right", "Middle Right", "Bottom Right"], group=g_tide, tooltip="Bottom Left by default: Daily Levels PRO's board offers no Bottom Left position, so the two boards never overlap.")
+td_glow  = input.bool(true, "Glow on ARMED", group=g_tide)
+td_wake  = input.bool(true, "Wake candles", group=g_tide, tooltip="In STAND DOWN the candles go quiet (the chart's text colour, 72% transparent), as in Daily Levels PRO v2.7. Turn it off there if both are on.")
+td_theme = input.string("Auto", "Board theme", options=["Auto", "Dark", "Light"], group=g_tide)
+extend_r   = input.int(30, "Extend right (bars)", minval=2, maxval=200, group=g_tide)
+lookback_l = input.int(150, "Extend left (bars)", minval=0, group=g_tide)
+// Appended after the v2.8 inputs; reported policy and source defaults require confirmation against the running bot.
+g_policy = "TIDE policy (chart approximation; verify bot settings)"
+td_stale_r = input.float(2.0, "Rule 18 multiplier", minval=0.0, group=g_policy, tooltip="Source default 2. Set to 0 to disable. Verify against the running bot.")
+td_control_bias = input.bool(true, "Allow control via 15m/30m bias", group=g_policy)
+td_control_free = input.bool(true, "Allow accepted break without 4H alignment", group=g_policy, tooltip="Source default ON; actual running configuration has not been verified.")
+td_lane_accept = input.bool(true, "Allow aligned trap displacement lane", group=g_policy)
+td_wave_trend = input.bool(true, "Relax wave threshold for trend", group=g_policy)
+td_release = input.bool(true, "Release refusal and remember blocked acceptance", group=g_policy)
+td_climax = input.bool(true, "Block with-trend climax entries", group=g_policy, tooltip="Source default ON; verify the running configuration.")
+// Mac's palette (Daily Levels PRO section 2) and board tokens (section 13)
+col_buy   = color.new(#26D96B, 0)
+col_sell  = color.new(#FF4D4D, 0)
+col_mix   = color.new(#9FB3C8, 0)
+col_viol  = color.new(#C4A2FF, 0)
+col_amber = color.new(#FFC53D, 0)
+col_hide  = color.new(color.gray, 100)
+bool  ui_dk  = td_theme == "Dark" or (td_theme == "Auto" and not (0.299 * color.r(chart.bg_color) + 0.587 * color.g(chart.bg_color) + 0.114 * color.b(chart.bg_color) >= 128))
+color u_fill = ui_dk ? #0f151c : #ffffff
+color u_bd   = ui_dk ? #1e2a36 : #dbe2e9
+color u_t1   = ui_dk ? #e6edf3 : #0d1620
+color u_t2   = ui_dk ? #8b98a5 : #5b6b7a
+color u_acc  = ui_dk ? #7fe3ee : #0b6f7a
+// the same references Daily Levels PRO reads (its section 3 / 4): the last closed hour's ATR (distance radius), the weekly levels (bias board)
+atr_raw = request.security("", "60", ta.atr(14)[1], lookahead=barmerge.lookahead_on)
+atr_ref = math.max(nz(atr_raw, nz(ta.atr(14)) * 4.0), syminfo.mintick * 20)
+float distant_atr = 1.5
+tf_min  = math.max(timeframe.in_seconds(timeframe.period) / 60.0, 0.1)
+pwh_v   = request.security("", "W", high[1], lookahead=barmerge.lookahead_on)
+pwl_v   = request.security("", "W", low[1],  lookahead=barmerge.lookahead_on)
+wk_open = request.security("", "W", open,    lookahead=barmerge.lookahead_on)
