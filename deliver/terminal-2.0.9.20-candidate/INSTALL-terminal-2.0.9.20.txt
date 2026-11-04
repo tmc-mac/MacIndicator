@@ -1,0 +1,48 @@
+PHONE TERMINAL 2.0.9.20 - PREVIEW  (display only: no bot restart, the bot is not touched)
+=====================================================================================
+What changes: only the phone page (mobile.html). The bot, its settings and your trades are untouched.
+It is 2.0.9.19.2 (code cf3d288a, the one you have now) plus:
+  - Now, Hour card: the history strip becomes the TIDE TAPE while TIDE is on: 4H control, the no-entry windows
+    (time blocks, open wait, session close), TIDE's arms / retests / rejections / signals, and TIDE trades, over the last 8 hours.
+    Tap a mark for one line of detail.
+  - Levels, Live trade card: the PLAN lines now come from TIDE (its open position, else its next level to act).
+    The old levels path's lines are behind the "Old levels path (manage-only)" button, off by default.
+  - Review: the TIDE journal (MacJournal): the day, one card per TIDE trade, every TIDE decision with a filter,
+    "Copy TIDE journal". The old Review content is under "Old levels path (manage-only, takes no entries)".
+  - Copies and exports say "terminal 2.0.9.20".
+  - With TIDE off it does no TIDE work at all, and the TIDE model is worked out once per poll (replays stay as smooth as 2.0.9.19.2).
+
+Same look everywhere else and the same buttons. The page asks for nothing new: only the journal it already reads on Review, from Now while a fill is missing.
+
+PREVIEW: MacDot and MacMillionz still review it before it is a release. Undo is one command.
+Run it when the bot is FLAT (house rule, even for display changes).
+
+Put mobile.html and set-terminal.sh (from this folder) in Downloads, then in PowerShell:
+
+1) Check the files (both must match exactly):
+   cd $env:USERPROFILE\Downloads
+   certutil -hashfile mobile.html SHA256
+      expect: caf7368604cedde16cf137a9fde3daa972f4b2be21cfbb6136fc9748fa747f1c
+   certutil -hashfile set-terminal.sh SHA256
+      expect: d891ef9d830244f682110662f85f080dd23984cbb29ba1740cb3e34aca4fb815
+
+2) Upload them and check them on the server:
+   scp mobile.html set-terminal.sh root@<HOST>:/root/
+   ssh root@<HOST> "sha256sum /root/mobile.html /root/set-terminal.sh"
+      (the same two codes as above)
+
+3) Install (it asks "Is the bot FLAT?" - type YES):
+   ssh -t root@<HOST> "bash /root/set-terminal.sh install /root/mobile.html caf7368604cedde16cf137a9fde3daa972f4b2be21cfbb6136fc9748fa747f1c"
+   Expect this line (the backup's name may follow it):
+     DONE: mobile.html installed (sha256 verified): before cf3d288a -> after caf73686.     (you had 2.0.9.19.2)
+   Any other "before" code: still fine to keep, but send me that line.
+
+4) On your phone: close the MacMillionz page/app completely and open it again.
+   Check on Now: with TIDE on, the Hour card shows "TIDE TAPE"; on Levels, the Live trade card says "TIDE PLAN" or "TIDE IN TRADE".
+
+If any step prints STOP, nothing changed - send me that output.
+
+UNDO (puts back the page it replaced, cf3d288a = 2.0.9.19.2 - also no restart):
+   ssh -t root@<HOST> "bash /root/set-terminal.sh rollback"
+STATUS (changes nothing):
+   ssh root@<HOST> "bash /root/set-terminal.sh status"
