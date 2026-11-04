@@ -1,0 +1,35 @@
+MAC - INSTALL BOT r1.5.4 (replace <server> with your bot server address)
+=====================================================================================
+What it changes (all ON when installed; Mac's order 11/04, ship gate skipped, unit suites only):
+- Nearest-level-wins is BUILT but OFF: with it on, the engine's own tests lose a known good trade, so it needs a replay first.
+- Rule 18 ON: a far armed trap is cancelled when a nearer same-way acceptance arms.
+- 15m/30m Open levels are BUILT but OFF for the same reason.
+- Under trap control, accepted breaks in the trap's direction can trade.
+- An accepted break is not refused for opposing 4H control.
+Everything else is r1.5.2/r1.5.3: broker-read retry, climax ON, $400 per trade. Live mode and your climax setting are kept.
+One restart, then a ~6 min warm-up. Goes on r1.5.3, r1.5.2, r1.5.1, r1.5 or r1.4.
+Be FLAT in TopstepX first (no MNQ position, no working MNQ orders).
+Put MacBot-TIDE-live-r1.5.4.zip in Downloads, open PowerShell:
+
+  cd $env:USERPROFILE\Downloads
+  Get-FileHash .\MacBot-TIDE-live-r1.5.4.zip
+     (must start with 5FC2D9D3)
+  scp .\MacBot-TIDE-live-r1.5.4.zip root@<server>:/root/
+  ssh root@<server> "mkdir -p /root/tide-r1.5.4 && cd /root/tide-r1.5.4 && python3 -m zipfile -e /root/MacBot-TIDE-live-r1.5.4.zip . && ls pkg-live"
+  ssh -t root@<server> "cd /root/tide-r1.5.4/pkg-live && bash go.sh"
+     (type YES when asked)
+
+Check the warm-up (wait ~6 min, run again if the LIVE line is not there yet):
+  ssh root@<server> "journalctl -u mac-bot-live --since '-10 min' --no-pager | grep -iE 'rebuild progress|LIVE: the warm-up|rule 18|nearest|lanes|opens|Killed|NOT taken'"
+  You want the startup line with "rule 18 ON", "lanes: accept-under-trap ON, control-free ON", then "[tide] LIVE: the warm-up is done". No "Killed".
+
+Watch it work (read-only, any time):
+  ssh root@<server> "python3 /root/tide-journal-today.py 08:00 2>/dev/null | tail -40"
+  Look for setup_arm on nearby levels, "NEARER: ... replaces ..." cancels, and signal rows with taken=true.
+
+Put the r1.5.3 behaviour back (one command, YES twice, restart + warm-up):
+  ssh -t root@<server> "cd /root/tide-r1.5.4/pkg-live && bash tools/set-tide.sh lanes=off"
+Turn TIDE off / roll back:
+  ssh -t root@<server> "cd /root/tide-r1.5.4/pkg-live && bash tools/set-tide.sh off"
+  ssh -t root@<server> "cd /root/tide-r1.5.4/pkg-live && bash tools/set-tide.sh lanes=on"   (clears the new keys before rollback)
+  ssh -t root@<server> "cd /root/tide-r1.5.4/pkg-live && bash rollback.sh"
