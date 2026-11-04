@@ -1,0 +1,51 @@
+PHONE TERMINAL 2.0.9.21  (display only: no bot restart, the bot is not touched)
+=====================================================================================
+What changes: only the phone page (mobile.html). The bot, its settings and your trades are untouched.
+It is 2.0.9.20 (code caf73686, the one you have now) plus:
+  - Levels, Live trade card: the bug from your 08:34 PT screen is fixed. The card drew Target 28,587 / Stop 28,471.75 and a
+    Trigger marker (a LONG shape) while TIDE's only setup was the 1H Open 28,628.25 SHORT. Those lines were the OLD levels
+    path's live event, drawn by the chart's fallback. With TIDE on they are never drawn now.
+    With a level armed, the card draws THAT level's TIDE plan: level, stop reference on the right side, labelled
+    "1H Open · SHORT" (or LONG). With nothing armed: the level lines and price only, and the footer says so.
+    The old path's lines stay one tap away behind "Old levels path (manage-only)", off by default, as before.
+  - Header: the armed level's distance reads "37.25 above price" / "below price" instead of "(+37.25)".
+  - Now, Hour card: a candle is REJECTION only when the wick past the open is big enough (15m 8 / 1H 20 / 4H 40 pts) AND the body is
+    at most 35% of the range, with its arrow (↑ / ↓); otherwise ACCEPTANCE ↑ / ↓. A +396 hour no longer reads "rejection".
+    The 4H open is the bot's TIDE 4H open (tide.board.O4); without it, the old model's open, labelled "old model".
+  - Copies and exports say "terminal 2.0.9.21".
+
+Same look everywhere else and the same buttons. The page asks for nothing new.
+With TIDE off the page is 2.0.9.20 (identity-tested, see CHANGES-20921.md).
+Run it when the bot is FLAT (house rule, even for display changes).
+
+Put mobile.html and set-terminal.sh (from this folder) in Downloads, then in PowerShell:
+
+1) Check the files (both must match exactly):
+   cd $env:USERPROFILE\Downloads
+   certutil -hashfile mobile.html SHA256
+      expect: 0c1bd93ea58dae80f195400d46395e252259ac3e746d4989ed774644f53738c8
+   certutil -hashfile set-terminal.sh SHA256
+      expect: d891ef9d830244f682110662f85f080dd23984cbb29ba1740cb3e34aca4fb815   (unchanged from 2.0.9.20)
+
+2) Upload them and check them on the server:
+   scp mobile.html set-terminal.sh root@<HOST>:/root/
+   ssh root@<HOST> "sha256sum /root/mobile.html /root/set-terminal.sh"
+      (the same two codes as above)
+
+3) Install (it asks "Is the bot FLAT?" - type YES):
+   ssh -t root@<HOST> "bash /root/set-terminal.sh install /root/mobile.html 0c1bd93ea58dae80f195400d46395e252259ac3e746d4989ed774644f53738c8"
+   Expect this line (the backup's name may follow it):
+     DONE: mobile.html installed (sha256 verified): before caf73686 -> after 0c1bd93e.     (you had 2.0.9.20)
+   Any other "before" code: still fine to keep, but send me that line.
+
+4) On your phone: close the MacMillionz page/app completely and open it again.
+   Check on Levels: with a TIDE level armed, the Live trade card says "TIDE PLAN" and names the level and side
+   ("1H Open · SHORT"); its stop line sits above the level for a short, below for a long. With nothing armed there are
+   no Target / Stop lines at all. The header reads "... 1H Open 28,628.25 · 37.25 above price".
+
+If any step prints STOP, nothing changed - send me that output.
+
+UNDO (puts back the page it replaced, caf73686 = 2.0.9.20 - also no restart):
+   ssh -t root@<HOST> "bash /root/set-terminal.sh rollback"
+STATUS (changes nothing):
+   ssh root@<HOST> "bash /root/set-terminal.sh status"
