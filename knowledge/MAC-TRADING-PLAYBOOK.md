@@ -411,3 +411,12 @@ Supersedes the "+W = $200, all but one contract out, runner locked at W" exit in
    Never widen.
 4. **Grade changes the target:** A+ holds for the bigger (major) pool beyond 2R; B and C take the nearest pool at or beyond 2R.
 5. No timed exits (unchanged). No daily loss limit (unchanged).
+
+## 19. RULING: grading (Mac, 11/04)
+- "Strong" bias = the Levels PRO STRONG line, |score| ≥ 0.45 ("Use the same as the levels indicator").
+- "Growing" is measured on the fast timeframe that shows strong moves the way Candace sees them: the bias moving our way over the last few
+  1m samples, plus a 1m (later 15s) displacement candle.
+- Bias does NOT count double. Points:
+  - Required: 4H control and bias past the line.
+  - +1 each: strong-pool trap, displacement shift, first retest, strong bias, growing bias.
+  - A+ = 4–5, B = 3, C = 2, below that no trade.
