@@ -144,3 +144,86 @@ The video's routine:
   - reviewer desk;
   - rig boot.
   These are plumbing checks, not strategy gates.
+
+---
+
+## 10. Trapped traders: "Who's trapped, and where are their stops?" (Mac's study material, 11/04, part 2)
+
+The core idea: your job isn't to predict, it's to see where traders are trapped. Their exit is your entry: stops on a trapped side are fuel.
+Every trap has the same structure: traders enter, price reverses, stops cluster, price hunts those stops.
+
+The six trap patterns, with the trade:
+1. **Wick trap (pin bar).** Long wick = people bought (or sold) up there and are now underwater, with stops just beyond the candle's body end.
+   Don't trade the pin bar itself. Trade when price **rejects away from the wick zone**; trapped-side liquidation accelerates the move.
+2. **Failed engulfing.** An engulfing "reversal" that is itself engulfed within 1–2 candles traps everyone who bought the pattern.
+   Trade the failure direction.
+3. **False breakout.** A strong close beyond a range edge, then a stall, then a slip back inside within ~3 candles.
+   Trade opposite the breakout. Tight stops (just under the breakout candle) go first; the bigger cascade comes when price pushes toward the
+   far side of the range and triggers the wide stops, so the target is the opposite range edge.
+4. **Trendline break without momentum.** A break that doesn't accelerate usually fails. When price gets back above (below) the line,
+   trade WITH the original trend, fuelled by the trapped breakers' stops.
+5. **Failed pattern (double top/bottom, triangle).**
+   - A double top broken upward → trapped shorts' stops sit above both peaks, so the move accelerates.
+     Don't fight it: buy the pullback.
+   - Triangle: if the first break fails and price breaks the opposite side, two sets of traders are trapped. That is the entry, and the most explosive one.
+6. **Opening-range trap (session open: London, New York; for us also the 15:00 PT Asia open and each 4H open).**
+   - The first 15–30 minutes set a direction and momentum traders pile in, then price reverses and trends the other way.
+   - Don't trade the first 15–30 minutes. Mark the opening-range high and low.
+   - If price breaks one side and fails, look for the opposite direction.
+   - This is exactly Mac's 11/04 chart: the 15:00 opening push above the 4H open failed and trended down all session.
+
+**Bot implications:**
+- The opening range is a level: add the first-30-min high/low of each session and 4H as trap levels.
+- A failed break / failed pattern / failed engulfing = the "failure" leg of playbook §8.2. It still needs the internal shift before entry.
+- Targets: the far side of the range or the next liquidity pool (where the wider stops sit).
+- Entry is never on the trap candle itself. It comes on the rejection away from it.
+
+## 11. Size and the "override threshold" (Mac's study material, part 3)
+
+The core idea: oversize turns a valid plan into survival mode. Four symptoms, each a binary rule:
+1. Hesitating or entering late.
+2. Moving the stop wider.
+3. Closing before the target ("lock it in").
+4. Revenge trading after a loss.
+
+For a human the fix is a "boring" size, small enough that the click is automatic.
+
+**Bot implications (the bot has no fear, but it must never copy those four behaviours):**
+- Enter on the trigger. No extra "wait one more candle" filters added out of caution (Mac: late entries cost us, see §3).
+- **Never widen a stop.** A stop only moves in the trade's favour (to W after the partial, then the trail).
+- **No early exit before the plan's target** except the defined partial at W. No timed exits (§5).
+- **After a loss, a cooling-off period before the next entry** (the video uses 30 minutes; the bot has re-entry cooldowns, and the day limit is
+  the hard version). Mac to confirm the minutes for the new model.
+- Size must stay where Mac himself can watch every trade calmly. That is why the max-loss-per-trade number is Mac's to set (§6).
+
+## 12. Big-money footprints: gaps, contraction, pin-bar illusions, climaxes (Mac's study material, part 4)
+
+1. **Engulfing gaps.**
+   - Bullish: open below the prior close, close above the prior open. Bearish: the mirror.
+   - With the trend = strength (breakaway/runaway). Against a long trend = possible exhaustion.
+   - High volume makes the gap matter. The stop goes beyond the gap's extreme.
+   - The gap area later acts as support/resistance.
+   - For MNQ: the 15:00 PT reopen after the 14:00–15:00 break, and Sunday's open, are our "gaps".
+2. **Momentum recharge (contraction after a big move).**
+   - After a strong momentum day or leg, price pauses in a range. Box it with the isolated pivot highs and lows.
+   - Inside the box, expect **liquidity sweeps against the prior move** that trap reversal traders. A sweep below the box that reclaims = big
+     players buying (mirror for down).
+   - **Trade only in the direction of the prior move**, on a clear break out of the box (volume rising) or on the sweep-and-reclaim.
+   - Sessions: Asia often contracts, London/NY opens often break out.
+3. **Pattern pitfall.** Triangles and wedges get "liquidity clear-outs" (fake breaks back into the pattern).
+   - Don't trade the first break blindly.
+   - Prefer breaks WITH the larger trend, with volume, at session opens.
+4. **Exhaustion-wick illusion.** A pin bar right after a big momentum move is often profit-taking or a breather, not a reversal.
+   - It only counts at a real level (support/resistance, fresh supply/demand), with follow-through, ideally with volume, and at session opens.
+5. **Buying / selling climax.**
+   - Late in a trend, a final fast push on very high volume, with narrowing bars (effort without result) and closes back toward the middle
+     (or the opposite end) of the bar. The market is running out of buyers (sellers).
+   - Don't fade the climax candle. Wait for confirmation: a lower high (higher low), a trendline or level break, or a lower-timeframe change of character.
+   - A higher-timeframe climax means a bigger reversal.
+
+**Bot implications:**
+- Volume is available on our bars and should join the reading: breakout volume, climax volume vs bar range, gap volume.
+- "Momentum recharge" refines §8.6 market state: after an expansion, a contraction box is a RANGE whose breakout is traded only with the prior
+  move, and sweeps against the prior move inside it are trap entries in the prior direction.
+- Pin bars / wicks need location plus follow-through, never alone (matches §10.1).
+- Climax detection (high volume, narrow spread, poor close) is a WARNING that blocks new with-trend entries until the structure confirms either way.
