@@ -1,0 +1,53 @@
+PHONE TERMINAL 2.0.9.18 - PREVIEW  (display only: no bot restart, the bot is not touched)
+=======================================================================================
+What changes: only the phone page (mobile.html). The bot, its settings and your trades are untouched.
+It is 2.0.9.17 (code 3dbf9bf8, the one you have now) plus TIDE, the new model:
+  - Now: the TIDE card (above the Hour card). It shows the mode (SHADOW violet / LIVE green), the 4H control and why,
+    the stage rail (wait for fail -> armed -> retest -> entered), the last signal (grade + points, entry / stop / TP1 / TP2,
+    flat size and grade size), and the TIDE position (R and $ now, stop acked, TP1 -> BE+1, ladder, price ruler).
+  - TIDE alerts on top of Now (stop reject, no-stop flatten, mode change): they never block; OK clears them.
+  - Trades: an All / TIDE / Old path filter, TIDE rows with grade and exit path, and the TIDE day P&L with the old path apart.
+  - Checklist: with TIDE on, the TIDE checklist (6 gates, 5 points, the rules); the old one is one tap away.
+  - The old path's fill: "fill price and time UNKNOWN" now flips to the observed fill on Now within about 10 s of the bot writing it
+    (the page reads the journal from Now while the fill is missing; before, only the Review tab read it).
+  - TIDE OFF = the page is 2.0.9.17 (every screen compared on every test state), except that fill fix.
+  - With bot r1.2 or r1.3 installed, the TIDE card fills from the bot's snapshot (snapshot.tide).
+    On an older bot it shows the mode only and says "TIDE details need bot update"; every other TIDE value reads UNKNOWN (never a guess).
+  - During a TIDE trade the old Position card still reads FLAT (the bot keeps that field for the old model);
+    a green "TIDE POSITION OPEN" banner and the TIDE card show the real trade. 2.0.9.19 makes the TIDE trade THE position card.
+
+Same look everywhere else and the same buttons. The page asks for nothing new: only the journal it already reads on Review, from Now while a fill is missing.
+
+PREVIEW: MacDot and MacMillionz still review it before it is a release. Undo is one command.
+Run it when the bot is FLAT (house rule, even for display changes).
+
+Put mobile.html and set-terminal.sh (from this folder) in Downloads, then in PowerShell:
+
+1) Check the files (both must match exactly):
+   cd $env:USERPROFILE\Downloads
+   certutil -hashfile mobile.html SHA256
+      expect: 292e78ad8ff178fbf41f1b2ff7f3eb62e8bd10e1e2c9ee00ce0b300e7b149a64
+   certutil -hashfile set-terminal.sh SHA256
+      expect: d891ef9d830244f682110662f85f080dd23984cbb29ba1740cb3e34aca4fb815
+
+2) Upload them and check them on the server:
+   scp mobile.html set-terminal.sh root@<HOST>:/root/
+   ssh root@<HOST> "sha256sum /root/mobile.html /root/set-terminal.sh"
+      (the same two codes as above)
+
+3) Install (it asks "Is the bot FLAT?" - type YES):
+   ssh -t root@<HOST> "bash /root/set-terminal.sh install /root/mobile.html 292e78ad8ff178fbf41f1b2ff7f3eb62e8bd10e1e2c9ee00ce0b300e7b149a64"
+   Expect this line (the backup's name may follow it):
+     DONE: mobile.html installed (sha256 verified): before 3dbf9bf8 -> after 292e78ad.     (you had 2.0.9.17)
+   Any other "before" code: still fine to keep, but send me that line.
+
+4) On your phone: close the MacMillionz page/app completely and open it again.
+   Check on Now: with TIDE off nothing changed. With TIDE in shadow, a violet TIDE card sits above the Hour card
+   (with bot r1.3 installed it shows the 4H control, the stage rail and the last signal).
+
+If any step prints STOP, nothing changed - send me that output.
+
+UNDO (puts back the page it replaced, 3dbf9bf8 = 2.0.9.17 - also no restart):
+   ssh -t root@<HOST> "bash /root/set-terminal.sh rollback"
+STATUS (changes nothing):
+   ssh root@<HOST> "bash /root/set-terminal.sh status"
