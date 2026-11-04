@@ -1,0 +1,192 @@
+{
+ "engine (structure under test)": {
+  "../lib/structure.js": {
+   "sha256": "2a2249f17efc202c7d88a54ddd7329a5d1bda59b6a3ea287d19eb79a88694853",
+   "bytes": 90140
+  }
+ },
+ "inputs": {
+  "inputs/levelsPro-lib/alignmentFreshness.js": {
+   "sha256": "90503ba2e54020e1ae89523d969cf62e63a1bc0adab4c274f3ffc8fbe689bd7e",
+   "bytes": 5644
+  },
+  "inputs/levelsPro-lib/helpers.js": {
+   "sha256": "5083dab2a89f68680df26e8bee1f6142a4c72702b7937ea20d25cc5168ab8dff",
+   "bytes": 6962
+  },
+  "inputs/levelsPro-lib/levelsPro.js": {
+   "sha256": "cdd283d2e8cbd8381e3946a590fbe86547dc38dc949b38c4e0fcd781321a56dc",
+   "bytes": 48581
+  },
+  "inputs/moneyRule-r4.1.js": {
+   "sha256": "15c7f68819bd7f5bbb43324e46b5830f4d0d43d93d320179c39835f12919c191",
+   "bytes": 56658
+  },
+  "inputs/structure-r3.1.js": {
+   "sha256": "da0c5c081d1586ccc2fd9cef76300c32a8b2c5f7e6f0c96f44c44df25b983018",
+   "bytes": 84522
+  },
+  "inputs/w.json": {
+   "sha256": "b03b42ea6d1731d2b67267eb0257131d2e56530b6f28b15c8d3c756aafab970b",
+   "bytes": 29346
+  }
+ },
+ "fixtures": {
+  "fixtures/bias-2026-10-28.json": {
+   "sha256": "c67af73729421e953ce2f431959702ea93fa28352e3cc9a7b2a42a0363e9e104",
+   "bytes": 257707
+  },
+  "fixtures/bias-2026-10-29.json": {
+   "sha256": "b937c6fb65a2603472dc924065e16bf6916265f4f5d7863ffb57d1484240877d",
+   "bytes": 252999
+  },
+  "fixtures/bias-2026-10-30.json": {
+   "sha256": "1becf51bd5f5d569a3a14d9bacaa9b257521976a1627cc66864553718bd4f233",
+   "bytes": 255495
+  },
+  "fixtures/bias-2026-11-02.json": {
+   "sha256": "a6b84da891afe63a0226739ee94e083989d80abe822c74cbf82e925859dc745d",
+   "bytes": 260507
+  },
+  "fixtures/bias-2026-11-03.json": {
+   "sha256": "78df390b3b1b97489995e2472488b66feda9c632b996a54e4b5ac4f1f92e10b3",
+   "bytes": 260335
+  },
+  "fixtures/bias-2026-11-04.json": {
+   "sha256": "1fb8d4f957451e84073ede3121a196b2082272d7bc1cd9005ae99bb88dcb201f",
+   "bytes": 154134
+  },
+  "fixtures/tradedays.txt": {
+   "sha256": "571dd03463823e0857a2f271622529d7855d73d717ba12f622b2feda29fd8117",
+   "bytes": 348
+  }
+ },
+ "proxy inputs": {
+  "proxy_root/replay1104/data/d1.json": {
+   "sha256": "7bf0b241fc293a8f8043f76255615c6ffc77bbab050facade6bcbda8d9b34603",
+   "bytes": 141093
+  },
+  "proxy_root/replay1104/data/h1.json": {
+   "sha256": "0ad57467f33465806baaf41f15fba6581eceb7b02655cfcc1aba9009425fb657",
+   "bytes": 148261
+  },
+  "proxy_root/replay1104/data/h4.json": {
+   "sha256": "8228aac9c1c9030c2ea6540c2be893cb729d6ff60c3697b77026bfd6d6b6a9ba",
+   "bytes": 142354
+  },
+  "proxy_root/replay1104/data/m1.json": {
+   "sha256": "8df66eb8a28f3f6dddc71f0b5ad60507d854b9b15df1497e44af495e8f4f4673",
+   "bytes": 969531
+  },
+  "proxy_root/replay1104/data/m15.json": {
+   "sha256": "32461c1c42af01a646528221f7749503aca1b1934c2020e638b9eac31f2129f7",
+   "bytes": 226995
+  },
+  "proxy_root/replay1104/data/m30.json": {
+   "sha256": "c01873f0e79beeb554fdb657ceda09a40b689f77d68c51fc0c6cd1d377fbda2f",
+   "bytes": 150192
+  },
+  "proxy_root/replay1104/data/m5.json": {
+   "sha256": "a80fbee767deb6769e32884a43fcf2d15b56cec99e87a5e522faaac09e92662e",
+   "bytes": 367560
+  },
+  "proxy_root/tide/grade/quant.py": {
+   "sha256": "caafb8eb83f99c7cf694f878251e461b52226dccd1d6de71885445b0d11f2e9e",
+   "bytes": 15869
+  },
+  "proxy_root/tide/grade/risk.py": {
+   "sha256": "ed2ba7c8c25cd2adf04ca6b5d1dc36f6ccdba6c24d2258cd11ee8e4159943893",
+   "bytes": 10998
+  },
+  "proxy_root/tide/study/tide_setups.py": {
+   "sha256": "93f9a3d6e39370bb35f59cbdfdf327bcfaa2133c53bacaca3a17065177d929ca",
+   "bytes": 65381
+  }
+ },
+ "tools": {
+  "tools/ledger_analysis.py": {
+   "sha256": "33b2ce809a53e03fae596de92ddb824d610e037941d468f743aab1c5ebe6177b",
+   "bytes": 51811
+  },
+  "tools/manifest.py": {
+   "sha256": "67d610440c5534cddeac3bbf61ec98352b764fb817de516abd6901c658811952",
+   "bytes": 1423
+  },
+  "tools/regen_fixes_on.py": {
+   "sha256": "c76ecd2a551c8fe08bd00d8affd1e27f8c021702054e02e4cf4a9763d6df3a06",
+   "bytes": 837
+  },
+  "tools/reproduce.sh": {
+   "sha256": "18b89cb6492d531e588b391f64de4549f2aca20bc8952ee73442c70461324552",
+   "bytes": 1367
+  },
+  "tools/run-ledger.cjs": {
+   "sha256": "029459520ddccccb3fbbf964101f3f1cb754a7eb74a118b69c539da8e3939f70",
+   "bytes": 8727
+  }
+ },
+ "outputs": {
+  "DIFF-r3.1.md": {
+   "sha256": "d2c1f1ac92817ddfcb9c2b80c65eaab15946aaf5cc4630dfc7262b5bd50e5487",
+   "bytes": 11827
+  },
+  "RECONCILE.md": {
+   "sha256": "ec55809d7d1c3906c0b22d75e558ae7a0efca7ea27cd9b3e0fe7750dc3345213",
+   "bytes": 32727
+  },
+  "SUMMARY.md": {
+   "sha256": "a379448d30772509c12d86e8c84614912cf1246a5890b607da30038bf5bec2b3",
+   "bytes": 2683
+  },
+  "engine-out.json": {
+   "sha256": "7fccf7de380793b24dfb6d3572a0d8ac18c5972d1e3a81b5b8041c2f5154e5ce",
+   "bytes": 1104643
+  },
+  "ledger.csv": {
+   "sha256": "ba5183241482250072108dd015df2d9aefdfa24fa90b71488e7826ee24a97f37",
+   "bytes": 23131
+  },
+  "proxy_root/tide/study/fixes_on/RESULTS.md": {
+   "sha256": "907dbc36cf8823cf5f007fbd59b1a62a647f9a85e49e6cc589fc92529f65c9be",
+   "bytes": 73131
+  },
+  "proxy_root/tide/study/fixes_on/near_misses.csv": {
+   "sha256": "7ad6cfd11f2892ffa1c5b92ab5f3f145c6de721bee091bab528b6fd696373173",
+   "bytes": 29632
+  },
+  "proxy_root/tide/study/fixes_on/ranaway.csv": {
+   "sha256": "5c8fe55375d114917814cda143aeb09eb320845b1254b6439bc723461f585803",
+   "bytes": 11359
+  },
+  "proxy_root/tide/study/fixes_on/readings.csv": {
+   "sha256": "1bb259457c9960136e4317e391d9dcb1583a8418a0e3b8dd83e006f3a2730539",
+   "bytes": 741650
+  },
+  "proxy_root/tide/study/fixes_on/run_meta.json": {
+   "sha256": "e61defb591047f2659e4b71cbea930a84706bc361105c9e8f7ec23b337d656d2",
+   "bytes": 34
+  },
+  "proxy_root/tide/study/fixes_on/setups.csv": {
+   "sha256": "c5a8952a048de7f63ad75cd1f4c0159ba1912abff8a1dbe43af100d22dd3862d",
+   "bytes": 197908
+  },
+  "r3.1-m41/engine-out.json": {
+   "sha256": "026e3e19390f6c937305a41264ebf0e6e4713b8d6546cceed3e29c477cff9ca9",
+   "bytes": 987597
+  }
+ },
+ "r3.1 accepted ledger (frozen, not regenerated)": {
+  "r3.1/RECONCILE.md": {
+   "sha256": "8d27eeefdd8516efa06c89cfdee2964cdabc89a253e743527afab41209d8a334"
+  },
+  "r3.1/SUMMARY.md": {
+   "sha256": "46b2a09b2e4c95c9ce9369d481b00a2b0ccfb86fb101adbf3d4627f1f1d9d714"
+  },
+  "r3.1/engine-out.json": {
+   "sha256": "7fb52f5bf570169199703b1a80193700220c1f46d68e93bddbab29fc54ed6e8a"
+  },
+  "r3.1/ledger.csv": {
+   "sha256": "83537ea99e6866138f3a9c138239141dfbaee16890b2348d187e18e7ab56c0ea"
+  }
+ }
+}
