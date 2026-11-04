@@ -1,0 +1,22 @@
+MAC - INSTALL BOT r1.5 (replace <server> with your bot server address)
+=====================================================================================
+What it fixes: the warm-up can no longer crash the bot out of memory (tonight's 5 crashes).
+No trading-rule change. Live mode is kept. One restart, then a ~6 min warm-up.
+Be FLAT in TopstepX first (no MNQ position, no working MNQ orders).
+Put MacBot-TIDE-live-r1.5.zip in Downloads, open PowerShell:
+
+  cd $env:USERPROFILE\Downloads
+  Get-FileHash .\MacBot-TIDE-live-r1.5.zip
+     (must start with E73A50CC)
+  scp .\MacBot-TIDE-live-r1.5.zip root@<server>:/root/
+  ssh root@<server> "mkdir -p /root/tide-r1.5 && cd /root/tide-r1.5 && python3 -m zipfile -e /root/MacBot-TIDE-live-r1.5.zip . && ls pkg-live"
+  ssh -t root@<server> "cd /root/tide-r1.5/pkg-live && bash go.sh"
+     (type YES when asked)
+
+Check the warm-up (wait ~6 min, run again if the LIVE line is not there yet):
+  ssh root@<server> "journalctl -u mac-bot-live --since '-10 min' --no-pager | grep -iE 'rebuild progress|rss|LIVE: the warm-up|skipped|stopped|Killed'"
+  You want: rebuild progress lines with RSS, then "[tide] LIVE: the warm-up is done". No "Killed".
+
+Turn TIDE off / go back if anything looks wrong:
+  ssh -t root@<server> "cd /root/tide-r1.5/pkg-live && bash tools/set-tide.sh off"
+  ssh -t root@<server> "cd /root/tide-r1.5/pkg-live && bash rollback.sh"     (back to r1.4)
