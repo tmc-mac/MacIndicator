@@ -1,0 +1,35 @@
+MAC - INSTALL BOT r1.5.6 (replace <server> with your bot server address)
+=====================================================================================
+What it adds to r1.5.5 (display + journal only; trading is unchanged until you choose):
+- Higher-timeframe context on every setup: prior 4H (close vs open, higher high / lower low vs the 4H before),
+  current 4H (price vs its open), daily (price vs the 3:00 PM PT day open). Majority vote = HTF direction;
+  a tie goes to the current 4H side.
+- Every setup is tagged WITH / AGAINST / neutral HTF in the journal, the push and the phone (board.htf).
+- Switch tide.htfAgainst: tag (installed: show only) | half (against-HTF trades at half risk, $200) | skip (not taken):
+    ssh -t root@<server> "cd /root/tide-r1.5.6/pkg-live && bash tools/set-tide.sh htf=half"      (or htf=skip; htf=tag to undo)
+Everything from r1.5.5 stays as it is. Live mode kept. One restart, ~6 min warm-up. Goes on r1.5.5 or older.
+Be FLAT in TopstepX first (no MNQ position, no working MNQ orders).
+Put MacBot-TIDE-live-r1.5.6.zip in Downloads, open PowerShell:
+
+  cd $env:USERPROFILE\Downloads
+  Get-FileHash .\MacBot-TIDE-live-r1.5.6.zip
+     (must start with 321F01B4)
+  scp .\MacBot-TIDE-live-r1.5.6.zip root@<server>:/root/
+  ssh root@<server> "mkdir -p /root/tide-r1.5.6 && cd /root/tide-r1.5.6 && python3 -m zipfile -e /root/MacBot-TIDE-live-r1.5.6.zip . && ls pkg-live"
+  ssh -t root@<server> "cd /root/tide-r1.5.6/pkg-live && bash go.sh"
+     (type YES when asked)
+
+Check the warm-up (wait ~6 min, run again if the LIVE line is not there yet):
+  ssh root@<server> "journalctl -u mac-bot-live --since '-10 min' --no-pager | grep -iE 'rebuild progress|LIVE: the warm-up|HTF context|lanes|Killed|NOT taken'"
+  You want the startup line with "HTF context ON (against: tag)", then "[tide] LIVE: the warm-up is done". No "Killed".
+
+Watch it work (read-only, any time):
+  ssh root@<server> "python3 /root/tide-journal-today.py 08:00 2>/dev/null | tail -40"
+  Look for setup_arm on nearby levels, "NEARER: ... replaces ..." cancels, and signal rows with taken=true.
+
+Put the r1.5.3 behaviour back (all new rules off) (one command, YES twice, restart + warm-up):
+  ssh -t root@<server> "cd /root/tide-r1.5.6/pkg-live && bash tools/set-tide.sh lanes=off"
+Turn TIDE off / roll back:
+  ssh -t root@<server> "cd /root/tide-r1.5.6/pkg-live && bash tools/set-tide.sh off"
+  ssh -t root@<server> "cd /root/tide-r1.5.6/pkg-live && bash tools/set-tide.sh lanes=on"   (clears the new keys before rollback)
+  ssh -t root@<server> "cd /root/tide-r1.5.6/pkg-live && bash rollback.sh"
