@@ -441,3 +441,13 @@ Supersedes the "+W = $200, all but one contract out, runner locked at W" exit in
   house money. The runner's locked profit must cover the add's risk, so the combined trade can't turn red.
 - **TP2** (the nearest pool ≥ 2R; for A+ the next major pool): exit everything left.
 - The R-ladder (§20) protects the combined position.
+
+## 22. RULING: how each grade enters, and the grade-upgrade add (Mac, 11/04)
+- **A+: all at once** at the trigger. This is Candace's own A+ behaviour; the best moves often never retest.
+- **B: scale in.** Half at the trigger, half on the retest/gap level. If price never confirms, only half was risked.
+- **C: one small entry.**
+- **Grade-upgrade add:** if a B or C trade turns A+ while open (bias goes STRONG and keeps GROWING) and before TP1, top up to the A+ dollar
+  risk on the next rejected pullback, at the same structural stop. Once per trade.
+- Then for every grade: 2/3 off at TP1 → breakeven → one house-money pyramid add → all out at TP2, with the R-ladder protecting it (§18–21).
+- Office rule (Mac): everything in this playbook is the shared knowledge every desk builds from. Cite the section in specs, code comments
+  and reviews.
