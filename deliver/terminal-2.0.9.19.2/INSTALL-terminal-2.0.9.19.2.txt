@@ -1,0 +1,45 @@
+PHONE TERMINAL 2.0.9.19.2 - PREVIEW  (display only: no bot restart, the bot is not touched)
+=======================================================================================
+What changes: only the phone page (mobile.html). The bot, its settings and your trades are untouched.
+It is 2.0.9.19.1 (code aaa65124) plus:
+  - the checklist no longer changes between refreshes; the open wait comes from the 4H clock;
+  - "NOW" kept apart from "Last signal S264-E · 01:03 PT (grade C)";
+  - warm-up replays read "replayed during warm-up · not tradeable" (never NOT_FLAT) and are not counted as live;
+  - with TIDE on, the top pill / status line / Day P&L split come from TIDE;
+  - MacFacts: closed trades in the Levels day strip / detail show the broker fill instead of UNKNOWN;
+  - the signal-checks Copy says the page's real version.
+
+Same look everywhere else and the same buttons. The page asks for nothing new: only the journal it already reads on Review, from Now while a fill is missing.
+
+PREVIEW: MacDot and MacMillionz still review it before it is a release. Undo is one command.
+Run it when the bot is FLAT (house rule, even for display changes).
+
+Put mobile.html and set-terminal.sh (from this folder) in Downloads, then in PowerShell:
+
+1) Check the files (both must match exactly):
+   cd $env:USERPROFILE\Downloads
+   certutil -hashfile mobile.html SHA256
+      expect: cf3d288a416257f090298baa59c4668178e35a71c5fa2533ce7d4ff4ee97efe4
+   certutil -hashfile set-terminal.sh SHA256
+      expect: d891ef9d830244f682110662f85f080dd23984cbb29ba1740cb3e34aca4fb815
+
+2) Upload them and check them on the server:
+   scp mobile.html set-terminal.sh root@<HOST>:/root/
+   ssh root@<HOST> "sha256sum /root/mobile.html /root/set-terminal.sh"
+      (the same two codes as above)
+
+3) Install (it asks "Is the bot FLAT?" - type YES):
+   ssh -t root@<HOST> "bash /root/set-terminal.sh install /root/mobile.html cf3d288a416257f090298baa59c4668178e35a71c5fa2533ce7d4ff4ee97efe4"
+   Expect this line (the backup's name may follow it):
+     DONE: mobile.html installed (sha256 verified): before aaa65124 -> after cf3d288a.     (you had 2.0.9.19.1; if you are on 2.0.9.18 it reads before 292e78ad)
+   Any other "before" code: still fine to keep, but send me that line.
+
+4) On your phone: close the MacMillionz page/app completely and open it again.
+   Check on Now: with TIDE on, the Levels now card reads "LEVELS NOW · TIDE" with NEXT TO ACT on top.
+
+If any step prints STOP, nothing changed - send me that output.
+
+UNDO (puts back the page it replaced, aaa65124 = 2.0.9.19.1 - also no restart):
+   ssh -t root@<HOST> "bash /root/set-terminal.sh rollback"
+STATUS (changes nothing):
+   ssh root@<HOST> "bash /root/set-terminal.sh status"
