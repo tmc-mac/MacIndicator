@@ -451,3 +451,22 @@ Supersedes the "+W = $200, all but one contract out, runner locked at W" exit in
 - Then for every grade: 2/3 off at TP1 → breakeven → one house-money pyramid add → all out at TP2, with the R-ladder protecting it (§18–21).
 - Office rule (Mac): everything in this playbook is the shared knowledge every desk builds from. Cite the section in specs, code comments
   and reviews.
+
+## 23. RULING: the team grade, and time blocks (Mac, 11/04 "yes, skip the old time blocks")
+Supersedes the grade points in §19.
+- **Gates:**
+  - 4H control;
+  - a valid trigger with a displacement shift (or an accepted break with a defended retest);
+  - the breaking wave's bias reached ±0.20;
+  - first retest only;
+  - not mid-range, with a logical stop.
+  - Nothing is required of the bias at the entry minute.
+- **Points (+1 each):**
+  - trap at a stacked/obvious pool;
+  - force (≥ 2× the normal 5m range);
+  - volume rhythm (pullback volume < break volume);
+  - session timing (within 60 min of a session open);
+  - impulse band (wave peak 0.30–0.40).
+  - A peak ≥ 0.40 caps the grade at C (exhaustion watch).
+- **A+ = 4–5, B = 3, C = 0–2.**
+- **The new model skips the old time blocks.** Its own rule: no entries in the first 30 min of a session or 4H candle. The news wait stays.
