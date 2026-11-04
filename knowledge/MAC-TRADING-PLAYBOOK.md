@@ -420,3 +420,16 @@ Supersedes the "+W = $200, all but one contract out, runner locked at W" exit in
   - Required: 4H control and bias past the line.
   - +1 each: strong-pool trap, displacement shift, first retest, strong bias, growing bias.
   - A+ = 4–5, B = 3, C = 2, below that no trade.
+
+## 20. Profit protection in the new model (Mac, 11/04: "we still need to make sure we're protecting profits")
+- **R-ladder** (R = the risk to the structural stop):
+  - +1R → breakeven;
+  - +1.5R → lock +0.5R;
+  - +2R → lock +1R;
+  - then lock trailing 1R behind the best price, in 0.5R steps.
+  - A trade that reached +1R never closes red; one that reached +2R closes at ≥ +1R.
+- The partial at the first pool, then breakeven (§18), stays.
+- **Trail on structure, not noise:** after a major pool is swept in our favour, the stop may move behind the last 15m swing.
+  1m/5m wiggles don't move it.
+- **Climax in our favour** → tighten behind the last 5m swing.
+- Never widen a stop. No timed exits. No daily loss limit.
