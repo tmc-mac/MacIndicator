@@ -304,3 +304,33 @@ Rules:
   (failed break → shift → entry; target the opposite side of the range).
 - Targets: the next pool in the trade direction (bigger pool = more likely destination); voids are travelled quickly.
 - Sweeps inside a trend whose major swing holds are continuation entries, not reversals (pairs with §8 and §12.2).
+
+## 15. Daily extremes (PDH/PDL): sweep vs breakout, and the FVG entry (Mac's study material, part 7)
+
+Why: big players need counterparty volume. Above the previous day high sit short stops (buy stops) plus breakout buy orders. A push through
+triggers both in one sweep, and the big sellers fill their shorts into that buying. Mirror for the previous day low.
+Rules:
+1. **Tell the two apart by the candle:**
+   - **True breakout = displacement:** large full-bodied candles that CLOSE decisively beyond the extreme.
+   - **Sweep:** a long wick pierces the extreme and the BODY closes back inside the prior range.
+2. **Timing:** sweeps cluster at session opens.
+   - London open: the "Judas swing", a false first move that clears stops.
+   - The New York handover often sweeps the new London extremes.
+3. **The entry sequence (inverted retail habit):**
+   1. Let price break the level and the trap spring. Wait for the candle CLOSE back inside (1H chart).
+   2. Drop to 5m/15m. Wait for a **market structure shift with displacement**: a full-bodied candle closing through the recent swing low (short).
+   3. Enter with a **limit order in the fair value gap (FVG)** that displacement left, catching the retracement before the continuation.
+4. **Stop:** a few points BEYOND the absolute peak of the sweep wick, never exactly at the daily extreme (algorithms often spike once more).
+
+Definitions for the bot:
+- **Fair value gap (bearish):** a 3-candle pattern on the trigger timeframe where candle 1's LOW is above candle 3's HIGH.
+  The gap [candle 3 high, candle 1 low] is the FVG. Bullish is the mirror.
+- **Displacement:** a candle whose body is ≥ 60–70% of its range and ≥ 1× the recent average range, closing through the swing.
+
+**Bot implications:**
+- This is the concrete answer to Mac's "better way to enter on the waves": after the sweep and shift, place a LIMIT in the FVG instead of a
+  market order on the close. Better price, a structural stop beyond the sweep wick, and no chasing.
+  - Cancel the limit if it isn't filled within N trigger bars, or if price trades beyond the invalidation first.
+- PDH/PDL sweep at the London open (00:00 PT) and the NY open (06:30 PT) are priority trap setups. The opening-range rule (§10.6) applies.
+- Stop = sweep extreme + buffer (MNQ: STOP_BUF 2 pts or more). Size from it with the money rule (§6).
+- Displacement is required for the shift (§8.2's "full-body" rule, sharpened here).
