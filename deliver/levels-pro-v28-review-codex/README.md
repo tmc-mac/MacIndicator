@@ -1,0 +1,14 @@
+# Levels PRO v2.8 — review candidate, not current TIDE parity
+
+**Do not install or treat the TIDE companion as the live bot's decision feed.** This is a review copy of MacArthur's v2.8 delivery at MacIndicator `4cbba8df1fd7089808f6475f96fd3e591aef7be8` (original Pine files introduced at `e544dfae43305da64c07ed8edb5359f6ad271259`). The earlier `9642193` mention was not resolved in MacIndicator; MacArthur has been asked to confirm the authoritative pin and current target/config.
+
+- `LevelsPRO-v2.8-main.pine` is the main indicator. The existing level lines, colors, SWEPT, heat and saved settings remain as delivered; its one change suppresses old control/behavior words in the SWEPT tooltip with Old model OFF, preserving the SWEPT description.
+- `LevelsPRO-TIDE-v2.8-review.pine` is the separate companion overlay. The original ports structure r3.2 / bot r1.4. The current r1.5.6 source includes changed controlFree, controlAsBias, waveBiasTrend, laneAccept, stale-trap, slot-release and HTF rules, some configurable. This review copy visibly labels itself an r1.4 reference. It does not implement or certify current-bot equivalence, real account state, news, broker state, or actual fills. Bias and chart plans are approximations.
+
+Companion corrections: rename duplicate global `td_cd`; give an ended setup priority over an older failure or active episode as in boardView, select active setups/episodes consistently, suppress false `ZONE_USED` for active live setup and `RETEST_NOT_FIRST` on a cancelled setup; avoid an invalid lower-timeframe request error on seconds charts; distinguish chart fit from a real taken trade. Trigger alerts require the chart model's own eligible result and are limited to 1-minute charts, since longer chart bars can delay or collapse 1-minute signals. Multiple signals within one minute can still be collapsed, and chart eligibility is not current-bot eligibility. Open-wait code remains unchanged.
+
+Checks: both scripts compared to source; six synthetic cases directly executed the edited Pine engine through the supplied interpreter (not TradingView); static checks cover duplicate name, alert guards, tooltip wiring and invalid timeframe handling. Main ordercheck reports zero. Companion ordercheck reports one known nested `int(...)` false positive, so it cannot be treated as compiler clearance. No background strategy performance test was run. No TradingView compile, runtime budget, chart rendering, mobile visual inspection, current bot parity, actual config verification, or live feed verification was available. Pine compilation and visual/runtime checks in TradingView plus a pin-specific current-engine port and review are still required before installation.
+
+Checksums (SHA-256):
+- main `d90318d3326298a3371fb7976b95f209c0461bc9dba68496ab2d9c8fd9df6f40`
+- companion `5d277e17a7259fe276433069e7cbdb34d41551d3b27d61b956c2e6bd37cc51a4`
