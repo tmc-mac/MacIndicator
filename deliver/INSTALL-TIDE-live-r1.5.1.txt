@@ -1,0 +1,29 @@
+MAC - INSTALL BOT r1.5.1 (replace <server> with your bot server address)
+=====================================================================================
+What it adds to r1.5: one switch, "climax", for the CLIMAX gate (the rule that held back
+with-trend longs tonight). Installed it is ON = the bot trades exactly as r1.5.
+Live mode is kept. One restart, then a ~6 min warm-up. Goes on r1.5 or r1.4.
+Be FLAT in TopstepX first (no MNQ position, no working MNQ orders).
+Put MacBot-TIDE-live-r1.5.1.zip in Downloads, open PowerShell:
+
+  cd $env:USERPROFILE\Downloads
+  Get-FileHash .\MacBot-TIDE-live-r1.5.1.zip
+     (must start with 451DE5A6)
+  scp .\MacBot-TIDE-live-r1.5.1.zip root@<server>:/root/
+  ssh root@<server> "mkdir -p /root/tide-r1.5.1 && cd /root/tide-r1.5.1 && python3 -m zipfile -e /root/MacBot-TIDE-live-r1.5.1.zip . && ls pkg-live"
+  ssh -t root@<server> "cd /root/tide-r1.5.1/pkg-live && bash go.sh"
+     (type YES when asked)
+
+Check the warm-up (wait ~6 min, run again if the LIVE line is not there yet):
+  ssh root@<server> "journalctl -u mac-bot-live --since '-10 min' --no-pager | grep -iE 'rebuild progress|rss|LIVE: the warm-up|climax|skipped|stopped|Killed'"
+  You want: rebuild progress lines, then "[tide] LIVE: the warm-up is done". No "Killed".
+
+OPTIONAL - only if you choose "climax off" (6-day replay: 33 trades instead of 32, +$232, same drawdown):
+  ssh -t root@<server> "cd /root/tide-r1.5.1/pkg-live && bash tools/set-tide.sh climax=off"
+     (type YES twice; one restart + warm-up; log shows "climax gate OFF")
+  Undo: same line with climax=on
+
+Turn TIDE off / go back if anything looks wrong:
+  ssh -t root@<server> "cd /root/tide-r1.5.1/pkg-live && bash tools/set-tide.sh off"
+  ssh -t root@<server> "cd /root/tide-r1.5.1/pkg-live && bash tools/set-tide.sh climax=on"   (if you set it off)
+  ssh -t root@<server> "cd /root/tide-r1.5.1/pkg-live && bash rollback.sh"     (back to what you had)
