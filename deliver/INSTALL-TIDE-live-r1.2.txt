@@ -1,0 +1,43 @@
+MacBot TIDE live r1.2 - INSTALL (PowerShell on your PC)
+=======================================================
+Zip: MacBot-TIDE-live-r1.2.zip   sha256 starts with 887a175f
+Goes on: your running r1.1a (also r1.1, r1, lv1 r13.3.7). go.sh refuses anything else.
+Live mode is KEPT: you do NOT need to run set-tide.sh live again.
+
+What r1.2 changes (no trading-rule change):
+- A dropped market-data read is retried at once (warm-up and gap reads); hourly count in the log.
+- The restart rebuild runs at low priority and has a 15-min timeout, with progress every 60 s.
+- Phone data: snapshot now carries the TIDE trade (snapshot.tide) for terminal 2.0.9.18+.
+- The snapshot file is written atomically (no half-written file on the phone).
+
+BEFORE YOU START: be FLAT in TopstepX (no MNQ position, no working MNQ orders).
+Replace <server> below with your bot server address (same one you used for r1.1a).
+
+STEP 1 - check the zip (in the folder where you saved it)
+  Get-FileHash .\MacBot-TIDE-live-r1.2.zip
+  (the hash must start with 887A175F)
+
+STEP 2 - upload and unpack
+  scp .\MacBot-TIDE-live-r1.2.zip root@<server>:/root/
+  ssh root@<server> "mkdir -p /root/tide-r1.2 && cd /root/tide-r1.2 && unzip -o /root/MacBot-TIDE-live-r1.2.zip"
+  (if unzip is missing: replace "unzip -o /root/MacBot-TIDE-live-r1.2.zip" with
+   "python3 -m zipfile -e /root/MacBot-TIDE-live-r1.2.zip .")
+
+STEP 3 - install (type YES when asked; it backs up r1.1a and restarts the bot once)
+  ssh -t root@<server> "cd /root/tide-r1.2/pkg-live && bash go.sh"
+  If anything fails it puts r1.1a back by itself.
+
+STEP 4 - check the log
+  ssh root@<server> "journalctl -u mac-bot-live --since '-5 min' --no-pager | grep -E 'tide|money'"
+  Look for:
+    [tide] mode LIVE ...
+    TIDE entry blocks ON (15:00-17:00, 06:30-07:10 PT)
+    [tide] rebuild progress: N of M minutes   (every 60 s while it rebuilds)
+    [tide] LIVE: the warm-up is done - TIDE signals now place real orders.
+  The new model takes NO trades before that last line (about 1-6 min on your server).
+
+TURN IT OFF / GO BACK
+  ssh -t root@<server> "cd /root/tide-r1.2/pkg-live && bash tools/set-tide.sh off"
+  ssh -t root@<server> "cd /root/tide-r1.2/pkg-live && bash rollback.sh"   (back to r1.1a)
+
+If anything looks wrong: run the "off" line above, then send me the log lines.
