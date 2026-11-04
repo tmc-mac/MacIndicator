@@ -397,3 +397,17 @@ Targets and management:
 - **Grow by adding accounts** (copy-trading), not by raising per-trade risk.
 - **Testing path:** the new model runs on Mac's $150K practice account sized as a real 150K first.
   Mac buys the 150K combine once it's on pace.
+
+## 18. RULING: Candace's profit-taking style too (Mac, 11/04)
+
+> "I don't want all but 1 contract at $200. If we're sizing up we're mimicking her PT style too."
+
+Supersedes the "+W = $200, all but one contract out, runner locked at W" exit in §6/§17.
+1. **Bracket at a minimum 1:2 R:R**, extended to the **nearest liquidity pool at or beyond 2R** (session/day highs and lows, equal highs/lows,
+   4H/1H opens, round numbers, order blocks).
+2. **Partial at the first internal pool** between entry and target (the nearest swing high/low or pool in the trade direction):
+   about half the position (cfg; Mac to confirm). Then **stop to breakeven**: a risk-free trade.
+3. **Trail the stop each time a minor pool is swept** in our direction: move it behind the last 1m/5m swing that just formed.
+   Never widen.
+4. **Grade changes the target:** A+ holds for the bigger (major) pool beyond 2R; B and C take the nearest pool at or beyond 2R.
+5. No timed exits (unchanged). No daily loss limit (unchanged).
