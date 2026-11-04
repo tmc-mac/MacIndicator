@@ -45,7 +45,7 @@ Rules that stay in force:
 | Bot r1.5.1 | `deliver/MacBot-TIDE-live-r1.5.1.zip` + INSTALL sheet | zip `451de5a6` | superseded by r1.5.2 |
 | **Bot r1.5.2** | `deliver/MacBot-TIDE-live-r1.5.2.zip` + `INSTALL-TIDE-live-r1.5.2.txt`; tree in `docs/new-bot/live-r1.5.2` | zip `a00286de` | **LIVE** |
 | Terminal 2.0.9.19.2 | `deliver/terminal-2.0.9.19.2/` | mobile `cf3d288a` | **LIVE** |
-| Terminal 2.0.9.20 | `deliver/terminal-2.0.9.20/` once its gate is GREEN | see that folder | final gate running |
+| Terminal 2.0.9.20 | NOT in the repo yet. Candidate mobile.html sha256 `caf73686…` in MacArthur's scratchpad (`macui-n/pkg-20920`, build `bi/build.sh 2.0.9.20`) | `caf73686` | gate at 15:36Z: fast tests, reel 4x pairs and identity done (34/35, one timing diff); browser-tj still running. Contents: TIDE plan lines on the Live-trade chart, TIDE tape, TIDE Review journal, the WHY NOT card shows TIDE's reason (not the old model's noChase/ATR), side shown only from board dir. Finish the gate, then deliver |
 | Levels PRO v2.8 | `deliver/levels-pro-2.8/` (main + TIDE companion) | main `6200537e`, TIDE `0d1c9336` | **waiting for your review** (team line #5, comment 6629782978). Not compiled in TradingView yet |
 
 Built and sealed but NOT sent (in MacArthur's session scratchpad; ask Mac before installing any of them):
@@ -110,7 +110,37 @@ ssh root@<server> "grep -h lv_tide /opt/mac-bot/levels-journal-MNQ-*11-04*.jsonl
 ssh root@<server> "python3 /root/tide-board-now.py"
 ```
 
+## 5b. THE ISSUE AT HAND (Mac, 07:55 PT): TIDE's 4H-control rules refused today's real setups
+Mac's live journal (`tide-journal-today.py`, read-only, `python3 /root/tide-journal-today.py 06:00 2>/dev/null` on the server) for 06:00–07:40 PT 11/04 has 206 TIDE events and 19 setups armed. The engine is working; three completed setups were refused, and none of them by a timing rule:
+
+| PT | Setup | Refused by | What price did next |
+|---|---|---|---|
+| 06:25–06:27 | **Accepted-break LONG, London ORH 28,426** (armed 06:25, retest 06:26, rejection 06:27) | `grade_no_trade: control4h eq true got false`. 4H control was sellers (trap since 03:31) | ran 28,416 → 28,971 (+550) |
+| 06:35–06:37 | Failed-break long, 1H Open 28,411.25 | NY block (06:30–07:10) + climax_warn | same run |
+| 07:35–07:40 | **Accepted-break SHORT, 4H Open 28,813.75** (07:25 4H failed break, ext 28,970.75; 07:31 control_form −1 trap; 07:38 retest; 07:40 rejection) | `grade_no_trade: laneTrigger: kind eq "failed-break" got "accepted-break"`. Under trap control only failed-break setups are allowed | fell to about 28,645 by 07:47 (−160) |
+
+- **How the lanes work:**
+  - Bias control → accepted-break setups.
+  - Trap control → failed-break setups only.
+  - No control → wait.
+- **Why that missed today:** after the 07:25 4H trap, the failed-break short trigger (internal shift) never printed. The real follow-through came as an accepted break below the trapped level, and the lane rule threw it out, even though it was in the trap's own direction.
+- **Also seen:**
+  - 06:45: five same-way acceptances in a row; newest-replaces kept London High 28,662, and the 06:55 pullback low (about 28,690) missed it by about 28 pts.
+  - Duplicate `rebuilt=true` rows come from the two restarts (06:24, 07:01) for installs.
+
+**Job: replay, then a switch, no live change until Mac sees the numbers.**
+- **Data:** 6 days 10/27–11/04, plus today if the bars can be built.
+- **Build:** r1.5.2 bytes, climax ON as live, session clock on, working rebuild. The harness from the 11/04 parity runs (live-work/h22 style) takes an engine config by env.
+- **Arms:**
+  - A: live.
+  - **L1:** under trap control, also allow accepted-break setups whose direction equals the trap's direction (today's 07:40 short).
+  - **L2:** an accepted break may trade against an opposing control4h (today's 06:27 long).
+  - L1+L2.
+- **Report:** trades, W/BE/L, full stops, net, max DD, and each trade that differs from A with its time and result. If today runs, the result of the 06:27 long and the 07:40 short under the arms.
+- **Ship rule:** whatever wins ships as a `set-tide.sh` switch, default OFF, through the full ship gate in CLAUDE.md, then Mac decides. Full stops are the main loss driver, so judge on full stops first.
+
 ## 6. Open items, ranked by expected P&L effect
+0. **The lane / control4h replay in 5b.** Mac's top priority, 11/04 07:55 PT.
 1. **Run today's journal check (section 5).** It answers whether the NY block or the open wait cost a trade on 11/04.
 2. **Continuation entry design + 6-day replay.** This is the gap that left Mac out of the 11/04 NY run.
 3. **r1.5.3:**
