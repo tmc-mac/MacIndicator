@@ -77,13 +77,23 @@ function reversal(name, actual) { if (actual !== 0) { risks++; console.log('RISK
     assert(again.D.owned()); assert.strictEqual(again.D.phase(), 'UNKNOWN'); assert.strictEqual(B.reqs.length, n, 'restart resent');
     await original('fake', delayed); assert.strictEqual(stops(B).length, 1); B.tick(28030); assert.strictEqual(B.pos, 0);
   });
-  await check('delayed close and restart', async () => {
-    const B = broker(), original = B.api.placeOrder; let delayed, once = true;
-    B.api.placeOrder = async (token, body) => { if (once && body.type === T.MARKET && body.side === SD.BUY) { once = false; delayed = body; throw new Error('delayed no-ack'); } return original(token, body); };
-    const first = drv(B); await first.D.signal(sig(30), plan(30), 'close-test'); await first.D.exitAtMarket('test'); assert(delayed); assert(first.D.owned());
-    const n = B.reqs.length, again = drv(B, { file: first.file }); await again.D.start(); await again.D.poll({ lastPx: 28000 });
-    assert(again.D.owned()); assert.strictEqual(again.D.phase(), 'UNKNOWN'); assert.strictEqual(B.reqs.length, n, 'restart resent');
-    await original('fake', delayed); B.tick(28030); assert.strictEqual(B.pos, 0);
+  await check('pre-existing ambiguous close and restart', async () => {
+    // Synthetic fixture: the current review candidate holds on earlier cancellation,
+    // so it cannot reach a normal close send. Model an already-dispatched close
+    // independently and verify a restart does not resend it.
+    const B = broker(), first = drv(B); await first.D.signal(sig(30), plan(30), 'close-test');
+    for (const order of [...B.book]) await B.api.cancelOrder('fake', 1, order.id);
+    const delayed = {accountId:1,contractId:'C',type:T.MARKET,side:SD.BUY,size:3,customTag:'delayed-close'};
+    const state=first.D.state(); state.dispatch={key:'synthetic-close',kind:'position',op:'flatten',customTag:delayed.customTag,reason:'unanswered dispatch',at:Date.now(),
+      request:{type:delayed.type,side:delayed.side,size:delayed.size,limitPrice:null,stopPrice:null}};
+    fs.writeFileSync(first.file,JSON.stringify(state)); const n=B.reqs.length, again=drv(B,{file:first.file});
+    await again.D.start(); await again.D.poll({lastPx:28000}); assert(again.D.owned()); assert.strictEqual(again.D.phase(),'UNKNOWN'); assert.strictEqual(B.reqs.length,n,'restart resent');
+    await B.api.placeOrder('fake',delayed); B.tick(28030); assert.strictEqual(B.pos,0);
+  });
+  await check('normal flatten remains held awaiting cancellation finality', async () => {
+    const B=broker(), {D}=drv(B); await D.signal(sig(30),plan(30),'flatten-hold'); const n=B.reqs.length;
+    await D.exitAtMarket('test'); assert(D.owned()); assert.strictEqual(D.phase(),'UNKNOWN'); assert.strictEqual(B.pos,-3);
+    assert.strictEqual(B.places().slice(n).filter(x=>x.type===T.MARKET).length,0,'unexpected close dispatch');
   });
   await check('failed stop cancellation witness', async () => {
     const B = broker(), { D } = drv(B); await D.signal(sig(30), plan(30), 'cancel-test');

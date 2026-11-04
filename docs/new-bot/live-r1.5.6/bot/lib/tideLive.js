@@ -5,9 +5,9 @@
 // OWNERSHIP (MAP.md ruling 1): the state machine never holds a TIDE position. It stays FLAT, so its own post-fill bracket path (stop / targets / BE / trail /
 // lock / adoption) cannot act on it. The `guard` intent is persisted here (state file) and the executor asks owned() before EVERY old-path entry (takeEntry),
 // before adopting an unknown broker position (reconcileIfUnknownPosition) and in TIDE's own flat gate.
-// Executor switches (MAP.md): stops are never widened (no widen path exists here: a reject goes back to the planner, which retries the SAME price once or
-// flattens); every stop ack carries the price the BROKER shows resting (read back from the open orders; the price sent only when the read fails); the flatten
-// is a re-read + a MARKET close of min(expectOpen, actual) with NO stop cancel inside it (the planner cancels the stop, verified, before it).
+// REVIEW EXPERIMENT ONLY: ambiguous dispatches and cancellations quarantine automatic actions, including across restart. Even an exact terminal-looking
+// cancellation remains held while provider fill finality is unverified, so ordinary stop changes and flattening may not complete. A position may be naked or
+// have an oversized stop. Independent target/stop orders can still over-close. This source is not an installer or a live-trading candidate.
 // Stage 2a scope: entry + one stop + TP1 2/3 + BE + TP2 + the R-ladder / climax + the planner's flatten. No pyramid add (ADD_WOULD_FIRE is journaled only),
 // no resting half (tideOrders.configProblem refuses entryByGrade). NO daily loss limit, no timed exits. The session close / daily floor reach this position
 // through exitAtMarket() (the planner's flatten, one per position).
@@ -69,7 +69,7 @@ function create(o) {
   const P = (key, title, text, opts = { priority: 'high', tags: 'chart_with_upwards_trend' }) => { if (key && S.pushed[key]) return; if (key) S.pushed[key] = true; try { notify(title, text, opts); } catch (e) { /* push only */ } };
   function dispatchAlert() {
     const kind = S.dispatch && S.dispatch.kind;
-    const risk = kind === 'stop' || kind === 'stop-change' ? 'A working stop is not confirmed; the position may be unprotected. ' :
+    const risk = kind === 'stop' || kind === 'stop-change' || (kind === 'cancel' && S.dispatch.targetKind === 'stop') ? 'A working stop is not confirmed; the position may be unprotected. ' :
       kind === 'position' || kind === 'flatten' ? 'The close may still fill and protection may be absent. ' : '';
     const msg = `${risk}Order outcome or saved ownership is uncertain. Automatic order actions are held; check the position and all working orders directly.`;
     log(`  [tide-live] URGENT: ${msg}`); P('dispatch-hold', 'TIDE URGENT: order outcome unknown', msg, CRIT);
@@ -77,6 +77,7 @@ function create(o) {
 
   // ---- one planner step per event, then every intent executed in order; results come back as events (a queue, bounded)
   async function run(firstEvent) {
+    if (S.dispatch) { dispatchAlert(); return; }
     const q = [firstEvent]; let steps = 0;
     while (q.length) {
       if (++steps > MAX_STEPS) { log('  [tide-live] CRITICAL: the event loop did not settle (200 steps) - stopping this pass; the next poll continues.'); P(null, 'TIDE URGENT: loop fence', 'The TIDE order loop hit its fence. Check the account.', CRIT); break; }
@@ -139,17 +140,29 @@ function create(o) {
     const p = await readRetry('position read', () => getOpenPosition(tokenOf(), accountId, contractId));
     return !!p && p.size === expected && (p.type === 1 ? 1 : p.type === 2 ? -1 : null) === S.pos.dir;
   }
-  async function cancelVerified(orderId, holdAfter = false) {
+  async function cancelVerified(orderId) {
     const key = Object.keys(S.ids).find(k => String(S.ids[k]) === String(orderId));
     const known = key && S.pos && S.pos.orders[key];
     if (!key || !known || !stateFile) return false;
-    S.dispatch = { key, kind: 'cancel', at: now(), reason: 'cancellation pending' }; save();
+    S.dispatch = { key, kind: 'cancel', targetKind: known.kind, orderId, at: now(), reason: 'cancellation pending' }; save();
+    // The cancellation outcome can be delayed; issue it only once and use
+    // subsequent reads as evidence, never as permission for a blind resend.
+    try { await cancelOrder(tokenOf(), accountId, orderId); } catch (e) { /* outcome unknown */ }
     for (let i = 0; i < 3; i++) {
-      try { await cancelOrder(tokenOf(), accountId, orderId); } catch (e) { /* outcome unknown */ }
       let h = null; try { h = await getEntryOrder(tokenOf(), accountId, contractId, orderId, S.sentAt[key] || now()); } catch (e) { /* unknown */ }
       // Absence from an open-order snapshot is not a terminal cancellation.
       // A new fill, even a partial fill, needs reconciliation before replacement.
-      if (h && (h.status === 3 || h.status === 4) && h.fillVolume != null && Number.isFinite(Number(h.fillVolume)) && Number(h.fillVolume) === (known.filled || 0)) { const marker = S.dispatch; S.dispatch = holdAfter ? { key, kind: 'stop-change', reason: 'old stop canceled; replacement pending', at: now() } : null; try { save(); } catch (e) { S.dispatch = marker; throw e; } return true; }
+      const exact = h && String(h.id) === String(orderId) && String(h.accountId) === String(accountId) && h.contractId === contractId;
+      const fill = h && Number.isInteger(h.fillVolume) && h.fillVolume >= 0 ? h.fillVolume : null;
+      const priorFill = Number.isInteger(known.filled) && known.filled >= 0 ? known.filled : null;
+      if (exact && (h.status === 3 || h.status === 4) && fill !== null && priorFill !== null && fill === priorFill) {
+        // An exact terminal-looking record is positive evidence, but the
+        // public contract does not establish final fill completeness under a
+        // cancel/fill race. Keep the hold; never issue a replacement on that
+        // unverified assumption. This experimental path needs human review.
+        S.dispatch.reason = 'terminal cancellation observed; fill finality not established';
+        S.dispatch.observed = { status: h.status, fillVolume: fill }; save(); return false;
+      }
     }
     return false;
   }
@@ -161,7 +174,8 @@ function create(o) {
     if (!stateFile) throw new Error('state file required before broker dispatch');
     const customTag = `tide-${randomUUID()}`;
     body = { ...body, customTag };
-    S.dispatch = { key: it.key, kind: it.kind, op: it.op, at: now(), customTag, reason: 'dispatch pending' };
+    S.dispatch = { key: it.key, kind: it.kind, op: it.op, at: now(), customTag, reason: 'dispatch pending',
+      request: { type: body.type, side: body.side, size: body.size, limitPrice: body.limitPrice ?? null, stopPrice: body.stopPrice ?? null } };
     save();
     req(it, body);
     try {
@@ -199,6 +213,7 @@ function create(o) {
 
   async function exec(it) {
     try {
+      if (S.dispatch) { dispatchAlert(); return []; }
       if (it.op === 'guard') { S.guard = it.position; save(); log(`  [tide-live] guard: position ${it.position} is planner-owned (the state machine's own post-fill path, adoption and every old-path entry are refused).`); J('guard', { position: it.position, reason: it.reason }); return []; }
       if (it.op === 'alert') { log(`  [tide-live] ALERT ${it.code}: ${it.text}`); J('alert', { code: it.code, text: it.text, level: it.level }); hist().alerts.push({ t: now(), code: it.code, level: it.level || null, text: it.text }); while (hist().alerts.length > 20) hist().alerts.shift(); if (SAFETY.has(it.code)) P(`alert:${it.code}:${S.pos ? S.pos.stopPx : ''}`, `TIDE URGENT: ${it.code}`, it.text, CRIT); return []; }   // once per code and stop level (no repeat each poll in a news lock)   // [r1.1] non-safety alerts: journal + log only
       if (it.op === 'place' && it.kind === 'entry') {
@@ -228,7 +243,7 @@ function create(o) {
       if (it.op === 'modify' && it.kind === 'stop') {   // REVIEW: cancel the old stop first; never intentionally place two stops
         log(`  [LIVE ORDER] TIDE stop change: ${it.qty}x STOP @ ${it.price} (replaces ${it.replaces}; never widened)`);
         const old = S.ids[it.replaces];
-        if (old == null || !(await cancelVerified(old, true))) { if (!S.dispatch) { S.dispatch = { key: it.key, kind: 'stop-change', reason: 'old stop identity unknown' }; save(); } P(null, 'TIDE URGENT: stop change held', 'The old stop cancellation or its fill state is not confirmed. Check position and working orders directly.', CRIT); return [{ type: 'no-ack', key: it.key, reason: 'old stop cancellation not confirmed' }]; }
+        if (old == null || !(await cancelVerified(old))) { if (!S.dispatch) { S.dispatch = { key: it.key, kind: 'stop-change', reason: 'old stop identity unknown' }; save(); } P(null, 'TIDE URGENT: stop change held', 'The old stop cancellation or its fill state is not confirmed. Check position and working orders directly.', CRIT); return [{ type: 'no-ack', key: it.key, reason: 'old stop cancellation not confirmed' }]; }
         const pos = await readRetry('stop change: position read', () => getOpenPosition(tokenOf(), accountId, contractId));
         if (!pos || pos.size !== it.expectOpen || (pos.type === 1 ? 1 : pos.type === 2 ? -1 : null) !== S.pos.dir) {
           S.dispatch = { kind: 'stop-change', key: it.key, reason: 'position changed after stop cancellation' }; save(); dispatchAlert(); return [{ type: 'no-ack', key: it.key, reason: 'position changed after stop cancellation' }];
@@ -332,7 +347,8 @@ function create(o) {
     if (S.needReconcile) { S.needReconcile = false; save(); log('  [tide-live] an order went unanswered: reconciling with the broker (position + working orders).');
       try { await run(await snapshot(null)); } catch (e) { S.needReconcile = true; save(); log(`  [tide-live] reconcile read failed (${e.message}) - retried next poll.`); return; }
       if (!owned()) return; }
-    for (const ev of await observe()) { await run(ev); if (!owned()) return; }
+    const observed = await observe(); if (S.dispatch) { dispatchAlert(); return; }
+    for (const ev of observed) { await run(ev); if (S.dispatch || !owned()) return; }
     const p = S.pos;
     // a LIMIT entry with nothing filled for 30 min: the exit lifecycle (it cancels the entry; nothing was open)
     const e1 = Object.values(p.orders).find(x => x.kind === 'entry' && x.leg === 1);
@@ -388,6 +404,27 @@ function create(o) {
         return { status: h.customTag ? 'order-observed' : 'order-observed-untagged', kind: h.kind || null, reason: h.reason || null, orderId: id, orderStatus: order.status ?? null,
           fillVolume: order.fillVolume ?? null, filledPrice: order.filledPrice ?? null, customTag: h.customTag || null };
       } catch (e) { return { status: 'history-unavailable', kind: h.kind || null, reason: h.reason || null }; }
+    }),
+    // Optional injected history search returns the documented Order/search
+    // response for a caller-chosen window. It is not wired to the live adapter
+    // in this overlay. A zero-result or positive match never resolves the hold.
+    inspectHoldByTag: () => serial(async () => {
+      const h = S.dispatch;
+      if (!h) return { status: 'no-hold' };
+      if (!h.customTag || typeof o.searchOrderHistory !== 'function') return { status: 'tag-search-unavailable' };
+      try {
+        const result = await readRetry('held tag history', () => o.searchOrderHistory({ token: tokenOf(), accountId, dispatchAt: h.at }));
+        if (!result || result.success !== true || (result.errorCode != null && result.errorCode !== 0) || !Array.isArray(result.orders)) return { status: 'history-unavailable' };
+        const matches = result.orders.filter(x => x && x.customTag === h.customTag);
+        if (!matches.length) return { status: 'tag-not-observed' };
+        if (matches.length !== 1) return { status: 'tag-conflict', count: matches.length };
+        const order = matches[0], req = h.request;
+        const identity = order.id != null && String(order.accountId) === String(accountId) && order.contractId === contractId;
+        const requestMatches = !req || (order.type === req.type && order.side === req.side && order.size === req.size &&
+          (order.limitPrice ?? null) === req.limitPrice && (order.stopPrice ?? null) === req.stopPrice);
+        if (!identity || !requestMatches) return { status: 'identity-unverified' };
+        return { status: req ? 'tag-observed' : 'tag-observed-legacy', orderId: order.id, orderStatus: order.status ?? null, fillVolume: order.fillVolume ?? null };
+      } catch (e) { return { status: 'history-unavailable' }; }
     }),
     // the phone's view (display only; MacUI-N SNAPSHOT-CONTRACT): the live position (null when none), today's closed trades and alerts
     view: () => { const p = S.pos, h = hist(), live = owned() && p && p.plan;
