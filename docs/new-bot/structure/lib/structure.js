@@ -13,12 +13,13 @@
 // so nothing it reads can come from the future. The state object is owned by the engine: step() updates it in place and
 // returns it (use cloneState() for a snapshot). It is plain JSON.
 
-const VERSION = 'tide-structure-r3.1';
+const VERSION = 'tide-structure-r3.2';
 
 const DEFAULTS = deepFreeze({
   tick: 0.25,
   stopBuf: 2,                       // lib/levelEvent.js STOP_BUF (playbook §5, §15 "a few points beyond")
   controlGateMin: 0.15,             // playbook §2 bias line (|score| >= 0.15)
+  biasInput: 'strict',              // r3.2 (MacDot): 'strict' = live provenance rules (default); 'offline' = fixtures / tools only (bare scalars accepted)
   biasMaxAgeSec: 120,               // fail-closed: a {score, valid, observedAt} reading observed more than this before the 1m close is STALE and ignored (observedAt = the as-of time)
   firstMinutesWait: 30,             // playbook §1 "within the first hour control has already shifted"; spec A: no 4H read in the first 30 min
   controlHoldReadings: 3,           // spec A "held": consecutive 1m readings past the line before bias-kind control forms (no flip-flopping)
@@ -30,7 +31,10 @@ const DEFAULTS = deepFreeze({
   openWaitMin: 30,                  // spec TIME BLOCKS tide.openWaitMin (the old Asia / NY-open / morning-hold blocks are NOT the engine's concern: tide.useTimeBlocks=false is the executor's flag)
   zoneHalfPts: 2,                   // playbook §13.1 zones, not lines: level +/- 2 pts
   zoneMergePts: 1, zoneMaxWidthPts: 14,
-  pools: { round: true, roundStep: 50, roundSpan: 400, roundAsSetup: false, eq: true, eqTolPts: 2, eqMinTouches: 2, eqLookbackMin: 1440 },
+  // r3.2 ruling: Round numbers are NOT on Mac's level list. With roundAsSetup false they never trade and never merge into (widen) a setup zone;
+  // with roundAsTarget false (default) they never reach the signal's target pools (TP1 / TP2): they are listed in signal.contextPools only.
+  pools: { round: true, roundStep: 50, roundSpan: 400, roundAsSetup: false, roundAsTarget: false, eq: true, eqTolPts: 2, eqMinTouches: 2, eqLookbackMin: 1440 },
+  trapControlHolds: true,           // r3.2 ruling (spec A): a TRAP control holds until price takes back its failed-breakout extreme or the 4H closes; an opposite trap never replaces it
   internalPivot: { left: 1, right: 1 },   // spec B internal swings (see NOTES: the witness launch low 28,448 is a 1-bar-each-side 5m pivot)
   pivot5: { left: 2, right: 2 }, pivot1m: { left: 2, right: 2 }, pivot15: { left: 2, right: 2 } /* 15m swings: the D''' structural trail */, pivot1h: { left: 2, right: 2 }, pivot4h: { left: 1, right: 1 },
   acceptBars: 2,                    // spec C.1 >= 2 closed 5m outside
@@ -43,6 +47,7 @@ const DEFAULTS = deepFreeze({
   dispBodyPct: 0.5, dispRangeMult: 1.0, avgRangeBars: 20,   // GRADE r3 lane trigger (§23): displacement shift = body >= 50% of range, range >= 1x the 20-bar average
   shiftMaxBars: 12,                 // a failure must shift within 12 closed 5m bars (1 h) or it expires
   bounceMinRetrace: 0.5,            // spec C.2 lower high: the bounce retraces >= 50% of the displacement leg (or touches the FVG / zone)
+  bounceNeedsCounter: true,         // r3.2 ruling: the failed-break RETEST bar must make a 1m higher high (short) / lower low (long) vs the previous 1m bar
   bounceMaxAwayAtr: 1.0,            // ... and comes back within 1 x ATR(5m) of the retest area (the broken swing / the level), else it is a new leg, not the retest
   retestTolPts: 6, retestDepthAtrFrac: 1 / 3, retestAwayPts: 10, atrBars: 14,   // spec C.1
   fvg: { enabled: true, entry: 'edge', minPts: 1, cancelBars: 12 },              // playbook §15.3 limit in the FVG
@@ -134,6 +139,7 @@ function validateCfg(c) {
   chk(k.bounceMinRetrace > 0 && k.bounceMinRetrace < 1, 'bounceMinRetrace 0..1');
   chk(['edge', 'mid'].includes(k.fvg.entry), "fvg.entry 'edge'|'mid'");
   chk(['1m', '15s'].includes(k.evidence.speedTf), "evidence.speedTf '1m'|'15s'");
+  chk(['strict', 'offline'].includes(k.biasInput), "biasInput 'strict'|'offline'");
   for (const e of gradeTableProblems(k.grade)) err.push(e);
   return err;
 }
@@ -196,13 +202,32 @@ function normBar(x) {
   if (!x) return null;
   const b = Array.isArray(x) ? { t: x[0], o: x[1], h: x[2], l: x[3], c: x[4], v: x[5] } : x;
   if (![b.t, b.o, b.h, b.l, b.c].every(isNum)) return null;
-  return { t: b.t, o: b.o, h: Math.max(b.h, b.o, b.c), l: Math.min(b.l, b.o, b.c), c: b.c, v: isNum(b.v) ? b.v : 0 };
+  // r3.2 (MacDot 6623659839): a MISSING volume is not an observed 0. vk = volume known; v stays 0 for the sums, vk travels into every aggregate.
+  const vk = isNum(b.v) && b.v >= 0;
+  return { t: b.t, o: b.o, h: Math.max(b.h, b.o, b.c), l: Math.min(b.l, b.o, b.c), c: b.c, v: vk ? b.v : 0, vk };
 }
 
+// r3.2 (MacDot 6623647326): cfg.biasInput 'strict' (default, LIVE): only { m15: {score, valid: true, observedAt}, m30: {...} } is accepted; each
+// reading needs valid === true, a finite score and a finite observedAt with T - biasMaxAgeSec <= observedAt <= T. A bare scalar anywhere (s15 / s30,
+// or m15: 0.3), or s15/s30 alongside m15/m30, makes the whole minute ambiguous: rejected, the minute has no bias. 'offline' (fixtures and tools
+// only) also takes bare { s15, s30 } numbers and nested readings without metadata.
 // Bias readings: { s15, s30 } numbers, or { m15: { score, valid, observedAt }, m30: {...} } as the executor reads
 // lvByTf.M15.biasScore / the M30 evaluation. A reading with valid === false, or observed after this 1m close, is ignored (no look-ahead).
-function normBias(x, T, maxAge) {
+function normBias(x, T, maxAge, mode) {
   if (!x || typeof x !== 'object') return null;
+  if (mode !== 'offline') {
+    const has = k => x[k] !== undefined && x[k] !== null;
+    if (has('s15') || has('s30')) return null;   // a bare scalar (alone or next to nested readings) is never trusted live
+    const strictOne = v => {
+      if (v === undefined || v === null) return null;
+      if (typeof v !== 'object' || v.valid !== true || !isNum(v.score) || !isNum(v.observedAt)) return undefined;   // present but untrusted
+      const o = v.observedAt > 1e11 ? v.observedAt / 1000 : v.observedAt;
+      return o <= T && (!isNum(maxAge) || T - o <= maxAge) ? v.score : undefined;
+    };
+    const a = strictOne(x.m15 !== undefined ? x.m15 : x.M15), b = strictOne(x.m30 !== undefined ? x.m30 : x.M30);
+    const s15 = isNum(a) ? a : null, s30 = isNum(b) ? b : null;
+    return isNum(s15) || isNum(s30) ? { T, s15, s30 } : null;
+  }
   const one = (v, alt) => {
     if (isNum(alt)) return alt;
     if (!v || typeof v !== 'object' || v.valid === false || !isNum(v.score)) return null;
@@ -228,8 +253,8 @@ function aggregate(st, b, cfg) {
   for (const tf of Object.keys(TF)) {
     const s = bucketStart(tf, b.t, cfg); let c = st.cur[tf];
     if (c && c.t !== s) { pushCap(st.bars[tf], c, CAP[tf]); closed[tf] = c; c = null; }
-    if (!c) c = { t: s, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v };
-    else { c.h = Math.max(c.h, b.h); c.l = Math.min(c.l, b.l); c.c = b.c; c.v += b.v; }
+    if (!c) c = { t: s, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v, vk: b.vk !== false };
+    else { c.h = Math.max(c.h, b.h); c.l = Math.min(c.l, b.l); c.c = b.c; c.v += b.v; c.vk = c.vk && b.vk !== false; }
     if (b.t + 60 >= s + TF[tf]) { pushCap(st.bars[tf], c, CAP[tf]); closed[tf] = c; c = null; }
     st.cur[tf] = c;
   }
@@ -272,10 +297,13 @@ function buildZones(st, cfg, T) {
   for (const r of raw) { r.lo = isNum(r.zlo) ? r.zlo : r.price - cfg.zoneHalfPts; r.hi = isNum(r.zhi) ? r.zhi : r.price + cfg.zoneHalfPts; }
   raw.sort((a, b) => a.lo - b.lo || a.hi - b.hi);
   const zones = []; let cur = null;
+  const ctxOnly = r => r.src === 'round' && !cfg.pools.roundAsSetup;   // r3.2: a context-only Round is its own zone (setup false), never merged into a real pool's zone
   for (const r of raw) {
+    if (ctxOnly(r)) { zones.push({ lo: r.lo, hi: r.hi, members: [r] }); continue; }
     if (cur && r.lo <= cur.hi + cfg.zoneMergePts && Math.max(cur.hi, r.hi) - Math.min(cur.lo, r.lo) <= cfg.zoneMaxWidthPts) { cur.members.push(r); cur.lo = Math.min(cur.lo, r.lo); cur.hi = Math.max(cur.hi, r.hi); }
     else { cur = { lo: r.lo, hi: r.hi, members: [r] }; zones.push(cur); }
   }
+  zones.sort((a, b) => a.lo - b.lo || a.hi - b.hi);
   for (const z of zones) {
     z.members.sort(memberOrder); const p = z.members[0];
     Object.assign(z, { key: p.key, name: p.name, price: p.price, weight: p.weight, src: p.src,
@@ -426,7 +454,11 @@ function controlStep(st, ctx, fails) {
   if (P.trapCand && (P.trapCand.dir < 0 ? b.h > P.trapCand.ext : b.l < P.trapCand.ext)) P.trapCand = null;
   if (after && P.trapCand) {
     const k = P.trapCand, sideOk = k.dir < 0 ? px < P.O4 : px > P.O4;
-    if (sideOk && !(P.control && P.control.kind === 'trap' && P.control.dir === k.dir)) {
+    if (sideOk && cfg.trapControlHolds && P.control && P.control.kind === 'trap' && P.control.dir === -k.dir) {
+      // r3.2 ruling (spec A): the trap control HOLDS until price takes back ITS extreme (CONTROL_VOID above) or the 4H closes. The opposite trap
+      // stays a candidate: it can form only after the void (if its own extreme still holds), never as a flip.
+      if (!k.heldSeen) { k.heldSeen = T; E('CONTROL_HOLD', { dir: P.control.dir, ext: P.control.ext, blockedDir: k.dir, blockedExt: k.ext, why: 'trap control holds until its extreme is taken back or the 4H closes (spec A)' }); }
+    } else if (sideOk && !(P.control && P.control.kind === 'trap' && P.control.dir === k.dir)) {
       const prev = P.control;
       P.control = { dir: k.dir, kind: 'trap', ext: k.ext, poolWeight: k.poolWeight, formedT: T, bias: lastBias(st, T) };
       E(prev ? 'CONTROL_FLIP' : 'CONTROL_FORM', { dir: k.dir, kind: 'trap', ext: k.ext, from: prev ? prev.dir : 0 });
@@ -491,7 +523,7 @@ function on5m(st, ctx, bar) {
         const barsFromExt = Math.round((bar.t - ep.extT) / 300) + 1;
         const depth = side > 0 ? ep.ext - z.hi : z.lo - ep.ext;   // a sweep must actually trade through the zone (cfg.breakMinPts), not tick its edge
         if (barsFromExt <= cfg.failBars && depth >= cfg.breakMinPts) {
-          const f = { id: `F${++st.seq}`, dir: -side, zoneKey: z.key, zone: zoneSnap(z), hasO4: z.hasO4, ext: ep.ext, extT: ep.extT, failT: T,
+          const f = { id: `F${++st.seq}`, dir: -side, zoneKey: z.key, zone: zoneSnap(z), hasO4: z.hasO4, ext: ep.ext, extT: ep.extT, failT: T, breakT: ep.startT,
             accepted: ep.accepted, launch: launchSwing(st, cfg, ep, side, T), live: true, armed: false, pending: null,
             breakVol: ep.breakBar ? { at: ptLabel(ep.breakBar.t), vol: ep.breakBar.v, volMedian20: ep.breakVolMed ?? null } : null };
           st.failures.push(f); fails.push(f);
@@ -635,7 +667,7 @@ function armFailed(st, ctx, f, sh) {   // playbook §8.2 / spec C.2: failure + t
     // grade evidence frozen at the shift: the break/shift wave runs from the failed-breakout extreme to the shift candle (GRADE r2)
     wave: waveEvidence(st, f.dir, p.extT, T), brk: shiftVolEvidence(st, cfg, sh), trapBreak: p.breakVol || null,
     // GRADE r3 setup facts (§23), fixed at the shift: sweep time (TIMING), the levels the sweep traded through (TRAP), the force leg (FORCE)
-    sweepT: p.extT, legExtT: m1.length ? m1.reduce((a, x) => ((f.dir < 0 ? x.l <= a.l : x.h >= a.h) ? x : a)).t : T - 60,
+    breakT: p.breakT, sweepT: p.extT, legExtT: m1.length ? m1.reduce((a, x) => ((f.dir < 0 ? x.l <= a.l : x.h >= a.h) ? x : a)).t : T - 60,
     swept: sweptLevels(st, cfg, f.dir, f.dir < 0 ? Math.min(...group.map(g => g.zone.price)) : Math.max(...group.map(g => g.zone.price)), ext),
     force: forceEvidence(st, cfg, ext, sh.bar.c), groupMembers: [...new Set(group.flatMap(g => g.zone.members))] };
   st.setups.push(s);
@@ -663,13 +695,14 @@ function pullbackEvidence(st, cfg, s, T) {
   const d = s.dir, legT = isNum(s.legExtT) ? s.legExtT : T - 60, legB = legT - (legT % 300);
   const piv = (d < 0 ? st.piv.i5.lo : st.piv.i5.hi).filter(p => p.t >= legB && p.confT <= T);
   const startB = piv.length ? piv[piv.length - 1].t : legB, bars = [];
-  for (const x of st.bars.m5) if (x.t > startB && x.t + 300 <= T) bars.push({ at: ptLabel(x.t), vol: x.v, minutes: 5, vol5: x.v });
-  const cur = st.cur.m5; if (cur && cur.t > startB && T > cur.t) { const mins = (T - cur.t) / 60; bars.push({ at: ptLabel(cur.t), vol: cur.v, minutes: mins, vol5: r2(cur.v * 5 / mins), forming: true }); }
+  for (const x of st.bars.m5) if (x.t > startB && x.t + 300 <= T) bars.push({ at: ptLabel(x.t), vol: x.v, minutes: 5, vol5: x.v, volKnown: x.vk !== false });
+  const cur = st.cur.m5; if (cur && cur.t > startB && T > cur.t) { const mins = (T - cur.t) / 60; bars.push({ at: ptLabel(cur.t), vol: cur.v, minutes: mins, vol5: r2(cur.v * 5 / mins), forming: true, volKnown: cur.vk !== false }); }
   if (!bars.length) {   // the whole pullback sits inside one 5m bar: the 1m bars after the leg extreme, pro-rated
-    const m = st.m1.filter(x => x.t > legT && x.t + 60 <= T); if (m.length) bars.push({ at: ptLabel(m[0].t), vol: m.reduce((a, x) => a + x.v, 0), minutes: m.length, vol5: r2(m.reduce((a, x) => a + x.v, 0) * 5 / m.length), from1m: true });
+    const m = st.m1.filter(x => x.t > legT && x.t + 60 <= T); if (m.length) bars.push({ at: ptLabel(m[0].t), volKnown: m.every(x => x.vk !== false), vol: m.reduce((a, x) => a + x.v, 0), minutes: m.length, vol5: r2(m.reduce((a, x) => a + x.v, 0) * 5 / m.length), from1m: true });
   }
-  const volMissing = bars.some(x => !(x.vol > 0));   // fail-closed: a pullback bar with no volume makes the comparison unknown (no point)
-  const mean = bars.length && !volMissing ? bars.reduce((a, x) => a + x.vol5, 0) / bars.length : null, brk5 = s.brk && s.brk.perMin > 0 ? s.brk.perMin * 5 : null;
+  // fail-closed (r3.2): ANY contributing minute with an unknown volume withholds the comparison (point null); an observed 0 is a real 0
+  const volMissing = bars.some(x => !x.volKnown);
+  const mean = bars.length && !volMissing ? bars.reduce((a, x) => a + x.vol5, 0) / bars.length : null, brk5 = s.brk && s.brk.volKnown && s.brk.perMin > 0 ? s.brk.perMin * 5 : null;
   return { pullbackFrom: ptLabel(startB), pullbackFromSrc: piv.length ? 'internal 5m pivot' : 'leg extreme bar', pullbackBars5m: bars, pullbackVolMissing: volMissing || !bars.length,
     pullbackVol5mMean: r2(mean), breakVol5m: r2(brk5), pullbackVsBreak5m: isNum(mean) && brk5 ? r2(mean / brk5) : null, waveEndT: startB + 300 };
 }
@@ -677,7 +710,7 @@ function pullbackEvidence(st, cfg, s, T) {
 function shiftVolEvidence(st, cfg, sh) {
   const bars = st.bars[sh.tf] || [], i = bars.findIndex(x => x.t === sh.bar.t), mins = TF[sh.tf] / 60;
   const med = median(bars.slice(Math.max(0, i - cfg.volMedianBars), i < 0 ? bars.length : i).map(x => x.v).filter(v => v > 0));
-  return { tf: sh.tf, vol: sh.bar.v, volMedian20: med, volX: med ? r2(sh.bar.v / med) : null, perMin: sh.bar.v / mins, endT: sh.bar.t + TF[sh.tf] };
+  return { tf: sh.tf, vol: sh.bar.v, volKnown: sh.bar.vk !== false, volMedian20: med, volX: med ? r2(sh.bar.v / med) : null, perMin: sh.bar.v / mins, endT: sh.bar.t + TF[sh.tf] };
 }
 function findFvgFor(st, cfg, s) { if (!s.fvg) s.fvg = findFvg(st, cfg, s.dir, s.extT); return s.fvg; }
 // where a B grade's resting second half / an add can sit (D5 "the retest/FVG level"): the FVG the displacement left, else the broken swing (trap) / the zone edge
@@ -707,10 +740,10 @@ function armAccepted(st, ctx, a) {   // playbook §8.1 / §13 / spec C.1: an acc
   const s = { id: `S${++st.seq}`, kind: 'accepted-break', dir, status: 'armed', zone: zoneSnap(z), zones: [z.name], level: z.price, ukey, stopType: z.type === '4H' ? '4H' : '1H',
     armT: T, acceptT: T, breakBar: bb, breakVol: bb ? bb.v : null, disp: !!a.ep.breakDisp, maxAway: 0, retest: null, retestNo: 0, legs: {}, expiresT: T + cfg.setupMaxBars * 300,
     wave: waveEvidence(st, dir, a.ep.startT, T), shift: null,
-    sweepT: a.ep.startT, legExtT: T - 60, acceptClosesOut: a.ep.closesOut, retestClosedInside: false, swept: null, groupMembers: z.members.map(m => m.name),
+    breakT: a.ep.startT, sweepT: a.ep.startT, legExtT: T - 60, acceptClosesOut: a.ep.closesOut, retestClosedInside: false, swept: null, groupMembers: z.members.map(m => m.name),
     force: forceEvidence(st, cfg, a.ep.startPx, st.bars.m5[st.bars.m5.length - 1].c),
     dispStats: { tf: 'm5', at: bb ? ptLabel(bb.t) : null, body: bb ? r2(bodyPct(bb)) : null, xAvg: a.ep.breakXAvg ?? null },
-    brk: bb ? { tf: 'm5', vol: bb.v, volMedian20: a.ep.breakVolMed ?? null, volX: a.ep.breakVolMed ? r2(bb.v / a.ep.breakVolMed) : null, perMin: bb.v / 5, endT: bb.t + 300 } : null };
+    brk: bb ? { tf: 'm5', vol: bb.v, volKnown: bb.vk !== false, volMedian20: a.ep.breakVolMed ?? null, volX: a.ep.breakVolMed ? r2(bb.v / a.ep.breakVolMed) : null, perMin: bb.v / 5, endT: bb.t + 300 } : null };
   st.setups.push(s);
   E('SETUP_ARM', { setup: s.id, kind: s.kind, dir, zone: z.name, level: z.price, stopType: s.stopType, breakDisp: s.disp, wavePeakBias: s.wave.wavePeakBias, note: 'waiting for the defended retest (§13)' });
 }
@@ -729,6 +762,10 @@ function findFvg(st, cfg, dir, extT) {   // playbook §15 FVG: bearish when cand
   }
   return best;
 }
+// r3.2 ruling (§13.7): the retest count belongs to ONE break (failed or accepted), not to the zone per 4H. A cancelled setup's touch, or the
+// other lane's touch, never uses up a later break's first retest; a 2nd touch of the same break counts 2 (RETEST_2_SKIP).
+const retestKeyOf = s => `${s.kind}|${s.zone.key}|${s.dir}|${isNum(s.breakT) ? s.breakT : s.armT}`;
+function noteRetest(st, s) { const k = retestKeyOf(s); return (st.retests[k] = (st.retests[k] || 0) + 1); }
 function setups1m(st, ctx) {
   const { cfg, T, b, E } = ctx, a5 = atr(st.bars.m5, cfg.atrBars) || 0;
   for (const s of st.setups) {
@@ -741,9 +778,15 @@ function setups1m(st, ctx) {
         const thr = s.legExt + cfg.bounceMinRetrace * (s.swing - s.legExt);
         const near = d < 0 ? Math.min(s.swing, s.zone.lo) - cfg.retestTolPts : Math.max(s.swing, s.zone.hi) + cfg.retestTolPts;
         const area = d < 0 ? Math.min(s.swing, s.zone.lo) : Math.max(s.swing, s.zone.hi), closeEnough = Math.abs((d < 0 ? b.h : b.l) - area) <= cfg.bounceMaxAwayAtr * a5 || (d < 0 ? b.h >= area : b.l <= area);
-        const hit = closeEnough && (d < 0 ? (b.h >= thr || b.h >= near || (s.fvg && b.h >= s.fvg.lo)) : (b.l <= thr || b.l <= near || (s.fvg && b.l <= s.fvg.hi)));
+        const reach = closeEnough && (d < 0 ? (b.h >= thr || b.h >= near || (s.fvg && b.h >= s.fvg.lo)) : (b.l <= thr || b.l <= near || (s.fvg && b.l <= s.fvg.hi)));
+        // r3.2 ruling (spec C.2 "a 1m/5m bounce toward it", §3 "I don't chase red candles"): the RETEST bar must be a real counter-move, a 1m higher
+        // high (short) / lower low (long) than the previous 1m bar, after the shift candle. A continuation bar that merely sits within retestTolPts
+        // of the broken swing is not a bounce.
+        const pv = st.m1[st.m1.length - 2], counter = !cfg.bounceNeedsCounter || (!!pv && (d < 0 ? b.h > pv.h : b.l < pv.l));
+        const hit = reach && counter;
+        if (reach && !counter && !s.chaseSeen) { s.chaseSeen = T; E('BOUNCE_NOT_COUNTER', { setup: s.id, high: b.h, low: b.l, prevHigh: pv ? pv.h : null, prevLow: pv ? pv.l : null, note: 'a continuation bar near the broken swing is not a bounce (no chasing)' }); }
         if (hit) {
-          s.bounce = { startT: T, ext: d < 0 ? b.h : b.l, ref: d < 0 ? b.l : b.h }; s.retestNo = (st.retests[`${s.zone.key}|${d}`] = (st.retests[`${s.zone.key}|${d}`] || 0) + 1);
+          s.bounce = { startT: T, ext: d < 0 ? b.h : b.l, ref: d < 0 ? b.l : b.h }; s.retestNo = noteRetest(st, s);
           E('RETEST', { setup: s.id, n: s.retestNo, kind: s.kind, bounce: s.bounce.ext, threshold: r2(thr), note: 'bounce toward the broken swing (a lower high under the level counts)' });
         } else if (d < 0 ? b.l <= s.legExt : b.h >= s.legExt) { s.legExt = d < 0 ? b.l : b.h; s.legExtT = b.t; }
       } else if (d < 0 ? b.h > s.bounce.ext : b.l < s.bounce.ext) { s.bounce.ext = d < 0 ? b.h : b.l; s.bounce.ref = d < 0 ? b.l : b.h; }
@@ -759,7 +802,7 @@ function setups1m(st, ctx) {
         const touch = d > 0 ? b.l <= z.hi + cfg.retestTolPts - (z.hi - z.price) : b.h >= z.lo - cfg.retestTolPts + (z.price - z.lo);
         if (!touch) continue;
         const through = d > 0 ? s.level - b.l : b.h - s.level;
-        s.retestNo = (st.retests[`${z.key}|${d}`] = (st.retests[`${z.key}|${d}`] || 0) + 1);
+        s.retestNo = noteRetest(st, s);
         if (through > a5 * cfg.retestDepthAtrFrac) { cancelSetup(st, ctx, s, `RETEST_DEEP: through the level by ${r2(through)} > ATR5/3 ${r2(a5 * cfg.retestDepthAtrFrac)}`); continue; }
         s.retest = { t: T, ext: d > 0 ? b.l : b.h, ref: d > 0 ? b.h : b.l, vol: b.v };
         E('RETEST', { setup: s.id, n: s.retestNo, kind: s.kind, wick: s.retest.ext, level: s.level });
@@ -919,7 +962,7 @@ function emit(st, ctx, s, e) {
       rule: s.kind === 'failed-break' ? (s.stopType === '4H' ? 'failed-breakout extreme + buf (§5 C, 4H-type / trap)' : 'current 1H wick + buf (§5 C, hour-type)') : (s.stopType === '4H' ? 'retest extreme + buf (C.1)' : '1H wick incl. the retest + buf (§5 C)') },
     chosenStop: structural, riskPts: r2(risk),
     grade, gradePoints: gr.points, gradeTotal: gr.total, gradeGates: gr.gates, gradeDetail: gr.detail, gradeUncapped: gr.uncapped, gradeCapped: gr.capped, tags: gr.tags, gradeEvidence: ev, evidence: ev,
-    targets, pools: targets, internalPools: targets.filter(t => !t.major), swings: swingsSnap(st, cfg), marketState: Object.assign({}, st.mstate),
+    targets, pools: targets, internalPools: targets.filter(t => !t.major), contextPools: contextPools(st, cfg, d, entry, risk), swings: swingsSnap(st, cfg), marketState: Object.assign({}, st.mstate),
     control: C ? { dir: C.dir, kind: C.kind, ext: C.ext, formedAt: ptLabel(C.formedT) } : null,
     defended: s.defended || null, shift: s.shift ? { tf: s.shift.tf, at: s.shift.at, body: s.shift.body, xAvg: s.shift.xAvg, displacement: s.shift.disp } : null,
     retest: s.kind === 'failed-break' ? (s.bounce ? { n: retestNo, extreme: s.bounce.ext, startAt: ptLabel(s.bounce.startT) } : null) : { n: retestNo, extreme: s.retest.ext, at: ptLabel(s.retest.t) },
@@ -938,7 +981,7 @@ function buildTargets(st, cfg, d, entry, risk, s) {
   const out = [];
   const add = (price, name, kind, major, weight, touches) => { if (isNum(price) && (d < 0 ? price < entry - cfg.tick : price > entry + cfg.tick)) out.push({ price, name, kind, major: !!major, weight: weight || null, touches: touches || null }); };
   const MAJOR = new Set(['4H Open', 'PDH', 'PDL', 'Asia High', 'Asia Low', 'London High', 'London Low', 'EQH', 'EQL']);   // D'' / §14: major pools (PDH/PDL, 4H open, session extremes, equal highs/lows)
-  for (const z of st.zones) for (const m of z.members) add(m.price, m.name, m.src, m.major || MAJOR.has(m.name), m.weight, m.touches);
+  for (const z of st.zones) for (const m of z.members) if (m.src !== 'round' || cfg.pools.roundAsTarget) add(m.price, m.name, m.src, m.major || MAJOR.has(m.name), m.weight, m.touches);   // r3.2: Rounds are context, not targets
   const L = st.levels;   // the board's session extremes are pools even while their own session's zone is withheld (§23 "session highs/lows ARE pools")
   for (const [k, nm] of [['PDH', 'PDH'], ['PDL', 'PDL'], ['AsiaH', 'Asia High'], ['AsiaL', 'Asia Low'], ['LonH', 'London High'], ['LonL', 'London Low']]) add(L[k], nm, 'board', true, k.startsWith('PD') ? 'strong' : 'obvious');
   for (const [k, o] of Object.entries(st.orb)) if (o.done && st.lastT - o.t0 <= 86400) { add(o.h, `${k} ORH`, 'or', false, 'obvious'); add(o.l, `${k} ORL`, 'or', false, 'obvious'); }
@@ -956,6 +999,13 @@ function buildTargets(st, cfg, d, entry, risk, s) {
   let minors = 0;   // every major pool is kept (TP2 / the A+ next major pool, D''); minor pools up to cfg.maxTargets
   return ded.filter(t => t.major || ++minors <= cfg.maxTargets).map(t => Object.assign(t, { distancePts: r2(Math.abs(t.price - entry)), distanceR: risk > 0 ? r2(Math.abs(t.price - entry) / risk) : null }));
 }
+// r3.2: the Round numbers in the trade direction, for display / context only (never TP1 / TP2, never setups)
+function contextPools(st, cfg, d, entry, risk) {
+  const out = [];
+  for (const z of st.zones) for (const m of z.members) if (m.src === 'round' && (d < 0 ? m.price < entry - cfg.tick : m.price > entry + cfg.tick))
+    out.push({ price: m.price, name: m.name, kind: 'round', context: true, distancePts: r2(Math.abs(m.price - entry)), distanceR: risk > 0 ? r2(Math.abs(m.price - entry) / risk) : null });
+  return out.sort((a, b) => a.distancePts - b.distancePts).slice(0, 4);
+}
 function swingsSnap(st, cfg) {
   const k = cfg.swingsKept, f = a => a.slice(-k).map(p => ({ t: p.t, at: ptLabel(p.t), price: p.price }));
   const m15 = st.piv.m15 || { hi: [], lo: [] };
@@ -972,7 +1022,7 @@ function step(state, input, cfgIn) {
   st.lastT = b.t;
   const T = b.t + 60, E = (type, o) => events.push(Object.assign({ t: T, at: ptLabel(T), type }, o || {})), ctx = { cfg, T, b, E, sigs };
   if (input.levels && typeof input.levels === 'object') { const L = {}; for (const k of ['O4', 'O1', 'PDH', 'PDL', 'AsiaH', 'AsiaL', 'LonH', 'LonL']) L[k] = isNum(input.levels[k]) ? input.levels[k] : null; st.levels = L; }
-  const bz = normBias(input.bias, T, cfg.biasMaxAgeSec);
+  const bz = normBias(input.bias, T, cfg.biasMaxAgeSec, cfg.biasInput);
   if (bz) pushCap(st.bias, bz, CAP.bias);
   if (Array.isArray(input.speed)) for (const x of input.speed) { const y = normBar(x); if (y && y.t + 15 <= T) pushCap(st.speed, y, CAP.speed); }
   pushCap(st.m1, b, CAP.m1);
@@ -1013,4 +1063,4 @@ function step(state, input, cfgIn) {
   return { state: st, events, signal, swings: swingsSnap(st, cfg), live };
 }
 
-module.exports = { VERSION, DEFAULTS, createState, step, cloneState, validateCfg, resolveCfg, gradeOf, ptLabel, ptMin, bucketStart, gradeTableProblems, evidenceFor, _internal: { waveEvidence, entryBiasEvidence, findFvg, buildZones, sessionOf, normBias, midRangeOf, pullbackEvidence, forceEvidence, sweptLevels, r3Facts } };
+module.exports = { VERSION, DEFAULTS, createState, step, cloneState, validateCfg, resolveCfg, gradeOf, ptLabel, ptMin, bucketStart, gradeTableProblems, evidenceFor, _internal: { waveEvidence, entryBiasEvidence, findFvg, buildZones, sessionOf, normBias, midRangeOf, pullbackEvidence, forceEvidence, sweptLevels, r3Facts, retestKeyOf, noteRetest, rejectionEntry, contextPools } };

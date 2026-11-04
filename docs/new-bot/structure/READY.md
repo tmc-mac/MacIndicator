@@ -1,28 +1,38 @@
-# lib/structure.js READY (MacStructure, tide-structure-r3.1)
+# lib/structure.js READY (MacStructure, tide-structure-r3.2)
 
-- file: lib/structure.js (84522 bytes)
-- sha256: da0c5c081d1586ccc2fd9cef76300c32a8b2c5f7e6f0c96f44c44df25b983018
-- tests: `nice -n 19 node tests/structure.test.cjs` -> **134 passed, 0 failed**. The count is above 88 because the 4 redrawn scenarios now get through to their
-  inner checks (in both directions), and the r3.1 witness and fail-closed tests are new.
-- witness: `nice -n 19 node tools/trace-1104.cjs` (bias from the bot's own lib/levelsPro.js evaluateLevelsPro, tests/fixtures/witness-1104-bot.json)
-- replay check: the whole 11/02-11/04 fixture gives the same 2 signals on r3.0 and r3.1 (11-03 12:04 SHORT B, 11-03 16:08 SHORT A+).
+- file: lib/structure.js (90140 bytes)
+- sha256: 2a2249f17efc202c7d88a54ddd7329a5d1bda59b6a3ea287d19eb79a88694853
+- tests: `nice -n 19 node tests/structure.test.cjs` -> **181 passed, 0 failed** (groups 1-7; 6 and 7 are new in r3.2).
+- reviewer witnesses: `node review/witness-r3engine.cjs tools/offline-shim.cjs <moneyRule-r4.1>` -> **6 passed, 0 failed** (A1 trap hold, B1/B2 no Round exits,
+  C1/C2 retest per break, D1 real bounce). That script feeds bare {s15, s30} scalars, so it needs the offline shim; run directly against lib/structure.js
+  (strict by default) it gets 0 signals, which is the intended fail-closed behaviour.
+- witness 11/04 unchanged: SHORT failed-break at the 4H Open, entry 16:08 PT @ 28,366.75, stop 28,513, **A+ (4)**, TP2 PDL 28,035.25.
+  Only TP1 changed: it is now the 1H Open 28,324.5 (0.29R). Before, it was Round 28,350 (0.11R).
 
-## r3.1 changes (only these)
-1. Redrew the 4 failing synthetic scenarios. Only the fixture price paths changed, not the engine. The first 30 min now stay near the 4H open, so the 4H opening range
-   sits with the 4H open. A quick stab to 975 makes only ONE 5m close below Asia Low, so there is no acceptance or retest of Asia Low before the trap. The sweep of Asia Low peaks at 07:53.
-   The 08:00 1H open (~983) no longer bridges Asia Low and the 4H-open cluster into one zone. The trap bounce is now a lower high UNDER the broken swing,
-   so there is no 5m reclaim. The accept scenario starts its 30 min at 998. Fixed a test bug: the mirror's control kind is 'above'.
-2. C.1 acceptance no longer checks the bias at the 2nd close outside: accepted = >= 2 closed 5m outside. The frozen breaking-wave peak (gate `waveBias`,
-   >= 0.20 our way) is the bias gate for both lanes. 4H control is still a gate. The bias reading at the acceptance is now only logged. It is still used for
-   CONTROL_CANCEL: a bias-kind 4H control is cancelled only by an acceptance of the 4H open against it WITH the bias past the line, which is unchanged from r3.0.
-   New witnesses (both directions):
-   - accept-weak: bias 0.10 at the 2nd close, wave peak 0.25. The gate passes and the trade is taken.
-   - accept-lowwave: wave peak 0.18. GRADE_NO_TRADE gives `missing: ['waveBias']` and `why: ['waveBias: wavePeakBias gte 0.2 got 0.18']`.
-3. Fail-closed (MacDot):
-   - `cfg.biasMaxAgeSec` (120): a {score, valid, observedAt} reading observed more than 120 s before the 1m close is stale and ignored.
-   - A pullback bar with no volume makes the volume comparison unknown: no point.
-   - Until two 1H swing highs and two swing lows exist, the 1H range is unknown: `midRange` is null and the notMidRange gate fails.
-   - GRADE_NO_TRADE now carries `why` (each failed gate with the fields it read).
+## r3.2 changes (rulings 11/04 + MacDot's review of r3.1 at f0c6180)
+1. **A trap control holds (spec A).** It stays until price takes back its failed-breakout extreme (CONTROL_VOID) or the 4H closes. An opposite trap is blocked
+   (new event CONTROL_HOLD) and stays a candidate. If the old extreme is taken back, the candidate can then FORM (never FLIP). A bias control (below/above) is
+   still replaced by an opposite trap at once (ruling). cfg `trapControlHolds` (true).
+2. **Round numbers are context only.** cfg `pools.roundAsTarget` (false). Rounds never reach `signal.targets` / `pools` (TP1/TP2); they are listed in the new
+   `signal.contextPools` (display). With `roundAsSetup` false they are never setups and never merge into (widen) a real pool's zone.
+3. **The first retest is counted per break** (failed or accepted), not per zone per 4H. A cancelled setup's touch or the other lane's touch never uses up
+   a later break's first retest; a 2nd touch of the same break counts 2 (RETEST_2_SKIP).
+4. **The failed-break bounce must be a real counter-move.** The RETEST bar must make a 1m higher high (short) / lower low (long) than the previous 1m bar,
+   after the shift candle. A continuation bar sitting within retestTolPts of the broken swing is journalled BOUNCE_NOT_COUNTER, not a retest.
+   cfg `bounceNeedsCounter` (true).
+5. **Bias provenance (MacDot 6623647326).** cfg `biasInput` 'strict' (default) | 'offline'.
+   - Strict accepts only `{ m15: {score, valid: true, observedAt}, m30: {...} }` with a finite score and T - biasMaxAgeSec <= observedAt <= T.
+   - In strict, a bare scalar (s15/s30, or m15 as a number), or s15/s30 next to nested readings, rejects the whole minute (no bias).
+   - 'offline' (fixtures and tools only) also takes bare scalars and metadata-free nested readings.
+   - `tools/offline-shim.cjs` gives the same API in offline mode for study and review scripts.
+6. **Volume completeness (MacDot 6623659839).** normBar keeps `vk` (volume known) apart from an observed 0, and it flows into every 5m / 15m / 1H / 4H aggregate.
+   If ANY contributing minute of the pullback bars (closed or forming), or of the break candle, has an unknown volume, the volume comparison is null and the
+   point is withheld.
+   - MacDot's case (the 11-03 16:06 minute without its volume field): volume point null -> the witness grades **B (3)**, same entry and stop. That is under that test only; the real fixture stays A+ (4).
+   - An observed 0 is data, not missing.
+7. **No change (rulings):**
+   - C.1 accepted-break without a §8.2 shift stays a valid lane.
+   - An unknown 1H range keeps failing notMidRange. **Warm-up need:** >= 2 confirmed swing highs AND 2 swing lows on the 1H (2 bars each side), about 1,500 1m bars of history, before any trade can pass the gate.
 
 ## API (pure, deterministic, CommonJS)
 ```
@@ -35,17 +45,19 @@ const out = S.step(st, input, cfg);   // once per CLOSED 1m bar
 //           stoppedOut?: {dir}, trades?: [{setupId|signalId, tp1Done, closed}], speed?: [15s bars] }
 // out = { state, events[], signal|null, swings, live[] }
 ```
-- **observedAt** (ms or s) must be the as-of time of the reading, meaning the 1m close it was computed from (T or earlier). A reading is ignored if it is observed after T (that would be look-ahead),
-  older than T - biasMaxAgeSec (stale), `valid: false`, or has a non-numeric score.
+- **bias (live = strict, the default):** `{ m15: {score, valid: true, observedAt}, m30: {...} }`. observedAt (ms or s) must be the as-of time of the reading
+  (the 1m close it was computed from, T or earlier). A reading is ignored if it is not `valid === true`, has a non-numeric score or observedAt, is observed after T
+  (look-ahead) or before T - biasMaxAgeSec (stale). Any bare scalar in the input rejects the minute. Fixtures and tools that feed `{s15, s30}` set `cfg.biasInput = 'offline'`.
 - Exports: VERSION, DEFAULTS, createState, step, cloneState, validateCfg, resolveCfg, gradeOf, gradeTableProblems, evidenceFor, ptLabel, ptMin, bucketStart, _internal.
 - **signal fields:** id, setupId, t, at, dir, side, kind ('failed-break' | 'accepted-break'), entryType 'market', entryPrice, chosenStop, riskPts, stops, grade, gradeTotal,
   gradePoints, gradeGates, gradeDetail, gradeUncapped, gradeCapped, tags, evidence, targets / pools, internalPools, addZone, level, zone, control, defended, shift,
-  retest, swings, marketState, warnings, reason.
+  retest, swings, marketState, warnings, reason, contextPools (r3.2: the Round numbers in the trade direction, display only).
   - entryPrice is the RETEST-REJECTION 1m close, never the shift candle.
   - chosenStop is structural and never moved.
   - tags can include 'exhaustion-watch'.
   - evidence holds every field.
-  - targets / pools are ordered by distance, and every major pool is kept: PDH, PDL, 4H Open, Asia/London H/L, EQH/EQL, 4H swings.
+  - targets / pools are ordered by distance, and every major pool is kept: PDH, PDL, 4H Open, Asia/London H/L, EQH/EQL, 4H swings. No Round pools (r3.2).
+- new events (r3.2): CONTROL_HOLD {dir, ext, blockedDir, blockedExt}; BOUNCE_NOT_COUNTER {setup, high, low, prevHigh, prevLow}.
   - addZone is the FVG or the broken swing.
 - **live[]** (every open trade, each minute): setupId, signalId, entryGrade, entryPoints, currentGrade, total, points, tags, missing, upgradeReady, addNow, addPrice, stop, frozenAt, evidence.
 
@@ -83,7 +95,8 @@ const out = S.step(st, input, cfg);   // once per CLOSED 1m bar
 | any table field | 5: "every table field (N) missing / null / NaN / wrong type: no gate it needs passes, no point it needs is awarded"; 5: "empty evidence: every gate fails, 0 points, no trade" |
 | bias invalid | 2: "a bias reading observed after the 1m close (or invalid) is ignored"; 5: "bias valid:false ignored", "non-numeric score ignored", "witness with every bias reading invalid: no trade; GRADE_NO_TRADE at 16:08 names waveBias" |
 | bias stale / future | 5: "bias observed 5 min before the close (stale) ignored", "bias observed after the close (future) ignored", "a fresh reading (60 s old) is used", "witness with every bias reading stale: no trade ..."; 5: "wave peak unknown: gate fails, no impulse point, no cap" |
-| volume missing | 5: "witness with no volume: volume point 0 (null evidence), grade B (3)" |
+| volume missing | 7: "one pullback minute without volume -> the volume point is withheld (null evidence), not 1", "under that test only: the 11/04 witness grades B (3)"; 7: "an OBSERVED 0 volume is data, not missing"; 5: "witness with no volume: volume point 0 (null evidence), grade B (3)" (all-zero volume: the break candle has no usable volume) |
+| bias provenance (strict) | 7: MacDot's 4 cases (nested {score} only; bare s15 next to an invalid / stale / future nested m15) rejected; "even a VALID nested reading next to a bare scalar is ambiguous"; "bare scalars rejected"; "the fixture with nested {score}-only readings: 0 signals in strict", "in offline: signals unchanged"; "bare-scalar fixture fed in strict mode: 0 signals" |
 | ATR missing | 5: "ATR missing: forceLegAtrX null"; 5: "ATR / average range missing: no force point, no lane" |
 | 1H range unknown | 5: "1H range unknown: midRange null (gate notMidRange fails)"; 3: "1H range unknown (short) / (mirror, long): no trade, gate notMidRange fails" (engine run with 3 h of history) |
 | pools missing | 5: "board missing: no PDH/PDL/session pool appears in any trap, swept list or target"; "board missing: a trap point is only ever backed by a pool the engine actually has"; "no levels: nothing swept" |
@@ -101,7 +114,7 @@ const out = S.step(st, input, cfg);   // once per CLOSED 1m bar
 | logicalStop | stopLogical, stops | T | trap extreme, 1H wick so far, retest extreme |
 | trap | trapStacked, trapObviousPools, trapSweptLevels | the arm (shift) close | zones and board levels at the arm |
 | force | forceLegPts, forceAtr5, forceLegAtrX | the arm close | leg and ATR(14) of closed 5m bars |
-| volume | breakVol5m, pullbackBars5m, pullbackVsBreak5m | T | the closed break bar; pullback 5m bars closed <= T plus the forming one built from 1m bars closed <= T, pro-rated |
+| volume | breakVol5m, pullbackBars5m (each with volKnown), pullbackVolMissing, pullbackVsBreak5m | T | the closed break bar; pullback 5m bars closed <= T plus the forming one built from 1m bars closed <= T, pro-rated; any unknown-volume minute -> null |
 | timing | sweepAt, sweepMinutesFromOpen | the arm close | the 5m bar of the sweep extreme |
 
 **No future-bar read.** Group 2 rewrites every bar and bias reading after the cut (cuts at 15:45, 16:05, 16:08 and 17:30). Up to the cut it requires 3 things to be identical: the events,
@@ -113,5 +126,15 @@ when a live gate changes (4H control voided, or the 1H state moves the level int
 wired, but under r3 they cannot fire. No new points were invented.
 
 ## Open items
-- The board's Asia H/L during the Asia session is the forming session. It is not counted as a swept level, but it is kept as a target pool.
-- Not now: FVG limit, order blocks, voids, 15s speed.
+- **TP1 is still often tiny.** TP1 < 0.5R on 10 of 24 ledger signals, min 0.01R: an opening-range pool right next to the entry becomes TP1.
+  Not a ruling yet; see ledger/DIFF-r3.1.md.
+- **Some old scripts need offline mode.** Review and study scripts that feed bare `{s15, s30}` must pass `{ biasInput: 'offline' }` or use tools/offline-shim.cjs.
+- **Asia H/L during the Asia session.** The board's value is the forming session, so it is not counted as a swept level; it is kept as context.
+- **Integration notes for lib/tideWire.js (r2.3, read-only check; not changed here):**
+  - It passes `v: isNum(b.v) ? b.v : 0`, so a missing volume reaches the engine as an observed 0 and the r3.2 volKnown rule cannot see it. Pass the raw `v` (undefined when unknown).
+  - It never sends `trades` (closed / tp1Done) or `stoppedOut` to step(). The engine then keeps its own virtual trade open until the structural stop
+    or `openMaxMin` (480 min), and one-idea-per-direction blocks same-direction setups meanwhile. Ledger example: the 11-03 13:33 long, which the
+    executor would skip (SESSION_CLOSE), blocked longs from 15:10 to 16:10 in the next session.
+  - `biasAt()` must return the strict shape `{ m15: {score, valid: true, observedAt}, m30: {...} }`, or every minute has no bias.
+  - The engine has no session clock: it does emit signals from 12:55 to 15:00 PT (2 in the ledger). The executor's session close blocks them live.
+- **Not now:** FVG limit, order blocks, voids, 15s speed.

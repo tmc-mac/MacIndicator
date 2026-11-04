@@ -15,12 +15,17 @@ const group = n => console.log(n);
 
 // ------------------------------------------------------------------ fixture runner
 const FX = require(path.join(__dirname, 'fixtures/witness-1104-bot.json'));
-function runFixture(fx, cfg, opt = {}) {
+function runFixture(fx, cfg0, opt = {}) {
+  // r3.2: bare {s15, s30} scalars are OFFLINE input (fixtures / tools); the executor shape {m15:{score, valid, observedAt}} runs under the default strict mode
+  const cfg = opt.biasShape === 'executor' || opt.strict ? cfg0 : Object.assign({ biasInput: 'offline' }, cfg0 || {});
   let st = S.createState(); const sigs = [], evs = [], lives = [];
-  for (const r of fx.m1) {
+  for (let r of fx.m1) {
     const T = r[0] + 60, rd = fx.readings[String(T)];
     const obs = (T - (opt.biasAgeSec || 0)) * 1000, valid = opt.biasValid !== false;
-    const bias = rd ? (opt.biasShape === 'executor' ? { m15: { score: rd[0], valid, observedAt: obs }, m30: { score: rd[1], valid, observedAt: obs } } : { s15: rd[0], s30: rd[1] }) : null;
+    const bias = rd ? (opt.biasShape === 'executor' ? { m15: { score: rd[0], valid, observedAt: obs }, m30: { score: rd[1], valid, observedAt: obs } }
+      : opt.biasShape === 'scoreOnly' ? { m15: { score: rd[0] }, m30: { score: rd[1] } } : { s15: rd[0], s30: rd[1] }) : null;
+    if (opt.dropVolAt && S.ptLabel(r[0]) === opt.dropVolAt) r = r.slice(0, 5);   // MacDot's case: this minute's volume field is missing
+    if (opt.zeroVolAt && S.ptLabel(r[0]) === opt.zeroVolAt) r = [...r.slice(0, 5), 0];   // an OBSERVED zero volume
     const input = { m1: opt.noVolume ? [r[0], r[1], r[2], r[3], r[4], 0] : r, bias, levels: rd && !opt.noBoard ? { O4: rd[2], O1: rd[3], PDH: rd[4], PDL: rd[5], AsiaH: rd[6], AsiaL: rd[7], LonH: rd[8], LonL: rd[9] } : null };
     const out = S.step(st, input, cfg); st = out.state;
     for (const e of out.events) evs.push(e);
@@ -128,12 +133,40 @@ function scenario(name) {   // returns { pts, bias(T)->s, board, vol(T)->v|null 
       bias: T => lin(T, bz), board: base,
       vol: T => (T > mn(40) && T <= mn(45) ? 4000 : T > mn(66) && T <= mn(84) ? 400 : null), hist: 'trend' };
   }
+  // ---- r3.2 scenarios
+  const far = { AsiaL: 900, AsiaH: 1100, PDH: 1180, PDL: 820, LonH: 1170, LonL: 830 };   // no board pool near the 4H open
+  if (name === 'trap-hold' || name === 'trap-hold-void') {
+    // a failed break ABOVE the 4H open (ext 1012.25) -> SELL trap control at 07:50; then a failed break BELOW the open (ext 984.75), price back above
+    // the open at 08:05 while 1012.25 still holds: r3.1 flipped to a BUY trap; r3.2 holds. -void: 1012.25 is taken back at ~07:77 -> VOID, then the BUY trap forms.
+    const tail = name === 'trap-hold' ? [[80, 1006], [239, 1005], [250, 1004]] : [[80, 1013.5], [150, 1008]];
+    return { pts: [[mn(0), 1000], [mn(30), 999], [mn(33), 1001], [mn(38), 1012], [mn(42), 1006], [mn(47), 994], [mn(50), 994], [mn(53), 1001], [mn(55), 1001], [mn(58), 990], [mn(61), 985], [mn(65), 1004],
+      ...tail.map(([m, p]) => [mn(m), p])], bias: () => 0, board: far, vol: () => null, hist: 'trend', endMin: name === 'trap-hold' ? 250 : 150 };
+  }
+  if (name === 'bias-trap') {   // bias control SELL "below" at 07:33, then a failed break BELOW the open: the BUY trap replaces the bias control at once (ruling)
+    return { pts: [[mn(0), 1000], [mn(30), 999], [mn(34), 998], [mn(45), 1001], [mn(55), 1001], [mn(58), 990], [mn(61), 985], [mn(65), 1004], [mn(150), 1005]],
+      bias: T => lin(T, [[0, -0.05], [20, -0.3], [150, -0.3]]), board: far, vol: () => null, hist: 'trend' };
+  }
+  if (name === 'trap-after-cancel' || name === 'trap-chase') {
+    // trap-after-cancel: TWO closes below Asia Low first (an accepted-break setup arms, retests, is cancelled RETEST_DEEP), then the sweep from below
+    // and the shift: the trap's bounce is ITS break's first retest (r3.1 counted it 2 per zone and skipped it).
+    // trap-chase: the shift candle closes 3.75 pts under the broken swing and the next red continuation bars sit within retestTolPts of it: no entry
+    // there (r3.1 shorted the red bar 2 min after the shift); the real bounce at ~08:38 and its rejection is the entry.
+    const head = name === 'trap-after-cancel'
+      ? [[0, 1000], [30, 997], [40, 975], [45, 979], [50, 985], [53, 995], [57, 986], [60, 983]]
+      : [[0, 1000], [30, 997], [33, 990], [36, 975], [39, 990], [40, 989], [50, 989.5], [53, 995], [57, 986], [60, 983]];
+    const tail = name === 'trap-after-cancel'
+      ? [[65, 980], [70, 966], [85, 964], [100, 972], [102, 973], [104, 971], [106, 968], [110, 964], [130, 955], [150, 950]]
+      : [[65, 980], [70, 971], [72, 969], [85, 960], [100, 968], [102, 969], [104, 967], [106, 964], [110, 960], [130, 952], [150, 948]];
+    return { pts: [...head, ...tail].map(([m, p]) => [mn(m), p]),
+      bias: T => lin(T, [[0, -0.05], [20, -0.3], [40, -0.3], [55, 0.05], [62, -0.2], [70, -0.32], [100, -0.05], [104, -0.12], [150, -0.3]]), board: base, vol: () => null, hist: 'trend' };
+  }
   throw new Error(name);
 }
-function runScenario(name, mirror, cfg, opt = {}) {
+function runScenario(name, mirror, cfg0, opt = {}) {
+  const cfg = Object.assign({ biasInput: 'offline' }, cfg0 || {});   // synthetic scenarios feed bare scalars (offline input)
   const sc = scenario(name), X = p => (mirror ? 2 * M - p : p);
   const hist = history(sc.hist), allPts = [...hist.filter(x => x[0] < P), ...sc.pts];
-  const bars = pathBars(allPts, P - (opt.histHours || 48) * 3600, mn(150));
+  const bars = pathBars(allPts, P - (opt.histHours || 48) * 3600, mn(sc.endMin || 150));
   const swap = { AsiaL: 'AsiaH', AsiaH: 'AsiaL', PDH: 'PDL', PDL: 'PDH', LonH: 'LonL', LonL: 'LonH' };
   const board = {}; for (const [k, v] of Object.entries(sc.board)) board[mirror ? swap[k] : k] = X(v);
   let st = S.createState(); const sigs = [], evs = [];
@@ -229,6 +262,86 @@ group('4. grade table (cfg.grade, GRADE r3)');
   ok(S.validateCfg({ grade: { required: [], factors: [{ name: 'f', points: 1, when: [{ field: 'a', op: 'gte', value: 'x' }] }], bands: [['A+', 4], ['B', 5]] } }).length >= 2, 'bad threshold + bands not stepping down refused');
   ok(S.validateCfg({ grade: Object.assign({}, g, { caps: [{ name: 'c', maxBand: 'Z', when: [{ field: 'a', op: 'truthy' }] }] }) }).length > 0, 'cap with an unknown band refused');
   const W3 = runFixture(FX, { grade: t }); ok(!W3.sigs.some(s => s.dir === -1 && s.at >= '11-03 16:08' && s.at <= '11-03 16:09'), 'witness with a 0.30 wave gate is not taken (cfg drives the engine)');
+}
+
+group('6. r3.2 rulings: trap control holds, Rounds are context only, first retest per break, the bounce is a real counter-move');
+for (const mirror of [false, true]) {
+  const d = mirror ? 1 : -1, tag = mirror ? '(mirror)' : '(base)', ctl = R => R.evs.filter(e => /^CONTROL_|^PERIOD$/.test(e.type) && e.t > P);
+  {   // 1. a mid-4H opposite trap is blocked while the trap extreme holds; the 4H close clears it
+    const R = runScenario('trap-hold', mirror), ev = ctl(R), form = ev.find(e => e.type === 'CONTROL_FORM'), hold = ev.find(e => e.type === 'CONTROL_HOLD');
+    ok(form && form.dir === d && form.kind === 'trap' && lbl(form.t) === '07:50', `trap-hold ${tag}: the failed break of the open forms the trap control at 07:50`, ev);
+    ok(hold && hold.dir === d && hold.blockedDir === -d && lbl(hold.t) === '08:05', `trap-hold ${tag}: the opposite trap at 08:05 is BLOCKED (CONTROL_HOLD), the old extreme still holds`, ev);
+    ok(!ev.some(e => e.type === 'CONTROL_FLIP' || e.type === 'CONTROL_VOID'), `trap-hold ${tag}: no flip and no void inside the 4H`, ev.map(e => [lbl(e.t), e.type, e.dir]));
+    const per = ev.find(e => e.type === 'PERIOD' && e.t > mn(200));
+    ok(per && per.start === '11-10 11:00' && R.st.period.t === mn(240) && R.st.period.control === null, `trap-hold ${tag}: the 4H close clears it (new candle re-reads, control null)`, [per, R.st.period.control]);
+    const R1 = runScenario('trap-hold', mirror, { trapControlHolds: false });
+    ok(ctl(R1).some(e => e.type === 'CONTROL_FLIP' && e.dir === -d && lbl(e.t) === '08:05'), `trap-hold ${tag}: control check, trapControlHolds false reproduces the r3.1 flip`, ctl(R1));
+  }
+  {   // the extreme taken back clears it; the pending opposite trap may then form (a FORM, not a flip)
+    const R = runScenario('trap-hold-void', mirror), ev = ctl(R), vo = ev.find(e => e.type === 'CONTROL_VOID'), f2 = ev.filter(e => e.type === 'CONTROL_FORM')[1];
+    ok(vo && vo.dir === d && f2 && f2.dir === -d && f2.kind === 'trap' && f2.t >= vo.t && !ev.some(e => e.type === 'CONTROL_FLIP'), `trap-hold-void ${tag}: extreme taken back -> VOID, then the opposite trap FORMS`, ev.map(e => [lbl(e.t), e.type, e.dir]));
+  }
+  {   // bias control -> opposite trap still replaces at once (ruling 1)
+    const R = runScenario('bias-trap', mirror), ev = ctl(R), b0 = ev.find(e => e.type === 'CONTROL_FORM'), fl = ev.find(e => e.type === 'CONTROL_FLIP');
+    ok(b0 && b0.kind === (mirror ? 'above' : 'below') && fl && fl.kind === 'trap' && fl.dir === -d && fl.from === d, `bias-trap ${tag}: bias control ${mirror ? 'above' : 'below'} is replaced by the opposite trap (CONTROL_FLIP)`, ev.map(e => [lbl(e.t), e.type, e.kind, e.dir]));
+  }
+  {   // 3. first retest per break: a cancelled setup's touch on the same zone does not use up the trap's first retest
+    const R = runScenario('trap-after-cancel', mirror), z = mirror ? 'Asia High' : 'Asia Low';
+    const acc = R.evs.find(e => e.type === 'SETUP_ARM' && e.kind === 'accepted-break' && e.zone === z), accRt = acc && R.evs.find(e => e.type === 'RETEST' && e.setup === acc.setup);
+    const accCx = acc && R.evs.find(e => e.type === 'SETUP_CANCEL' && e.setup === acc.setup), s = R.sigs.find(x => x.kind === 'failed-break');
+    ok(acc && accRt && accRt.n === 1 && accCx, `trap-after-cancel ${tag}: the accepted-break setup on ${z} retested (n=1) and was cancelled`, R.evs.filter(e => /ARM|RETEST|CANCEL/.test(e.type)).map(e => [lbl(e.t), e.type, e.setup, e.n, e.why]));
+    ok(s && s.dir === d && s.evidence.retestNo === 1 && !R.evs.some(e => e.type === 'RETEST_2_SKIP'), `trap-after-cancel ${tag}: the later break's first retest is allowed (retestNo 1, traded)`, s ? s.evidence.retestNo : R.evs.filter(e => /SKIP|GRADE_NO/.test(e.type)));
+  }
+  {   // 2. the bounce must be a real counter-move: no shorting the red continuation bar after the shift; the real bounce + rejection is the entry
+    const R = runScenario('trap-chase', mirror), sh = R.evs.find(e => e.type === 'SHIFT' && e.dir === d), s = R.sigs.find(x => x.kind === 'failed-break');
+    ok(sh && R.evs.some(e => e.type === 'BOUNCE_NOT_COUNTER' && e.t <= mn(75)), `trap-chase ${tag}: the continuation bar near the swing right after the shift is journalled BOUNCE_NOT_COUNTER`, R.evs.filter(e => /SHIFT|BOUNCE|RETEST/.test(e.type)).map(e => [lbl(e.t), e.type]));
+    ok(!R.sigs.some(x => x.t <= mn(80)), `trap-chase ${tag}: no entry on the red continuation bars (08:10-08:20)`, R.sigs.map(x => lbl(x.t)));
+    ok(s && s.dir === d && lbl(s.t) >= '08:38' && lbl(s.t) <= '08:50', `trap-chase ${tag}: entry after the real bounce and its rejection`, s ? lbl(s.t) : R.evs.filter(e => /RETEST|REJECT|SKIP|GRADE_NO|CANCEL/.test(e.type)).map(e => [lbl(e.t), e.type, e.why]));
+  }
+}
+{   // 3. unit: a 2nd touch of the SAME break counts 2 and is skipped; another break / the other lane starts at 1
+  const st = S.createState(), I = S._internal, a = { id: 'Sa', kind: 'accepted-break', dir: 1, zone: { key: 'Z@1', name: 'Z' }, breakT: 100, armT: 200 };
+  ok(I.noteRetest(st, a) === 1 && I.noteRetest(st, a) === 2, 'same break: 1st touch n=1, 2nd touch n=2');
+  ok(I.noteRetest(st, Object.assign({}, a, { breakT: 300 })) === 1, 'a new break of the same zone starts at n=1');
+  ok(I.noteRetest(st, Object.assign({}, a, { kind: 'failed-break', dir: 1 })) === 1, 'the other lane on the same zone starts at n=1');
+  const evs = [], ctx = { cfg: S.resolveCfg(), b: { c: 1 }, T: 1, E: (type, o) => evs.push(Object.assign({ type }, o)), sigs: [] };
+  I.rejectionEntry(st, ctx, Object.assign({}, a, { retestNo: 2, status: 'armed' }));
+  ok(evs.length === 1 && evs[0].type === 'RETEST_2_SKIP' && ctx.sigs.length === 0, 'a 2nd touch of the same break is skipped (RETEST_2_SKIP), never traded', evs);
+}
+{   // 2. rounds: context only (witness 11/04 + the whole fixture)
+  const R = runFixture(FX), w = R.sigs.find(x => x.at === '11-03 16:08');
+  ok(R.sigs.every(x => !x.targets.some(t => /Round/.test(t.name))), 'no Round pool in any signal target list (TP1/TP2 candidates)');
+  ok(w && w.contextPools.some(c => c.price === 28350) && w.targets[0].price === 28324.5 && /1H Open/.test(w.targets[0].name), 'witness: Round 28,350 is context only; the first target is the 1H Open 28,324.5 (0.29R), not Round 28,350 (0.11R)', w && [w.targets[0], w.contextPools]);
+  ok(R.st.zones.filter(z => z.members.some(m => m.src === 'round')).every(z => z.members.length === 1 && !z.setup), 'Round zones are never merged into a real pool zone and never a setup');
+  const RT = runFixture(FX, { pools: { roundAsTarget: true } }), wt = RT.sigs.find(x => x.at === '11-03 16:08');
+  ok(wt && wt.targets.some(t => /Round/.test(t.name)), 'cfg pools.roundAsTarget true puts Rounds back as targets (config, default false)');
+}
+
+group('7. r3.2 MacDot review: bias provenance (strict / offline) and volume completeness');
+{
+  const T0 = 1800000000, nb = S._internal.normBias, ok15 = { score: 0.3, valid: true, observedAt: T0 * 1000 };
+  const cases = [
+    ['nested {score} only, no valid / observedAt', { m15: { score: 0.3 }, m30: { score: 0.2 } }],
+    ['bare s15 next to an INVALID nested m15', { s15: 0.3, m15: { score: 0.3, valid: false, observedAt: T0 * 1000 } }],
+    ['bare s15 next to a STALE nested m15', { s15: 0.3, m15: { score: 0.3, valid: true, observedAt: (T0 - 600) * 1000 } }],
+    ['bare s15 next to a FUTURE nested m15', { s15: 0.3, m15: { score: 0.3, valid: true, observedAt: (T0 + 60) * 1000 } }],
+  ];
+  for (const [nm, x] of cases) ok(nb(x, T0, 120, 'strict') === null, `strict: ${nm} -> rejected (no bias this minute)`);
+  ok(nb({ s15: 0.3, m15: ok15 }, T0, 120, 'strict') === null, 'strict: even a VALID nested reading next to a bare scalar is ambiguous -> rejected');
+  ok(nb({ s15: 0.3, s30: 0.2 }, T0, 120, 'strict') === null && nb({ m15: 0.3 }, T0, 120, 'strict') === null, 'strict: bare scalars (s15/s30, or m15 as a number) rejected');
+  ok(nb({ m15: ok15 }, T0, 120, 'strict').s15 === 0.3 && nb({ m15: ok15 }, T0, 120).s15 === 0.3, 'strict (the default): a valid, fresh, as-of reading is used');
+  ok(nb({ s15: 0.3, s30: 0.2 }, T0, 120, 'offline').s15 === 0.3, 'offline (fixtures / tools): bare scalars accepted');
+  ok(S.DEFAULTS.biasInput === 'strict' && S.validateCfg({ biasInput: 'loose' }).length > 0, 'default biasInput is strict; an unknown mode is refused');
+  const Rs = runFixture(FX, null, { biasShape: 'scoreOnly', strict: true }), Ro = runFixture(FX, null, { biasShape: 'scoreOnly' }), Rb = runFixture(FX);
+  ok(Rs.sigs.length === 0, 'the fixture with nested {score}-only readings: 0 signals in strict', Rs.sigs.length);
+  ok(Ro.sigs.length === Rb.sigs.length && Ro.sigs.every((x, i) => x.id === Rb.sigs[i].id && x.entryPrice === Rb.sigs[i].entryPrice && x.grade === Rb.sigs[i].grade), 'the same fixture in offline: signals unchanged', [Ro.sigs.length, Rb.sigs.length]);
+  const Rx = runFixture(FX, null, { strict: true }); ok(Rx.sigs.length === 0, 'bare-scalar fixture fed in strict mode: 0 signals (tools must declare offline)');
+  // volume completeness: MacDot's exact case (the 11-03 16:06 minute has no volume field)
+  const RV = runFixture(FX, null, { dropVolAt: '11-03 16:06' }), wv = RV.sigs.find(x => x.at === '11-03 16:08');
+  ok(wv && wv.gradePoints.volume === 0 && wv.evidence.pullbackVsBreak5m === null && wv.evidence.pullbackVolMissing === true, 'one pullback minute without volume -> the volume point is withheld (null evidence), not 1', wv && [wv.gradePoints, wv.evidence.pullbackBars5m]);
+  ok(wv && wv.grade === 'B' && wv.gradeTotal === 3 && wv.entryPrice === 28366.75 && wv.chosenStop === 28513, 'under that test only: the 11/04 witness grades B (3), same entry and stop', wv && [wv.grade, wv.gradeTotal]);
+  const RZ = runFixture(FX, null, { zeroVolAt: '11-03 16:06' }), wz = RZ.sigs.find(x => x.at === '11-03 16:08');
+  ok(wz && typeof wz.evidence.pullbackVsBreak5m === 'number' && wz.evidence.pullbackVolMissing === false && wz.gradePoints.volume === 1, 'an OBSERVED 0 volume is data, not missing (comparison computed)', wz && wz.evidence.pullbackBars5m);
 }
 
 group('5. fail-closed: a missing or unknown input never awards a point and never passes a gate');
