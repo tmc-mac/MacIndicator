@@ -71,6 +71,8 @@ function reversal(name, actual) { if (actual !== 0) { risks++; console.log('RISK
     const B = broker(), original = B.api.placeOrder; let delayed, once = true;
     B.api.placeOrder = async (token, body) => { if (once && body.type === T.STOP) { once = false; delayed = body; throw new Error('delayed no-ack'); } return original(token, body); };
     const first = drv(B); await first.D.signal(sig(30), plan(30), 'stop-test'); assert(delayed); assert(first.D.owned());
+    assert.strictEqual(typeof delayed.customTag, 'string'); assert(delayed.customTag.length > 0);
+    assert.strictEqual(JSON.parse(fs.readFileSync(first.file, 'utf8')).dispatch.customTag, delayed.customTag, 'tag was not persisted before unanswered send');
     const n = B.reqs.length, again = drv(B, { file: first.file }); await again.D.start(); await again.D.poll({ lastPx: 28000 });
     assert(again.D.owned()); assert.strictEqual(again.D.phase(), 'UNKNOWN'); assert.strictEqual(B.reqs.length, n, 'restart resent');
     await original('fake', delayed); assert.strictEqual(stops(B).length, 1); B.tick(28030); assert.strictEqual(B.pos, 0);
@@ -106,6 +108,36 @@ function reversal(name, actual) { if (actual !== 0) { risks++; console.log('RISK
       if (!D.owned() || D.phase() !== 'UNKNOWN') { risks++; console.log('RISK malformed same-version state accepted without quarantine'); continue; }
       await D.start(); await D.poll({ lastPx: 28000 }); assert.strictEqual(B.reqs.length, 0); assert.strictEqual(fs.readFileSync(file, 'utf8'), body);
     }
+  });
+  await check('explicit rejection with order ID does not become an acceptance', async () => {
+    const B = broker(); let sends = 0; B.api.placeOrder = async () => { sends++; return { success: false, errorCode: 2, errorMessage: 'brackets disabled', orderId: 987 }; };
+    const { D } = drv(B); await D.signal(sig(30), plan(30), 'rejection-test'); await D.poll({ lastPx: 28000 });
+    assert.strictEqual(sends, 1, 'rejected request was resent'); assert.strictEqual(B.pos, 0); assert.strictEqual(B.book.length, 0);
+    const entry = D.state().pos && Object.values(D.state().pos.orders).find(o => o.kind === 'entry');
+    assert(!entry || !['working', 'done'].includes(entry.status), 'rejected ID treated as accepted or filled');
+  });
+  await check('pending response with order ID remains unresolved across restart', async () => {
+    const B = broker(); let sends = 0; B.api.placeOrder = async () => { sends++; return { success: false, errorCode: 6, errorMessage: 'pending', orderId: 988 }; };
+    const first = drv(B); await first.D.signal(sig(30), plan(30), 'pending-test');
+    const again = drv(B, { file: first.file }); await again.D.start(); await again.D.poll({ lastPx: 28000 });
+    assert.strictEqual(sends, 1, 'pending request was resent'); assert(again.D.owned(), 'pending request lost ownership'); assert.strictEqual(again.D.phase(), 'UNKNOWN');
+  });
+  await check('duplicate tag rejection preserves uncertainty of prior order', async () => {
+    const B = broker(); let sends = 0; B.api.placeOrder = async () => { sends++; return { success: false, errorCode: 2, errorMessage: 'Duplicate customTag', orderId: 989 }; };
+    const first = drv(B); await first.D.signal(sig(30), plan(30), 'duplicate-tag-test');
+    const again = drv(B, { file: first.file }); await again.D.start(); await again.D.poll({ lastPx: 28000 });
+    assert.strictEqual(sends, 1, 'duplicate response prompted resend'); assert(again.D.owned(), 'duplicate response incorrectly released ownership'); assert.strictEqual(again.D.phase(), 'UNKNOWN');
+  });
+  await check('duplicate tag error from adapter preserves uncertainty', async () => {
+    const B = broker(); let sends = 0; B.api.placeOrder = async () => { sends++; const e = new Error('duplicate customTag'); e.orderRejected = true; throw e; };
+    const first = drv(B); await first.D.signal(sig(30), plan(30), 'duplicate-throw-test');
+    const again = drv(B, { file: first.file }); await again.D.start(); await again.D.poll({ lastPx: 28000 });
+    assert.strictEqual(sends, 1, 'duplicate error prompted resend'); assert(again.D.owned(), 'duplicate error incorrectly released ownership'); assert.strictEqual(again.D.phase(), 'UNKNOWN');
+  });
+  await check('passive opposite-direction equal-size position is detected', async () => {
+    const B = broker(), { D } = drv(B); await D.signal(sig(30), plan(30), 'direction-test'); assert.strictEqual(B.pos, -3);
+    B.pos = 3; const n = B.reqs.length; await D.poll({ lastPx: 28000 });
+    assert.strictEqual(B.reqs.length, n, 'new order submitted on reversed inventory'); assert.strictEqual(D.phase(), 'UNKNOWN', 'same-size opposite direction not quarantined');
   });
   console.log(`lifecycle review: ${risks} risk(s), ${errors} test error(s)`); if (risks || errors) process.exitCode = 1;
 })().catch(e => { console.error(e); process.exitCode = 1; });

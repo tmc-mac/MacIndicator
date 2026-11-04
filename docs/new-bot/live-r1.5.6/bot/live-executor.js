@@ -5327,12 +5327,13 @@ async function main() {
   // [r1.2] the phone's TIDE block. Built only from memory (no request). Live adds the position, today's trades and alerts.
   function tideSnapshotView() {
     try { const m = CONFIG.money || {}, sz = m.sizing || {}, lv = tideLiveOn() && tideDrv ? tideDrv.view() : null;
-      return { v: 1, mode: tideWire.modeOf(CONFIG), version: tideWire.VERSION, engine: tideShadow && tideShadow.engine ? tideShadow.engine.version || null : null, dayKey: currentDayKey, live: !!tideLiveReady,
+      const liveBlock = tideLiveOn() ? (lv ? lv.blocked : 'driver-unavailable') : null;
+      return { v: 1, mode: tideWire.modeOf(CONFIG), version: tideWire.VERSION, engine: tideShadow && tideShadow.engine ? tideShadow.engine.version || null : null, dayKey: currentDayKey, live: !!tideLiveReady && !liveBlock,
         sizing: { mode: sz.mode || null, flatUsd: Number.isFinite(sz.flatDollars) ? sz.flatDollars : null, gradeUsd: tideWire.gradeUsd(CONFIG), take1MaxUsd: tideWire.take1Max(CONFIG), noFit: sz.noFit || null, maxContracts: Number.isFinite(sz.maxContracts) ? sz.maxContracts : null, nearFloor: sz.nearFloor ? !!sz.nearFloor.enabled : null },
         rules: { useTimeBlocks: CONFIG.tide.useTimeBlocks === true, blocks: tideWire.tideBlocks(CONFIG).map(w => w.slice()), openWaitMin: CONFIG.tide.openWaitMin, oldPathEntries: CONFIG.tide.oldPathEntries === true },
         rows: tideRowsRing.day === lvj.day ? tideRowsRing.rows.slice() : [],
         board: tideBoardSafe(),   // [r1.3] TIDE's own levels (MacUI-N Addendum r1.3); null on error or over the 5 ms budget
-        ...(tideLiveOn() ? { position: lv ? lv.position : null, trades: lv ? lv.trades : [], alerts: lv ? lv.alerts : [] } : {}) };
+        ...(tideLiveOn() ? { blocked: liveBlock, position: lv ? lv.position : null, trades: lv ? lv.trades : [], alerts: lv ? lv.alerts : [] } : {}) };
     } catch (e) { return { v: 1, mode: tideWire.modeOf(CONFIG), error: String(e && e.message) }; }
   }
   function tideTagFills(trips, fills) {   // [r1.2] the trip whose time span holds a fill of a TIDE order (tideLive's order ids, kept for the TradeDay) -> model 'tide'

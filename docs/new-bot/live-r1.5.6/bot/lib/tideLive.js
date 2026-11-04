@@ -14,6 +14,7 @@
 // Every call is serialized (one at a time): the background TIDE step (signal) and the main loop (poll / exit) never interleave on the state.
 const fs = require('fs');
 const path = require('path');
+const { randomUUID } = require('crypto');
 const T = require('./tideOrders');
 const T_MONEY = require('./moneyRule');
 const VERSION = 'tide-live-r1.1';
@@ -44,8 +45,10 @@ function create(o) {
   function load() {
     try { if (stateFile) { const d = JSON.parse(fs.readFileSync(stateFile, 'utf8')); const obj = x => !!x && typeof x === 'object' && !Array.isArray(x);
       const valid = obj(d) && d.version === VERSION && Object.prototype.hasOwnProperty.call(d, 'pos') && obj(d.ids) && obj(d.sentAt) && obj(d.pushed) && Number.isFinite(d.ev) &&
-        (d.pos === null || (obj(d.pos) && typeof d.pos.phase === 'string' && obj(d.pos.orders) &&
-          (DONE_PHASES.has(d.pos.phase) || (obj(d.pos.plan) && typeof d.pos.id === 'string' && d.pos.id.length > 0 && (d.pos.dir === 1 || d.pos.dir === -1) && Number.isInteger(d.pos.open) && d.pos.open >= 0))));
+        (d.dispatch == null || obj(d.dispatch)) &&
+        (d.pos === null || (obj(d.pos) && typeof d.pos.phase === 'string' && obj(d.pos.orders) && Object.values(d.pos.orders).every(x => obj(x) && ['sent', 'unknown', 'working', 'cancel-sent', 'cancelled', 'done', 'gone', 'rejected'].includes(x.status)) &&
+          (DONE_PHASES.has(d.pos.phase) ? d.pos.open === 0 && !Object.values(d.pos.orders).some(x => ['sent', 'unknown', 'working', 'cancel-sent'].includes(x.status)) :
+            (obj(d.pos.plan) && typeof d.pos.id === 'string' && d.pos.id.length > 0 && (d.pos.dir === 1 || d.pos.dir === -1) && Number.isInteger(d.pos.open) && d.pos.open >= 0))));
       if (valid) return { ...blank(), ...d }; log('  [tide-live] state invalid or version not recognized: manual reconciliation required.'); return { ...blank(), dispatch: { kind: 'state', reason: 'invalid or unrecognized state' } }; } }
     catch (e) { if (e.code === 'ENOENT') return blank(); log(`  [tide-live] state unreadable (${e.message}): manual reconciliation required.`); return { ...blank(), dispatch: { kind: 'state', reason: 'unreadable state' } }; }
     return blank();
@@ -64,7 +67,13 @@ function create(o) {
   function phase() { return S.dispatch ? 'UNKNOWN' : S.pos ? S.pos.phase : 'FLAT'; }
   const J = (what, data) => { try { journal({ type: 'lv_tide', phase: 'live_' + what, version: VERSION, t: now(), position: S.pos ? S.pos.id : null, take: S.takeId, ...data }); } catch (e) { /* journal only */ } };
   const P = (key, title, text, opts = { priority: 'high', tags: 'chart_with_upwards_trend' }) => { if (key && S.pushed[key]) return; if (key) S.pushed[key] = true; try { notify(title, text, opts); } catch (e) { /* push only */ } };
-  function dispatchAlert() { const msg = 'Order outcome or saved ownership is uncertain. Automatic order actions are held; check the position and all working orders directly.'; log(`  [tide-live] URGENT: ${msg}`); P('dispatch-hold', 'TIDE URGENT: order outcome unknown', msg, CRIT); }
+  function dispatchAlert() {
+    const kind = S.dispatch && S.dispatch.kind;
+    const risk = kind === 'stop' || kind === 'stop-change' ? 'A working stop is not confirmed; the position may be unprotected. ' :
+      kind === 'position' || kind === 'flatten' ? 'The close may still fill and protection may be absent. ' : '';
+    const msg = `${risk}Order outcome or saved ownership is uncertain. Automatic order actions are held; check the position and all working orders directly.`;
+    log(`  [tide-live] URGENT: ${msg}`); P('dispatch-hold', 'TIDE URGENT: order outcome unknown', msg, CRIT);
+  }
 
   // ---- one planner step per event, then every intent executed in order; results come back as events (a queue, bounded)
   async function run(firstEvent) {
@@ -114,7 +123,6 @@ function create(o) {
   const sideNum = s => (s === 'BUY' ? OrderSide.BUY : OrderSide.SELL);
   const base = () => ({ accountId, contractId });
   // [r1.5.2] fn() retried at READ_AT_MS (each try raced against READ_TIMEOUT_MS); every failed try is logged; after the last one: the error, tagged tries = 4
-  const placeChecked = new Set();   // [r1.5.2] (c) the order keys already checked after a lost place answer (one check + one re-send each)
   async function readRetry(what, fn) {
     let last = null, waited = 0;
     for (let i = 0; i < READ_AT_MS.length; i++) {
@@ -127,7 +135,6 @@ function create(o) {
     if (S.pos && S.pos.open > 0) P(`unreadable:${S.pos.id}:${Math.floor(now() / 300000)}`, 'TIDE URGENT: broker unreadable', `${what}: the broker was unreadable after ${READ_AT_MS.length} tries (${errText(last)}) with ${S.pos.open}x open. TIDE retries every poll; check the stop in TopstepX.`, CRIT);
     const e = new Error(`${last && last.message} - broker unreadable after ${READ_AT_MS.length} tries`); e.cause = last && last.cause; e.last = last; e.tries = READ_AT_MS.length; throw e;
   }
-  const posSize = async () => { const p = await readRetry('position read', () => getOpenPosition(tokenOf(), accountId, contractId)); return p ? p.size : 0; };
   async function positionMatches(expected) {
     const p = await readRetry('position read', () => getOpenPosition(tokenOf(), accountId, contractId));
     return !!p && p.size === expected && (p.type === 1 ? 1 : p.type === 2 ? -1 : null) === S.pos.dir;
@@ -152,11 +159,20 @@ function create(o) {
     // Persist the possibility of a dispatch before crossing the broker boundary.
     // An unanswered call is never inferred absent from a later open-order snapshot.
     if (!stateFile) throw new Error('state file required before broker dispatch');
-    S.dispatch = { key: it.key, kind: it.kind, op: it.op, at: now(), reason: 'dispatch pending' };
+    const customTag = `tide-${randomUUID()}`;
+    body = { ...body, customTag };
+    S.dispatch = { key: it.key, kind: it.kind, op: it.op, at: now(), customTag, reason: 'dispatch pending' };
     save();
     req(it, body);
     try {
       const d = await placeOrder(tokenOf(), body); const id = d && (d.orderId ?? d.id);
+      // An ID can be returned for a rejected order; pending is not an ack.
+      // Require explicit success from the adapter and do not infer it from ID.
+      if (!d || d.success !== true || (d.errorCode != null && d.errorCode !== 0)) {
+        if (id != null) { S.ids[it.key] = id; S.sentAt[it.key] = now(); }
+        S.dispatch.reason = 'broker response not explicitly successful'; save();
+        return [{ type: 'no-ack', key: it.key, reason: S.dispatch.reason }];
+      }
       if (id == null) { S.dispatch.reason = 'response missing order id'; save(); return [{ type: 'no-ack', key: it.key, reason: S.dispatch.reason }]; }
       S.ids[it.key] = id; S.sentAt[it.key] = now();
       { const hi = hist(); hi.orderIds = hi.orderIds || []; hi.orderIds.push(String(id)); while (hi.orderIds.length > 400) hi.orderIds.shift(); }
@@ -170,12 +186,9 @@ function create(o) {
       if (src !== 'broker') { S.dispatch = { key: it.key, kind: 'stop', reason: 'accepted stop not visible at broker', at: now() }; save(); return [{ type: 'no-ack', key: it.key, reason: S.dispatch.reason }]; }
       return [{ type: 'ack', key: it.key, price: px }];
     } catch (e) {
-      if (e.orderRejected === true) {
-        const marker = S.dispatch; S.dispatch = null;
-        try { save(); } catch (saveErr) { S.dispatch = marker; throw saveErr; }
-        J('order_fail', { key: it.key, rejected: true, reason: e.message });
-        return [{ type: 'reject', key: it.key, reason: e.message, lastPx: S.lastPx }];
-      }
+      // Even an explicit rejection can be a duplicate-tag rejection for an
+      // earlier accepted request. Keep the ownership hold until independently
+      // reconciled; do not treat it as permission to send a replacement.
       if (!S.dispatch) S.dispatch = { key: it.key, kind: it.kind, op: it.op, at: now() };
       S.dispatch.reason = 'unanswered dispatch';
       try { save(); } catch (saveErr) { log(`  [tide-live] cannot persist dispatch hold (${saveErr.message}).`); }
@@ -332,7 +345,10 @@ function create(o) {
     }
     if (!(p.open > 0)) return;
     // the broker position must match the plan; a mismatch (a manual close, a fill not yet seen) -> a keyless reconcile (no order of ours is in flight here: every call is awaited)
-    let bq = null; try { bq = await posSize(); } catch (e) { bq = null; }
+    let bq = null, bp = null, bpRead = false; try { bp = await readRetry('position read', () => getOpenPosition(tokenOf(), accountId, contractId)); bpRead = true; bq = bp ? bp.size : 0; } catch (e) { bq = null; }
+    if (bpRead && bp && bp.size > 0 && (bp.type === 1 ? 1 : bp.type === 2 ? -1 : null) !== p.dir) {
+      S.dispatch = { kind: 'position', reason: 'broker position direction differs from saved trade' }; save(); dispatchAlert(); return;
+    }
     const stopLive = p.stopKey && p.orders[p.stopKey] && ['working', 'sent', 'unknown'].includes(p.orders[p.stopKey].status);
     if (bq !== null && (bq !== p.open || (!stopLive && !p.stopNext && !p.flat))) { log(`  [tide-live] broker ${bq}x vs plan ${p.open}x${stopLive ? '' : ', no working stop'}: reconciling.`); await run(await snapshot(null)); if (!owned() || !(S.pos.open > 0)) return; }
     // the stop is LARGER than the position (TP1 filled, its re-size rejected, e.g. in a news lock): a stop fill would REVERSE the account. The old stop stays
@@ -357,11 +373,27 @@ function create(o) {
   return {
     VERSION, owned, phase,
     state: () => S,
+    // Read-only evidence for a human reconciliation. No snapshot absence,
+    // matching by price, or single response authorizes clearing the hold.
+    inspectHold: () => serial(async () => {
+      const h = S.dispatch;
+      if (!h) return { status: 'no-hold' };
+      const id = h.key == null ? null : S.ids[h.key];
+      if (id == null) return { status: 'identity-unknown', kind: h.kind || null, reason: h.reason || null, customTag: h.customTag || null };
+      try {
+        const order = await readRetry('held order history', () => getEntryOrder(tokenOf(), accountId, contractId, id, S.sentAt[h.key] || h.at || now()));
+        const identity = !!order && String(order.id) === String(id) && String(order.accountId) === String(accountId) && order.contractId === contractId &&
+          (!h.customTag || order.customTag === h.customTag);
+        if (!identity) return { status: 'identity-unverified', kind: h.kind || null, reason: h.reason || null };
+        return { status: h.customTag ? 'order-observed' : 'order-observed-untagged', kind: h.kind || null, reason: h.reason || null, orderId: id, orderStatus: order.status ?? null,
+          fillVolume: order.fillVolume ?? null, filledPrice: order.filledPrice ?? null, customTag: h.customTag || null };
+      } catch (e) { return { status: 'history-unavailable', kind: h.kind || null, reason: h.reason || null }; }
+    }),
     // the phone's view (display only; MacUI-N SNAPSHOT-CONTRACT): the live position (null when none), today's closed trades and alerts
     view: () => { const p = S.pos, h = hist(), live = owned() && p && p.plan;
       const e = live ? Object.values(p.orders).filter(x => x.kind === 'entry') : [], fq = e.reduce((a, x) => a + (x.filled || 0), 0), ae = live ? T.avgEntry(p) : null, pv = (cfgFn() || {}).pointValue || 2;
       const tp1o = live ? Object.values(p.orders).filter(x => x.kind === 'tp1') : [], tp2o = live ? Object.values(p.orders).filter(x => x.kind === 'tp2') : [];
-      const position = live ? { id: p.id, setup: S.setup || null, signalId: S.takeId, phase: p.phase, dir: p.dir, grade: p.grade, points: S.points ?? null, pointNames: S.pointNames || null, entryType: p.plan.entryType,
+      const position = live ? { id: p.id, setup: S.setup || null, signalId: S.takeId, phase: S.dispatch ? 'UNKNOWN' : p.phase, brokerState: S.dispatch ? 'unknown' : 'last-observed', dir: p.dir, grade: p.grade, points: S.points ?? null, pointNames: S.pointNames || null, entryType: p.plan.entryType,
         plannedQty: p.plan.contracts, filledQty: fq, open: p.open, avgEntry: isNum(ae) ? round(ae) : null, fillAt: S.fillAt, stopAsked: p.stopPx, stopAcked: p.protPx, stopBy: S.stopBy || (p.tp1Done ? 'break-even' : 'structural'), structuralStop: p.plan.stop,
         R: p.R, tp1: { price: p.tp1Px, qty: p.tp1Qty, done: !!p.tp1Done, filled: tp1o.reduce((a, x) => a + (x.filled || 0), 0) }, tp2: { price: p.tp2Px, done: tp2o.some(x => x.status === 'done'), filled: tp2o.reduce((a, x) => a + (x.filled || 0), 0) },
         best: S.best, lastPx: S.lastPx, openUsd: isNum(ae) && isNum(S.lastPx) && p.open > 0 ? Math.round(p.dir * (S.lastPx - ae) * p.open * pv * 100) / 100 : null, block: p.block || null, closing: !!p.closing } : null;
