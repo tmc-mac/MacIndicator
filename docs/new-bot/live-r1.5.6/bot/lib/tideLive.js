@@ -69,7 +69,8 @@ function create(o) {
   const P = (key, title, text, opts = { priority: 'high', tags: 'chart_with_upwards_trend' }) => { if (key && S.pushed[key]) return; if (key) S.pushed[key] = true; try { notify(title, text, opts); } catch (e) { /* push only */ } };
   function dispatchAlert() {
     const kind = S.dispatch && S.dispatch.kind;
-    const risk = kind === 'stop' || kind === 'stop-change' || (kind === 'cancel' && S.dispatch.targetKind === 'stop') ? 'A working stop is not confirmed; the position may be unprotected. ' :
+    const risk = S.dispatch && S.dispatch.oversized ? 'The last recorded stop exceeds the recorded open position and could reverse it. ' :
+      kind === 'stop' || kind === 'stop-change' || (kind === 'cancel' && S.dispatch.targetKind === 'stop') ? 'A working stop is not confirmed; the position may be unprotected. ' :
       kind === 'position' || kind === 'flatten' ? 'The close may still fill and protection may be absent. ' : '';
     const msg = `${risk}Order outcome or saved ownership is uncertain. Automatic order actions are held; check the position and all working orders directly.`;
     log(`  [tide-live] URGENT: ${msg}`); P('dispatch-hold', 'TIDE URGENT: order outcome unknown', msg, CRIT);
@@ -144,6 +145,16 @@ function create(o) {
     const key = Object.keys(S.ids).find(k => String(S.ids[k]) === String(orderId));
     const known = key && S.pos && S.pos.orders[key];
     if (!key || !known || !stateFile) return false;
+    // A confirmed cancel cannot currently progress to a verified replacement
+    // or safe close. Do not deliberately remove a known protective stop while
+    // that recovery contract is absent. It may already be oversized, absent,
+    // or about to fill: retaining it is not a claim that the position is safe.
+    if (known.kind === 'stop' && S.pos.open > 0) {
+      const remain = Number.isInteger(known.qty) && Number.isInteger(known.filled) ? known.qty - known.filled : null;
+      S.dispatch = { key, kind: 'stop-change', orderId, at: now(), reason: 'stop cancellation held: no verified replacement or close contract',
+        oversized: remain !== null && remain > S.pos.open, stopQty: remain, recordedOpen: S.pos.open };
+      save(); return false;
+    }
     S.dispatch = { key, kind: 'cancel', targetKind: known.kind, orderId, at: now(), reason: 'cancellation pending' }; save();
     // The cancellation outcome can be delayed; issue it only once and use
     // subsequent reads as evidence, never as permission for a blind resend.

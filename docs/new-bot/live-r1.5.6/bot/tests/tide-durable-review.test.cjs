@@ -102,16 +102,17 @@ const assert = require('assert');
   {
     const B=broker(), cancel=B.api.cancelOrder; let oldId=null, attempts=0;
     B.api.cancelOrder=async (token,account,id) => { if (id===oldId) { attempts++; throw new Error('cancel response lost, execution delayed'); } return cancel(token,account,id); };
-    const first=drv(B); await first.D.signal(sig(30),plan(30),'cancel-lost'); oldId=stops(B)[0].id;
-    B.tick(27970); await first.D.poll({lastPx:27970}); assert(attempts>0); assert(first.D.owned()); assert.strictEqual(first.D.phase(),'UNKNOWN');
+    const first=drv(B); await first.D.signal(sig(30),plan(30),'cancel-lost'); oldId=B.book.find(o=>o.type===T.LIMIT).id;
+    await first.D.exitAtMarket('test'); assert(attempts>0); assert(first.D.owned()); assert.strictEqual(first.D.phase(),'UNKNOWN');
     const before=B.reqs.length, previousAttempts=attempts, next=drv(B,{file:first.file}); await next.D.start(); await next.D.poll({lastPx:27970});
     assert(next.D.owned()); assert.strictEqual(next.D.phase(),'UNKNOWN'); assert.strictEqual(B.reqs.length,before); assert.strictEqual(attempts,previousAttempts,'cancel retried after restart');
     await cancel('fake',1,oldId); const after=B.reqs.length; await next.D.poll({lastPx:27970});
     assert.strictEqual(B.reqs.length,after,'late cancellation resumed trade'); assert(next.D.owned()); assert.strictEqual(next.D.phase(),'UNKNOWN');
-    console.log('PASS unknown cancel remains held after restart and late cancel; position may be unprotected');
+    assert.strictEqual(stops(B).length,1); assert.strictEqual(B.pos,-3);
+    console.log('PASS unknown target cancel remains held after restart and late cancel; fake stop retained');
   }
   for (const failAt of ['write', 'file-fsync', 'directory-fsync']) {
-    const B=broker(), {D,file}=drv(B); await D.signal(sig(30),plan(30),'cancel-durability'); B.tick(27970);
+    const B=broker(), {D,file}=drv(B); await D.signal(sig(30),plan(30),'cancel-durability');
     const n=B.reqs.length, rawWrite=fs.writeFileSync, rawSync=fs.fsyncSync; let injected=false;
     try {
       if (failAt==='write') fs.writeFileSync=function(fd,data,...rest) {
@@ -126,33 +127,60 @@ const assert = require('assert');
         let txt='';try{txt=fs.readFileSync(file,'utf8');}catch(_){}
         if (fs.fstatSync(fd).isDirectory() && txt.includes('cancellation pending')) {injected=true;throw new Error('synthetic cancellation directory fsync failure');} return rawSync.call(fs,fd);
       };
-      try{await D.poll({lastPx:27970});}catch(_){}
+      try{await D.exitAtMarket('test');}catch(_){}
     } finally {fs.writeFileSync=rawWrite;fs.fsyncSync=rawSync;}
     assert(injected,failAt+' did not hit pre-cancel marker'); assert.strictEqual(B.reqs.length,n,failAt+' allowed a broker mutation');
-    assert.strictEqual(stops(B).length,1); assert.strictEqual(B.pos,-1); console.log('PASS '+failAt+' before cancel causes no broker mutation');
+    assert.strictEqual(stops(B).length,1); assert.strictEqual(B.pos,-3); console.log('PASS '+failAt+' before cancel causes no broker mutation');
+  }
+  {
+    const B=broker(), d=drv(B); await d.D.signal(sig(30),plan(30),'exact-terminal');
+    const target=B.book.find(o=>o.type===T.LIMIT).id, stopId=stops(B)[0].id, before=B.reqs.length; await d.D.exitAtMarket('test');
+    const h=d.D.state().dispatch; assert(h); assert.strictEqual(h.orderId,target); assert.strictEqual(h.reason,'terminal cancellation observed; fill finality not established');
+    assert.deepStrictEqual(h.observed,{status:3,fillVolume:0}); assert.strictEqual(d.D.phase(),'UNKNOWN'); assert.strictEqual(B.reqs.length,before+1);
+    assert.strictEqual(stops(B)[0].id,stopId); assert.strictEqual(B.pos,-3); const after=B.reqs.length, r=drv(B,{file:d.file}); await r.D.start(); await r.D.poll({lastPx:28000});
+    assert.strictEqual(B.reqs.length,after); assert.strictEqual(r.D.phase(),'UNKNOWN'); console.log('PASS exact terminal cancellation remains a hold, not permission to close');
   }
   for (const [name, change] of [
     ['wrong ID', h=>({...h,id:h.id+1})], ['missing ID', h=>{delete h.id;return h;}],
     ['wrong account', h=>({...h,accountId:2})], ['missing account', h=>{delete h.accountId;return h;}],
     ['wrong contract', h=>({...h,contractId:'other'})], ['missing contract', h=>{delete h.contractId;return h;}]
   ]) {
-    const B=broker(), history=B.api.getEntryOrder; let oldId=null;
-    B.api.getEntryOrder=async (...args) => { const h=await history(...args); return args[3]===oldId ? change({...h,status:3,fillVolume:0}) : h; };
-    const first=drv(B); await first.D.signal(sig(30),plan(30),'foreign-terminal'); oldId=stops(B)[0].id; B.cancelFails.add(oldId);
-    B.tick(27970); await first.D.poll({lastPx:27970}); assert.strictEqual(B.pos,-1); assert.strictEqual(first.D.phase(),'UNKNOWN',name);
-    assert.strictEqual(stops(B).length,1, name+' created a replacement stop'); assert.strictEqual(stops(B)[0].id,oldId);
+    const B=broker(), history=B.api.getEntryOrder; let oldId=null, reads=0;
+    B.api.getEntryOrder=async (...args) => { const h=await history(...args); if(args[3]===oldId){reads++;return change({...h,status:3,fillVolume:0});} return h; };
+    const first=drv(B); await first.D.signal(sig(30),plan(30),'foreign-terminal'); oldId=B.book.find(o=>o.type===T.LIMIT).id; B.cancelFails.add(oldId); const stopId=stops(B)[0].id;
+    await first.D.exitAtMarket('test'); assert(reads>0); assert.strictEqual(B.pos,-3); assert.strictEqual(first.D.phase(),'UNKNOWN',name);
+    assert.strictEqual(stops(B).length,1, name+' created a replacement stop'); assert.strictEqual(stops(B)[0].id,stopId);
     const before=B.reqs.length, next=drv(B,{file:first.file}); await next.D.start(); await next.D.poll({lastPx:27970});
-    assert(next.D.owned()); assert.strictEqual(next.D.phase(),'UNKNOWN'); assert.strictEqual(B.reqs.length,before); assert.strictEqual(stops(B).length,1); assert.strictEqual(B.pos,-1);
+    assert(next.D.owned()); assert.strictEqual(next.D.phase(),'UNKNOWN'); assert.strictEqual(B.reqs.length,before); assert.strictEqual(stops(B).length,1); assert.strictEqual(B.pos,-3);
     console.log('PASS foreign terminal cancellation evidence: '+name);
   }
   for (const fill of ['', '   ', false]) {
     const B=broker(), history=B.api.getEntryOrder; let oldId=null;
     B.api.getEntryOrder=async (...args) => { const h=await history(...args); return args[3]===oldId ? {...h,status:3,fillVolume:fill} : h; };
-    const d=drv(B); await d.D.signal(sig(30),plan(30),'invalid-fill'); oldId=stops(B)[0].id; B.cancelFails.add(oldId); B.tick(27970); await d.D.poll({lastPx:27970});
+    const d=drv(B); await d.D.signal(sig(30),plan(30),'invalid-fill'); oldId=B.book.find(o=>o.type===T.LIMIT).id; B.cancelFails.add(oldId); await d.D.exitAtMarket('test');
     const hold=d.D.state().dispatch; assert(hold); assert.strictEqual(d.D.phase(),'UNKNOWN');
     assert(!hold.observed || hold.observed.fillVolume == null, 'invalid fill volume was reported as numeric zero');
-    assert.strictEqual(stops(B).length,1); assert.strictEqual(B.pos,-1);
+    assert.strictEqual(stops(B).length,1); assert.strictEqual(B.pos,-3);
     console.log('PASS malformed fill volume '+JSON.stringify(fill)+' is not zero');
+  }
+  {
+    const B=broker(), d=drv(B); await d.D.signal(sig(30),plan(30),'resize-stop'); const stopId=stops(B)[0].id;
+    B.tick(27970); const n=B.reqs.length; await d.D.poll({lastPx:27970});
+    assert.strictEqual(B.reqs.length,n,'stop resize called broker'); assert.strictEqual(d.D.phase(),'UNKNOWN');
+    assert.strictEqual(B.pos,-1); assert.strictEqual(stops(B).length,1); assert.strictEqual(stops(B)[0].id,stopId);
+    const snap=await B.api.getOpenOrders(); assert(snap.some(o=>o.id===stopId),'stop not visible at fake broker');
+    const resumed=drv(B,{file:d.file}); await resumed.D.start(); await resumed.D.poll({lastPx:27970}); assert.strictEqual(B.reqs.length,n);
+    console.log('PASS stop resize is held with existing fake-broker stop retained (oversize remains)');
+  }
+  {
+    // Synthetic position after the nonprotective orders were independently canceled.
+    const B=broker(), d=drv(B); await d.D.signal(sig(30),plan(30),'flatten-protective'); const stopId=stops(B)[0].id;
+    for(const x of [...B.book].filter(o=>o.type===T.LIMIT)) { await B.api.cancelOrder('fake',1,x.id); for(const [key,id] of Object.entries(d.D.state().ids)) if(id===x.id) d.D.state().pos.orders[key].status='cancelled'; }
+    fs.writeFileSync(d.file,JSON.stringify(d.D.state())); const n=B.reqs.length; await d.D.exitAtMarket('test');
+    assert.strictEqual(B.reqs.length,n,'direct protective cancel or close sent'); assert.strictEqual(d.D.phase(),'UNKNOWN'); assert.strictEqual(B.pos,-3);
+    const snap=await B.api.getOpenOrders(); assert(snap.some(o=>o.id===stopId)); assert.strictEqual(stops(B).length,1);
+    const resumed=drv(B,{file:d.file}); await resumed.D.start(); await resumed.D.poll({lastPx:28000}); assert.strictEqual(B.reqs.length,n);
+    console.log('PASS direct protective cancel/flatten is held with stop retained');
   }
   console.log('durability review: fault injection and lost cancellation passed');
 })().catch(e=>{console.error(e);process.exitCode=1});
