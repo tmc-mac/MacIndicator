@@ -227,3 +227,80 @@ For a human the fix is a "boring" size, small enough that the click is automatic
   move, and sweeps against the prior move inside it are trap entries in the prior direction.
 - Pin bars / wicks need location plus follow-through, never alone (matches §10.1).
 - Climax detection (high volume, narrow spread, poor close) is a WARNING that blocks new with-trend entries until the structure confirms either way.
+
+## 13. Breakout retests the way big money trades them (Mac's study material, part 5)
+
+Why retests happen:
+- Early big players take profit after the break, and the retrace gives late traders a second chance.
+- Nervous breakout traders bail as their profit shrinks. Big money fills from those exits and from stopped-out traders.
+- The retest "resets" the market (weak hands out), then the move continues with less resistance.
+Rules:
+1. **Zones, not lines.**
+   - Mark the breakout area as a ZONE covering the cluster of highs (lows) that broke, not a single price.
+   - Any return into the zone counts as the retest.
+2. **A legit break** needs:
+   - a CLOSE clearly through the zone (not just a wick);
+   - a volume spike on the breaking candle. Low-volume breaks are suspect.
+3. **Volume rhythm:** break on rising volume → pullback on FALLING volume → volume picks up again at the retest as the defenders step in.
+   High volume on the pullback = the other side still in control = possible trap.
+4. **Confirmation at the zone, not a bare touch:**
+   - an engulfing candle or a pin-bar rejection at the zone, ideally on a lower timeframe (Mac: 4H map, 30m/5m trigger);
+   - above-average volume on the rejection.
+5. **Stop:** beyond the confirming candle, or a few points beyond the WHOLE zone (safer). Lower-timeframe entry with a zone-based stop.
+6. **Wait for the retest.** Missing a runner is better than entering before the reset (FOMO rule).
+7. **The FIRST retest is the strongest.** A second test of the same zone is weaker (the original breakout traders are gone, big money already
+   filled), and a zone that fails twice loses its value.
+
+**Bot implications:**
+- Levels become zones: [min, max] of the clustered highs/lows within a tolerance, or level ± k ticks.
+- Accepted-break continuation (§8.1, TIDE C.1) requires: a close-through + breakout volume > its 20-bar median;
+  pullback volume < breakout volume; a rejection candle (engulfing or pin) at the zone on 5m/1m.
+- Count retests per zone: trade only the FIRST retest after a break. The second is journaled and skipped.
+
+## 14. The liquidity map: where the money sits and when it gets collected (Mac's study material, part 6)
+
+1. **Price moves from one pool of money to the next.**
+   - Above every obvious high: buy-side liquidity (breakout buys plus short stops).
+   - Below every obvious low: sell-side liquidity (breakout sells plus long stops).
+   - Obvious beats clever: a level you must zoom in three times to justify is not a pool.
+2. **The close matters more than the wick.**
+   - A sweep is not the break itself. It is the FAILURE after the break (wick through, close back inside, the next candle can't reclaim).
+   - A break that keeps closing outside is a real breakdown/breakout: continuation, not a fade.
+   - Don't fade a break until price proves failure.
+3. **Liquidity explains why price went there; structure tells you if the move survives.**
+   - Reversal = sweep + break of the last DEFENDED swing (the swing that protected the old trend: the last lower high in a downtrend,
+     the last higher low in an uptrend).
+   - Sweep + bounce without that break is NOT a reversal.
+4. **Liquidity inside a trend.**
+   - A sweep of a pullback low (high) that reclaims, while the major swing holds, is a CONTINUATION entry in the trend direction:
+     enter after the reclaim plus the break of the pullback's small lower high (higher low).
+   - Not every sweep is a reversal.
+5. **Pool size grows with touches.**
+   - Equal highs/lows and levels tapped 2–3+ times are loaded pools (a "dam"). The break floods.
+   - Textbook trendlines and chart patterns are pools too (everyone's stop sits just beyond them).
+   - Round numbers are pools.
+   - **Previous day high/low:** fresh stops every day, the "daily collection run".
+6. **Hidden pools.**
+   - **Order block:** the last opposite candle before a major move (the last down candle before a big rally, the last up candle before a big drop).
+     Institutions return to fill the rest of the order there.
+   - **Liquidity void:** the area price ran through fast out of a long range has few orders. Price travels through it quickly to the next pool.
+   - **All-time high:** the largest pool. Be suspicious of euphoric ATH breakouts.
+7. **Time.**
+   - Asia builds the range (stops stack both sides).
+   - **London usually sweeps one side of the Asia range first**, then makes the real move.
+   - **New York does the same to London.** Hold through the NY open only with that in mind: NY has its own pools to collect first.
+   - The setup: equal highs at the Asia range high; London spikes above within ~15 min; wicks above, bodies close back inside.
+     Enter on the reversal candle, stop above the wick, target the opposite side of the Asia range.
+8. **Do nothing in the middle.** Between the last swing high and low there is no trade until price reaches an exposed pool and shows acceptance or rejection.
+
+**Bot implications:**
+- Add pools to the level board (weights by obviousness):
+  - equal highs/lows (≥ 2 touches within a few ticks) with a touch count;
+  - round numbers (MNQ: every 100 and 50 points);
+  - order blocks (the last opposite 15m/1H candle before a ≥ 1.5×ATR move);
+  - liquidity-void edges;
+  - the session ranges (Asia 15:00–00:00 PT, London 00:00–05:30 PT) and the opening ranges (§10.6).
+- Session sweep model: London open sweeping one side of the Asia range, and the NY open sweeping London, are high-priority trap setups
+  (failed break → shift → entry; target the opposite side of the range).
+- Targets: the next pool in the trade direction (bigger pool = more likely destination); voids are travelled quickly.
+- Sweeps inside a trend whose major swing holds are continuation entries, not reversals (pairs with §8 and §12.2).
