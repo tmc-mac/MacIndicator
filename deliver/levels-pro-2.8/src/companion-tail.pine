@@ -1,0 +1,70 @@
+
+// ---------------------------------------------------------------- 17F. glow, wake candles, the chip (Daily Levels PRO v2.6 / v2.7 look)
+int IGN = 3
+var line[] IG_GL = array.new_line(0)
+if barstate.isfirst
+    for i = 0 to IGN - 1
+        array.push(IG_GL, line.new(bar_index, close, bar_index + 1, close, color=col_hide, width=i == 0 ? 6 : i == 1 ? 10 : 16))
+barcolor(td_ok and td_wake and td_rank == 0 ? color.new(chart.fg_color, 72) : na)
+t_meter(int n) =>
+    str.substring("▰▰▰▰", 0, n) + str.substring("▱▱▱▱", 0, 4 - n)
+// chip debounce (v2.5): inside a realtime bar the chip only steps UP and never back; history and the bar close show the engine's state
+var   int ui_chip_c = 1
+varip int ui_live   = 1
+varip int ui_bar    = 0
+bool ui_rt = barstate.isrealtime and not barstate.isconfirmed
+if not ui_rt
+    ui_live := td_rank
+    ui_bar := time
+else
+    if ui_bar != time
+        ui_bar := time
+        ui_live := ui_chip_c
+    if td_rank > ui_live
+        ui_live := td_rank
+ui_chip_c := ui_rt ? ui_chip_c : td_rank
+int ui_chip = td_rank == 3 ? 3 : math.min(ui_rt ? ui_live : td_rank, 2)
+var table T = table.new(td_pos == "Bottom Left" ? position.bottom_left : td_pos == "Bottom Center" ? position.bottom_center : td_pos == "Middle Left" ? position.middle_left : td_pos == "Top Left" ? position.top_left : td_pos == "Top Center" ? position.top_center : td_pos == "Top Right" ? position.top_right : td_pos == "Middle Right" ? position.middle_right : position.bottom_right, 1, 4, bgcolor=u_fill, border_color=u_bd, border_width=1, frame_color=u_bd, frame_width=1)
+t_cell(int r, string s, color c, string tip) =>
+    table.cell(T, 0, r, s, text_color=c, text_size=size.small, bgcolor=u_fill, text_halign=text.align_left, tooltip=tip)
+t_mmss(int r) =>
+    str.tostring(math.floor(r / 60.0)) + (r % 60 < 10 ? ":0" : ":") + str.tostring(r % 60)
+t_hud(int st) =>
+    string nm = na(td_z) ? "" : td_z.nm
+    string s0 = (st == 0 ? "STAND DOWN" : (st == 1 ? "WAIT " : st == 2 ? "SET " : "ARMED ") + t_meter(st == 3 ? 4 : td_n)) + (st != td_rank ? " held" : "")
+    int sc = math.floor(timenow / 1000.0)
+    // the SET countdown on TIDE's candles: the 5m close decides a break / acceptance / failure / shift, the 1m close the rejection
+    string cdn = not barstate.isrealtime ? "" : td_st == "retest-pending" ? " · 1m " + t_mmss(60 - sc % 60) : td_st == "broken" or td_st == "failed" or td_st == "accepted" ? " · 5m " + t_mmss(300 - sc % 300) : ""
+    string s1 = st == 0 ? (td_g != "" ? td_g : td_against ? "AGAINST_CONTROL" : "no TIDE zone") : nm + " " + td_st + t_arrow(td_dir) + cdn
+    t_cell(0, s0 + "\n" + str.substring(s1, 0, math.min(26, str.length(s1))), st == 0 ? u_t2 : st == 1 ? u_t1 : u_acc, "TIDE chip (the bot's engine on this chart's 1m bars): STAND DOWN = no 4H control, against control, a TIDE block / open wait / 12:55 session close, or the 1H range unknown; WAIT = control known, levels watching / broken / accepted / failed; SET = a setup armed in the control direction; ARMED (glow) = its first retest is in (retest-pending): the 1m rejection close is the trigger. Meter = control, a lane trigger, not mid-range, first retest with no block. Only the bot knows the news pause, its grade and the broker.")
+    t_cell(1, t_ctlrow(), G.cDir == 0 ? u_t2 : u_t1, "4H control (structure.js 443-479): TRAP = a failed break of the 4H Open after the 30 min wait; it holds until its extreme is taken back or the 4H closes. BIAS ≈ = price on its side of the 4H Open with the 15m / 30m score past 0.15 for 3 readings (the score is ported, ≈). Time = when it formed (PT).")
+    t_cell(2, t_msrow(), u_t2, "1H state from confirmed 1H swings (2/2): TREND / RANGE (2 touches a side, 48 h) / TRANSITION. Unknown until 2 swing highs and lows exist: the bot then takes no trade (not-mid-range fails closed).")
+    t_cell(3, t_bsrow(), u_t2, "≈ the bot's bias score on the FORMING 15m / 30m candle (levelsPro biasScore, ported; PARITY.md). TIDE's line is 0.15.")
+    0
+if barstate.islast
+    t_draw()
+    bool gon = td_ok and td_glow and ui_chip == 3 and not na(td_z)
+    for g = 0 to IGN - 1
+        line gl = array.get(IG_GL, g)
+        line.set_xy1(gl, math.max(bar_index - lookback_l, 0), td_px)
+        line.set_xy2(gl, bar_index + extend_r, td_px)
+        line.set_color(gl, gon ? color.new(td_dir > 0 ? col_buy : col_sell, g == 0 ? 70 : g == 1 ? 84 : 93) : col_hide)
+    table.clear(T, 0, 0, 0, 3)
+    if td_ok and td_hud
+        t_hud(ui_chip)
+
+// ---------------------------------------------------------------- 17G. TIDE alerts (the bot pushes only its signals: "TIDE LIVE SHORT ... @entry stop ... TP1 ... TP2 ...", W:209 / W:414)
+int td_cd = G.cDir
+int td_na = 0
+int td_nr = 0
+for x in SU
+    td_na += x.stat == 0 and x.rno == 0 ? 1 : 0
+    td_nr += x.stat == 0 and x.rno > 0 ? 1 : 0
+int td_sg = nz(G.sigT)
+alertcondition(td_ok and td_cd != 0 and td_cd != td_cd[1], "TIDE CONTROL", "TIDE 4H control formed or changed (trap / bias), chart view")
+alertcondition(td_ok and td_na > td_na[1], "TIDE SETUP ARMED", "TIDE setup armed (failed break + shift, or accepted break), chart view")
+alertcondition(td_ok and td_nr > td_nr[1], "TIDE RETEST", "TIDE first retest of an armed setup: the 1m rejection close is the trigger, chart view")
+alertcondition(td_ok and td_sg != td_sg[1], "TIDE TRIGGER", "TIDE LIVE (chart view): a 1m rejection passed the chart-visible gates; the bot decides grade, news and broker")
+// the same trigger with the bot's push words, for "Any alert() function call" alerts
+if td_ok and td_sg != td_sg[1] and barstate.isrealtime
+    alert("TIDE LIVE (chart view) " + (G.sigDir > 0 ? "LONG" : "SHORT") + " @" + str.tostring(G.sigE, format.mintick) + " stop " + str.tostring(G.sigS, format.mintick) + " TP1 " + (na(G.sigT1) ? "?" : str.tostring(G.sigT1, format.mintick)) + " TP2 " + (na(G.sigT2) ? "?" : str.tostring(G.sigT2, format.mintick)) + " | " + G.sigTxt, alert.freq_once_per_bar_close)

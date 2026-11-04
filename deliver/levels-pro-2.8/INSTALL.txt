@@ -1,0 +1,57 @@
+LEVELS PRO v2.8: INSTALL (display only; nothing here touches the bot or the account)
+
+v2.8 is TWO indicators. Add both to the same chart.
+- Daily Levels PRO v2.8: your levels, lines and tags, as you have them now.
+- Levels PRO TIDE v2.8: what the TIDE bot sees at those levels.
+They are two scripts because TradingView rejects a single script that large.
+
+1. Daily Levels PRO v2.8 (replaces v2.7.3 on your chart)
+   1. Open the Pine Editor. Open your Daily Levels PRO script (v2.7.3).
+   2. Select all, delete, paste the whole of LevelsPRO-v2.8.pine, then press "Save".
+      Saving over the same script keeps all your settings.
+   3. The chart reloads it as "Daily Levels PRO v2.8" (LVL 2.8).
+   4. Settings to keep:
+      - Everything stays as you had it.
+      - The new switch "Old model (r13.x, manage-only)" is under "Old model (v2.8)". Leave it OFF.
+      - With it OFF:
+        - the tags show the level, its price and SWEPT;
+        - the old chip and board, the glow, the wake candles and the 24 old alerts are gone (the bot no longer trades that model);
+        - the TIDE board comes from the second indicator.
+      - With it ON: v2.7.4 exactly.
+      - The "PARITY (retired in v2.8: unused)" group does nothing now. Ignore it.
+
+2. Levels PRO TIDE v2.8 (new)
+   1. In the Pine Editor, open a new indicator. Select all, delete, paste the whole of LevelsPRO-TIDE-v2.8.pine.
+   2. Press "Save" and name it "Levels PRO TIDE v2.8".
+   3. Press "Add to chart".
+   4. Settings to keep (the defaults):
+      - TIDE layer ON.
+      - TIDE history 3000 1m bars. The bot warms on 2000; more means a slower load. If the board says "1H unknown" for a long time, raise it to 5000.
+      - Zone bands ON, Plan ON, Blocks / open wait / 12:55 / 13:05 ON.
+      - TIDE board ON, Board position "Bottom Left". This keeps it clear of the Levels PRO board, which sits Middle Left by default.
+      - Glow ON.
+      - Wake candles ON. Levels PRO's own wake candles are off while its Old model is off, so only this script colours the candles.
+   5. Chart: any 1m to 60m chart works. The engine always reads the 1m bars inside your candles, the same input the bot uses.
+   6. Visual order: right-click the TIDE indicator > "Visual order" > "Send to back", so the level lines and tags of Levels PRO stay on top of the zone bands.
+
+3. How to read it
+   - Each TIDE zone is a faint band with its state written at the left.
+     Example: "4H Open B · failed▼  ✕ AGAINST_CONTROL"
+   - The words are the bot's own:
+     - watching / broken / accepted / failed: before a setup;
+     - armed: the setup is waiting for its first retest;
+     - retest-pending: the retest is in; the 1m rejection close is the trigger;
+     - rejected / cancelled / expired: done.
+   - ✕ codes say why the bot would not trade it right now (MID_RANGE, AGAINST_CONTROL, TIME_BLOCK, OPEN_WAIT, SESSION_CLOSE, ZONE_USED, RETEST_NOT_FIRST).
+   - "R 28400 ctx" = a round number: context only, never a target or a setup.
+   - The board:
+     - STAND DOWN / WAIT / SET / ARMED;
+     - the 4H control (TRAP with its extreme, or BIAS≈);
+     - the 1H state;
+     - CTRL≈ (the bot's 15m / 30m bias score, recomputed on the chart).
+   - "≈" means the chart recomputes it and it may differ slightly from the bot's own read.
+   - The chart cannot see the news pause, the early-close days, the bot's grade (A+ trades aim TP2 at the next major pool) or the broker.
+
+4. Alerts (optional)
+   On the TIDE indicator: TIDE CONTROL, TIDE SETUP ARMED, TIDE RETEST, TIDE TRIGGER.
+   Or choose "Any alert() function call" to get the trigger with entry / stop / TP1 / TP2.

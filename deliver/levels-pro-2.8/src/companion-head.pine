@@ -1,0 +1,52 @@
+//@version=5
+// ===========================================================================
+// LEVELS PRO TIDE v2.8  -  the companion of Daily Levels PRO v2.8 (11/04, Mac: "aligned with our current bot perspective of the market").
+// The chart reads the market the way the live TIDE bot does: section 17 ports the bot's structure engine (lib/structure.js r3.2, sha16
+// 2a2249f1; "S:n" = its line n) and its shadow wiring (lib/tideWire.js r2.5, "W:n"; lib/moneyRule.js "M:n") line by line onto the bot's
+// own input, the closed 1m bars of this chart (request.security_lower_tf "1"). It draws, display only:
+//   - the TIDE zones (board / OR / EQH-EQL) as bands with their state in the board words of snapshot contract r1.4 (watching, broken,
+//     accepted, failed, armed, retest-pending, rejected, cancelled, expired), the lane, the direction, R1 / R2 and the blockedBy codes;
+//   - round numbers as "ctx · never a target" (r3.2 ruling 2); the 1H RANGE mid band; the 4H TRAP extreme;
+//   - the plan (E / SL / TP1 2/3 / TP2) on a signal, the reference entry + stop on an armed setup;
+//   - TIDE's blocks 15:00-17:00 / 06:30-07:10, the 30-min open waits, the 12:55 no-entry and 13:05 flat lines;
+//   - the TIDE chip HUD (STAND DOWN / WAIT / SET / ARMED, the meter, the countdown), the glow, the wake candles, 4 TIDE alerts.
+// Daily Levels PRO v2.8 keeps every level line and tag; this script never draws a level line (two scripts: TradingView's token limit).
+// APPROXIMATE, labelled "≈": the bias score (the bot's levelsPro score on the forming 15m / 30m, ported). Not visible on a chart: the news
+// pause, early-close days, the bot's grade (A+ TP2 = the next major pool) and its broker state. PARITY.md: this text vs the bot's code.
+// ===========================================================================
+indicator("Levels PRO TIDE v2.8", shorttitle="TIDE 2.8", overlay=true, max_lines_count=20, max_labels_count=20, max_boxes_count=40)
+g_tide   = "TIDE (v2.8): the bot's model"
+td_on    = input.bool(true, "TIDE layer", group=g_tide, tooltip="ON: the bot's TIDE engine (lib/structure.js r3.2 + the tideWire shadow loop) runs on the closed 1m bars of this chart (any 1m-60m chart). Exact on the bars, except the bias score (≈, ported) and what only the bot knows (news pause, broker, grade).")
+td_hist  = input.int(3000, "TIDE history (1m bars)", minval=1500, maxval=20000, group=g_tide, tooltip="How many 1m bars back the engine starts. The bot warms on its last 2000 1m bars (ruling 6: at least ~1500). More = slower load.")
+td_zones = input.bool(true, "Zone bands + round numbers", group=g_tide)
+td_plan  = input.bool(true, "Plan (E / SL / TP1 / TP2)", group=g_tide, tooltip="On a signal: the engine's entry, structural stop, TP1 (2/3) and TP2. On an armed setup: the reference entry and stop only (contract r1.4: TP1 / TP2 stay empty until entered).")
+td_shade = input.bool(true, "Blocks, open wait, 12:55 / 13:05", group=g_tide)
+td_hud   = input.bool(true, "TIDE board", group=g_tide)
+td_pos   = input.string("Bottom Left", "Board position", options=["Bottom Left", "Bottom Center", "Middle Left", "Top Left", "Top Center", "Top Right", "Middle Right", "Bottom Right"], group=g_tide, tooltip="Bottom Left by default: Daily Levels PRO's board offers no Bottom Left position, so the two boards never overlap.")
+td_glow  = input.bool(true, "Glow on ARMED", group=g_tide)
+td_wake  = input.bool(true, "Wake candles", group=g_tide, tooltip="In STAND DOWN the candles go quiet (the chart's text colour, 72% transparent), as in Daily Levels PRO v2.7. Turn it off there if both are on.")
+td_theme = input.string("Auto", "Board theme", options=["Auto", "Dark", "Light"], group=g_tide)
+extend_r   = input.int(30, "Extend right (bars)", minval=2, maxval=200, group=g_tide)
+lookback_l = input.int(150, "Extend left (bars)", minval=0, group=g_tide)
+// Mac's palette (Daily Levels PRO section 2) and board tokens (section 13)
+col_buy   = color.new(#26D96B, 0)
+col_sell  = color.new(#FF4D4D, 0)
+col_mix   = color.new(#9FB3C8, 0)
+col_viol  = color.new(#C4A2FF, 0)
+col_amber = color.new(#FFC53D, 0)
+col_hide  = color.new(color.gray, 100)
+bool  ui_dk  = td_theme == "Dark" or (td_theme == "Auto" and not (0.299 * color.r(chart.bg_color) + 0.587 * color.g(chart.bg_color) + 0.114 * color.b(chart.bg_color) >= 128))
+color u_fill = ui_dk ? #0f151c : #ffffff
+color u_bd   = ui_dk ? #1e2a36 : #dbe2e9
+color u_t1   = ui_dk ? #e6edf3 : #0d1620
+color u_t2   = ui_dk ? #8b98a5 : #5b6b7a
+color u_acc  = ui_dk ? #7fe3ee : #0b6f7a
+// the same references Daily Levels PRO reads (its section 3 / 4): the last closed hour's ATR (distance radius), the weekly levels (bias board)
+atr_raw = request.security("", "60", ta.atr(14)[1], lookahead=barmerge.lookahead_on)
+atr_ref = math.max(nz(atr_raw, nz(ta.atr(14)) * 4.0), syminfo.mintick * 20)
+float distant_atr = 1.5
+tf_min  = math.max(timeframe.in_seconds(timeframe.period) / 60.0, 0.1)
+pwh_v   = request.security("", "W", high[1], lookahead=barmerge.lookahead_on)
+pwl_v   = request.security("", "W", low[1],  lookahead=barmerge.lookahead_on)
+wk_open = request.security("", "W", open,    lookahead=barmerge.lookahead_on)
+
