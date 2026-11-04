@@ -192,8 +192,8 @@ For a human the fix is a "boring" size, small enough that the click is automatic
 - Enter on the trigger. No extra "wait one more candle" filters added out of caution (Mac: late entries cost us, see §3).
 - **Never widen a stop.** A stop only moves in the trade's favour (to W after the partial, then the trail).
 - **No early exit before the plan's target** except the defined partial at W. No timed exits (§5).
-- **After a loss, a cooling-off period before the next entry** (the video uses 30 minutes; the bot has re-entry cooldowns, and the day limit is
-  the hard version). Mac to confirm the minutes for the new model.
+- **After a loss, a cooling-off period before the next entry** (the video uses 30 minutes; the bot has re-entry cooldowns).
+  Mac to confirm the minutes for the new model. NO daily loss limit (§17).
 - Size must stay where Mac himself can watch every trade calmly. That is why the max-loss-per-trade number is Mac's to set (§6).
 
 ## 12. Big-money footprints: gaps, contraction, pin-bar illusions, climaxes (Mac's study material, part 4)
@@ -378,3 +378,22 @@ Targets and management:
 - Kill zones: London 23:00–02:00 PT and the NY open 06:30 PT are her prime windows. **The live bot currently BLOCKS 06:30–07:10 PT**,
   and the 15:00–17:00 PT Asia block is outside her windows anyway.
 - Scale via accounts (copy-trading), not per-trade risk: the way to "leverage" a profitable model without risking the combine.
+
+## 17. RULING: our trading style, Candace's SIZE style (Mac, 11/04)
+
+> "I don't want her trading style, I want her SIZE style." "No daily loss limit! Don't forget that!"
+
+- **Trading:** everything in §1–15 (Mac's model). None of her ICT-specific pieces (kill zones, IFVG, RTH gap, SMT) in the build.
+- **Size by setup grade, in dollars per trade.** Contracts = grade dollars ÷ (our structural stop pts × $2), MNQ.
+  - Grades in OUR terms:
+    - **A+:** 4H control plus a trap at an obvious pool (4H open, PDH/PDL, session high/low), with a displacement shift and the first retest.
+    - **B:** one of those missing.
+    - **C:** two missing.
+  - Starting values for a 150K account: A+ ~$900 / B ~$600 / C ~$300, as config per account size.
+- **Scale in on A setups:** half on the first trigger, the rest on the retest/gap entry. B/C: one entry, no adds.
+- **NO daily loss limit.** Not in the bot, not as a dollar cap, not as a trade count. (The account's own firm rules are the only outer limit.)
+- **Stop:** OUR structural stop (§5, option C), sized down to fit the grade dollars. No skipping for stop width.
+  - MNQ's small contract size makes this workable where NQ minis would not be. Rationale in MacArthur's 11/04 answer.
+- **Grow by adding accounts** (copy-trading), not by raising per-trade risk.
+- **Testing path:** the new model runs on Mac's $150K practice account sized as a real 150K first.
+  Mac buys the 150K combine once it's on pace.
