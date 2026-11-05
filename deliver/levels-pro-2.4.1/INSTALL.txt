@@ -1,0 +1,24 @@
+LEVELS PRO v2.4.1 - paste sheet (3 steps). Mac's paste is the first compile.
+
+1. PASTE. TradingView > Pine Editor > Open > New blank indicator. Select all, delete, paste the whole of
+   LevelsPRO-v2.4.1.pine (2581 lines; sha256 in SHA256SUMS). Save as "LEVELS PRO v2.4.1".
+   If the editor reports a compile error or "too many tokens", stop: re-paste LevelsPRO-v2.4-dev.pine
+   (deliver/levels-pro-2.4-dev, the untouched basis) and send the exact error text to the desk.
+
+2. ADD TO CHART. Add to chart; remove the old LEVELS PRO v2.4-dev from the chart (same levels, same
+   colours; two copies double the lines). Inputs: on the DESKTOP leave Mobile Mode OFF - the chart is
+   2.4-dev's, line for line. On the PHONE (TradingView app, iPhone 14 Plus) open the indicator settings
+   once: Dashboard > Mobile Mode ON. Leave the four new "Mobile:" inputs at their defaults
+   (Full Labels 7, Label Gap 0.11, Label Offset 2, Extend Right 12). Chart settings > Scales > set the
+   right margin to 20+ bars once.
+
+3. WHAT MAC SHOULD SEE on a 5m MNQ chart at 390-428 pt wide, Mobile Mode ON: one column of label plates
+   starting 2 bars right of the last candle, none overlapping; the 7 levels nearest price with full text
+   (name, control, state, price) on 2 px lines, the rest a short code + price (e.g. "PWH 25172.00") on
+   1 px lines, monthly levels dotted; the in-play level violet and 3 px as before; plates near-white on a
+   light chart, dark on a dark chart; the compact 3-column board as before. Level-state colours unchanged.
+   If two plates still touch, raise Mobile: Label Gap to 0.16; if plates float above their lines when
+   zoomed in, lower it to 0.06.
+
+Fallback at any step: re-paste LevelsPRO-v2.4-dev.pine. Nothing in v2.4.1 touches alerts, the bot, or
+any level value.
