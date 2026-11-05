@@ -1,0 +1,37 @@
+PASS T0 TIDE absent: nothing mounted
+PASS T0 no page errors
+PASS T1 config-local only: SHADOW + "TIDE details need bot update"
+PASS T1 no invented R or $ on the partial card
+PASS T1 checklist all UNKNOWN
+PASS T2 shadow: mode, stage entered, control SELLERS
+PASS T2 last signal: A+ 5/5, flat and grade sizes from plan.shadow
+PASS T2 sim position: SIM tag and R from livePx ((28366.75-28259)/146.25 = 0.74)
+PASS T2 no $ on the simulated open trade
+PASS T2 checklist: the signal passed every gate; one-position rule holding
+PASS T3 shadowB: armed, the 12:04 B short STOP -1R (real shadow_exit)
+PASS T3 trades row: STOP, -1.00R, sim -$450.00 (R x plan risk)
+PASS T3 checklist: the LONG setup is against SELLERS control (fail)
+PASS T3 filter: TIDE hides the old list, Old path hides the TIDE box, All shows both
+PASS T4 live badge + orders ON
+PASS T4 position: acked BE+1 stop, TP1 hit
+PASS T4 R and $ now (calc: 107.75 pts x 1 x $2)
+PASS T4 alert strip shows the stop reject
+PASS T11 the old Position card is FLAT while TIDE holds a position: the banner says so
+PASS T4 OK clears the alert (non-blocking)
+PASS T5 stopAcked null -> "stop NOT acked"
+PASS T5 no pointValue and an unknown symbol -> $ UNKNOWN; R from livePx
+PASS T5 no rows -> control UNKNOWN
+PASS T5 unknown mode string -> UNKNOWN badge
+PASS T5 mode off -> card hidden
+PASS T5 tide removed -> card hidden
+PASS T6 exit paths
+PASS T7 every TIDE update < 50 ms
+PASS T8 re-entry: the closed A+ (TP1→TP2) and a new open trade, kept apart
+PASS T8 no-stop alert is critical with role=alert
+PASS T8 trades: TP1→TP2 +$661.76 broker net and the OPEN re-entry row
+PASS T8 old path apart: account day - TIDE net
+PASS T9 rig snapshot (bot r1.2 view()): LIVE, the C trade TP1→TP2 +1.41R
+PASS T9 trades: gross $521 labelled until the net arrives, the fills path
+PASS T10 view() position: nested TP1/TP2, break-even, the bot's $
+PASS T10 no UNKNOWN on a filled view() position
+feat-20918: 36 passed, 0 failed

@@ -1,0 +1,27 @@
+PASS L0 TIDE absent: nothing mounted, the old Levels now card untouched
+PASS L0 no page errors
+PASS L1 board: the S406 group collapsed into ONE next-to-act (4H Open + members)
+PASS L2 armed plan: "level" / "stop ref" / "TPs set at signal", never an order
+PASS L3 blockedBy TIME_BLOCK shown; control since shown
+PASS L4 the old Levels now card is folded away in TIDE mode
+PASS L5 round numbers sort last (context only)
+PASS L6 control.since null -> no "since"
+PASS L7 r1.4 codes ZONE_USED / RETEST_NOT_FIRST and the state rejected
+PASS L8 the r1.3 code FIRST_RETEST_USED reads "zone used"
+PASS L9 truncated -> "more levels not shown"
+PASS L10 board absent -> phase A from tide.rows, with "needs bot r1.3"
+PASS L11 phase A side is labelled derived
+PASS L12 no sideways scroll
+PASS L13 every Levels Now update < 50 ms
+PASS L14 phase A (rows only): the armed S301 setup at Asia High is next to act
+PASS L15 phase A: no invented plan, the missing parts say "needs bot r1.3"
+PASS P1 the Position card IS the TIDE trade: fill, size, the bot's $, acked stop
+PASS P2 TP1 / TP2 levels and the source line
+PASS P3 no UNKNOWN on a filled TIDE position card
+PASS P4 header cell reads the TIDE position (not FLAT)
+PASS P6 a stale snapshot: "stale hh:mm:ss" + "last known", never live
+PASS P7 zero contracts -> the page's own card; PENDING -> "TIDE entry working, not filled" above it
+PASS P5 position null -> the page's own card and cell come back
+PASS R1 ruler at break-even: one STOP · ENTRY marker (no overlap)
+PASS R2 Now tab ≤ 7 screens in live (844 px)
+feat-20919: 26 passed, 0 failed

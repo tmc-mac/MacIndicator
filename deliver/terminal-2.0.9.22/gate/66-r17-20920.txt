@@ -1,0 +1,25 @@
+PASS tide20-r17live dashboard: no [object Object] / NaN / undefined
+PASS tide20-r17live levels: no [object Object] / NaN / undefined
+PASS tide20-r17live journal: no [object Object] / NaN / undefined
+PASS tide20-r17live trades: no [object Object] / NaN / undefined
+PASS tide20-r17live checklist: no [object Object] / NaN / undefined
+PASS tide20-r17live control: no [object Object] / NaN / undefined
+PASS tide20-r17live risk: no [object Object] / NaN / undefined
+PASS tide20-r17live header: no [object Object] / NaN / undefined
+PASS tide20-r17live: no page errors
+PASS L1 one position card on Now
+PASS L2 the TIDE manage block once, no old "Bot is managing" beside it
+PASS L3 Levels: the r1.7 TIDE position charted once, "Fill" (the old path is FLAT)
+PASS L4 the tape: one bar for the open trade (not doubled by the top-level position)
+PASS tide20-r17closed dashboard: no [object Object] / NaN / undefined
+PASS tide20-r17closed levels: no [object Object] / NaN / undefined
+PASS tide20-r17closed journal: no [object Object] / NaN / undefined
+PASS tide20-r17closed trades: no [object Object] / NaN / undefined
+PASS tide20-r17closed checklist: no [object Object] / NaN / undefined
+PASS tide20-r17closed control: no [object Object] / NaN / undefined
+PASS tide20-r17closed risk: no [object Object] / NaN / undefined
+PASS tide20-r17closed header: no [object Object] / NaN / undefined
+PASS tide20-r17closed: no page errors
+PASS C1 Review: one TIDE trade card, net +$411.68 from the bot's tied trip
+
+r17-20920: 23 passed, 0 failed

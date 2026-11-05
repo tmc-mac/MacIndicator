@@ -1,0 +1,9 @@
+PASS F1 before the receipt: fill UNKNOWN on Now
+PASS F2 receipt arrives: the card shows the observed fill
+PASS F3 updated in place (no reload)
+   fill shown 11 s after the receipt was written; journal reads 1
+PASS F4 the journal reads stop once the fill is observed
+PASS F5 chase state
+PASS F6 TIDE position before its fill: UNKNOWN fill, stop NOT acked
+PASS F7 next snapshot with the fill: no UNKNOWN left on the position
+fill-late-20918: 7 passed, 0 failed

@@ -1,0 +1,13 @@
+pre start 19:47:59Z
+01-qc-20922 19:47:59Z
+  exit 1
+FAIL H1 TIDE card HTF line from tide.board.htf got: 
+FAIL H2 header ends with "HTF ↓" got:  Live Scanning: looking for entriesTIDE watching ▼ 1H Open 28,628.25 · 24.75 above price · ARMED · 4H ▼ sellers 2s 
+FAIL H3 the armed setup S281 is tagged WITH HTF ↓ (green) on the TIDE card got: STAGEwait for failarmedretestentered1H Open 28,628.25: armed (tide.board) []
+FAIL H4 Levels Now: the armed 1H Open carries the tag got: LEVELS NOWTIDELIVE28,603.504H control ▼ SELLERS · trap · since 07:40 · 4H open 28,813.75 (+210.25)1H mid band 28,590.00–28,610.00 no entries insideNEXT TO ACTARMED08:30▼ 1H Open 28,628.25 +24.75 pts · price below the level · accepted-breaklevel 28,628.25 · stop ref 28,660.50 (1H) · 32.25 pts · TPs s
+FAIL H5 tape tick detail carries the tag got: ["2 events: 05:58 PT · signal · London ORH @28,466.50 · replayed at warm-up · not tradeable · C | 06:10 PT · signal · Asia High @28,588.00 · replayed at warm-up · not tradeable · B","06:27 PT · armed · London ORH 28,466.50 · waiting for the retest","5 events: 08:25 PT · armed · London High 28,660.00 · waiting for the retest of the broken swing / level and a 1m rejection (§8.4) | 08:28 PT · rejection · London High | 08:28 PT · no trade · London High · waveBias wavePeakBias 0.0842 < 0.2 · waived control4h→bias | 08:28 PT · refused · London High · REFUSED: waveBias - slot released | +1 more"]
+FAIL H6 HTF flipped up: S281 short reads AGAINST HTF ↑ (amber), header HTF ↑ got: {"tags":[],"banner":" Live Scanning: looking for entriesTIDE watching ▼ 1H Open 28,628.25 · 24.75 above price · ARMED · 4H ▼ sellers 2s "}
+FAIL H7 fields absent (r1.5.5 bot): nothing drawn, no UNKNOWN noise got: {"n":0,"banner":"\n      Live\n      Scanning: looking for entriesTIDE watching ▼ 1H Open 28,628.25 · 24.75 above price · ARMED · 4H ▼ sellers\n      2s\n    ","unknown":true}
+
+qc-20922: 22 passed, 7 failed
+pre done 19:48:23Z

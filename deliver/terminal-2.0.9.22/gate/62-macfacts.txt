@@ -1,0 +1,38 @@
+PASS L0 every script loads
+PASS L1 the fix is installed
+PASS B1 2.0.9.18 reproduces the screenshot (PML)
+PASS B1 2.0.9.18 reproduces the screenshot (30m Open)
+PASS A1 no UNKNOWN left (PML)
+PASS A2 entry = broker average 25,840.25, labelled broker fill
+PASS A3 points +13.08 and R +0.65 on |broker entry − planned stop|
+PASS A4 best R ≥ +0.78
+PASS A5 duration 9 min from the broker entry fill to the broker exit
+PASS A6 the chip ties the net with the costs
+PASS A7 the disclosure travels with the value
+PASS A1 no UNKNOWN left (30m Open)
+PASS A2 entry = broker average 25,861.00, labelled broker fill
+PASS A3 points +13.25 and R +0.66 on |broker entry − planned stop|
+PASS A4 best R ≥ +0.69
+PASS A5 duration 1 min from the broker entry fill to the broker exit
+PASS A6 the chip ties the net with the costs
+PASS A7 the disclosure travels with the value
+PASS A8 trips older than the last 10: the record's own exit still gives entry, points and fill time
+PASS A9 scaled entry: the broker average, cents rounding inside the tie
+PASS A10 record unsettled, trip tagged with its journalId: the chip uses the trip
+PASS U1 tie guard: two round trips fit -> UNKNOWN (two broker trips fit)
+PASS U2 prices that do not tie -> UNKNOWN (prices do not tie)
+PASS U3 not settled -> unchanged, awaiting broker
+PASS U4 paper trade: never a broker fill
+PASS U5 no planned stop: points and fill time are facts, R UNKNOWN with the reason
+PASS I1 await: the detail cells differ only in the reason words
+PASS I1 paper: the detail cells differ only in the reason words
+PASS I2 an observed fill receipt: before == after, byte for byte
+PASS V1 no brokerCosts -> UNKNOWN (costs not in snapshot)
+PASS V2 a second same-side record within 1 tick / 5 min, recentTrades rolled -> UNKNOWN (two trades fit one round trip)
+PASS V3 broker first entry fill 61 s from the recorded fill -> UNKNOWN
+PASS V4 journalId fallback trip of the other direction is not used
+PASS V5 costs unclipped; stop wording from stop0Src
+PASS V6 a net above the gross (negative costs) does not tie
+PASS V7 listed trip with exitSize != maxSize -> UNKNOWN
+PASS V8 a second load of the fix wraps nothing again
+macfacts: 37 passed, 0 failed
