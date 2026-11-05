@@ -52,7 +52,7 @@ When the broker rejects an entry with a halt/"market closed"/"not tradable" reas
 The day tracker showed a −$504.29 balance-vs-fills gap on 11/05 which the bot calls a non-trading adjustment. Export `account.fills[]` (time, side, qty, price, fee, orderId) and `account.adjustments[]` (time, amount, reason as the broker gives it) in the snapshot, so the phone can show the whole-day story with one P&L figure and the adjustment as a sub-line. Only broker data; no estimates.
 
 ### 3.4 Terminal 2.0.9.25: full alignment (MacMillionz builds, MacDot reviews)
-State: candidate `deliver/handoff-1105/wip/terminal-2.0.9.25-candidate/` (mobile.html `871fada5…`, gate NOT clean at hand-off: last run had qc 6 failed, plan-leak 5 failed). The builder's state report: `deliver/handoff-1105/STATE-terminal-25.md`. The UNKNOWN audit written for .25 is in the same folder (`UNKNOWN-AUDIT-25.md`) and lists what was resolved vs labelled.
+State: candidate `deliver/handoff-1105/wip/terminal-2.0.9.25-candidate/` (mobile.html `871fada5…`, gate NOT clean at hand-off: last run had qc 6 failed, plan-leak 5 failed). The builder's state report: `deliver/handoff-1105/STATE-terminal-25.md`. The independent review (HOLD, 8 blockers B1–B8, 8 should-fix) is `deliver/handoff-1105/REVIEW-terminal-25.md`: fix every blocker there first, and add a witness that asserts the SAME day-P&L figure across header, Rolling card, Trades tile, day card, Review and Sessions (B1), and painted width not textContent for the clipping checks (B6). The UNKNOWN audit written for .25 is in the same folder (`UNKNOWN-AUDIT-25.md`) and lists what was resolved vs labelled.
 Items (all must be true before it ships):
 - Every "TIDE" label a trader can read becomes "MacMillionz" (header pill, Review tab, Day P&L, journal headers). Internal field names stay.
 - Day P&L: ONE figure per card (fills-based net), bot vs old-bot never split; balance figure as a sub-line "balance … · −$x vs fills" in full, no clipping on an iPhone 14 Plus (430 px).
@@ -80,7 +80,7 @@ The reviewer's rig items were skipped on Mac's order to ship: Mac-box run (1 cor
 Mac-box run · restart soak ×3 · trade witness ("no trades" is a failure until explained) · install path (go.sh / set-terminal.sh twice from a copy over the exact live build, plus rollback) · live health alerts (not LIVE 10+ min, two restarts in 30 min, warm-up skipped). Then the QUALITY-BAR §6 trader sanity pass. Report shas, numbers and limits, not adjectives.
 
 ## 6. Files to attach to this prompt
-- `deliver/handoff-1105/` (this prompt, STATE-r1.6.3.md, STATE-terminal-25.md, UNKNOWN-AUDIT-25.md, `wip/`)
+- `deliver/handoff-1105/` (this prompt, STATE-r1.6.3.md, STATE-terminal-25.md, REVIEW-terminal-25.md, UNKNOWN-AUDIT-25.md, `wip/`)
 - `deliver/MacBot-TIDE-live-r1.6.2.zip` + `deliver/INSTALL-TIDE-live-r1.6.2.txt` + `docs/new-bot/live-r1.6.2/`
 - `deliver/terminal-2.0.9.23/`, `deliver/terminal-2.0.9.24/`, `deliver/tools/`
 - `deliver/levels-pro-2.4-dev/`, `deliver/levels-pro-2.4.1/`
