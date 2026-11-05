@@ -1,0 +1,3 @@
+t24-tide1105 dark: 4 tabs, sideways 0px, errors 0
+t24-tide1105 light: 4 tabs, sideways 0px, errors 0
+shot-tabs-20923: OK

@@ -1,0 +1,28 @@
+C .24 gate start 21:07:21Z page d7d7005965364a0b07871717afc9d71be8a9954a65803f923d3bd74795a8f47d  /tmp/claude-0/-home-user-MacIndicator/381b1833-c8be-58a5-b27d-e767976714fe/scratchpad/macui-n/cand24/mobile.html
+00-qc-20924 21:07:22Z load 2.32 1.42 0.97 page d7d70059
+  exit 0
+  21 passed, 0 failed
+65-feat-20922 21:07:31Z load 2.04 1.39 0.96 page d7d70059
+  exit 0
+  feat-20920: 27 passed, 0 failed
+02-plan-leak-20921 21:07:44Z load 1.88 1.38 0.96 page d7d70059
+  exit 1
+  plan-leak-20921: 15 passed, 1 failed
+43-shot-tabs 21:07:54Z load 1.67 1.35 0.96 page d7d70059
+  exit 0
+  shot-tabs-20923: OK
+01-qc-20923 21:08:05Z load 1.36 1.30 0.95 page d7d70059
+C .24 gate RESUME (after the container restart; 00, 65, 02, 43 landed before it) 21:10:49Z page d7d7005965364a0b07871717afc9d71be8a9954a65803f923d3bd74795a8f47d  /tmp/claude-0/-home-user-MacIndicator/381b1833-c8be-58a5-b27d-e767976714fe/scratchpad/macui-n/cand24/mobile.html
+01-qc-20923 21:10:49Z load 1.13 0.62 0.24 page d7d70059
+  exit 1
+  qc-20923: 61 passed, 5 failed
+03-qc-20922 21:11:41Z load 1.99 0.95 0.38 page d7d70059
+  exit 1
+  qc-20922: 26 passed, 3 failed
+57-no-sideways 21:12:25Z load 3.53 1.42 0.56 page d7d70059
+  exit 0
+  no-sideways: 64 passed, 0 failed (7 tabs x 390x844 / 400x800 x dark / light x live / replay page)
+30-identity-vs-2.0.9.23 21:13:43Z load 3.67 1.99 0.84 page d7d70059
+  exit 1
+  identity-20918: 33 passed, 19 failed (52 runs x 7 views, TIDE off)
+C .24 GATE DONE 21:28:39Z

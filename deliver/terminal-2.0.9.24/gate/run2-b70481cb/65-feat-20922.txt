@@ -1,0 +1,29 @@
+PASS T1 the tape replaces the Hour strip (strip hidden, not removed)
+PASS T2 the control lane from tide.board.control
+PASS T3 no-entry shading: TIME_BLOCK + OPEN_WAIT from tide.rules
+PASS T4 the caption: next 4H open countdown
+PASS T5 the now marker is a transform
+PASS T6 render cost measured (max 3.0 ms over 3 updates; budget 4 ms unloaded, 50 under the gate load)
+PASS T7 a tap gives one aria-live detail line; hit rects 44 viewBox px
+PASS L1 PLAN lines from the board NEXT TO ACT (reference: level + stop ref, TPs set at signal)
+PASS L2 the card says TIDE PLAN, reference, not the old level-event text
+PASS L12 a TIDE board plan keeps "Plan entry" (plans unchanged)
+PASS L3 "Old levels path (manage-only)" button, off by default
+PASS L4 toggle on: the old path's lines, labelled manage-only
+PASS L5 toggle off again: TIDE lines
+PASS L6 an armed level without a plan: no lines, a TIDE note (never the old event plan)
+PASS V1 macui.pageVersion = 2.0.9.24 (the journal export reads it)
+PASS E1 no page errors (board16)
+PASS L7 TIDE in a trade: the lines from tide.position (fill, acked stop, TP1, TP2)
+PASS L11 MacCharts names the TIDE fill line "Fill", never "Plan entry"
+PASS L8 the card says TIDE IN TRADE
+PASS L9 a stop not acked is labelled asked
+PASS L10 no observed fill: nothing charted, UNKNOWN said
+PASS T8 the open TIDE position is a trade bar on the tape
+PASS E2 no page errors (live)
+PASS T9 no board: the journal control_form, labelled "needs bot r1.3" (or none)
+PASS J1 MacArthur ruling: the Open wait / Time block rows only under "Control & rules", not under "All"
+PASS O1 TIDE absent: no tape, no PLAN changes, no journal root
+PASS O2 no page errors (TIDE off)
+
+feat-20920: 27 passed, 0 failed

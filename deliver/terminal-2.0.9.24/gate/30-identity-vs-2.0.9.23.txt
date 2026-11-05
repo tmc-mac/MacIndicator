@@ -1,0 +1,74 @@
+FAIL blocked                    views DIFF journal,control (2b6c63 e27b09 03c723 fe4f82 ff4fe7 c8b618 53f2e4) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [136,339,344,76,358,279] cand [190,194,377,101,147]
+   first difference in journal at 27095 
+   ref : le">Levels now <span class="title-sub" id="lv-dash-sub">60 events (newest shown) · 13 filled</span></div><div class="mc-slot" data-mc="levelsNow"><div class="mc" data-kind="levelsNow"><div class="mc-r
+   cand: le">Levels now <span class="title-sub" id="lv-dash-sub">60 events (newest shown), 13 filled</span></div><div class="mc-slot" data-mc="levelsNow"><div class="mc" data-kind="levelsNow"><div class="mc-re
+FAIL f160334                    views DIFF control,risk (114665 3bd188 440253 5a0c8f 5cb44a 5e46be 24acb3) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [190,214,237,101] cand [199,75]
+   first difference in control at 162726 
+   ref : his poll; never blocks)</dd><dt>Reason</dt><dd><q class="bx-gr">cme: Levels PRO + MAC Trap day rolls at 15:00 PT (CME session, like the indicators), VWAP restarts 06:30 PT</q><span class="bx-gnone" hi
+   cand: his poll; never blocks)</dd><dt>Reason</dt><dd><q class="bx-gr">cme: Levels PRO day rolls at 15:00 PT (CME session, like the indicators), VWAP restarts 06:30 PT</q><span class="bx-gnone" hidden="">The
+PASS f160334demo                views IDENTICAL x7 (9b02c1 a52481 f04f9e 67d923 f90ec5 cd0e65 bf922c) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [58,78] cand [68,73,263]
+PASS fill18-late                views IDENTICAL x7 (86f0d9 231580 4dc5bd 6b7b5e a78bce 4dd12f fcb4d5) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [52,51,91] cand [54,81]
+PASS flat                       views IDENTICAL x7 (82e24f c4b511 354a09 e44633 94f3a1 2c8e56 2828f0) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [62,98,85] cand [89]
+PASS longname                   views IDENTICAL x7 (cc1398 43b6f1 21d35a d850e0 cd8b55 ebbb59 291aab) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [80] cand [84,169]
+PASS mac0015                    views IDENTICAL x7 (e57920 1448b9 037aaf fca018 a14a64 10664b ff316c) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [65] cand [195,68]
+PASS mac1814                    views IDENTICAL x7 (21fb27 65884d b3b4ac b08759 bae1b3 190a4b cf621e) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [] cand [114]
+PASS mac1814t                   views IDENTICAL x7 (21fb27 65884d b3b4ac b08759 c2dc52 3a0b75 296648) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [61] cand [69,56]
+PASS mac1815                    views IDENTICAL x7 (c067a2 3569eb b83b39 ad777d c20d79 9caf5c 1b48e8) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [59] cand [64]
+PASS mac2308                    views IDENTICAL x7 (80d23e 411c33 e8ea05 5d754b 1ca7b1 ebd9cf 6723db) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [96,148] cand [60,71]
+PASS macctl                     views IDENTICAL x7 (ae21c2 3edc55 e8d169 a17b17 33b1d0 63711b 48ce08) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [64,74] cand [65,77]
+PASS macctl2                    views IDENTICAL x7 (d531b9 5b586c 5d5699 adf77d 18ef31 60be5e e5ed0c) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [70] cand [69]
+PASS paused                     views IDENTICAL x7 (5ec270 08c616 0d0b91 c6d10b 2675d3 c5b141 d3fe6e) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [88] cand [76,133]
+FAIL qc154-flat                 views IDENTICAL x7 (525d1a 5dd481 9cec67 1774d4 239219 7ad3b3 72926d) fx18-mounted true,true,true,all errors ref 0 cand 0 longtasks ref [54] cand [52]
+FAIL qc154-pos                  views IDENTICAL x7 (a12fa6 32f0df 3b650d 039635 fd3a09 93a61e 61d10d) fx18-mounted true,true,true,all errors ref 0 cand 0 longtasks ref [53,60] cand []
+FAIL qc154-pos2                 views IDENTICAL x7 (549619 a2ed57 171346 c9c36b cab33d c3e7da bd5f0d) fx18-mounted true,true,true,all errors ref 0 cand 0 longtasks ref [] cand [57,69]
+FAIL qc155-flat                 views IDENTICAL x7 (59c884 893109 8968e3 9624fa 6a95a1 5273ec b1798a) fx18-mounted true,true,true,all errors ref 0 cand 0 longtasks ref [52] cand []
+FAIL qc155-ring                 views IDENTICAL x7 (fdb07a 2ce0a3 a07d6b bb9808 23da47 2fa849 6b995f) fx18-mounted true,true,true,all errors ref 0 cand 0 longtasks ref [55] cand [54]
+FAIL qc156-htf                  views IDENTICAL x7 (924be0 b005cd 4d05ba 5821bd 428598 6f24ed ed11d8) fx18-mounted true,true,true,all errors ref 0 cand 0 longtasks ref [64,54] cand [55]
+PASS r1333settled               views IDENTICAL x7 (7a1cc8 0bf928 a37c1a e91eff c0a610 03cf02 c827e5) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [55] cand [53]
+PASS r1333stop                  views IDENTICAL x7 (359952 12ad29 6f3833 282407 4815ab 7d0709 d753cc) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [128] cand [52]
+PASS r1334ctl                   views IDENTICAL x7 (7d6e02 f65a9f fd2889 f38322 bd9ffa 5bf487 53a9c8) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [57,79] cand [67]
+PASS r1334lo                    views IDENTICAL x7 (10e925 dc4b5d 6d224e 80b3c4 e96a37 bef566 d5c3e2) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [57,67] cand [67,63]
+PASS r1334plan                  views IDENTICAL x7 (46b893 c01377 90cf0b a1f8fb 0e2235 4d98dc d609c9) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [57,94] cand [59,67]
+PASS r133am                     views IDENTICAL x7 (dcff23 6e381e a948c3 f567f9 02a69b 4dc424 cdbb5d) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [64] cand [57,68]
+PASS r133blocked                views IDENTICAL x7 (e8cb40 841636 be5312 2e0a5d b043d2 bb7729 3d4226) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [74] cand [59,77]
+PASS r133demo                   views IDENTICAL x7 (5fca7f 597cb7 eaa35b b2d976 b81473 3582d7 1b717a) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [51,100] cand [55,116]
+PASS r133eod                    views IDENTICAL x7 (590953 576df1 8c5b0e 5947bc 921d3d 8c8d6a 760a2a) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [59,57,115] cand [59,121,50]
+PASS r133noplan                 views IDENTICAL x7 (cda039 1d1d42 64e831 d616c1 2bdf2c 82cb3d 52de3d) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [72,62] cand [54,83]
+PASS r133paper                  views IDENTICAL x7 (8ec5d7 ae7c74 65f422 ce4a53 f53364 48c8f5 2ea302) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [52,78] cand [52,92]
+PASS r133paused                 views IDENTICAL x7 (5fd5f7 11b87d 23c432 f0bedb aaa7ed 41b51e 2f86bf) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [57,72] cand [58,82]
+PASS r133pending                views IDENTICAL x7 (7b92c9 05dd62 5cf0c7 dac238 3411a9 c287fd 27da2b) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [61,84] cand [61,84]
+PASS r133trade                  views IDENTICAL x7 (20f4ce e3b16d 3f8694 543cab 6b22a6 cd6570 e984ec) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [69,78] cand [58,79]
+PASS s11mix                     views IDENTICAL x7 (9bc953 e6d8fa e9dd84 ea2d33 739e6a 4f9ccb 439d96) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [80,79] cand [52,63,80]
+PASS s11stop                    views IDENTICAL x7 (d398bd 2d9abc 84cb54 22eec0 72c9d3 3d61e9 0fc4c2) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [58,133] cand [75,90,54]
+PASS s14wait                    views IDENTICAL x7 (82e24f c4b511 354a09 d6bd29 97c5a2 0c6edf 117d30) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [56,115] cand [56,77]
+PASS stale                      views IDENTICAL x7 (d6b65c 94f14d 5406a7 bfd692 aa3afe dee7f1 692c67) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [90] cand [62,50,78]
+FAIL t23-act                    views IDENTICAL x7 (900459 0445e6 66b071 22d643 4d18f0 af23eb 128668) fx18-mounted true,true,true,all errors ref 0 cand 0 longtasks ref [53] cand [56]
+FAIL t23-getready               views IDENTICAL x7 (0d3f91 ba082f dd5c48 dc9414 2b776f f61f34 9b47bb) fx18-mounted true,true,true,all errors ref 0 cand 0 longtasks ref [53] cand [58]
+FAIL t23-pnl1105                views DIFF dashboard,trades,checklist,levels,journal,control,risk (ef5a43 0b333e c95083 157985 318e9e 708913 11b60f) fx18-mounted true,true,true,all errors ref 0 cand 0 longtasks ref [55] cand [57,53]
+   first difference in dashboard at 75463 
+   ref : dy"><div class="trade-row res-row res-loss" data-j="rt-2026-11-03T16:10:00.000Z"><div><div class="trade-main"><b class="k-short">▼ SHORT</b><span class="trade-size">3x</span><span class="trade-entry">
+   cand: dy"><div class="trade-row res-row res-loss" data-j="rt-2026-11-03T16:10:00.000Z" data-fx24="none"><div><div class="trade-main"><b class="k-short">▼ SHORT</b><span class="trade-size">3x</span><span cla
+FAIL t23-pnl1105-acct           views DIFF dashboard,trades,checklist,levels,journal,control,risk (4d6d7f e76d4c fbff80 a3bfec 82bf0e cb90c9 29e573) fx18-mounted true,true,true,all errors ref 0 cand 0 longtasks ref [56] cand [55]
+   first difference in dashboard at 75008 
+   ref : dy"><div class="trade-row res-row res-loss" data-j="rt-2026-11-03T16:10:00.000Z"><div><div class="trade-main"><b class="k-short">▼ SHORT</b><span class="trade-size">3x</span><span class="trade-entry">
+   cand: dy"><div class="trade-row res-row res-loss" data-j="rt-2026-11-03T16:10:00.000Z" data-fx24="none"><div><div class="trade-main"><b class="k-short">▼ SHORT</b><span class="trade-size">3x</span><span cla
+FAIL t23-standdown              views DIFF dashboard,trades,checklist,levels,journal,control,risk (45162e 82f362 2864a3 7d0a5d c52833 3fcf0e 4cd134) fx18-mounted true,true,true,all errors ref 8 cand 0 longtasks ref [50] cand [52,50,248]
+   first difference in dashboard at 20107 
+   ref : </rect><rect class="fx20-c" data-dir="-1" data-k="trap" x="354.0" y="11" width="-11.6" height="14" rx="3"></rect><text class="fx20-ct" x="358.0" y="22">▼ SELLERS · trap</text><rect class="fx20-s" data
+   cand: </rect><rect class="fx20-c" data-dir="-1" data-k="trap" x="354.0" y="11" width="0.0" height="14" rx="3"></rect><text class="fx20-ct" x="358.0" y="22">▼ SELLERS · trap</text><rect class="fx20-s" data-c
+FAIL t23-trade                  views DIFF dashboard,trades,checklist,levels,journal,control,risk (0a4d90 1e5913 7f9c59 4927c8 5def44 963037 cec78e) fx18-mounted true,true,true,all errors ref 0 cand 0 longtasks ref [53] cand [57,56]
+   first difference in dashboard at 78101 
+   ref : ody"><div class="trade-row res-row res-win" data-j="rt-2026-11-03T15:36:19.558Z"><div><div class="trade-main"><b class="k-long">▲ LONG</b><span class="trade-size">6x</span><span class="trade-entry">@ 
+   cand: ody"><div class="trade-row res-row res-win" data-j="rt-2026-11-03T15:36:19.558Z" data-fx24="matched"><div><div class="trade-main"><b class="k-long">▲ LONG</b><span class="trade-size" title="qty from t
+FAIL t23-wait1h                 views IDENTICAL x7 (27e987 a4aa4c b18413 5a72c7 78f62d 8d522d 006f14) fx18-mounted true,true,true,all errors ref 0 cand 0 longtasks ref [52] cand [59]
+FAIL t23-warm                   views IDENTICAL x7 (03f2ce 245a93 6ae438 97674b 08b6ce 300106 afc7f1) fx18-mounted true,true,true,all errors ref 0 cand 0 longtasks ref [50] cand [53]
+FAIL t23-warm156                views IDENTICAL x7 (f2c6eb 0c6f55 967712 d0c7c6 e87bfc a5fc75 dd1644) fx18-mounted true,true,true,all errors ref 0 cand 0 longtasks ref [50] cand [52]
+FAIL t24-tide1105               views DIFF dashboard,trades,checklist,levels,journal,control,risk (c8faea 0f9173 166b06 9a6c7e 33a926 095bb7 273a23) fx18-mounted true,true,true,all errors ref 0 cand 0 longtasks ref [58] cand [59,55]
+   first difference in dashboard at 75011 
+   ref : ody"><div class="trade-row res-row res-win" data-j="rt-2026-11-03T20:29:02.000Z"><div><div class="trade-main"><b class="k-short">▼ SHORT</b><span class="trade-size">3x</span><span class="trade-entry">
+   cand: ody"><div class="trade-row res-row res-win" data-j="rt-2026-11-03T20:29:02.000Z" data-fx24="matched"><div><div class="trade-main"><b class="k-short">▼ SHORT</b><span class="trade-size" title="qty from
+FAIL tide21-leak                views IDENTICAL x7 (da2898 9b1918 52fb21 b26c90 c10d66 dd8bb0 c5cb6a) fx18-mounted true,true,true,all errors ref 0 cand 0 longtasks ref [62] cand [55]
+PASS trade                      views IDENTICAL x7 (a93bc1 3b3965 19bf91 0387fb 412a2f ccee8a 8d18a4) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [51,82] cand [52,89]
+PASS mac1814+tide-mode-off      views IDENTICAL x7 (21fb27 65884d b3b4ac b08759 bae1b3 190a4b cf621e) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [] cand []
+PASS mac1814+override-off       views IDENTICAL x7 (e10c94 c87e12 7268e4 9be1f5 1006f4 cf4880 4cd2f9) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [61,57] cand [60,60]
+identity-20918: 33 passed, 19 failed (52 runs x 7 views, TIDE off)

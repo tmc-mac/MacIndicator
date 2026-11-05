@@ -1,0 +1,14 @@
+C .24 gate start 21:06:08Z page b70481cbfe25d39c6deed575855b3a7950fbc6bbd9d1903077a36cf5d5da9313  /tmp/claude-0/-home-user-MacIndicator/381b1833-c8be-58a5-b27d-e767976714fe/scratchpad/macui-n/cand24/mobile.html
+00-qc-20924 21:06:08Z load 2.25 0.92 0.77 page b70481cb
+  exit 0
+  21 passed, 0 failed
+65-feat-20922 21:06:18Z load 3.70 1.27 0.88 page b70481cb
+  exit 0
+  feat-20920: 27 passed, 0 failed
+02-plan-leak-20921 21:06:31Z load 4.12 1.49 0.96 page b70481cb
+  exit 1
+  plan-leak-20921: 15 passed, 1 failed
+43-shot-tabs 21:06:41Z load 3.81 1.51 0.97 page b70481cb
+  exit 0
+  shot-tabs-20923: OK
+01-qc-20923 21:06:52Z load 3.51 1.52 0.98 page b70481cb

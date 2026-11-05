@@ -1,0 +1,50 @@
+PHONE TERMINAL 2.0.9.24  (display only: no bot restart, the bot is not touched)
+=====================================================================================
+What changes: only the phone page (mobile.html). The bot, its settings and your trades are untouched.
+It is 2.0.9.23 (code fc752789; or 2.0.9.22, code 8b92d047, if you did not install .23) plus:
+  - THE LEVELS TRADED ARE REPORTED. Every trade row (Now > Recent Trades, Trades, Review) is matched to the bot's own
+    TIDE record (by the order ids the bot wrote, else the entry time within 90 s and the side) and reads:
+    Level "4H Open 28,430.50 · trap" · 2 lots (from the entry fills) · +78.50 pts · +$314.00 (from the fills; the broker
+    net is named when it differs) · +5.32R · the exits (tp1 1 @ 28,361.75 (04:32) · tp2 1 @ 28,235.75 (06:13)) · Why?
+    (opens the TIDE signal row: planned entry / stop / TPs, grade tag, gates, why it was taken). The size shown is the
+    fill size (the 12:29 trade reads 1x, not 3x). A trade with no bot record reads, muted, "account fill · not matched to
+    a bot record". A trade already listed under TIDE TRADES is not listed a second time in the account box.
+  - The tape box no longer logs a negative-width error in the browser console.
+  - Copies and exports say "terminal 2.0.9.24".
+Not in this build (left for 2.0.9.25): the Sessions boxes' own $ figures from the single trade set, the HTF tag lines
+H3/H5/H7, the Levels flat-line wording (plan-leak N3), the "Show on Levels" tap scrolling to the trade's level and fill.
+
+Same look everywhere else and the same buttons. The page asks the bot for nothing new.
+With TIDE off the page is 2.0.9.23 (identity test: 2 TIDE-off states need a re-run, see CHANGES-20924.md).
+Run it when the bot is FLAT (house rule, even for display changes).
+
+Put mobile.html and set-terminal.sh (from this folder) in Downloads, then in PowerShell:
+
+1) Check the files (both must match exactly):
+   cd $env:USERPROFILE\Downloads
+   certutil -hashfile mobile.html SHA256
+      expect: d7d7005965364a0b07871717afc9d71be8a9954a65803f923d3bd74795a8f47d
+   certutil -hashfile set-terminal.sh SHA256
+      expect: d891ef9d830244f682110662f85f080dd23984cbb29ba1740cb3e34aca4fb815   (unchanged)
+
+2) Upload them and check them on the server:
+   scp mobile.html set-terminal.sh root@<HOST>:/root/
+   ssh root@<HOST> "sha256sum /root/mobile.html /root/set-terminal.sh"
+      (the same two codes as above)
+
+3) Install (it asks "Is the bot FLAT?" - type YES):
+   ssh -t root@<HOST> "bash /root/set-terminal.sh install /root/mobile.html d7d7005965364a0b07871717afc9d71be8a9954a65803f923d3bd74795a8f47d"
+   Expect this line (the backup's name may follow it):
+     DONE: mobile.html installed (sha256 verified): before fc752789 -> after d7d70059.     (you had 2.0.9.23; "before 8b92d047" = you had 2.0.9.22, also fine)
+   Any other "before" code: still fine to keep, but send me that line.
+
+4) On your phone: close the MacMillionz page/app completely and open it again.
+   Check the top-right Day P&L: ONE number with "MacMillionz Bot · Day P&L · closed trades only · n trades" under it;
+   no "TIDE" / "Old" split on Now, Trades or Review.
+
+If any step prints STOP, nothing changed - send me that output.
+
+UNDO (puts back the page it replaced, fc752789 = 2.0.9.23 or 8b92d047 = 2.0.9.22 - also no restart):
+   ssh -t root@<HOST> "bash /root/set-terminal.sh rollback"
+STATUS (changes nothing):
+   ssh root@<HOST> "bash /root/set-terminal.sh status"

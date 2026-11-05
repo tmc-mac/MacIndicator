@@ -1,0 +1,3 @@
+PASS blocked                    views IDENTICAL x7 (2b6c63 e27b09 03c723 fe4f82 bd4ca2 9ae13a 53f2e4) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [86] cand [77]
+PASS f160334                    views IDENTICAL x7 (114665 3bd188 440253 5a0c8f 5cb44a 5e46be 24acb3) fx18-mounted false,false,false, errors ref 0 cand 0 longtasks ref [76,80] cand [50,86]
+identity-20918: 2 passed, 0 failed (2 runs x 7 views, TIDE off)

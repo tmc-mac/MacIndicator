@@ -1,0 +1,8 @@
+{
+ "name": "t24-tide1105",
+ "synthetic": true,
+ "clock": 1793739600000,
+ "clockIso": "2026-11-03T21:00:00.000Z",
+ "status": "SCANNING",
+ "note": "MacUI-C 2.0.9.24 SYNTHETIC: four bot trades of one TradeDay shaped after the 11/05 live journal (S425-E, S437-E, S448-E, the 12:29 short) with their signal / setup_arm / live_fill rows, three in tide.trades; recentTrades carries the broker's view with the old list's sizes (the 12:29 trade as 3x)"
+}

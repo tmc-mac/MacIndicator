@@ -1,0 +1,23 @@
+PASS M1 Now · Recent Trades: all four rows matched to a TIDE record
+PASS M2 qty from the entry fills: 1x (12:29), 2x (S448), 4x (S437), 1x (S425) — not the broker list's 3x
+PASS M3 S448-E reads Level "4H Open 28,430.50 · trap", 2 lots, +78.50 pts, +$314.00 from the fills (broker net +$309.26 named), +5.32R
+PASS M4 S448-E exits: tp1 1 @ 28,361.75 (04:32) · tp2 1 @ 28,235.75 (06:13)
+PASS M5 the 12:29 short (journal rows only): 1 lot, +154.75 pts, $ from the fills, the broker net named when it differs
+PASS M6 S437-E: 4 lots, tp1 3 @ 28,443.75 · stop 1 @ 28,430.00
+PASS M7 S425-E: accepted-break, 1 lot, 0.00 pts (stop at break-even)
+PASS M8 no orange UNKNOWN chip / "Level: not recorded" on a matched row
+PASS M9 Why? opens the TIDE signal row: planned entry, stop, TPs, grade tag, gates, takenWhy, matched by order id
+PASS M10 Trades tab: the three trades already listed as TIDE trades are hidden in the account box (not shown twice); the 12:29 trade stays, matched
+PASS M11 the account-box row of the 12:29 trade carries the resolved line (1 lot)
+PASS M12 the TIDE trade rows carry level, kind, qty, pts, R and the exits
+PASS V1 macui.pageVersion = 2.0.9.24
+PASS E1 no page errors (t24-tide1105)
+PASS N1 the six round trips the bot did not place read "account fill · not matched to a bot record"
+PASS N2 Trades tab: all six account rows stay, each muted "not matched"
+PASS E2 no page errors (t23-pnl1105)
+PASS E3 no <rect> with a negative width on the lane fixture
+PASS E4 no page errors (t23-standdown: the rect width clamp)
+PASS I1 flat day (qc155-flat, no trade): feat-20924 adds nothing to the page (no .fx24-lv, no data-fx24)
+PASS E5 no page errors (qc155-flat)
+
+21 passed, 0 failed
