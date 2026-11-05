@@ -1,0 +1,8 @@
+{
+ "name": "t25-taken",
+ "synthetic": true,
+ "clock": 1793739600000,
+ "clockIso": "2026-11-03T21:00:00.000Z",
+ "status": "SCANNING",
+ "note": "MacUI-D 2.0.9.25 SYNTHETIC: trend_signal taken: SHORT 26,741.25, stop 26,779.25, 2 MNQ"
+}

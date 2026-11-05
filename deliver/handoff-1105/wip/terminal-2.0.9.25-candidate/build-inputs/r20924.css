@@ -1,0 +1,15 @@
+/* MacUI 2.0.9.24 (MacUI-C, 11/05): the resolved trade line (level · kind · qty · pts · $ · R · exits · Why?). Tokens only; no restyling of existing rows. */
+.fx24-lv { font-size: 11px; line-height: 1.45; color: var(--text, #e6e6e6); margin-top: 3px; word-break: break-word; }
+.fx24-lv.is-muted { color: var(--text-dim, #8a8f98); font-style: italic; }
+.fx24-k { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim, #8a8f98); margin-right: 2px; }
+.fx24-dim { color: var(--text-dim, #8a8f98); }
+.fx24-unk { color: var(--gold, #d9a441); }
+.fx24-lv b[data-s="1"] { color: var(--bull, #39c27a); } .fx24-lv b[data-s="-1"] { color: var(--bear, #e05a5a); }
+.fx24-x { color: var(--text-dim, #8a8f98); font-variant-numeric: tabular-nums; }
+.fx24-why { display: inline-block; margin-top: 2px; } .fx24-why > summary { cursor: pointer; list-style: none; display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 9px; border: 1px solid var(--line, #333a45); color: var(--accent, #6fb3ff); }
+.fx24-why > summary::-webkit-details-marker { display: none; } .fx24-why[open] > summary { color: var(--text, #e6e6e6); }
+.fx24-wb { margin-top: 4px; padding: 6px 8px; border-radius: 8px; background: var(--card-2, rgba(255,255,255,.04)); border: 1px solid var(--line, #333a45); font-size: 11px; line-height: 1.5; }
+.fx24-tag { display: inline-block; padding: 0 6px; border-radius: 8px; border: 1px solid var(--line, #333a45); font-size: 10px; }
+.trade-row[data-fx24="matched"] .res-unk { display: none; }
+li.fx23-ar[data-fx24] { flex-wrap: wrap; } li.fx23-ar .fx24-lv { flex-basis: 100%; width: 100%; }
+li.fx23-ar[data-fx24="dup"] { display: none !important; }   /* the hidden attribute alone loses to the row's display rule */

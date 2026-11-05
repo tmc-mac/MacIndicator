@@ -1,0 +1,55 @@
+PHONE TERMINAL 2.0.9.25  (display only: no bot restart, the bot is not touched)
+=====================================================================================
+What changes: only the phone page (mobile.html). The bot, its settings and your trades are untouched.
+It is 2.0.9.24 (code d7d70059; or 2.0.9.23, code fc752789, if you did not install .24) plus:
+  - EVERYTHING ON THE PHONE NAMES THE BOT "MacMillionz" (Review "MacMillionz: the day / journal / trades", Trades
+    "MACMILLIONZ BOT TRADES", the header pill "LIVE"); the word TIDE stays only inside the Why? dumps and signal rows.
+  - WARMING UP: during the rebuild the header pill reads "WARMING UP" (neutral), the line "MacMillionz warming up · n of N min".
+  - ONE DAY NUMBER: the top-right Day P&L and the Rolling P&L card show the same figure (the bot's realized from fills);
+    the balance line reads "balance +$712.65 · −$504.29 vs fills" in full, the Rolling card's sub-line names the
+    non-trading adjustment; the Day P&L cell never shows a third line or clipped text; the trip list opens on tap only.
+  - TRADES TAB: the day cards and the three tiles (This TradeDay · Closed · Win / loss · Open) come from the bot's own
+    records (the journal + fills) merged with the account round trips, by TradeDay (3:00 PM PT), so today's bot trades
+    get their card ("Thu, Nov 5 · TradeDay from Wed 3:00 PM PT") with level · kind · lots · pts · $ · R · exits.
+  - REVIEW: the money line reads one net figure "net (from fills)" when the bot sent no realized; no "net pending".
+  - DECISION CARD (Now, the Hour card): under the TREND LANE verdict, Mac's eleven rows (4H CLOSED → BEARISH/BULLISH 4H,
+    4H CONTROL OPEN, 30M OPEN, 30M ACCEPTANCE, NEXT 30M CLOSE, 5M OPEN, 4H/30M HARMONY, 5M ACCEPTANCE, 5M CONTROL,
+    5M TRIGGER, ACTION) with the bot's values from its trend-lane rows; an older bot (no trend rows) says so.
+  - Copies and exports say "terminal 2.0.9.25".
+Not in this build (see CHANGES-20925.md): the Sessions boxes' own $ figures, the HTF tag lines H3/H5/H7, the Levels
+flat-line wording (plan-leak N3), the "Show on Levels" scroll-and-highlight, the LAST REJECT line (built, witness red).
+
+Same look everywhere else and the same buttons. The page asks the bot for nothing new.
+With TIDE off the page is 2.0.9.24 (identity test in gate/).
+Run it when the bot is FLAT (house rule, even for display changes).
+
+Put mobile.html and set-terminal.sh (from this folder) in Downloads, then in PowerShell:
+
+1) Check the files (both must match exactly):
+   cd $env:USERPROFILE\Downloads
+   certutil -hashfile mobile.html SHA256
+      expect: 871fada5deb74acedd39f63e68b274861c660d271ded4939d12017cea27da528
+   certutil -hashfile set-terminal.sh SHA256
+      expect: d891ef9d830244f682110662f85f080dd23984cbb29ba1740cb3e34aca4fb815   (unchanged)
+
+2) Upload them and check them on the server:
+   scp mobile.html set-terminal.sh root@<HOST>:/root/
+   ssh root@<HOST> "sha256sum /root/mobile.html /root/set-terminal.sh"
+      (the same two codes as above)
+
+3) Install (it asks "Is the bot FLAT?" - type YES):
+   ssh -t root@<HOST> "bash /root/set-terminal.sh install /root/mobile.html 871fada5deb74acedd39f63e68b274861c660d271ded4939d12017cea27da528"
+   Expect this line (the backup's name may follow it):
+     DONE: mobile.html installed (sha256 verified): before d7d70059 -> after 871fada5.     (you had 2.0.9.24; "before fc752789" = you had 2.0.9.23, also fine)
+   Any other "before" code: still fine to keep, but send me that line.
+
+4) On your phone: close the MacMillionz page/app completely and open it again.
+   Check the top-right Day P&L and the Rolling P&L card: the SAME number; the pill reads LIVE (or WARMING UP);
+   the Trades tab has a card for today; nothing on screen says "TIDE" outside the Why? dumps.
+
+If any step prints STOP, nothing changed - send me that output.
+
+UNDO (puts back the page it replaced, d7d70059 = 2.0.9.24 or fc752789 = 2.0.9.23 - also no restart):
+   ssh -t root@<HOST> "bash /root/set-terminal.sh rollback"
+STATUS (changes nothing):
+   ssh root@<HOST> "bash /root/set-terminal.sh status"

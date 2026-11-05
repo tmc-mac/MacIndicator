@@ -1,0 +1,8 @@
+{
+ "name": "t25-watch",
+ "synthetic": true,
+ "clock": 1793739600000,
+ "clockIso": "2026-11-03T21:00:00.000Z",
+ "status": "SCANNING",
+ "note": "MacUI-D 2.0.9.25 SYNTHETIC: trend_arm at NY ORL 26,755.50: watching"
+}

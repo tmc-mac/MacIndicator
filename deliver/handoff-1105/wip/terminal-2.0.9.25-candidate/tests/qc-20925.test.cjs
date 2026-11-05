@@ -1,0 +1,62 @@
+'use strict';
+// MacUI-D 2.0.9.25 witness (fails on 2.0.9.24, passes on .25). One browser; cwd = the harness folder; MACUI_V2 = the candidate page.
+const path = require('path'); const { chromium } = require('playwright'), { startServer, openPhone, meta } = require(path.resolve('lib.cjs'));
+let pass = 0, fail = 0; const ok = (c, n, g) => { if (c) pass++; else fail++; console.log(`${c ? 'PASS' : 'FAIL'} ${n}${c ? '' : ' got: ' + String(g).slice(0, 700)}`); };
+async function withState(b, st, fn, width) { const m = meta(st), srv = await startServer(st, 'mc25', m.clock); try { const o = await openPhone(b, { port: srv.port, v: '2', clock: m.clock, width: width || 390 }); try { await fn(o.page, o.errors); } finally { await o.ctx.close(); } } finally { srv.stop(); } }
+const upd = page => page.evaluate(async () => { for (const k of ['feat20918', 'feat20919', 'feat20920', 'feat20923', 'feat20924']) { try { macui[k].update(); } catch (e) { /* */ } } await new Promise(r => setTimeout(r, 400)); try { macui.feat20925.update(); } catch (e) { /* */ } await new Promise(r => setTimeout(r, 100)); });
+const rows = page => page.evaluate(() => [...document.querySelectorAll('#fx17-hour .fx25-rows li')].map(l => l.textContent.replace(/\s+/g, ' ').trim()).join(' || '));
+const txt = (page, sel) => page.evaluate(s => [...document.querySelectorAll(s)].map(e => e.textContent.replace(/\s+/g, ' ').trim()).join(' | '), sel);
+(async () => { const b = await chromium.launch();
+  try {
+    for (const W of [390, 375, 360]) await withState(b, 't25-pnl', async (page, errors) => { await upd(page);
+      const d = await page.evaluate(() => { const c = document.querySelector('.fx19-daysplit'); const r = c.getBoundingClientRect(); const ov = [...c.querySelectorAll('*')].filter(e => { if (typeof e.checkVisibility === 'function' && !e.checkVisibility()) return false; const b = e.getBoundingClientRect(); return b.width && (b.right > r.right + 1 || e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).textOverflow !== 'ellipsis'); }).map(e => e.tagName + '.' + e.className + ':' + Math.round(e.getBoundingClientRect().right - r.right) + '/' + (e.scrollWidth - e.clientWidth)); const over = ov.length;
+        return { v: c.querySelector('.fx23-dayv').textContent, lines: [...c.querySelectorAll('.fx23-dayl')].filter(e => !e.hidden).map(e => e.textContent), detOpen: !!(c.querySelector('.fx23-daydet') && c.querySelector('.fx23-daydet').open), over, ov, pv: document.getElementById('pnl-value').textContent, ps: document.getElementById('pnl-sub').textContent }; });
+      ok(d.v === '+$1,216.94' && d.pv === '+$1,216.94', `P1@${W} header and Rolling card show the same fills figure +$1,216.94`, JSON.stringify(d));
+      ok(d.lines.length === 1 && d.lines[0] === 'balance +$712.65 · −$504.29 vs fills', `P2@${W} the balance line reads in full, at most two lines under the number`, JSON.stringify(d.lines));
+      ok(!d.detOpen && d.over === 0, `P3@${W} the trip list is closed (tap only) and nothing overflows the cell`, JSON.stringify(d));
+      ok(/balance change \+\$712\.65 · includes a −\$504\.29 non-trading adjustment \(payout\/reset\)/.test(d.ps), `P4@${W} the Rolling card sub-line names the balance change and the adjustment`, d.ps);
+      ok(!errors.length, `E@${W} no page errors (t25-pnl)`, errors.join(' | ')); }, W);
+    await withState(b, 't23-warm', async (page, errors) => { await upd(page);
+      const t = await txt(page, '.fx19-tag'), w = await txt(page, '.fx19-why');
+      ok(t === 'WARMING UP', 'W1 the header pill reads WARMING UP during the rebuild (not Blocked, not TIDE LIVE)', t);
+      ok(/MacMillionz warming up · 186 of 360 min/.test(w) && !/TIDE/.test(w), 'W2 the warm-up line reads "MacMillionz warming up · 186 of 360 min"', w);
+      ok(!errors.length, 'E no page errors (t23-warm)', errors.join(' | ')); });
+    await withState(b, 't24-tide1105', async (page, errors) => { await upd(page);
+      const t = await txt(page, '.fx19-tag'); ok(t === 'LIVE', 'B1 the header pill reads LIVE', t);
+      await page.evaluate(() => switchView('trades')); await page.waitForTimeout(500); await upd(page);
+      const k = await txt(page, '.fx18-tbox .fx18-k'); ok(/MACMILLIONZ BOT TRADES/.test(k) && !/TIDE/.test(k), 'B2 Trades: "MACMILLIONZ BOT TRADES"', k);
+      await page.evaluate(() => switchView('journal')); await page.waitForTimeout(500); await upd(page);
+      const n = await page.evaluate(() => { const bad = []; const w = document.createTreeWalker(document.getElementById('view-journal') || document.body, NodeFilter.SHOW_TEXT); let x; while ((x = w.nextNode())) if (/\bTIDE\b/.test(x.nodeValue) && !x.parentElement.closest('.fx24-why, details.fx18-sig, .fx18-sigrow, pre, code, textarea, script, style')) bad.push(x.nodeValue.trim().slice(0, 60)); return bad; });
+      ok(n.length === 0, 'B3 Review: no user-facing label says TIDE (dumps / signal rows excepted)', JSON.stringify(n).slice(0, 500));
+      ok(!errors.length, 'E no page errors (t24-tide1105)', errors.join(' | ')); });
+
+    await withState(b, 't24-tide1105', async (page, errors) => { await page.evaluate(() => switchView('trades')); await page.waitForTimeout(700); await upd(page);
+      const D = await page.evaluate(() => { const c = document.querySelector('#tl-body .tl-day'); const tiles = [...document.querySelectorAll('#tl-hero-foot .ctl-stat')].map(e => e.querySelector('.ctl-stat-l').textContent.trim() + '=' + e.querySelector('.ctl-stat-v').textContent.trim());
+        return { top: (document.querySelector('#tl-hero .tl-hero-top > span') || {}).textContent, first: c ? { name: c.querySelector('.tl-day-name').textContent, sub: c.querySelector('.tl-day-sub').textContent, pnl: c.querySelector('.tl-day-pnl').textContent, n: c.querySelector('.tl-day-n').textContent, rows: [...c.querySelectorAll('.tl-row')].map(r => r.textContent.replace(/\s+/g, ' ').trim()), fx25: c.classList.contains('fx25-day') } : null, tiles, ids: [...document.querySelectorAll('#tl-body .tl-row[data-id]')].map(r => r.dataset.id) }; });
+      ok(D.top === 'MacMillionz trades', 'T1 the Trades hero reads "MacMillionz trades"', D.top);
+      ok(D.first && D.first.fx25 && /Nov 3/.test(D.first.name) && /TradeDay from Mon 3:00 PM PT/.test(D.first.sub) && /4 trades/.test(D.first.n), 'T2 a day card for the clock\'s TradeDay (Tue, Nov 3 · from Mon 3:00 PM PT) with the 4 bot trades sits on top', JSON.stringify(D.first).slice(0, 400));
+      ok(D.first && D.first.rows.length === 4 && D.first.rows.filter(r => /4H Open 28,430\.50 · trap · (2|4) lots/.test(r)).length === 2 && D.first.rows.some(r => /NY ORL 26,890\.00 · trap · 1 lot · \+154\.75 pts/.test(r)) && D.first.rows.some(r => /4H ORH 28,354\.75 · accepted-break/.test(r)), 'T3 the rows are in the resolved form (level · kind · lots · pts · $ · R · exits)', JSON.stringify(D.first && D.first.rows));
+      ok(new Set(D.ids).size === D.ids.length, 'T4 no trade twice (ids unique)', JSON.stringify(D.ids));
+      ok(D.tiles.some(t => t === 'This TradeDay=+$587.78') && D.tiles.some(t => /^Closed=4$/.test(t)) && D.tiles.some(t => /^Win \/ loss=\d \/ \d$/.test(t)) && D.tiles.some(t => t === 'Open=0'), 'T5 the tiles: This TradeDay = the header figure (+$587.78), Closed 4, Win / loss, Open 0', JSON.stringify(D.tiles));
+      await page.evaluate(() => switchView('journal')); await page.waitForTimeout(700); await upd(page);
+      const J = await page.evaluate(() => ({ money: (document.querySelector('.tj-day .tj-money') || {}).textContent, word: (document.querySelector('.tj-day .tj-mw') || {}).textContent, pend: !!document.querySelector('.tj-day .tj-pend') }));
+      ok(J.word === 'net (from fills)' && /^[+−]\$[\d,]+\.\d\d$/.test(J.money || '') && !J.pend, 'J1 Review money line: one net figure "net (from fills)", no "pending" text', JSON.stringify(J));
+      ok(!errors.length, 'E no page errors (t24-tide1105 Trades / Review)', errors.join(' | ')); });
+    await withState(b, 't25-stale', async (page, errors) => { await upd(page);
+      const r = await txt(page, '.fx25-rej'); ok(/LAST REJECT 12:23 entry SELL 2x rejected: market halted/.test(r), 'X1 the TIDE card carries LAST REJECT 12:23 entry rejected: market halted', r);
+      const tape = await page.evaluate(() => { const T = document.querySelector('.fx20-tape'); if (!T) return null; const tk = [...T.querySelectorAll('[data-phase="setup_cancel"], .fx20-tick, text, [title]')].map(e => (e.getAttribute('title') || e.getAttribute('aria-label') || e.textContent || '').replace(/\s+/g, ' ').trim()); return { text: T.textContent.replace(/\s+/g, ' '), ticks: tk.filter(x => /STALE|cancel|×/.test(x)).slice(0, 8), rows: macui.feat20920 && macui.feat20920.last ? JSON.stringify(macui.feat20920.last).slice(0, 10) : null }; });
+      ok(tape && /×/.test(tape.text) && tape.ticks.some(x => /×|STALE|cancel/.test(x)), 'X2 the tape carries the rule-18 STALE cancel as a × tick (its why "STALE: 232.5 pts from the level (max 60)…" is the tick\'s text on tap, 2.0.9.20 design)', JSON.stringify(tape).slice(0, 600));
+      ok(!errors.length, 'E no page errors (t25-stale)', errors.join(' | ')); });
+    const L = {};
+    for (const st of ['t25-idle-nodir', 't25-idle-harm', 't25-watch', 't25-taken', 't25-skip', 't25-caps']) await withState(b, st, async (page, errors) => { await upd(page); L[st] = await rows(page); ok(!errors.length, `E no page errors (${st})`, errors.join(' | ')); });
+    ok(/1\. 4H CLOSED\s*\(prior 4H flat\)/.test(L['t25-idle-nodir']) && /11\. ACTION\s*NO ENTRY/.test(L['t25-idle-nodir']), 'D1 idle, no DIR: row 1 says why, ACTION NO ENTRY', L['t25-idle-nodir']);
+    ok(/1\. 4H CLOSED\s*BEARISH 4H/.test(L['t25-idle-harm']) && /7\. 4H\/30M HARMONY\s*NO/.test(L['t25-idle-harm']) && /2\. 4H CONTROL OPEN\s*26,812\.75/.test(L['t25-idle-harm']) && /3\. 30M OPEN\s*26,760\.25/.test(L['t25-idle-harm']), 'D2 idle, harmony: BEARISH 4H, 4H open, 30M open, HARMONY NO', L['t25-idle-harm']);
+    ok(/7\. 4H\/30M HARMONY\s*YES/.test(L['t25-watch']) && /10\. 5M TRIGGER\s*WAIT · watching NY ORL 26,755\.50 \(5\.50 pts\)/.test(L['t25-watch']) && /11\. ACTION\s*SHORT READY if/.test(L['t25-watch']), 'D3 watching: HARMONY YES, trigger WAIT watching NY ORL 26,755.50 (5.50 pts), SHORT READY', L['t25-watch']);
+    ok(/10\. 5M TRIGGER\s*REJECT @ NY ORL 26,755\.50/.test(L['t25-taken']) && /11\. ACTION\s*SHORT READY → taken 26,741\.25 · stop 26,779\.25 · 2 MNQ/.test(L['t25-taken']) && /6\. 5M OPEN\s*26,749\.00 \(12:50\)/.test(L['t25-taken']) && /5\. NEXT 30M CLOSE\s*\d+m \d\ds TO CLOSE/.test(L['t25-taken']), 'D4 taken: REJECT @ level, ACTION taken with entry / stop / size, 5M open, next 30M close', L['t25-taken']);
+    ok(/11\. ACTION\s*NO ENTRY · DEFENDED → skipped: PLAN GRADE_NO_FIT/.test(L['t25-skip']), 'D5 skipped: DEFENDED → skipped with the bot\'s why', L['t25-skip']);
+    ok(/11\. ACTION\s*NO ENTRY · cap reached/.test(L['t25-caps']), 'D6 caps: NO ENTRY · cap reached', L['t25-caps']);
+    await withState(b, 't24-tide1105', async (page) => { await upd(page); const r = await rows(page); ok(/no trend-lane rows in this snapshot/.test(r), 'D7 an r1.5.6-style snapshot (no trend rows) says so', r); });
+    await withState(b, 'flat', async (page, errors) => { await page.waitForTimeout(800); const n = await page.evaluate(() => document.querySelectorAll('.fx25-rows, [data-fx25]').length + (macui.feat20925.passes > 0 ? 1 : 0)); ok(n === 0, 'I1 TIDE off (flat): feat-20925 touches nothing (no pass ran)', n); ok(!errors.length, 'E no page errors (flat)', errors.join(' | ')); });
+  } finally { await b.close(); }
+  console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
+})();

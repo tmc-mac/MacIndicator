@@ -1,0 +1,69 @@
+/* MacUI 2.0.9.23: v2src/r20923.css (MacUI-A, Nov 5). The trend lane card in the Hour card's slot, the Review / Trades / header additions. Tokens only; the
+   vivid terminal look stays (Mac, Nov 1). Direction colours are the level-state set (--bull / --bear); ACT alone takes the full direction colour. */
+.card.fx17[data-fx23="lane"] { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
+.fx23 { display: block; }
+.fx23-hd { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fx23-time { margin-left: auto; font: 600 var(--fs-12)/1 var(--mono); color: var(--t3); font-variant-numeric: tabular-nums; }
+/* the verdict: always first, always the same place; ACT = full direction colour and glow, the quiet states muted (QUALITY-BAR 0.1) */
+.fx23-verdict { --vc: var(--t2); margin-top: 10px; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 12px; padding: 10px 12px; border-radius: var(--r-md); border: 1px solid color-mix(in srgb, var(--vc) 55%, var(--border)); background: color-mix(in srgb, var(--vc) 10%, var(--s1)); }
+.fx23-verdict[data-k="wait"] { --vc: var(--gold); }
+.fx23-verdict[data-k="ready"] { --vc: var(--accent); }
+.fx23-verdict[data-k="act"] { --vc: var(--bull); background: color-mix(in srgb, var(--vc) 22%, var(--s1)); box-shadow: 0 0 26px -6px var(--vc), inset 0 0 0 1px color-mix(in srgb, var(--vc) 40%, transparent); }
+.fx23-verdict[data-k="act"][data-dir="-1"] { --vc: var(--bear); }
+.fx23-verdict[data-k="stand"] { --vc: var(--t3); }
+.fx23-vw { font: 900 20px/1 var(--sans); letter-spacing: .12em; color: var(--vc); text-shadow: 0 0 14px color-mix(in srgb, var(--vc) 45%, transparent); }
+.fx23-verdict[data-k="stand"] .fx23-vw, .fx23-verdict[data-k="wait"] .fx23-vw { text-shadow: none; }
+.fx23-vr { font: 600 var(--fs-14)/1.3 var(--sans); color: var(--t1); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+/* the three steps */
+.fx23-steps { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.fx23-step { padding: 8px 10px; border-radius: var(--r-sm); background: var(--s2); border-left: 3px solid var(--t3); }
+.fx23-step[data-tone="up"] { border-left-color: var(--bull); }
+.fx23-step[data-tone="dn"] { border-left-color: var(--bear); }
+.fx23-step[data-tone="arm"] { border-left-color: var(--accent); }
+.fx23-sh { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fx23-sn { font: 800 10px/1 var(--mono); letter-spacing: .1em; color: var(--t3); }
+.fx23-sk { font: 800 11px/1 var(--sans); letter-spacing: .1em; color: var(--t1); }
+.fx23-chip { margin-left: auto; padding: 3px 8px; border-radius: var(--r-pill); font: 800 10px/1.2 var(--sans); letter-spacing: .08em; color: var(--t1); background: color-mix(in srgb, var(--t3) 28%, var(--s1)); white-space: nowrap; }
+.fx23-chip[data-tone="up"] { background: var(--bull); color: var(--on-tone); }
+.fx23-chip[data-tone="dn"] { background: var(--bear); color: var(--on-tone); }
+.fx23-chip[data-tone="arm"] { background: var(--accent); color: var(--on-tone); }
+.fx23-st { font: 600 11px/1 var(--mono); color: var(--t3); font-variant-numeric: tabular-nums; }
+.fx23-sx { margin-top: 5px; font: 500 var(--fs-12)/1.4 var(--sans); color: var(--t2); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.fx23-small { margin-top: 8px; font: 600 11px/1.4 var(--mono); color: var(--t3); font-variant-numeric: tabular-nums; }
+/* the Hour card's own content, folded (its DOM moves, byte for byte) */
+.fx23-fold { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 6px; }
+.fx23-fold > summary { cursor: pointer; font: 700 var(--fs-12)/1.4 var(--sans); color: var(--t2); min-height: 44px; display: flex; align-items: center; gap: 6px; }
+.fx23-fold > summary .fx18-dim { font-weight: 500; }
+.fx23-fold:not([open]) > summary::before { content: '▸'; color: var(--t3); }
+.fx23-fold[open] > summary::before { content: '▾'; color: var(--t3); }
+/* grade / lane tags (never a FAIL tile) */
+.fx23-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.fx23-tag { display: inline-block; padding: 2px 7px; border-radius: var(--r-pill); font: 700 10px/1.4 var(--sans); letter-spacing: .04em; color: var(--t2); background: color-mix(in srgb, var(--t3) 22%, var(--s1)); border: 1px solid var(--border); }
+.fx23-tag.is-g { color: var(--t1); border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+.fx23-tag.is-w { color: var(--gold); }
+.fx23-tag.is-l { color: var(--accent); }
+.fx23-tag.is-m { color: var(--t2); border-style: dashed; }
+.fx23-tagrows .fx18-cr[data-s="tag"] .fx18-cs { color: var(--t3); }
+.fx23-tagrows .fx18-cr[data-s="tag"] .fx18-cg { color: var(--t3); }
+/* the account trades today */
+.fx23-acct .fx18-tlist { margin-top: 6px; }
+.fx23-ar { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--border); font: 600 var(--fs-12)/1.3 var(--sans); color: var(--t1); font-variant-numeric: tabular-nums; }
+.fx23-ar .fx18-tx { margin-left: auto; }
+.fx23-ar[data-src="MANUAL"] b, .fx23-ar[data-src="UNTAGGED"] b { color: var(--t2); }
+.fx23-src { margin-top: 6px; }
+/* the warm-up line */
+.fx23-warm { color: var(--gold); }
+.fx23-warm b { color: var(--t1); }
+/* the header's one Day P&L story */
+#g-day-cell .fx23-dayv { font-variant-numeric: tabular-nums; }
+#g-day-cell .fx23-days, #g-day-cell .fx23-dayl { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+#g-day-cell .fx23-dayl { color: var(--t3); }
+.fx23-daydet { margin-top: 4px; font: 500 11px/1.4 var(--sans); color: var(--t2); font-variant-numeric: tabular-nums; }
+.fx23-daydet > summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; color: var(--t2); }
+/* Review additions */
+.fx23-sig { margin-top: 3px; font-weight: 500; }
+.fx23-money { margin-top: 2px; }
+.fx23-rb { margin-top: 8px; }
+.fx23-sess { margin-top: 8px; }
+.fx23-jm b { color: var(--t1); }
+@media (prefers-reduced-motion: reduce) { .fx23-verdict { transition: none; } }

@@ -1,0 +1,8 @@
+{
+ "name": "t25-pnl",
+ "synthetic": true,
+ "clock": 1793739600000,
+ "clockIso": "2026-11-03T21:00:00.000Z",
+ "status": "SCANNING",
+ "note": "MacUI-D 2.0.9.25 SYNTHETIC: dayPnlNet 1216.94 (fills) vs day.rolling 712.65 (balance): one number everywhere, the balance named as the adjustment"
+}
