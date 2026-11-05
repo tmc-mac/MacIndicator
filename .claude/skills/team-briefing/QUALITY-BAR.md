@@ -165,6 +165,16 @@ Decoration is not a signature element: gradients, glow, or a big number on its o
 
 - **Safety first:** the safety-stage contracts (durable close obligation, ownership provenance, strict defaults) apply. MacDot reviews before anything ships.
 - **Strategy changes** pass Mac's do-no-harm replay gate on multi-seed means: more money pooled, no deeper drawdown, worse on at most 2 of 6 days. The rules are declared before testing.
+- **Trader sanity pass (Mac, 11/05: "use some common sense and knowledge of trading so I don't have to babysit all scenarios that obviously shouldn't be happening").** Before any bot or terminal package reaches Mac, the builder and the reviewer each walk the live state through a trader's eyes and list what a trader would call nonsense. Standing checks, extended every time one is found:
+  - an armed setup whose retest is more than 2x its risk or 60 pts away (it is not coming back this hour: retire it, re-arm only if price returns);
+  - a "waiting" header that names a level hundreds of points from price while nearer levels are being traded through;
+  - a journal, trade list or P&L that reads empty or $0 after a restart while the broker shows trades;
+  - two P&L figures for one account, or a size on screen that is not the size filled;
+  - a refusal with no reason visible, or a reason that is a code name;
+  - a stop that is tighter than the structure it claims to sit beyond, or a stop that never moves while the runner is +1R;
+  - a trade taken or refused inside a blockout, or a signal that fires on a halted instrument and is then forgotten;
+  - any number on a card that contradicts another number on the same card.
+  Each finding is fixed in the package or written in REVIEW with the reason it is left, in plain words. "Working as designed" is not a reason if a trader would not accept it.
 - **Owner's go:** nothing reaches the live bot without Mac's explicit go, given in chat.
 - **Prop-eval risk (Mac, Nov 1):** "no need to worry about breaching the combine account, this is why we are trading prop firms. That's not in our concern."
   - Don't propose smaller size, or extra stop rules, only to protect an evaluation or combine from breaching. Example: the FundedNext 50K keeps 3 MNQ even though its $2,000 max loss leaves about 4–5 full stops.
