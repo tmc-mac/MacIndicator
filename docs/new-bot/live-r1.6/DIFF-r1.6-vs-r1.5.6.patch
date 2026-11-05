@@ -1,0 +1,1041 @@
+diff -ruN pkg-live-r1.5.6-wip/bot/lib/structure.js pkg-live-r1.6-wip/bot/lib/structure.js
+--- pkg-live-r1.5.6-wip/bot/lib/structure.js	2026-11-04 17:33:17.452750176 +0000
++++ pkg-live-r1.6-wip/bot/lib/structure.js	2026-11-05 20:58:53.971203268 +0000
+@@ -13,7 +13,8 @@
+ // so nothing it reads can come from the future. The state object is owned by the engine: step() updates it in place and
+ // returns it (use cloneState() for a snapshot). It is plain JSON.
+ 
+-const VERSION = 'tide-structure-r3.7';   // r3.7 (MacLive-5 r1.5.6, 11/04): r3.6 + htfContext (prior-4H / current-4H / CME-day direction on the state, every setup tagged with / against / neutral; cfg.htfAgainst tag | half | skip)
++const VERSION = 'tide-structure-r3.8';   // r3.8 (MacTrend r1.6, 11/05): r3.7 + cfg.gradeGate 'strict' | 'aligned-pass' (Mac 11/05: "the points system is filtering us from being in aligned trades"): with 'aligned-pass' a setup tagged htf 'with' is never refused by a grade GATE (logicalStop excepted: no stop beyond the entry is geometry, not points); the failed gate names ride on the signal as gradeTags, gradeWaived true. The library default stays 'strict' (r3.7 exactly); the wire ships 'aligned-pass'.
++// r3.7 was: 'tide-structure-r3.7';   // r3.7 (MacLive-5 r1.5.6, 11/04): r3.6 + htfContext (prior-4H / current-4H / CME-day direction on the state, every setup tagged with / against / neutral; cfg.htfAgainst tag | half | skip)
+ // r3.6 was: 'tide-structure-r3.6';   // r3.6 (MacLive-4 r1.5.5, 11/04): r3.5 + releaseOnRefusal (a refused trap frees the ONE_IDEA slot; the acceptance it blocked arms) + controlAsBias (gate control4h passes on 15m/30m bias not against the trade)
+                                           // r3.5 (MacLive-4 r1.5.5, 11/04): r3.4 + waveBiasTrend (gate waveBias relaxed to >= 0 for with-trend setups) + laneAccept keeps the accepted lane's structure terms
+                                           // r3.4 (MacLive-3 r1.5.4, 11/04): r3.3 + laneAccept / controlFree (grade gates), nearestWins (nearer same-way setup replaces the farther one), ltfOpens (30m / 15m Open zones)
+@@ -62,11 +63,13 @@
+   maxTargets: 12, swingsKept: 6,
+   staleR: 2,                        // [rule 18 v2] an armed trap (failed-break) setup with no retest yet is FAR once price is more than max(staleR x its own risk
+   staleMinPts: 60,                  //   (|level - sweep extreme|), staleMinPts) from its level; a NEARER acceptance the same way then replaces it. 0 = off (r3.2)
++  staleAccept: true,                //   [rule 18 v3, r1.6] the same distance test cancels an un-retested ACCEPTED-BREAK at a 5M close (STALE; re-arms once price is back within retestTolPts). Engine-only key for the r1.5.6 identity witness; not a tide switch (tide.staleR 0 turns both off)
+   climaxGate: true,                 // [r1.5.1] false = the CLIMAX with-trend entry block (§12.5) is bypassed (tide.climaxGate in the executor)
+   laneAccept: true,                 // [r3.4] under TRAP control an accepted-break setup the control's way passes gate laneTrigger via the failed-break lane with the kind requirement dropped (its displacement must still hold); false = r3.3
+   waveBiasTrend: true,              // [r3.5] gate waveBias passes at wavePeakBias >= 0 (not AGAINST the trade) for a WITH-TREND setup: under a same-way TRAP 4H control, or any accepted-break; everything else keeps >= 0.20. The bias is a board-proximity read: after a long move it sits near 0 and refused the 11/04 08:28 London High short. false = r3.4
+   releaseOnRefusal: true,           // [r3.6] a setup whose rejection entry gradeOf refuses is CANCELLED (why REFUSED: <gate> - slot released) so ONE_IDEA stops blocking the direction; the same-way acceptance it had ONE_IDEA-skipped is armed then (Mac 11/04 08:45-08:52: S282 blocked two LONG acceptances, then was refused)
+   htfAgainst: 'tag',                // [r3.7] HTF context (Mac 11/04 10:20: 'knowing if we're going with or against the high time frame trend'). 'tag' = every setup / signal / grade_no_trade row carries htf with | against | neutral, no trading change; 'half' = an against-HTF signal carries riskMult 0.5 (the planner halves the dollars; min 1 MNQ unchanged); 'skip' = against-HTF entries are refused (GRADE_NO_TRADE why HTF_AGAINST)
++  gradeGate: 'strict',              // [r3.8] 'strict' = every grade gate refuses (r3.7); 'aligned-pass' = a setup whose htf tag is 'with' passes every gate but logicalStop (the failed gates are journaled: signal.gradeTags, gradeWaived); 'against' / 'neutral' setups keep the strict grading
+   controlAsBias: true,              // [r3.6] gate control4h (all kinds) also passes when the latest 15m AND 30m bias readings are not AGAINST the trade (dir*s15 >= 0 && dir*s30 >= 0); journal gates.control4h keeps the real value, waived lists 'control4h->bias'. false = r3.5 (controlFree for accepted-break only)
+   controlFree: true,                // [r3.4] an accepted-break setup passes gate control4h whatever the 4H control says (opposed or none); failed-break setups keep it; false = r3.3
+   nearestWins: false,               // [r3.4] SHIPPED OFF in r1.5.4 (it drops the 11/04 witness trade in the suite; needs a replay first) a new same-way setup whose level is NEARER to price replaces the armed one (any kind pairing); a farther new one is skipped; false = r3.3 precedence (trap wins, newer acceptance wins)
+@@ -116,6 +119,7 @@
+ });
+ 
+ const HTF_MODES = Object.freeze(['tag', 'half', 'skip']);   // [r3.7]
++const GRADE_GATE_MODES = Object.freeze(['strict', 'aligned-pass']);   // [r3.8]
+ const TF = { m5: 300, m15: 900, m30: 1800, h1: 3600, h4: 14400 };
+ const CAP = { m1: 400, m5: 400, m15: 200, m30: 100, h1: 240, h4: 60, bias: 40, speed: 240, piv: 60 };
+ const WEIGHT_RANK = { strong: 3, obvious: 2, minor: 1 };
+@@ -147,6 +151,7 @@
+   const chk = (ok, m) => { if (!ok) err.push(m); };
+   chk(isNum(k.stopBuf) && k.stopBuf >= 0 && k.stopBuf <= 20, 'stopBuf 0..20');
+   chk(HTF_MODES.includes(k.htfAgainst), 'htfAgainst tag | half | skip');
++  chk(GRADE_GATE_MODES.includes(k.gradeGate), 'gradeGate strict | aligned-pass');
+   chk(isNum(k.controlGateMin) && k.controlGateMin > 0 && k.controlGateMin < 1, 'controlGateMin 0..1');
+   chk(Number.isInteger(k.firstMinutesWait) && k.firstMinutesWait >= 0 && k.firstMinutesWait <= 120, 'firstMinutesWait 0..120');
+   chk(Number.isInteger(k.failBars) && k.failBars >= 1 && k.failBars <= 12, 'failBars 1..12');
+@@ -818,6 +823,29 @@
+   st.setups.push(s);
+   E('SETUP_ARM', { setup: s.id, kind: s.kind, dir, zone: z.name, level: z.price, stopType: s.stopType, breakDisp: s.disp, wavePeakBias: s.wave.wavePeakBias, htf: s.htf, htfDir: st.htf ? st.htf.dir : 0, note: 'waiting for the defended retest (§13)' });
+ }
++// [rule 18 v3, r1.6] (Mac 11/05: a retest 232 pts away "isn't coming back; we'd be waiting hours") an ARMED accepted-break whose retest is still pending is STALE once price, at a 5M
++// close, is more than max(staleR x its risk, staleMinPts) from its level (risk = |level - the break candle's far side|, 0 when unknown -> the staleMinPts floor): cancelled
++// (SETUP_CANCEL "STALE: <pts> pts from the level (max <limit>)", the slot released, the board drops it) and remembered for the 4H period; it re-arms once, as a fresh setup id,
++// at the first 5M close back within retestTolPts of the level while no same-way idea holds the slot and the zone is unused. Same switch as rule 18 (tide.staleR; 0 = off).
++function accRisk(s) { const bb = s.breakBar; return bb && isNum(bb.h) && isNum(bb.l) ? Math.abs(s.level - (s.dir < 0 ? bb.h : bb.l)) : 0; }
++function staleAccepted(st, ctx) {
++  const { cfg, T, b, E } = ctx; if (!(isNum(cfg.staleR) && cfg.staleR > 0) || cfg.staleAccept === false || !b || !isNum(b.c)) return;
++  const P = st.period, tol = isNum(cfg.retestTolPts) ? cfg.retestTolPts : 6; st.staleAcc = st.staleAcc || [];
++  for (const s of st.setups) {
++    if (s.status !== 'armed' || s.kind !== 'accepted-break' || s.entered || s.armT === T) continue;
++    const lim = Math.max(cfg.staleR * accRisk(s), isNum(cfg.staleMinPts) ? cfg.staleMinPts : 0), away = Math.abs(b.c - s.level);
++    if (away > lim) { cancelSetup(st, ctx, s, `STALE: ${r2(away)} pts from the level (max ${r2(lim)}); re-arms if price returns within ${tol} pts (rule 18)`); s.stale = true; st.staleAcc.push({ src: s, pt: P ? P.t : null }); }
++  }
++  if (!st.staleAcc.length) return;
++  st.staleAcc = st.staleAcc.filter(x => {
++    const o = x.src; if (!P || x.pt !== P.t || st.used[o.ukey]) return false;   // the 4H period ended or the zone traded: forgotten
++    if (Math.abs(b.c - o.level) > tol) return true;
++    if (st.setups.some(q => q.dir === o.dir && ((q.status === 'armed' && !q.entered) || (q.entered && !q.closed)))) return true;   // a same-way idea holds the slot: keep waiting
++    const s = { ...o, id: `S${++st.seq}`, status: 'armed', armT: T, retest: null, retestNo: 0, maxAway: 0, legs: {}, expiresT: T + cfg.setupMaxBars * 300, stale: false, refused: false, rearmedFrom: o.id };
++    st.setups.push(s);
++    E('SETUP_ARM', { setup: s.id, kind: s.kind, dir: s.dir, zone: s.zone.name, level: s.level, stopType: s.stopType, breakDisp: s.disp, wavePeakBias: s.wave ? s.wave.wavePeakBias : null, htf: s.htf, htfDir: st.htf ? st.htf.dir : 0, rearmedFrom: o.id, note: `price back within ${tol} pts of the level after STALE (${o.id}): re-armed, waiting for the defended retest (rule 18)` });
++    return false; });
++}
+ function cancelSetup(st, ctx, s, why) { s.status = 'cancelled'; ctx.E('SETUP_CANCEL', { setup: s.id, kind: s.kind, dir: s.dir, zone: s.zone.name, why }); }
+ function roundTick(p, cfg, dir) { const k = p / cfg.tick; return (dir < 0 ? Math.floor(k + 1e-9) : Math.ceil(k - 1e-9)) * cfg.tick; }
+ function findFvg(st, cfg, dir, extT) {   // playbook §15 FVG: bearish when candle 1 LOW > candle 3 HIGH
+@@ -1021,6 +1049,16 @@
+   s.frozen = r3Facts(st, cfg, s, T);   // §23: frozen causally at the decision
+   const ev = evidenceFor(st, cfg, s, T, retestNo, { stopLogical });
+   const gr = gradeOf(ev, cfg.grade, cfg);
++  // [r3.8] cfg.gradeGate 'aligned-pass' (Mac 11/05): a WITH-HTF setup is not refused by the grade gates (points); only logicalStop (no stop beyond the entry) still refuses.
++  // The band comes from the points as usual (C at 0); the failed gate names are journaled on the signal (gradeTags) with gradeWaived true.
++  let gradeTags = [], gradeWaived = false;
++  if (!gr.grade && cfg.gradeGate === 'aligned-pass' && s.htf === 'with' && !gr.missing.includes('logicalStop')) {
++    gradeTags = gr.missing.slice(); gradeWaived = true;
++    for (const [n, min] of cfg.grade.bands) if (gr.total >= min) { gr.grade = n; break; }
++    if (!gr.grade) gr.grade = cfg.grade.bands[cfg.grade.bands.length - 1][0];
++    gr.uncapped = gr.uncapped || gr.grade; gr.waived = [...gr.waived, ...gradeTags.map(n => `${n}->aligned-pass`)];
++    E('GRADE_WAIVED', { setup: s.id, grade: gr.grade, total: gr.total, gates: gradeTags, htf: s.htf, htfDir, why: 'tide.gradeGate aligned-pass: a WITH-HTF setup is not refused by the grade gates' });
++  }
+   if (!gr.grade) {
+     const gateWhy = gr.missing.map(n => { const r = cfg.grade.required.find(q => q.name === n); return `${n}: ${r ? r.when.flatMap(condFields).map(c => `${c.field} ${c.op} ${JSON.stringify(c.value)} got ${JSON.stringify(getField(ev, c.field) ?? null)}`).join(', ') : ''}`; });
+     E('GRADE_NO_TRADE', { setup: s.id, total: gr.total, points: gr.points, missing: gr.missing, gates: gr.gates, waived: gr.waived, why: gateWhy, htf: s.htf, htfDir });
+@@ -1043,7 +1081,7 @@
+     stops: { structural, stopType: s.stopType, trapExtreme, hour1Wick, bounceExtreme,
+       rule: s.kind === 'failed-break' ? (s.stopType === '4H' ? 'failed-breakout extreme + buf (§5 C, 4H-type / trap)' : 'current 1H wick + buf (§5 C, hour-type)') : (s.stopType === '4H' ? 'retest extreme + buf (C.1)' : '1H wick incl. the retest + buf (§5 C)') },
+     chosenStop: structural, riskPts: r2(risk),
+-    grade, gradePoints: gr.points, gradeTotal: gr.total, gradeGates: gr.gates, gradeWaived: gr.waived, gradeDetail: gr.detail, gradeUncapped: gr.uncapped, gradeCapped: gr.capped, tags: gr.tags, gradeEvidence: ev, evidence: ev,
++    grade, gradePoints: gr.points, gradeTotal: gr.total, gradeGates: gr.gates, gradeWaived: gradeWaived ? true : gr.waived, gradeWaivedList: gr.waived, gradeTags, gradeDetail: gr.detail, gradeUncapped: gr.uncapped, gradeCapped: gr.capped, tags: gradeWaived ? [...gr.tags, 'aligned-pass'] : gr.tags, gradeEvidence: ev, evidence: ev,   // [r3.8] gradeWaived true + gradeTags (the failed gates) on an aligned-pass signal; else gradeWaived = the r3.6 waiver list
+     targets, pools: targets, internalPools: targets.filter(t => !t.major), contextPools: contextPools(st, cfg, d, entry, risk), swings: swingsSnap(st, cfg), marketState: Object.assign({}, st.mstate),
+     control: C ? { dir: C.dir, kind: C.kind, ext: C.ext, formedAt: ptLabel(C.formedT) } : null,
+     defended: s.defended || null, shift: s.shift ? { tf: s.shift.tf, at: s.shift.at, body: s.shift.body, xAvg: s.shift.xAvg, displacement: s.shift.disp } : null,
+@@ -1056,7 +1094,7 @@
+     : `${s.zone.name} ${s.level} accepted ${d > 0 ? 'above' : 'below'}; retest ${retestNo} wick ${s.retest.ext}; 1m rejection close ${entry}`);
+   s.entered = T; s.firstStop = structural; s.firstSignal = sig.id; s.entryGrade = grade; s.entryPoints = gr.total; s.entryRetestNo = retestNo;
+   st.used[s.ukey] = T;
+-  E('SIGNAL', { id: sig.id, dir: d, kind: s.kind, entryType: sig.entryType, entry, stop: structural, risk: sig.riskPts, grade, points: gr.total, htf: s.htf, htfDir, riskMult: sig.riskMult });
++  E('SIGNAL', { id: sig.id, dir: d, kind: s.kind, entryType: sig.entryType, entry, stop: structural, risk: sig.riskPts, grade, points: gr.total, htf: s.htf, htfDir, riskMult: sig.riskMult, ...(gradeWaived ? { gradeWaived: true, gradeTags } : {}) });
+   ctx.sigs.push(sig);
+   return sig;
+ }
+@@ -1135,6 +1173,7 @@
+   expireFailures(st, ctx);
+   for (const a of accepts) armAccepted(st, ctx, a);
+   setups1m(st, ctx);
++  if (closed.m5) staleAccepted(st, ctx);   // [rule 18 v3] a far un-retested acceptance is cancelled / re-armed at the 5M close, after this bar's own retest logic
+   const live = liveGrades(st, ctx);
+   if (isNum(st.needShift[1]) && st.setups.some(s => s.dir === 1 && s.kind === 'failed-break' && s.armT > st.needShift[1])) delete st.needShift[1];
+   if (isNum(st.needShift[-1]) && st.setups.some(s => s.dir === -1 && s.kind === 'failed-break' && s.armT > st.needShift[-1])) delete st.needShift[-1];
+@@ -1147,4 +1186,4 @@
+   return { state: st, events, signal, swings: swingsSnap(st, cfg), live };
+ }
+ 
+-module.exports = { VERSION, DEFAULTS, HTF_MODES, htfStep, htfTag, createState, step, cloneState, validateCfg, resolveCfg, gradeOf, ptLabel, ptMin, bucketStart, gradeTableProblems, evidenceFor, _internal: { waveEvidence, entryBiasEvidence, findFvg, buildZones, sessionOf, normBias, midRangeOf, pullbackEvidence, forceEvidence, sweptLevels, r3Facts, retestKeyOf, noteRetest, rejectionEntry, contextPools } };
++module.exports = { staleAccepted, accRisk, VERSION, DEFAULTS, HTF_MODES, GRADE_GATE_MODES, htfStep, htfTag, createState, step, cloneState, validateCfg, resolveCfg, gradeOf, ptLabel, ptMin, bucketStart, gradeTableProblems, evidenceFor, _internal: { waveEvidence, entryBiasEvidence, findFvg, buildZones, sessionOf, normBias, midRangeOf, pullbackEvidence, forceEvidence, sweptLevels, r3Facts, retestKeyOf, noteRetest, rejectionEntry, contextPools } };
+diff -ruN pkg-live-r1.5.6-wip/bot/lib/tideLive.js pkg-live-r1.6-wip/bot/lib/tideLive.js
+--- pkg-live-r1.5.6-wip/bot/lib/tideLive.js	2026-11-04 17:30:08.996664824 +0000
++++ pkg-live-r1.6-wip/bot/lib/tideLive.js	2026-11-05 20:48:27.046268056 +0000
+@@ -16,7 +16,9 @@
+ const path = require('path');
+ const T = require('./tideOrders');
+ const T_MONEY = require('./moneyRule');
+-const VERSION = 'tide-live-r1.1';
++const VERSION = 'tide-live-r1.2';   // r1.2 [r1.6, 11/05]: live_end carries realizedUsd / realizedPts / fees / realizedNetUsd / exits (computed from the fills; source 'calc'), the entry fill carries slipPts, a broker rejection is a live_order_reject row + a push + view().lastReject
++// r1.1 was: 'tide-live-r1.1'
++const STATE_VERSIONS = new Set([VERSION, 'tide-live-r1.1']);   // [r1.2] an r1.1 state file (the same planner, tideOrders r1.2) is resumed: a TIDE position open across the r1.6 install is not orphaned. Module scope: load() runs at create() before any later const (an in-create const was a TDZ throw = every saved position orphaned)
+ const MAX_STEPS = 200;              // one call never runs away (the planner is bounded; this is a second fence)
+ const ENTRY_EXPIRE_MS = 30 * 60000; // a LIMIT entry with nothing filled after 30 min is cancelled (the planner's exit lifecycle clears it)
+ const MARKET_FILL_READS = 4, MARKET_FILL_WAIT_MS = 400;   // a market order's fill is read back at once (the stop goes out in the same pass)
+@@ -33,7 +35,7 @@
+ 
+ function create(o) {
+   const { token, accountId, contractId, orders, cfgFn, log = () => {}, notify = () => {}, journal = () => {}, stateFile, now = () => Date.now(),
+-    sleep = ms => new Promise(r => setTimeout(r, ms)), onEnd = () => {}, onTp1 = () => {} } = o;
++    sleep = ms => new Promise(r => setTimeout(r, ms)), onEnd = () => {}, onTp1 = () => {}, feePerContractSide = 0.61 } = o;   // [r1.2] feePerContractSide: the executor's brokerCosts fee + commission per contract per side (the realized net on live_end); never part of the money cfg
+   const { OrderType, OrderSide, placeOrder, cancelOrder, getOpenPosition, getOpenOrders, getEntryOrder } = orders;
+   const tokenOf = () => (typeof token === 'function' ? token() : token);
+   let S = load();
+@@ -42,7 +44,7 @@
+ 
+   function blank() { return { version: VERSION, pos: null, ids: {}, sentAt: {}, ev: 0, best: null, fillAt: null, closedAt: null, takeId: null, endTold: false, tp1Told: false, lastPx: null, guard: null, staleStop: null, pushed: {} }; }
+   function load() {
+-    try { if (stateFile && fs.existsSync(stateFile)) { const d = JSON.parse(fs.readFileSync(stateFile, 'utf8')); if (d && d.version === VERSION) return { ...blank(), ...d }; log(`  [tide-live] state file ${path.basename(stateFile)} has another version: ignored (kept on disk).`); } }
++    try { if (stateFile && fs.existsSync(stateFile)) { const d = JSON.parse(fs.readFileSync(stateFile, 'utf8')); if (d && STATE_VERSIONS.has(d.version)) return { ...blank(), ...d, version: VERSION }; log(`  [tide-live] state file ${path.basename(stateFile)} has another version: ignored (kept on disk).`); } }
+     catch (e) { log(`  [tide-live] state file unreadable (${e.message}): starting empty; the restart reconcile decides.`); }
+     return blank();
+   }
+@@ -77,20 +79,23 @@
+       const filled = Object.values(p.orders).some(x => x.kind === 'entry' && x.filled > 0);
+       const txt = filled ? `exit ${Object.entries(ex).map(([k, v]) => `${k} ${v}x`).join(', ') || '(no closing fill seen)'}${rz && rz.qty ? ` avg ${round(rz.avgPx)}` : ''}` : 'the entry never filled (cancelled)';
+       log(`  [tide-live] position ${p.id} ${p.phase}: ${txt}.`);
+-      J('end', { exits: ex, realized: rz || null, tp1Done: p.tp1Done, stopped, entryFilled: filled });
+-      const res = filled ? result(p) : null; if (res) J('result', res);
++      const res = filled ? result(p) : null;
++      // [r1.2] realized from the FILLS (the planner's flat.realized exists only on a flatten): gross $ and pts, the costs at the executor's per-side constant, net; source 'calc' (this driver never reads the broker's per-fill P&L)
++      J('end', { exits: ex, realized: rz || null, tp1Done: p.tp1Done, stopped, entryFilled: filled, ...(res ? { realizedUsd: res.usd, realizedPts: res.pts, fees: res.fees, realizedNetUsd: res.netUsd, sides: res.sides, exitFills: res.exits, realizedSource: 'calc' } : { realizedUsd: null, realizedSource: 'none (the entry never filled)' }) });
++      if (res) J('result', res);
+       if (res) { const e1 = Object.values(p.orders).filter(x => x.kind === 'entry' && x.filled > 0), xs = Object.values(p.orders).filter(x => x.kind !== 'entry' && x.kind !== 'add' && x.filled > 0 && isNum(x.avgPx)), xq = xs.reduce((a, x) => a + x.filled, 0);
+         hist().trades.push({ id: p.id, setup: S.setup || null, signalId: S.takeId, dir: p.dir, grade: p.grade, points: S.points ?? null, pointNames: S.pointNames || null, qty: res.qty, avgEntry: res.entry, openedAt: S.fillAt, closedAt: S.closedAt,
+-          exitPath: exitPath(p, ex), exitAvgPx: xq ? round(xs.reduce((a, x) => a + x.avgPx * x.filled, 0) / xq) : null, resultR: res.r, netUsd: null, grossUsd: res.usd, path: res.path }); while (hist().trades.length > 40) hist().trades.shift(); save(); }
++          exitPath: exitPath(p, ex), exitAvgPx: xq ? round(xs.reduce((a, x) => a + x.avgPx * x.filled, 0) / xq) : null, resultR: res.r, netUsd: res.netUsd, grossUsd: res.usd, realizedPts: res.pts, fees: res.fees, exits: res.exits, realizedSource: 'calc', path: res.path }); while (hist().trades.length > 40) hist().trades.shift(); save(); }
+       P(`end:${p.id}`, filled ? 'TIDE EXIT' : 'TIDE entry cancelled', filled ? `${p.dir === 1 ? 'LONG' : 'SHORT'} ${res.qty} MNQ: ${res.usd >= 0 ? '+' : ''}$${res.usd} (${res.r >= 0 ? '+' : ''}${res.r}R) | ${res.path}. Flat.` : 'The TIDE entry never filled: cancelled. Flat.', { ...INFO, tags: 'checkered_flag' });
+       try { onEnd(S.takeId, { closed: true, tp1Done: p.tp1Done, stopped, why: filled ? 'live-exit' : 'entry-not-filled' }); } catch (e) { /* feedback only */ }
+     }
+   }
+-  function result(p) {   // the realized result from the fills: $ (MNQ point value), R (vs the initial risk at the structural stop), the exit path
+-    const pv = (cfgFn() || {}).pointValue || 2, ent = T.avgEntry(p), q = Object.values(p.orders).filter(x => x.kind === 'entry' && x.filled > 0).reduce((a, x) => a + x.filled, 0);
+-    const ex = Object.values(p.orders).filter(x => x.kind !== 'entry' && x.kind !== 'add' && x.filled > 0 && isNum(x.avgPx));
+-    const usd = Math.round(ex.reduce((a, x) => a + p.dir * (x.avgPx - ent) * x.filled * pv, 0) * 100) / 100, risk = Math.abs(ent - p.plan.stop) * q * pv;
+-    return { qty: q, entry: round(ent), usd, r: risk > 0 ? Math.round(usd / risk * 100) / 100 : null, path: ex.map(x => `${x.kind === 'position' ? 'market' : x.kind} ${x.filled}x @ ${round(x.avgPx)}`).join(', ') || 'no closing fill seen' };
++  function result(p) {   // the realized result from the fills: $ (MNQ point value), R (vs the initial risk at the structural stop), the exit path; [r1.2] + pts, fees (per side per contract: cfg.feePerContractSide, the executor's brokerCosts fee + commission), net, the exit fills
++    const c = cfgFn() || {}, pv = c.pointValue || 2, feeSide = isNum(feePerContractSide) ? feePerContractSide : 0.61, ent = T.avgEntry(p), q = Object.values(p.orders).filter(x => x.kind === 'entry' && x.filled > 0).reduce((a, x) => a + x.filled, 0);
++    const ex = Object.values(p.orders).filter(x => x.kind !== 'entry' && x.kind !== 'add' && x.filled > 0 && isNum(x.avgPx)), xq = ex.reduce((a, x) => a + x.filled, 0);
++    const pts = Math.round(ex.reduce((a, x) => a + p.dir * (x.avgPx - ent) * x.filled, 0) * 100) / 100, usd = Math.round(pts * pv * 100) / 100, risk = Math.abs(ent - p.plan.stop) * q * pv, sides = q + xq, fees = Math.round(sides * feeSide * 100) / 100;
++    return { qty: q, entry: round(ent), usd, pts, fees, sides, netUsd: Math.round((usd - fees) * 100) / 100, r: risk > 0 ? Math.round(usd / risk * 100) / 100 : null, exits: ex.map(x => ({ kind: x.kind === 'position' ? 'market' : x.kind, qty: x.filled, px: round(x.avgPx), pts: round(p.dir * (x.avgPx - ent) * x.filled) })),
++      path: ex.map(x => `${x.kind === 'position' ? 'market' : x.kind} ${x.filled}x @ ${round(x.avgPx)}`).join(', ') || 'no closing fill seen' };
+   }
+   function hist() { const d = dayOf(now()); if (!S.hist || S.hist.day !== d) S.hist = { day: d, trades: [], alerts: [] }; return S.hist; }
+   function dayOf(t) { return new Date(t + 9 * 3600000).toISOString().slice(0, 10); }   // the TradeDay starts 15:00 PT (= 23:00 UTC in PST): +9 h -> the UTC date of the session's end
+@@ -156,6 +161,11 @@
+             log(`  [tide-live] the ${it.kind} answer was lost (${errText(e)}), the order is NOT at the broker and the position is ${pq === null ? 'unreadable' : pq + 'x'} (expected ${wantQ}x): not re-sent, reconciling.`); J('order_resend_skipped', { key: it.key, error: errText(e), position: pq, expected: wantQ }); } }
+       }
+       J('order_fail', { key: it.key, rejected: e.orderRejected === true, reason: e.message }); if (e.orderRejected !== true) { S.needReconcile = true; save(); }   // no answer: a keyless reconcile on the next poll
++      if (e.orderRejected === true) {   // [r1.2] (Mac 11/05: orders rejected in the volatility halt, unseen) every broker REJECTION is its own journal row, a push, and the snapshot's tide.lastReject
++        const rj = { t: now(), key: it.key, kind: it.kind, side: it.side, qty: body.size, type: body.type, price: body.stopPrice ?? body.limitPrice ?? null, reason: String(e.message || 'rejected'), setup: S.setup || null, take: S.takeId || null, position: S.pos ? S.pos.id : null };
++        S.lastReject = rj; save(); J('order_reject', rj); hist().rejects = (hist().rejects || []).concat([rj]).slice(-20);
++        P(`reject:${it.key}`, `TIDE order REJECTED: ${it.kind}`, `${it.side} ${body.size}x ${it.kind}${rj.price != null ? ' @ ' + rj.price : ''} rejected by the broker: ${rj.reason}`, { priority: 'high', tags: 'warning' });
++      }
+       return e.orderRejected === true ? [{ type: 'reject', key: it.key, reason: e.message, lastPx: S.lastPx }] : [{ type: 'no-ack', key: it.key, reason: e.message }];
+     }
+   }
+@@ -242,7 +252,8 @@
+     if (fv > 0 && isNum(fp) && (!o || fv > (o.filled || 0))) {
+       out.push({ type: o && fv < o.qty ? 'partial-fill' : 'fill', key, filledQty: fv, avgPx: fp });
+       if (o && o.kind === 'entry' && S.fillAt == null) { const bt = Date.parse(h.updateTimestamp || h.creationTimestamp || ''); S.fillAt = Number.isFinite(bt) ? bt : now(); }   // [r1.2] the fill time (the broker's stamp when given)
+-      if (o) { const k = o.kind; log(`  [tide-live] FILL ${k} ${fv}x @ ${fp} (${key})`); J('fill', { key, kind: k, filledQty: fv, avgPx: fp });
++      if (o) { const k = o.kind, planned = k === 'entry' && S.pos && S.pos.plan && isNum(S.pos.plan.entryPx) ? S.pos.plan.entryPx : null; log(`  [tide-live] FILL ${k} ${fv}x @ ${fp} (${key})`);
++        J('fill', { key, kind: k, filledQty: fv, avgPx: fp, ...(planned !== null ? { planned, slipPts: round(S.pos.dir * (fp - planned)) } : {}) });   // [r1.2] slipPts on the entry fill: + = adverse (filled worse than the signal's close), - = better
+         P(`fill:${key}:${fv}`, `TIDE ${k === 'entry' ? 'FILLED' : k === 'stop' ? 'STOPPED' : k === 'position' ? 'closed at market' : k.toUpperCase() + ' filled'}`, `${k} ${fv}x @ ${fp}.`, { ...INFO, tags: k === 'stop' ? 'x' : 'white_check_mark' }); }
+     }
+     if (h.status === 3 || h.status === 4) out.push({ type: 'cancel-ack', key });
+@@ -334,7 +345,7 @@
+         plannedQty: p.plan.contracts, filledQty: fq, open: p.open, avgEntry: isNum(ae) ? round(ae) : null, fillAt: S.fillAt, stopAsked: p.stopPx, stopAcked: p.protPx, stopBy: S.stopBy || (p.tp1Done ? 'break-even' : 'structural'), structuralStop: p.plan.stop,
+         R: p.R, tp1: { price: p.tp1Px, qty: p.tp1Qty, done: !!p.tp1Done, filled: tp1o.reduce((a, x) => a + (x.filled || 0), 0) }, tp2: { price: p.tp2Px, done: tp2o.some(x => x.status === 'done'), filled: tp2o.reduce((a, x) => a + (x.filled || 0), 0) },
+         best: S.best, lastPx: S.lastPx, openUsd: isNum(ae) && isNum(S.lastPx) && p.open > 0 ? Math.round(p.dir * (S.lastPx - ae) * p.open * pv * 100) / 100 : null, block: p.block || null, closing: !!p.closing } : null;
+-      return { position, trades: h.trades.slice(), alerts: h.alerts.slice(), orderIds: [...new Set([...Object.values(S.ids || {}).map(String), ...(h.orderIds || [])])] }; },
++      return { position, trades: h.trades.slice(), alerts: h.alerts.slice(), orderIds: [...new Set([...Object.values(S.ids || {}).map(String), ...(h.orderIds || [])])], lastReject: S.lastReject || null, rejects: (h.rejects || []).slice() }; },   // [r1.2] + lastReject / today's rejects
+     // the 3 s fast poll runs while an entry may still fill, or contracts are open without an acked stop (a fill is protected within ~3 s)
+     fast: () => { if (!owned()) return false; const p = S.pos; if (S.needReconcile) return true;
+       if (Object.values(p.orders).some(x => x.kind === 'entry' && ['sent', 'working', 'unknown'].includes(x.status))) return true;
+diff -ruN pkg-live-r1.5.6-wip/bot/lib/tideWire.js pkg-live-r1.6-wip/bot/lib/tideWire.js
+--- pkg-live-r1.5.6-wip/bot/lib/tideWire.js	2026-11-04 17:30:08.996779147 +0000
++++ pkg-live-r1.6-wip/bot/lib/tideWire.js	2026-11-05 20:57:11.598441243 +0000
+@@ -15,14 +15,16 @@
+ const path = require('path');
+ const moneyRule = require('./moneyRule');   // money-r4.1 (MacMoney; pure, no requires; imported unchanged)
+ 
+-const VERSION = 'tide-wire-r2.6-live';   // r2.6 [r1.5.6] + tide.htfAgainst tag | half | skip (HTF context: board.htf, setup / signal htf tag, riskMult 0.5 on 'half')
++const VERSION = 'tide-wire-r2.7-live';   // r2.7 [r1.6] + tide.trendLane (lib/trendLane.js: the 4H-direction / 1H-harmony / 5m-defense entry lane, run by the adapter beside the engine's level setups; rows trend_arm / trend_signal / trend_skip / trend_idle / trend_tie)
++// r2.6 was: 'tide-wire-r2.6-live';   // r2.6 [r1.5.6] + tide.htfAgainst tag | half | skip (HTF context: board.htf, setup / signal htf tag, riskMult 0.5 on 'half')
+ // r2.5 was: 'tide-wire-r2.5-live';   // r2.5: + tide.mode "live" (Stage 2a, MacLive 11/04): the live takes go to lib/tideLive.js (planner tideOrders r1.2)
+ const STAGE = 1;
+ const MODES = Object.freeze(['off', 'shadow', 'add', 'only']);
+ const STAGE_MODES = Object.freeze(STAGE === 1 ? ['off', 'shadow', 'live'] : MODES.slice());   // [2a] + 'live' (armed only by tools/set-tide.sh live)
+ const LIVE_ARM = 'set-tide.sh live (stage 2a)';   // [2a] the token set-tide.sh live writes as tide.liveArmed: a hand-typed tide.mode "live" alone is refused
+ // Mac 11/04 FINAL (SPEC GRADE r3 + TIME BLOCKS): the new model IGNORES the old time blocks (useTimeBlocks false) and has its own open wait (openWaitMin 30)
+-const DEFAULTS = Object.freeze({ tide: Object.freeze({ mode: 'off', useTimeBlocks: true, openWaitMin: 30, push: true, liveArmed: null, oldPathEntries: false, climaxGate: true, staleR: 2, laneAccept: true, controlFree: true, nearestWins: false, ltfOpens: false, waveBiasTrend: true, releaseOnRefusal: true, controlAsBias: true, htfAgainst: 'tag', blocks: Object.freeze([Object.freeze(['15:00', '17:00']), Object.freeze(['06:30', '07:10'])]) }) });   // [2a r1.1] TIDE's OWN entry blocks (PT, start inclusive, end exclusive), independent of the old path's keys   // [2a] liveArmed (set-tide.sh live only); oldPathEntries: with tide.mode "live" the old levels path takes NO new entries unless true
++const TREND_LANE_SHIP = Object.freeze({ enabled: true, retestTol: 6, wickMin: 4, stopTicks: 2, capHour: 2, capDay: 6, climax: 'defense-confirms' });   // [r1.6] tide.trendLane as shipped (Mac 11/05: ON; tools/set-tide.sh trend=off writes enabled false)
++const DEFAULTS = Object.freeze({ tide: Object.freeze({ mode: 'off', useTimeBlocks: true, openWaitMin: 30, push: true, liveArmed: null, oldPathEntries: false, climaxGate: true, staleR: 2, laneAccept: true, controlFree: true, nearestWins: false, ltfOpens: false, waveBiasTrend: true, releaseOnRefusal: true, controlAsBias: true, htfAgainst: 'tag', trendLane: TREND_LANE_SHIP, gradeGate: 'aligned-pass', sizeCap: 8, blocks: Object.freeze([Object.freeze(['15:00', '17:00']), Object.freeze(['06:30', '07:10'])]) }) });   // [2a r1.1] TIDE's OWN entry blocks (PT, start inclusive, end exclusive), independent of the old path's keys   // [2a] liveArmed (set-tide.sh live only); oldPathEntries: with tide.mode "live" the old levels path takes NO new entries unless true
+ // what the new model does NOT take (playbook §1, SPEC E "DO NOT APPLY"; money EXEMPT) and what it keeps (SPEC E "STILL APPLY")
+ const VETOES_SKIPPED = Object.freeze(['HTF_ALIGN', 'CONTROL_GATE', 'NO_CHASE', 'CANDLE_WAIT', 'STOP_FLOOR', 'STOP_CAP_FROM_FILL', 'NO_PROGRESS', 'TIME_STOP', 'SCALE_OUT_RUNNER']);
+ const GATES_KEPT = Object.freeze(['DESYNCED', 'NOT_FLAT', 'SESSION_CLOSE', 'OPEN_WAIT', 'NEWS_WAIT', 'PAUSED']);   // TIME_BLOCK only with tide.useTimeBlocks true
+@@ -39,6 +41,8 @@
+ let structureLib = null;
+ function structure() { if (!structureLib) structureLib = require(path.join(__dirname, 'structure.js')); return structureLib; }   // loaded only when tide.mode is not "off"
+ function setStructureForTest(s) { structureLib = s; }
++let trendLaneLib = null;
++function trendLane() { if (!trendLaneLib) trendLaneLib = require(path.join(__dirname, 'trendLane.js')); return trendLaneLib; }   // [r1.6] pure; loaded when the config names tide.trendLane or the adapter is built
+ 
+ // ------------------------------------------------------------------ sizing (money-r4 owns it; this file only reads it)
+ // money.sizing.mode "flat" (shipped, team position 11/04 "common risk first"): every grade risks flatDollars (450 = a placeholder until Mac decides), every grade
+@@ -49,7 +53,7 @@
+ // [2a] sizing.take1MaxUsd is TIDE's own key (money-r4.1 has no ceiling): it is taken out before every money-r4.1 call and applied here, after the size
+ const TAKE1_MAX_DEFAULT = 400;
+ function moneyOnly(money) { if (!isObj(money)) return money; const m = { ...money }; if (isObj(m.sizing) && Object.prototype.hasOwnProperty.call(m.sizing, 'take1MaxUsd')) { const { take1MaxUsd, ...rest } = m.sizing; m.sizing = rest; } return m; }
+-function take1Max(cfg) { const s = cfg && cfg.money && cfg.money.sizing; return s && isNum(s.take1MaxUsd) ? s.take1MaxUsd : TAKE1_MAX_DEFAULT; }   // [2a] Mac 11/04: flat $300 is the live default (money-r4.1 itself unchanged)   // shipped CONFIG.money: mode "flat" written out (the startup line shows it)
++function take1Max(cfg) { const s = cfg && cfg.money && cfg.money.sizing; return s && isNum(s.take1MaxUsd) ? s.take1MaxUsd : TAKE1_MAX_DEFAULT; }   // [r1.6] Mac 11/05: $400 is the hard per-trade maximum for every TIDE entry (lane included)   // [2a] Mac 11/04: flat $300 is the live default (money-r4.1 itself unchanged)   // shipped CONFIG.money: mode "flat" written out (the startup line shows it)
+ function sizingMode(cfg) { const s = cfg && cfg.money && cfg.money.sizing; return s && typeof s.mode === 'string' ? s.mode : moneyRule.DEFAULTS.sizing.mode; }
+ 
+ // ------------------------------------------------------------------ config
+@@ -70,6 +74,9 @@
+     if (t.climaxGate !== undefined && typeof t.climaxGate !== 'boolean') p.push(`tide.climaxGate must be true or false, got ${JSON.stringify(t.climaxGate)}`);   // [r1.5.1]
+     for (const k of ['laneAccept', 'controlFree', 'nearestWins', 'ltfOpens', 'waveBiasTrend', 'releaseOnRefusal', 'controlAsBias']) if (t[k] !== undefined && typeof t[k] !== 'boolean') p.push(`tide.${k} must be true or false, got ${JSON.stringify(t[k])}`);   // [r1.5.4] + waveBiasTrend [r1.5.5]
+     if (t.htfAgainst !== undefined && !HTF_MODES.includes(t.htfAgainst)) p.push(`tide.htfAgainst must be one of "tag", "half", "skip", got ${JSON.stringify(t.htfAgainst)}`);   // [r1.5.6]
++    if (t.trendLane !== undefined) { const tp = trendLane().configProblem(t.trendLane); if (tp) p.push(tp); }   // [r1.6]
++    if (t.gradeGate !== undefined && !GRADE_GATE_MODES.includes(t.gradeGate)) p.push(`tide.gradeGate must be "aligned-pass" or "strict", got ${JSON.stringify(t.gradeGate)}`);   // [r1.6]
++    if (t.sizeCap !== undefined && !(Number.isInteger(t.sizeCap) && t.sizeCap >= 1 && t.sizeCap <= 30)) p.push(`tide.sizeCap must be a whole number 1-30 (contracts per TIDE entry), got ${JSON.stringify(t.sizeCap)}`);   // [r1.6]
+     if (typeof t.oldPathEntries !== 'boolean') p.push(`tide.oldPathEntries must be true or false, got ${JSON.stringify(t.oldPathEntries)}`);   // [2a]
+     if (t.mode === 'live') { const op = require('./tideOrders').configProblem({ ...moneyOnly(cfg && cfg.money), pointValue: ctx && ctx.pointValue, tickSize: 0.25 }); if (op) p.push(`tide.mode "live": ${op}`); }   // [2a] the planner refuses (entryByGrade / upgradeAdd)
+     if (t.mode !== 'off' && ctx && ctx.symbol && ctx.symbol !== 'MNQ') p.push(`tide.mode ${JSON.stringify(t.mode)} is MNQ only (Mac 11/04), this bot runs ${ctx.symbol}: use "off"`);
+@@ -83,7 +90,7 @@
+ }
+ function modeOf(cfg) { const m = cfg && cfg.tide && cfg.tide.mode; return STAGE_MODES.includes(m) ? m : 'off'; }
+ // floorDistanceUsd (money-r4.1 near-floor guard, read only when money.sizing.nearFloor.enabled): balance - the executor's trailing floor; null = unknown (the lib fails safe)
+-function moneyCfg(cfg, pointValue = 2, tickSize = 0.25, floorDistanceUsd = null) { return { ...moneyOnly(cfg && cfg.money), pointValue, tickSize, floorDistanceUsd: isNum(floorDistanceUsd) ? floorDistanceUsd : null }; }
++function moneyCfg(cfg, pointValue = 2, tickSize = 0.25, floorDistanceUsd = null) { return { ...liveMoney(cfg), pointValue, tickSize, floorDistanceUsd: isNum(floorDistanceUsd) ? floorDistanceUsd : null }; }   // [r1.6] maxContracts capped at tide.sizeCap
+ function gradeUsd(cfg) { const m = cfg && cfg.money, g = (m && m.sizing && m.sizing.gradeRiskUsd) || {}, d = moneyRule.DEFAULTS.sizing.gradeRiskUsd; return { A: isNum(g.A) ? g.A : d.A, B: isNum(g.B) ? g.B : d.B, C: isNum(g.C) ? g.C : d.C }; }
+ function maxContracts(cfg) { const s = cfg && cfg.money && cfg.money.sizing; return s && isNum(s.maxContracts) ? s.maxContracts : moneyRule.DEFAULTS.sizing.maxContracts; }
+ // [r1.6 / r1.7] the engine cfg the executor's adapter runs with: tide.climaxGate false and tide.staleR (r1.7 ships 0 = rule 18 off; the engine's own default is 2) -> structure.js cfg
+@@ -92,8 +99,21 @@
+ const R154_SHIP = { laneAccept: true, controlFree: true, nearestWins: false, ltfOpens: false, waveBiasTrend: true, releaseOnRefusal: true, controlAsBias: true };   // r1.5.4 ships nearestWins / ltfOpens OFF (untested on the replay)
+ const HTF_MODES = Object.freeze(['tag', 'half', 'skip']);   // [r1.5.6]
+ function htfAgainstOf(cfg) { const v = cfg && cfg.tide && cfg.tide.htfAgainst; return HTF_MODES.includes(v) ? v : 'tag'; }
++const GRADE_GATE_MODES = Object.freeze(['aligned-pass', 'strict']);   // [r1.6] tide.gradeGate: shipped 'aligned-pass' (Mac 11/05); 'strict' = r1.5.6 grading
++function gradeGateOf(cfg) { const v = cfg && cfg.tide && cfg.tide.gradeGate; return GRADE_GATE_MODES.includes(v) ? v : 'aligned-pass'; }
++// [r1.6] tide.sizeCap (Mac 11/05: "2 or 3 MNQ is fine" and "We should never lose more than $250-$400 total in any trade"): every TIDE entry (lane and level setups) sizes
++// qty = clamp(floor($400 / (stopPts x $2)), 1, sizeCap) while 1 MNQ fits the $400 budget (stop <= 200 pts); a wider stop is SKIPPED (GRADE_NO_FIT_CEILING: "needed a better
++// entry"). The structural stop is never moved to fit. maxContracts in the money cfg the planner / live driver size with = min(money maxContracts, sizeCap).
++const SIZE_CAP_SHIP = 8;   // Mac 11/05 ruling: 8
++function sizeCapOf(cfg) { const v = cfg && cfg.tide && cfg.tide.sizeCap; return Number.isInteger(v) && v >= 1 ? v : SIZE_CAP_SHIP; }
++function capMoney(cfg, m) { const s = (m && m.sizing) || {}, mx = isNum(s.maxContracts) ? s.maxContracts : moneyRule.DEFAULTS.sizing.maxContracts; return { ...m, sizing: { ...s, maxContracts: Math.min(mx, sizeCapOf(cfg)) } }; }
++function liveMoney(cfg) { return capMoney(cfg, moneyOnly(cfg && cfg.money)); }   // the live driver's cfgFn money (lib/tideLive.js -> tideOrders sizes with it)
+ function switchOn(cfg, k) { const t = cfg && cfg.tide; return t && typeof t[k] === 'boolean' ? t[k] : R154_SHIP[k]; }
+-function engineCfgOf(cfg) { const t = (cfg && cfg.tide) || {}, o = {}; if (t.climaxGate === false) o.climaxGate = false; o.staleR = staleROf(cfg); for (const k of R154_KEYS) o[k] = switchOn(cfg, k); o.htfAgainst = htfAgainstOf(cfg); return o; }   // [r1.5.6] + htfAgainst
++function engineCfgOf(cfg) { const t = (cfg && cfg.tide) || {}, o = {}; if (t.climaxGate === false) o.climaxGate = false; o.staleR = staleROf(cfg); for (const k of R154_KEYS) o[k] = switchOn(cfg, k); o.htfAgainst = htfAgainstOf(cfg); o.gradeGate = gradeGateOf(cfg); o.trendLane = trendLaneOf(cfg); return o; }   // [r1.5.6] + htfAgainst; [r1.6] + trendLane (createAdapter takes it out before structure.step sees the cfg)
++// [r1.6] tide.trendLane merged over the shipped values; the adapter runs lib/trendLane.js with it. enabled false = the lane never runs (r1.5.6 behaviour).
++function trendLaneOf(cfg) { const t = cfg && cfg.tide && isObj(cfg.tide.trendLane) ? cfg.tide.trendLane : {}; return { ...TREND_LANE_SHIP, ...t }; }
++function trendLaneOn(cfg) { return trendLaneOf(cfg).enabled !== false; }
++function trendLaneLine(cfg) { const c = trendLaneOf(cfg); return c.enabled !== false ? `trend lane ON (prior-4H dir · 30M harmony · 5M trigger at any level · 30M-wick stop · ${c.capHour}/h ${c.capDay}/day · climax ${c.climax}; retestTol ${c.retestTol}, defense wick ${c.wickMin}, stop ${c.stopTicks} ticks)` : 'trend lane OFF (tide.trendLane.enabled false: the r1.5.6 level setups only)'; }
+ function startupLines(cfg, pointValue = 2, tickSize = 0.25) {
+   const m = modeOf(cfg), t = cfg.tide, g = gradeUsd(cfg);
+   const what = { off: 'off (tide.mode "off" - the bot trades as r13.3.7)', shadow: `SHADOW (journal + phone only: every TIDE signal is journaled as lv_tide in the levels journal${t.push ? ' and pushed as "TIDE SHADOW ..."' : ''}; NO order is ever sent)`, add: 'ADD', only: 'ONLY', live: `LIVE (Stage 2a: REAL orders for TIDE signals through the tideOrders r1.2 planner: entry, one stop, TP1 2/3, BE + 1 tick, TP2, the R-ladder / climax, the planner's flatten; no pyramid add, no resting half; one position account-wide; the old levels path ${t.oldPathEntries ? 'STILL takes new entries (tide.oldPathEntries true)' : 'takes NO new entries (it still manages anything already open)'})` }[m];
+@@ -102,7 +122,7 @@
+   const sizes = sizingMode(cfg) === 'flat' ? `mode flat $${sz.flatDollars} per trade at every grade (the grade size A+ $${gg.A} / B $${gg.B} / C $${gg.C} journaled beside it), ${entryTxt}, ${noFit}, upgrade add ${up ? 'on (grade mode only)' : 'off'}`
+     : `mode grade A+ $${gg.A} / B $${gg.B} / C $${gg.C} per trade (the flat $${sz.flatDollars} size journaled beside it), ${entryTxt}, ${noFit}, upgrade add ${up ? 'on' : 'off'}`;
+   return [
+-    `[tide] new model ${VERSION} (stage ${STAGE}): ${what}${m === 'off' ? '' : `; engine ${safeEngineVersion()}; ${m === 'live' ? 'LIVE sizes' : 'shadow sizes'} ${sizes} (MNQ, max ${maxContracts(cfg)}); TIDE entry blocks ${blocksText(cfg)}; TIDE open wait ${t.openWaitMin} min after 15:00 / 00:00 / 06:30 PT and each 4H open; news wait + session close kept; ${t.climaxGate === false ? 'climax gate OFF (tide.climaxGate false: the CLIMAX with-trend entry block is bypassed)' : 'climax gate ON (CLIMAX with-trend entries blocked until structure confirms)'}; ${staleROf(cfg) > 0 ? `rule 18 ON (tide.staleR ${staleROf(cfg)}: an un-retested trap more than max(${staleROf(cfg)} x its risk, 60 pts) from price gives way to a nearer acceptance the same way)` : 'rule 18 OFF (tide.staleR 0: the r1.5.1 setups)'} · nearest wins ${switchOn(cfg, 'nearestWins') ? 'ON' : 'OFF'} · 15m/30m opens ${switchOn(cfg, 'ltfOpens') ? 'ON' : 'OFF'} · lanes: accept-under-trap ${switchOn(cfg, 'laneAccept') ? 'ON' : 'OFF'}, control-free ${switchOn(cfg, 'controlFree') ? 'ON' : 'OFF'} · waveBias trend-relaxed ${switchOn(cfg, 'waveBiasTrend') ? 'ON' : 'OFF'} · refusal releases slot ${switchOn(cfg, 'releaseOnRefusal') ? 'ON' : 'OFF'} · control as bias ${switchOn(cfg, 'controlAsBias') ? 'ON' : 'OFF'} · HTF context ON (against: ${htfAgainstOf(cfg)}); not applied to TIDE: HTF_ALIGN, the 15m control-gate veto, levels noChase, candle wait, stop cap / floor, timed exits; NO daily loss limit`}.`,
++    `[tide] new model ${VERSION} (stage ${STAGE}): ${what}${m === 'off' ? '' : `; engine ${safeEngineVersion()}; ${m === 'live' ? 'LIVE sizes' : 'shadow sizes'} ${sizes} (MNQ, max ${maxContracts(cfg)}); TIDE entry blocks ${blocksText(cfg)}; TIDE open wait ${t.openWaitMin} min after 15:00 / 00:00 / 06:30 PT and each 4H open; news wait + session close kept; ${t.climaxGate === false ? 'climax gate OFF (tide.climaxGate false: the CLIMAX with-trend entry block is bypassed)' : 'climax gate ON (CLIMAX with-trend entries blocked until structure confirms)'}; ${staleROf(cfg) > 0 ? `rule 18 ON (tide.staleR ${staleROf(cfg)}: an un-retested trap more than max(${staleROf(cfg)} x its risk, 60 pts) from price gives way to a nearer acceptance the same way; an un-retested acceptance that far at a 5M close is cancelled STALE and re-arms once price is back within retestTol)` : 'rule 18 OFF (tide.staleR 0: the r1.5.1 setups)'} · nearest wins ${switchOn(cfg, 'nearestWins') ? 'ON' : 'OFF'} · 15m/30m opens ${switchOn(cfg, 'ltfOpens') ? 'ON' : 'OFF'} · lanes: accept-under-trap ${switchOn(cfg, 'laneAccept') ? 'ON' : 'OFF'}, control-free ${switchOn(cfg, 'controlFree') ? 'ON' : 'OFF'} · waveBias trend-relaxed ${switchOn(cfg, 'waveBiasTrend') ? 'ON' : 'OFF'} · refusal releases slot ${switchOn(cfg, 'releaseOnRefusal') ? 'ON' : 'OFF'} · control as bias ${switchOn(cfg, 'controlAsBias') ? 'ON' : 'OFF'} · HTF context ON (against: ${htfAgainstOf(cfg)}) · grade gate: ${gradeGateOf(cfg)}${gradeGateOf(cfg) === 'aligned-pass' ? ' (a WITH-HTF level setup is not refused by the grade gates; the failed gates ride on the signal as gradeTags)' : ' (r1.5.6 grading)'} · size: $${take1Max(cfg)} max · cap ${sizeCapOf(cfg)} (tide.sizeCap; qty = clamp(floor($${take1Max(cfg)} / risk), 1, ${sizeCapOf(cfg)}); a stop over ${r2(take1Max(cfg) / pointValue)} pts is skipped: needed a better entry) · ${trendLaneLine(cfg)} · journal reload ON; not applied to TIDE: HTF_ALIGN, the 15m control-gate veto, levels noChase, candle wait, stop cap / floor, timed exits; NO daily loss limit`}.`,
+     moneyRule.startupLine(moneyCfg(cfg, pointValue, tickSize)),
+     moneyRule.configLine(moneyCfg(cfg, pointValue, tickSize)),   // '[money] config money-r4.1: ...' (tools/set-tide-money.sh confirms a switch from it)
+   ];
+@@ -176,7 +196,8 @@
+   const stopPts = r2(Math.abs(entry - stopPx));
+   const ch = moneyRule.chooseStop([{ tf, stop: stopPx, stopPts }], g.grade, mc, { tf });   // the engine names the wick; no tighter wick is ever tried
+   const z = moneyRule.sizeFor(stopPts, g.grade, mc), planned = ch && ch.contracts > 0 ? ch.contracts : 0;
+-  if (z.code === 'NO_FIT_TAKE1' && !held.length && !(stopPts * pv <= take1Max(cfg) + 1e-9)) return { ok: false, code: 'GRADE_NO_FIT_CEILING', mode, grade: g.grade, gradeDetail: g, leg, stopPts, stopTf: tf, stop: stopPx, oneLotUsd: r2(stopPts * pv), gradeRiskUsd: z.budgetUsd ?? null, budgetUsd: take1Max(cfg), shadow: null };   // [2a] 1 MNQ over the take1 ceiling: not taken
++  if (z.code === 'NO_FIT_TAKE1' && !held.length && !(stopPts * pv <= take1Max(cfg) + 1e-9)) return { ok: false, code: 'GRADE_NO_FIT_CEILING', mode, grade: g.grade, gradeDetail: g, leg, stopPts, stopTf: tf, stop: stopPx, oneLotUsd: r2(stopPts * pv), gradeRiskUsd: z.budgetUsd ?? null, budgetUsd: take1Max(cfg), shadow: null,
++    why: `stop ${stopPts} pts = $${r2(stopPts * pv)} for 1 MNQ > $${take1Max(cfg)} max: needed a better entry` };   // [2a] 1 MNQ over the take1 ceiling: not taken; [r1.6] Mac 11/05: "If we have to risk more than that we needed a better entry"
+   const heldQty = held.reduce((a, l) => a + l.contracts, 0), heldRisk = legRisk(held, stopPx, dir, pv), per = stopPts * pv;
+   const shadow = held.length ? null : moneyRule.shadowSize(stopPts, g.grade, mc);
+   let qty, legNote, first = planned, second = 0, upgrade = null;
+@@ -207,7 +228,7 @@
+   const total = heldQty + qty, reservedQty = leg === 'upgrade-add' ? (upgrade && upgrade.reservedRestingQty) || 0 : second;   // (a) a resting B half is RESERVED exposure until terminal
+   return { ok: true, mode, budgetUsd: z.budgetUsd ?? null, grade: leg === 'upgrade-add' ? 'A+' : g.grade, fromGrade: leg === 'upgrade-add' ? (prior && prior.grade) || g.grade : null, gradeDetail: g, leg, legNote, stop: stopPx, stopTf: tf, stopPts,
+     qty, total, planned, first, second, reservedQty, scaleZone: second > 0 ? (sig.addZone && isNum(sig.addZone.price) ? sig.addZone : { price: null, kind: 'retest' }) : null,
+-    riskUsd: r2(qty * per), totalRiskUsd: r2(heldRisk + qty * per), exits, addQty: moneyRule.addQty(total), shadow, upgrade: upgrade ? upgrade.row : null, sizeCode: z.code || null, nearFloor: z.nearFloor || null, riskMult: isNum(sig.riskMult) ? sig.riskMult : 1,
++    riskUsd: r2(qty * per), totalRiskUsd: r2(heldRisk + qty * per), exits, addQty: moneyRule.addQty(total), shadow, upgrade: upgrade ? upgrade.row : null, sizeCode: z.code || null, overBudgetUsd: z.code === 'NO_FIT_TAKE1' ? z.overBudgetUsd ?? null : 0, nearFloor: z.nearFloor || null, riskMult: isNum(sig.riskMult) ? sig.riskMult : 1,
+     sizing: `${mode}${cfg.money && cfg.money.sizing && cfg.money.sizing.enabled === true ? '' : ' (shadow: money.sizing.enabled false)'}`, entryType: sig.entryType === 'LIMIT' ? 'LIMIT' : 'MARKET' };
+ }
+ // one ASCII line for the phone (Mac's format + the money-r4 shadow size):
+@@ -218,7 +239,7 @@
+   const e = p.exits, gd = p.gradeDetail || {};
+   const pts = isNum(gd.points) ? ` (${gd.points}${gd.names && gd.names.length ? ': ' + gd.names.join(' ') : ''})` : '';
+   const size = p.shadow ? p.shadow.line : `${p.mode} ${isNum(p.budgetUsd) ? p.budgetUsd : '?'}: +${p.qty} MNQ (${p.leg})`;
+-  const htf = sig.htf === 'with' ? ' WITH HTF' : sig.htf === 'against' ? ' AGAINST HTF' : '';   // [r1.5.6]
++  const htf = (sig.htf === 'with' ? ' WITH HTF' : sig.htf === 'against' ? ' AGAINST HTF' : '') + (sig.gradeWaived === true ? ` [gates waived: ${(sig.gradeTags || []).join(' ') || '-'}]` : '');   // [r1.5.6]; [r1.6] aligned-pass tag
+   const lim = p.entryType === 'LIMIT' ? ' LIMIT' : '', oneLot = !(e.partial && e.partial.contracts > 0);
+   return ascii(`TIDE SHADOW ${side} ${p.grade}${pts}${gd.capTag ? ' [' + gd.capTag + ']' : ''}${htf} ${size}${lim} @${px(sig.entry)} stop ${px(p.stop)}` +
+     ` TP1 ${px(e.partial && e.partial.price)} TP2 ${px(e.tp.price)}` +
+@@ -290,14 +311,19 @@
+     pools: tg.map(t => ({ price: t.price, name: t.name || null, major: !!t.major })), internalPools: tg.filter(t => !t.major).map(t => ({ price: t.price, name: t.name || null, major: false })),
+     addZone: s.limit && isNum(s.limit.price) && String(s.entryType).toLowerCase() !== 'limit' ? { price: s.limit.price, kind: 'fvg' } : null, at: isNum(s.t) ? s.t * 1000 : null, engine: version,
+     poolsAdded: added.map(p => p.name), htf: s.htf || null, htfDir: isNum(s.htfDir) ? s.htfDir : 0, riskMult: isNum(s.riskMult) && s.riskMult > 0 ? s.riskMult : 1, htfView: s.htfView || null,   // [r1.5.6]
++    lane: s.lane === 'trend' ? 'trend' : null, trend: s.lane === 'trend' && isObj(s.trend) ? s.trend : null,   // [r1.6] a trend-lane signal (lib/trendLane.js): the lane facts for the trend_signal row
++    gradeWaived: s.gradeWaived === true, gradeTags: s.gradeWaived === true && Array.isArray(s.gradeTags) ? s.gradeTags.slice() : null,   // [r1.6] structure r3.8 gradeGate aligned-pass: the grade gates this WITH-HTF signal failed (journaled, not refused)
+     raw: { leg: s.leg || null, setupId: s.setupId || null, sizeFrac: s.sizeFrac ?? null, limit: s.limit || null, cancelsLimit: s.cancelsLimit || null, stops: s.stops || null, shift: s.shift || null, control: s.control || null,
+       marketState: s.marketState || null, warnings: s.warnings || null, reason: s.reason || null, scaleIn: s.scaleIn || null, gradePoints: s.gradePoints || null } };
+ }
+-function createAdapter(lib, engineCfg) {
++function createAdapter(lib, engineCfgIn) {
+   if (!lib || typeof lib.step !== 'function' || typeof lib.createState !== 'function') throw new Error('lib/structure.js has no createState()/step()');
+   let st = lib.createState();
+   const version = lib.VERSION || 'structure';
+-  return { version, kind: 'm1', info: () => ({ range1hKnown: !!(st && st.mstate && st.mstate.known) }), view: () => st, step(ctx) {   // [r1.3] view(): the engine state, READ ONLY (the board)
++  // [r1.6] the trend lane (lib/trendLane.js) rides beside the engine: its cfg is taken OUT of the engine cfg, so structure.step sees exactly the r1.5.6 keys
++  const { trendLane: laneCfg, ...engineCfg } = isObj(engineCfgIn) ? engineCfgIn : {};
++  const lane = isObj(laneCfg) && laneCfg.enabled !== false ? trendLane().create(laneCfg) : null;
++  return { version, kind: 'm1', info: () => ({ range1hKnown: !!(st && st.mstate && st.mstate.known) }), view: () => st, lane: () => lane, trendNote: (sig, taken, T) => { if (lane) lane.note(sig, taken, T); }, step(ctx) {   // [r1.3] view(): the engine state, READ ONLY (the board)
+     const rows = [], signals = [], L = ctx.warm ? null : boardMap(ctx.board);
+     for (const b of ctx.m1New || []) {
+       const tSec = Math.floor((b.t > 1e11 ? b.t / 1000 : b.t)), bias = (ctx.warm && !ctx.warmBias) || typeof ctx.biasAt !== 'function' ? null : ctx.biasAt(tSec + 60);   // [2a] warmBias: the rebuilt causal book (tideRebuild hook)
+@@ -308,7 +334,12 @@
+       st = out.state;
+       if (ctx.warm) { if (typeof ctx.onWarmSetup === 'function') for (const e of out.events || []) if (e && e.setup) ctx.onWarmSetup(e.setup); if (out.signal && out.signal.setupId && typeof ctx.onWarmSetup === 'function') ctx.onWarmSetup(out.signal.setupId); continue; }   // history: build the engine's state, journal nothing
+       for (const e of out.events || []) rows.push({ ...e, event: e.type || 'event', phase: e.type === 'SIGNAL' ? 'engine_signal' : String(e.type || 'event').toLowerCase(), engine: version, t: isNum(e.t) ? e.t * 1000 : Date.now() });   // 'signal' is the wiring's own row (with the plan)
++      let laneSig = null;
++      if (lane) { let lr = null; try { lr = lane.step(st, tSec + 60); } catch (e) { rows.push({ phase: 'trend_idle', event: 'TREND_IDLE', lane: 'trend', engine: version, t: (tSec + 60) * 1000, why: `lane error: ${e && e.message}` }); }   // [r1.6] one decision per closed 5m bar; an error is journaled, never thrown
++        if (lr) { for (const r of lr.rows) rows.push({ ...r, engine: version }); laneSig = lr.signal; } }
++      if (out.signal && laneSig) rows.push({ phase: 'trend_tie', event: 'TREND_TIE', lane: 'trend', engine: version, t: (tSec + 60) * 1000, id: laneSig.id, dir: laneSig.dir, R: laneSig.trend && laneSig.trend.R, engineSignal: out.signal.id, note: 'the engine level setup and the trend lane fired on the same bar: the level setup wins' });   // [r1.6]
+       if (out.signal) { const ns = normSignal(out.signal, version, L); if (typeof ctx.onSignal === 'function') ctx.onSignal(ns, b); else signals.push(ns); }
++      else if (laneSig) { const ns = normSignal(laneSig, version, L); if (typeof ctx.onSignal === 'function') ctx.onSignal(ns, b); else signals.push(ns); }
+     }
+     return { rows, signals };
+   } };
+@@ -412,6 +443,8 @@
+     if (pre) g.code = g.ok ? 'PRE_RESTART' : g.code, g.ok = false;
+     const late = isNum(sig.at) && isNum(now) && now - sig.at > LATE_MS, silent = g.code === 'SESSION_CLOSE' || pre;   // a catch-up bar's signal / the session close: journal only
+     const taken = liveMode ? p.ok && firstLeg && !late && g.ok : p.ok && firstLeg && !late && (g.ok || g.code === 'NOT_FLAT' || g.code === 'DESYNCED' || g.code === 'PAUSED');   // [2a] live: every kept gate must pass now
++    const takenWhy = taken ? (liveMode ? 'taken: the plan fits, first leg, not late, every kept gate passed' : 'taken (shadow virtual trade)')   // [r1.6] Mac 11/05: the phone shows "live 1 - taken 0" with no reason; every signal row says why
++      : !p.ok ? `plan ${p.code}${p.why ? ': ' + p.why : ''}` : !firstLeg ? 'not the first leg of this setup (one entry per setup; no retest add)' : late ? `late: the bar closed ${Math.round((now - sig.at) / 1000)} s before this step (> ${LATE_MS / 1000} s)` : pre ? 'PRE_RESTART: the setup was armed before this start (warm-up history)' : `gate ${g.code}${g.why ? ': ' + g.why : ''}`;
+     if (taken) { sh.virt.set(id, liveMode ? { ...virtualOpen(sig, p, T), live: true } : virtualOpen(sig, p, T)); if (liveMode) takes.push({ id, sig, plan: p }); }   // [2a] live: lib/tideLive.js (re-checks flat / session / broker) reports the end back
+     else if (firstLeg) sh.fb.push({ setupId: sig.setupId || null, signalId: sig.id || null, tp1Done: false, closed: true });   // not taken: the engine's trade ends now
+     const line = pushLine(sig, p, g.code);
+@@ -424,8 +457,17 @@
+         pyramid: { qty: p.addQty, when: 'once after TP1 on a rejected pullback, trend + 4H control held, house money only (D4)' } }
+         : { skip: p.code, mode: p.mode ?? sizingMode(cfg), shadow: p.shadow || null, grade: p.grade ?? null, leg: p.leg ?? null, legNote: p.legNote ?? null, stop: p.stop ?? null, stopPts: p.stopPts ?? null, stopTf: p.stopTf ?? null, error: p.error ?? null },
+       poolsAdded: sig.poolsAdded && sig.poolsAdded.length ? sig.poolsAdded : null, late: late || null, taken, tradeable: !silent,
+-      gatesNow: g.ok ? 'pass' : g.code, gateWhy: g.why || null, push: PUSH_CODES(p) && !late && !silent ? line : null, raw: sig.raw || null }, now));
++      gatesNow: g.ok ? 'pass' : g.code, gateWhy: g.why || null, takenWhy, push: PUSH_CODES(p) && !late && !silent ? line : null, raw: sig.raw || null, ...(sig.gradeWaived === true ? { gradeWaived: true, gradeTags: sig.gradeTags || [] } : {}),   // [r1.6] takenWhy on every row; aligned-pass: the waived gates on the row (absent otherwise)
++      ...(p.code === 'GRADE_NO_FIT_CEILING' && p.why ? { skipWhy: p.why } : {}) }, now));   // [r1.6] Mac 11/05: "needed a better entry" on a stop too wide for 1 MNQ at $400
+     if (PUSH_CODES(p) && !late && !silent) pushes.push(liveMode ? line.replace(/^TIDE SHADOW /, taken ? 'TIDE LIVE ' : 'TIDE LIVE (no order) ') : line);   // the phone gets every tradable leg and every GRADE_NO_FIT; a leg with no room, a late or a session-close signal is journal only
++    if (sig.lane === 'trend') {   // [r1.6] the trend lane's own small rows (the 64 KB phone ring): trend_signal always; trend_skip when no contract fits; the lane counts TAKEN entries (its caps)
++      const tr = sig.trend || {}, why = taken ? 'taken' : late ? 'LATE: the bar closed more than 3 min ago' : !p.ok ? `PLAN ${p.code}` : !g.ok ? `${g.code}${g.why ? ': ' + g.why : ''}` : 'not first leg';
++      sigRows.push(tideRow('trend_signal', { id, dir: sig.dir, side: sig.dir === 1 ? 'LONG' : 'SHORT', entry: r2(sig.entry), stop: p.ok ? p.stop : tr.stop ?? null, stopPts: p.ok ? p.stopPts : tr.stopPts ?? null, size: p.ok ? p.qty : 0, sizeCode: p.ok ? p.sizeCode || null : p.code,
++        R: tr.R ?? null, rKind: tr.rKind || null, rName: tr.rName || null, def: tr.def || null, dirEv: tr.dirEv || null, h1: tr.h1 || null, climax: tr.climax || null, tp1: p.ok && p.exits.partial ? p.exits.partial.price : null, tp2: p.ok ? p.exits.tp.price : null, taken, why }, T));
++      if (!p.ok && (p.code === 'GRADE_NO_FIT_CEILING' || p.code === 'GRADE_NO_FIT')) sigRows.push(tideRow('trend_skip', { id, dir: sig.dir, entry: r2(sig.entry), stop: p.stop ?? tr.stop ?? null, stopPts: p.stopPts ?? tr.stopPts ?? null, stopBasis: tr.stopBasis || null, R: tr.R ?? null, code: p.code,
++        why: p.why || `stop ${p.stopPts ?? tr.stopPts} pts = $${p.oneLotUsd ?? r2((p.stopPts ?? tr.stopPts ?? 0) * pointValue)} for 1 MNQ > $${p.budgetUsd ?? take1Max(cfg)} max: needed a better entry` }, T));
++      if (sh.engine && typeof sh.engine.trendNote === 'function') sh.engine.trendNote(sig, taken, isNum(sig.at) ? Math.floor(sig.at / 1000) : Math.floor(T / 1000));
++    }
+   };
+   const out = sh.engine.step({ ...input, tradesFor, onSignal }) || {};
+   for (const sig of Array.isArray(out.signals) ? out.signals : []) onSignal(sig, null);   // an engine adapter without the per-bar hook
+@@ -531,5 +573,5 @@
+ const PUSH_CODES = p => !!(p && (p.ok || p.code === 'GRADE_NO_FIT' || p.code === 'GRADE_NO_FIT_CEILING'));
+ function tideRow(phase, data, t) { return { type: 'lv_tide', t: isNum(t) ? t : Date.now(), version: VERSION, phase, ...(data || {}) }; }
+ 
+-module.exports = { engineCfgOf, staleROf, switchOn, R154_KEYS, HTF_MODES, htfAgainstOf, htfBoard, boardView, BOARD_MAX_LEVELS, BOARD_MAX_BYTES, socketRetry, isSocketErr, readStats, warmRead, WARM_LADDER, errText, blockAt, blocksText, tideBlocks, LIVE_ARM, liveFeedback, moneyOnly, take1Max, TAKE1_MAX_DEFAULT, agg30, mergeTail, WARM_CLOCK_MIN, WARM_KEEP, createAdapter, normSignal, boardMap, dayPools, virtualOpen, virtualBar, createBiasBook, noteBias, biasAt, lastBiasAt, BIAS_MAX_AGE_MS, LATE_MS, moneyDefaults, sizingMode, BOARD_KEYS, VERSION, STAGE, MODES, STAGE_MODES, DEFAULTS, VETOES_SKIPPED, GATES_KEPT, ROWS_PER_STEP, configProblem, modeOf, moneyCfg, gradeUsd, startupLines,
++module.exports = { engineCfgOf, staleROf, switchOn, R154_KEYS, HTF_MODES, htfAgainstOf, htfBoard, trendLaneOf, trendLaneOn, trendLaneLine, TREND_LANE_SHIP, trendLane, GRADE_GATE_MODES, gradeGateOf, sizeCapOf, capMoney, liveMoney, SIZE_CAP_SHIP, boardView, BOARD_MAX_LEVELS, BOARD_MAX_BYTES, socketRetry, isSocketErr, readStats, warmRead, WARM_LADDER, errText, blockAt, blocksText, tideBlocks, LIVE_ARM, liveFeedback, moneyOnly, take1Max, TAKE1_MAX_DEFAULT, agg30, mergeTail, WARM_CLOCK_MIN, WARM_KEEP, createAdapter, normSignal, boardMap, dayPools, virtualOpen, virtualBar, createBiasBook, noteBias, biasAt, lastBiasAt, BIAS_MAX_AGE_MS, LATE_MS, moneyDefaults, sizingMode, BOARD_KEYS, VERSION, STAGE, MODES, STAGE_MODES, DEFAULTS, VETOES_SKIPPED, GATES_KEPT, ROWS_PER_STEP, configProblem, modeOf, moneyCfg, gradeUsd, startupLines,
+   tideGate, openWait, ptMinute, pointNames, plan, pushLine, shadowStep, tideRow, structure, setStructureForTest };
+diff -ruN pkg-live-r1.5.6-wip/bot/lib/trendLane.js pkg-live-r1.6-wip/bot/lib/trendLane.js
+--- pkg-live-r1.5.6-wip/bot/lib/trendLane.js	1970-01-01 00:00:00.000000000 +0000
++++ pkg-live-r1.6-wip/bot/lib/trendLane.js	2026-11-05 20:25:11.742928872 +0000
+@@ -0,0 +1,169 @@
++'use strict';
++// lib/trendLane.js: TIDE live r1.6 "trend lane" (MacTrend, 11/05), Mac's execution spec (11/05 addenda 1, 2, 7, 9):
++//   "The 4H provides information, NOT an entry." "No alignment = No trade." "It doesn't have to be a pullback, it can just be price action at a level of
++//   interest including the institutional levels." "I don't care to get the perfect institutional level, I care to get into the trades and execute!"
++//
++// PURE and deterministic: no I/O, no clock, no randomness. It READS the structure engine's state (lib/structure.js: its own 5m / 15m / 30m / 1H / 4H bars,
++// htfContext, climax, zones, 15m pivots, the level board) after each engine step and never writes to it. One decision per CLOSED 5m bar: nothing here
++// waits for a 15m or 30m close.
++//   STEP 1 DIR     (4H) : the PREVIOUS 4H candle's close direction (st.htf.prev4h.dir: +1 closed bullish, -1 bearish, 0 doji / flat -> no DIR, idle).
++//                         The current 4H open (st.period.O4) is plotted as a reference level.
++//   STEP 2 HARMONY (30M): the most recently COMPLETED 30M candle closed in DIR (close above its open for DIR up, below for DIR down); re-read at every
++//                         5m close (so at every 30M close). The forming 30M's open is the PRIMARY reference R, with the 4H open.
++//   STEP 3 TRIGGER (5M) : references R = every level the bot already tracks (the Levels PRO board the executor hands the engine: PDH / PDL, PWH / PWL,
++//                         week / month / quarter opens, Asia / London ranges, ORH / ORL, IB ... whatever it carries; the TIDE zones; the 4H / 1H / 30M / 15m
++//                         opens; the last 15m swing). Nearest R to the close wins. A COMPLETED 5m candle that traded at R and CLOSED on the DIR side of R:
++//                           reject = opened on the DIR side, traded within retestTol of R or through it, closed back on the DIR side, with a rejection wick
++//                                    of >= wickMin pts (the wick minimum applies to this case only);
++//                           break  = opened on the far side of R and closed on the DIR side (no wick minimum).
++//                         No pullback is required. A 5m extreme within retestTol of R journals trend_arm (once per R per 15m, nearest 3).
++//   EXECUTION           : market at that 5m close; stop = the extreme against DIR of the 30M candle the trigger closed in -/+ stopTicks ticks (Mac 11/05: "beyond
++//                         the 30 minute wick"); a 30M younger than minAge30 min at the trigger -> the previous completed 30M's extreme (stopBasis '30m-wick' |
++//                         'prev-30m-wick' + the candle's open time journaled). The trigger 5m's own extreme is always covered. Accurate; never tightened.
++//                         Sizing is lib/moneyRule.js's: a wide stop sizes DOWN; a stop no contract fits is a trend_skip (tideWire). Targets as every TIDE signal.
++//   RE-ENTRY            : another entry on the next trigger while DIR + HARMONY hold; at most capHour entries per clock hour and capDay per TradeDay (15:00 PT).
++//                         One open position at a time is the executor's rule (tideWire TIDE_OPEN + tideLive), not this file's.
++//   CLIMAX              : cfg.climax 'defense-confirms' (default, Mac 11/05): a defended 5m candle IS the structure confirmation, the engine's climax state
++//                         never blocks a lane entry (journaled on trend_signal); 'block' = a same-way climax refuses (why CLIMAX).
++//   NOT applied         : ONE_IDEA slot, waveBias, retest-closed-inside, nearest-level, the 4H-control veto, rule 18 (no grade table). The executor's kept gates
++//                         (TIDE entry blocks, open wait, session close, news wait, flat, broker checks) apply in tideWire.shadowStep. At 07:30 PT (Mac's example:
++//                         the first 30M after the NY open + wait) nothing blocks: the 06:30-07:10 block and the 30-min waits after 06:30 / 07:00 are over.
++//   TIE                 : an engine (level) signal and a lane signal on the same bar -> the engine's wins; the lane journals trend_tie.
++let S_ = null; const S = () => S_ || (S_ = require('./structure'));   // ptMin / ptLabel only (America/Los_Angeles, deterministic); loaded on first use
++
++const VERSION = 'trend-lane-r2';   // r2: Mac's 11/05 execution spec (prior-4H DIR, 30M harmony, any tracked level, reject | break); r1 was 1H harmony + pullback
++const DEFAULTS = Object.freeze({ enabled: true, retestTol: 6, wickMin: 4, stopTicks: 2, capHour: 2, capDay: 6, climax: 'defense-confirms', swingBars: 12, minAge30: 10, tick: 0.25 });   // minAge30: a 30M candle younger than this (minutes) at the trigger lends its stop to the previous 30M's wick
++const CLIMAX_MODES = Object.freeze(['defense-confirms', 'block']);
++const MAJOR = new Set(['4H Open', 'PDH', 'PDL', 'Asia High', 'Asia Low', 'London High', 'London Low', 'EQH', 'EQL']);
++const isNum = x => typeof x === 'number' && Number.isFinite(x);
++const r2 = x => (isNum(x) ? Math.round(x * 100) / 100 : null);
++
++function cfgOf(c) {
++  const o = { ...DEFAULTS, ...(c && typeof c === 'object' ? c : {}) };
++  for (const k of ['retestTol', 'wickMin', 'stopTicks', 'capHour', 'capDay', 'swingBars', 'minAge30', 'tick']) if (!isNum(o[k]) || o[k] < 0) o[k] = DEFAULTS[k];
++  if (!CLIMAX_MODES.includes(o.climax)) o.climax = DEFAULTS.climax;
++  o.enabled = o.enabled !== false;
++  return o;
++}
++// -> null | text (tideWire.configProblem calls it for tide.trendLane)
++function configProblem(c) {
++  if (c === undefined) return null;
++  if (!c || typeof c !== 'object' || Array.isArray(c)) return 'tide.trendLane must be an object { enabled, retestTol, wickMin, stopTicks, capHour, capDay, climax }';
++  const p = [];
++  for (const k of Object.keys(c)) if (!Object.prototype.hasOwnProperty.call(DEFAULTS, k) || k === 'tick') p.push(`unknown setting "tide.trendLane.${k}"`);
++  if (c.enabled !== undefined && typeof c.enabled !== 'boolean') p.push('tide.trendLane.enabled must be true or false');
++  for (const [k, lo, hi] of [['retestTol', 0, 50], ['wickMin', 0, 50], ['stopTicks', 0, 40]]) if (c[k] !== undefined && !(isNum(c[k]) && c[k] >= lo && c[k] <= hi)) p.push(`tide.trendLane.${k} must be a number ${lo}-${hi}`);
++  for (const [k, lo, hi] of [['capHour', 1, 20], ['capDay', 1, 60], ['swingBars', 3, 96], ['minAge30', 0, 29]]) if (c[k] !== undefined && !(Number.isInteger(c[k]) && c[k] >= lo && c[k] <= hi)) p.push(`tide.trendLane.${k} must be a whole number ${lo}-${hi}`);
++  if (c.climax !== undefined && !CLIMAX_MODES.includes(c.climax)) p.push('tide.trendLane.climax must be "defense-confirms" or "block"');
++  return p.length ? p.join('; ') : null;
++}
++const tradeDayOf = T => T - (T % 60) - ((((S().ptMin(T) - 900) % 1440) + 1440) % 1440) * 60;   // the 15:00 PT start of this TradeDay (unix sec)
++const hourOf = T => T - (T % 3600);
++
++function create(cfgIn) {
++  const cfg = cfgOf(cfgIn);
++  const L = { v: VERSION, last5T: null, armed: {}, idleSeen: {}, entries: [], lastSigT: null };   // entries: [T] of TAKEN lane entries (the hour / day caps)
++  const row = (phase, T, data) => ({ phase, event: 'TREND_' + phase.replace('trend_', '').toUpperCase(), t: T * 1000, at: S().ptLabel(T), lane: 'trend', ...data });
++  const prune = T => { L.entries = L.entries.filter(t => T - t < 86400 + 3600); for (const o of [L.armed, L.idleSeen]) for (const k of Object.keys(o)) if (T - o[k] > 7200) delete o[k]; };
++  function counts(T) { const h = hourOf(T), d = tradeDayOf(T); return { hour: L.entries.filter(t => hourOf(t) === h).length, day: L.entries.filter(t => tradeDayOf(t) === d).length }; }
++
++  // st = the engine state after its step on the 1m bar that closed at T (unix sec); board = the executor's level board [{ name, price }] (may be empty).
++  // -> { signal: null | sig, rows: [] }
++  function step(st, T, board) {
++    const rows = []; if (!cfg.enabled || !st || !st.bars) return { signal: null, rows };
++    const m5 = st.bars.m5, bar = m5[m5.length - 1];
++    if (!bar || bar.t === L.last5T || bar.t + 300 !== T) return { signal: null, rows };   // only the 1m close that CLOSED a 5m bar
++    L.last5T = bar.t; prune(T);
++    const idle = why => { const k = `${Math.floor(T / 900)}|${why.split(' (')[0]}`; if (!L.idleSeen[k]) { L.idleSeen[k] = T; rows.push(row('trend_idle', T, { why })); } return { signal: null, rows }; };
++    // STEP 1 DIR: the previous 4H candle's close direction
++    const H = st.htf, p4 = H && H.prev4h; if (!p4) return idle('no 4H direction (no completed 4H candle yet)');
++    const dir = p4.dir; if (!(dir === 1 || dir === -1)) return idle('no 4H direction (prior 4H flat)');
++    const dirEv = { prev4h: { at: p4.at, o: r2(p4.o), c: r2(p4.c), dir: p4.dir }, open4h: st.period && isNum(st.period.O4) ? r2(st.period.O4) : null, htfDir: H.dir };
++    // STEP 2 HARMONY: the last COMPLETED 30M candle closed in DIR
++    const m30 = st.bars.m30, cur30 = st.cur.m30 || null, last30 = cur30 ? m30[m30.length - 1] : m30[m30.length - 2], open30 = cur30 ? cur30.o : (m30.length ? m30[m30.length - 1].o : null);
++    if (!last30 || !isNum(open30)) return idle('30M not in harmony (no completed 30M candle yet)');
++    const h30 = { open30: r2(open30), last30: { at: S().ptLabel(last30.t), o: r2(last30.o), c: r2(last30.c), dir: Math.sign(last30.c - last30.o) } };
++    if (!(dir * (last30.c - last30.o) > 0)) return idle(`30M not in harmony (last 30M closed ${last30.c === last30.o ? 'flat' : 'against DIR'} at ${S().ptLabel(last30.t)})`);
++    // STEP 3 references: every level the bot tracks (the board), the TIDE zones, the 4H / 1H / 30M / 15m opens, the last 15m swing. Nearest to the close wins.
++    const refs = [];
++    const add = (name, price, kind) => { if (!isNum(price)) return; const q = refs.find(r => Math.abs(r.price - price) <= 0.5); if (q) { if (!q.name.split(' + ').includes(name)) q.name += ' + ' + name; return; } refs.push({ name, price, kind }); };
++    add('30M Open', open30, 'open'); if (st.period && isNum(st.period.O4)) add('4H Open', st.period.O4, 'open');
++    { const cur1 = st.cur.h1 || null, h1 = st.bars.h1; add('1H Open', cur1 ? cur1.o : (h1.length ? h1[h1.length - 1].o : null), 'open');
++      const m15 = st.bars.m15, cur15 = st.cur.m15 || null; add('15m Open', cur15 ? cur15.o : (m15.length ? m15[m15.length - 1].o : null), 'open');
++      const n = m15.length, from = n ? m15[Math.max(0, n - cfg.swingBars)].t : null, piv = st.piv && st.piv.m15 ? (dir > 0 ? st.piv.m15.lo : st.piv.m15.hi) : [];
++      const sw = from === null ? [] : piv.filter(p => p.t >= from && p.confT <= T); if (sw.length) add(dir > 0 ? '15m swing low' : '15m swing high', sw[sw.length - 1].price, 'swing'); }
++    for (const z of st.zones || []) if (z.src !== 'round') add(z.name, z.price, 'zone');
++    const Lv = st.levels || {}; for (const [k, nm] of [['PDH', 'PDH'], ['PDL', 'PDL'], ['AsiaH', 'Asia High'], ['AsiaL', 'Asia Low'], ['LonH', 'London High'], ['LonL', 'London Low']]) add(nm, Lv[k], 'board');
++    for (const b of Array.isArray(board) ? board : []) if (b && typeof b.name === 'string' && isNum(b.price) && !/round/i.test(b.name)) add(b.name, b.price, 'board');
++    // arm rows: a 5m extreme within retestTol of R against DIR (once per R per 15m; the nearest 3)
++    const ext = dir > 0 ? bar.l : bar.h, wick = dir > 0 ? Math.min(bar.o, bar.c) - bar.l : bar.h - Math.max(bar.o, bar.c);
++    const arms = refs.filter(r => dir * (ext - r.price) <= cfg.retestTol && dir * (bar.c - r.price) > 0 && !L.armed[`${Math.floor(T / 900)}|${r.price}`]).sort((a, b) => Math.abs(a.price - bar.c) - Math.abs(b.price - bar.c)).slice(0, 3);
++    for (const r of arms) { L.armed[`${Math.floor(T / 900)}|${r.price}`] = T; rows.push(row('trend_arm', T, { dir, R: r2(r.price), kind: r.kind, name: r.name, ext: r2(ext), dirEv, h30 })); }
++    // the trigger: a completed 5m candle that traded at R and closed on the DIR side of R - a rejection (wick >= wickMin) or a break-and-close
++    const trig = [];
++    for (const r of refs) {
++      if (!(dir * (bar.c - r.price) > 0)) continue;   // the close must be on the DIR side of R
++      const openDirSide = dir * (bar.o - r.price) > 0, touched = dir * (ext - r.price) <= cfg.retestTol;
++      if (openDirSide && touched && wick >= cfg.wickMin) trig.push({ ...r, trigger: 'reject' });
++      else if (!openDirSide) trig.push({ ...r, trigger: 'break' });
++    }
++    if (!trig.length) return { signal: null, rows };
++    trig.sort((a, b) => Math.abs(a.price - bar.c) - Math.abs(b.price - bar.c));
++    // the STOP (Mac 11/05: "beyond the 30 minute wick"): the extreme against DIR of the 30M candle the trigger 5m closed in, 2 ticks beyond; a 30M candle younger
++    // than minAge30 at the trigger gives way to the previous completed 30M's extreme (never behind a 2-minute-old wick). The trigger 5m's own extreme is always covered.
++    const b30 = cur30 && cur30.t <= bar.t ? cur30 : (m30.length && m30[m30.length - 1].t <= bar.t ? m30[m30.length - 1] : null), age30 = b30 ? T - b30.t : null;
++    const young = b30 && age30 < cfg.minAge30 * 60, prev30 = young ? (b30 === cur30 ? m30[m30.length - 1] : m30[m30.length - 2]) || null : null;
++    const wickBar = young && prev30 ? prev30 : b30, basis = young && prev30 ? 'prev-30m-wick' : b30 ? '30m-wick' : '5m-extreme';
++    const wickExt = wickBar ? (dir > 0 ? Math.min(wickBar.l, ext) : Math.max(wickBar.h, ext)) : ext;
++    const R = trig[0], entry = bar.c, stop = dir > 0 ? wickExt - cfg.stopTicks * cfg.tick : wickExt + cfg.stopTicks * cfg.tick, risk = Math.abs(entry - stop);
++    const stopEv = { basis, at: wickBar ? S().ptLabel(wickBar.t) : null, t30: wickBar ? wickBar.t * 1000 : null, wick: r2(wickExt), age30Min: age30 !== null ? Math.round(age30 / 60) : null };
++    const climax = st.climax ? { dir: st.climax.dir, at: S().ptLabel(st.climax.T), sameWay: st.climax.dir === dir } : null;
++    const base = { dir, side: dir > 0 ? 'LONG' : 'SHORT', trigger: R.trigger, level: { name: R.name, price: r2(R.price), kind: R.kind }, entry: r2(entry), stop: r2(stop), stopPts: r2(risk), stopBasis: basis, stopEv, R: r2(R.price), rKind: R.kind, rName: R.name,
++      def: { t: bar.t * 1000, at: S().ptLabel(bar.t), o: bar.o, h: bar.h, l: bar.l, c: bar.c, ext: r2(ext), wick: r2(wick) }, climax, dirEv, h30, others: trig.slice(1, 4).map(x => ({ name: x.name, price: r2(x.price), trigger: x.trigger })) };
++    const skip = why => { rows.push(row('trend_skip', T, { ...base, why })); return { signal: null, rows }; };
++    if (!(risk > 0)) return skip('NO_STOP: the trigger candle has no extreme beyond the entry');
++    if (cfg.climax === 'block' && climax && climax.sameWay) return skip(`CLIMAX: a ${dir > 0 ? 'buying' : 'selling'} climax at ${climax.at} blocks the entry (tide.trendLane.climax "block")`);
++    const c = counts(T);
++    if (c.hour >= cfg.capHour) return skip(`CAP_HOUR: ${c.hour} trend entries this clock hour (cap ${cfg.capHour})`);
++    if (c.day >= cfg.capDay) return skip(`CAP_DAY: ${c.day} trend entries this TradeDay (cap ${cfg.capDay})`);
++    const targets = buildTargets(st, dir, entry, risk, board);
++    const id = `TL${dir > 0 ? 'L' : 'S'}-${T}`;
++    L.lastSigT = T;
++    const sig = { id, setupId: id, leg: 'entry', t: T, at: S().ptLabel(T), dir, side: base.side, kind: 'trend', lane: 'trend',
++      level: { name: R.name, price: R.price, members: [R.name] }, zone: { lo: R.price, hi: R.price, key: `trend|${R.kind}@${R.price}`, type: R.kind },
++      entryType: 'market', entryPrice: entry, addZone: null,
++      stops: { structural: stop, stopType: '30M', rule: `${basis} ${stopEv.at || ''}: the 30M candle's extreme against DIR ${dir > 0 ? '-' : '+'} ${cfg.stopTicks} ticks (trend lane ${R.trigger}; never tightened)`, basis, wick: wickExt }, chosenStop: stop, riskPts: r2(risk),
++      grade: 'C', gradePoints: {}, gradeTotal: 0, gradeGates: {}, gradeWaived: [], gradeDetail: {}, tags: ['trend-lane', R.trigger],
++      gradeEvidence: { lane: 'trend', trigger: R.trigger, level: base.level, def: base.def, dirEv, h30, climax, caps: c },
++      targets, pools: targets, internalPools: targets.filter(t => !t.major), contextPools: [], marketState: st.mstate ? Object.assign({}, st.mstate) : null,
++      control: st.period && st.period.control ? { dir: st.period.control.dir, kind: st.period.control.kind } : null,
++      defended: { price: R.price, name: R.name, kind: R.kind }, shift: null, retest: { n: 1, extreme: ext, at: S().ptLabel(bar.t) },
++      warnings: [], reason: [`trend lane ${R.trigger}: DIR ${dir > 0 ? 'up' : 'down'} (prior 4H ${p4.at} closed ${p4.dir > 0 ? 'bullish' : 'bearish'}), 30M harmony (last 30M ${h30.last30.at} closed ${dir > 0 ? 'up' : 'down'}, 30M open ${r2(open30)}), 5m ${R.trigger} at ${R.name} ${r2(R.price)} (close ${r2(entry)}, extreme ${r2(ext)})`],
++      htf: H.dir === dir ? 'with' : H.dir === 0 ? 'neutral' : 'against', htfDir: H.dir, riskMult: 1, htfView: { prev4h: { dir: p4.dir, hh: p4.hh, ll: p4.ll }, daily: H.daily ? H.daily.side : 0, cur4h: H.cur4h ? H.cur4h.side : 0 },
++      trend: base };
++    return { signal: sig, rows };
++  }
++  // tideWire tells the lane whether its signal was TAKEN (an entry): the caps count entries, not signals
++  function note(sig, taken, T) { if (sig && sig.lane === 'trend' && taken) { L.entries.push(isNum(T) ? T : sig.t); prune(isNum(T) ? T : sig.t); } }
++  function describe() { return `trend lane ${cfg.enabled ? 'ON' : 'OFF'} (retestTol ${cfg.retestTol}, cap ${cfg.capHour}/h ${cfg.capDay}/day, reject wick ${cfg.wickMin}, stop ${cfg.stopTicks} ticks, climax ${cfg.climax})`; }
++  return { VERSION, cfg, step, note, counts, describe, state: () => L };
++}
++// the ordered pools in the trade direction (the money rule picks TP1 / TP2): zone members (never Rounds), the board's levels, 1H / 4H swings
++function buildTargets(st, d, entry, risk, board) {
++  const out = [], tick = 0.25;
++  const add = (price, name, kind, major, weight) => { if (isNum(price) && (d < 0 ? price < entry - tick : price > entry + tick)) out.push({ price, name, kind, major: !!major, weight: weight || null, touches: null }); };
++  for (const z of st.zones || []) for (const m of z.members || []) if (m.src !== 'round') add(m.price, m.name, m.src, m.major || MAJOR.has(m.name), m.weight);
++  const Lv = st.levels || {};
++  for (const [k, nm] of [['PDH', 'PDH'], ['PDL', 'PDL'], ['AsiaH', 'Asia High'], ['AsiaL', 'Asia Low'], ['LonH', 'London High'], ['LonL', 'London Low']]) add(Lv[k], nm, 'board', true, k.startsWith('PD') ? 'strong' : 'obvious');
++  for (const b of Array.isArray(board) ? board : []) if (b && typeof b.name === 'string' && isNum(b.price) && !/round/i.test(b.name)) add(b.price, b.name, 'board', /^P[DWMQ][HL]$|^PDH|^PDL/.test(b.name), 'obvious');
++  const piv = st.piv || {};
++  for (const p of ((piv.h1 && (d < 0 ? piv.h1.lo : piv.h1.hi)) || []).slice(-8)) add(p.price, d < 0 ? '1H swing low' : '1H swing high', 'swing1h', false, 'obvious');
++  for (const p of ((piv.h4 && (d < 0 ? piv.h4.lo : piv.h4.hi)) || []).slice(-6)) add(p.price, d < 0 ? '4H swing low' : '4H swing high', 'swing4h', true, 'strong');
++  out.sort((a, b) => Math.abs(a.price - entry) - Math.abs(b.price - entry));
++  const ded = [];
++  for (const t of out) { const q = ded.find(x => Math.abs(x.price - t.price) <= 0.5); if (q) { if (!q.name.split(' + ').includes(t.name)) q.name += ` + ${t.name}`; q.major = q.major || t.major; continue; } ded.push(t); }
++  let minors = 0;
++  return ded.filter(t => t.major || ++minors <= 12).map(t => Object.assign(t, { distancePts: r2(Math.abs(t.price - entry)), distanceR: risk > 0 ? r2(Math.abs(t.price - entry) / risk) : null }));
++}
++
++module.exports = { VERSION, DEFAULTS, CLIMAX_MODES, cfgOf, configProblem, create, buildTargets, tradeDayOf, hourOf };
+diff -ruN pkg-live-r1.5.6-wip/bot/live-executor.js pkg-live-r1.6-wip/bot/live-executor.js
+--- pkg-live-r1.5.6-wip/bot/live-executor.js	2026-11-04 17:30:08.994890258 +0000
++++ pkg-live-r1.6-wip/bot/live-executor.js	2026-11-05 20:53:08.095047805 +0000
+@@ -155,7 +155,8 @@
+ function lvjDay(t) { const d = effectiveDayKey(t); if (d === lvj.day) return; const r = levelPanel.roll(d); lvj.day = d; lvj.file = `${LEVEL_JOURNAL_PREFIX}${new Date(d + 43200000).toISOString().slice(0, 10)}.jsonl`; lvj.bytes = null; if (r) { r.t = t; lvjWrite(r); } }
+ // [r1.2] snapshot.tide rows: today's lv_tide rows of the KEEP phases (MacUI-N contract), as journaled minus evidence / raw; <= 120 rows and <= 64 KB (the oldest
+ // non-signal row goes first). Only lv_tide rows touch it: with tide.mode off none are ever written.
+-const TIDE_KEEP = new Set(['restart', 'period', 'htf', 'control_form', 'setup_arm', 'setup_cancel', 'setup_expire', 'retest', 'rejection', 'grade_live', 'grade_no_trade', 'signal', 'shadow_exit', 'stopped_out', 'live_step', 'live_order', 'live_fill', 'live_end', 'live_result', 'live_alert', 'live_not_taken', 'live_guard', 'live_restart', 'rebuild']);
++const TIDE_KEEP = new Set(['restart', 'period', 'htf', 'control_form', 'setup_arm', 'setup_cancel', 'setup_expire', 'retest', 'rejection', 'grade_live', 'grade_no_trade', 'signal', 'shadow_exit', 'stopped_out', 'live_step', 'live_order', 'live_fill', 'live_end', 'live_result', 'live_alert', 'live_not_taken', 'live_guard', 'live_restart', 'rebuild',
++  'startup', 'trend_arm', 'trend_signal', 'trend_skip', 'trend_idle', 'trend_tie', 'order_reject', 'live_order_reject', 'grade_waived']);   // [r1.6] + the process start row, the trend lane's rows (lib/trendLane.js), broker rejections (tideLive r1.2), aligned-pass waivers
+ const tideRowsRing = { day: null, rows: [], bytes: 0 };
+ function tideRowNote(row) {
+   try { if (!row || row.type !== 'lv_tide' || !TIDE_KEEP.has(row.phase)) return; const d = lvj.day;
+@@ -165,6 +166,78 @@
+     while (tideRowsRing.rows.length > 120 || tideRowsRing.bytes > 65536) { let i = tideRowsRing.rows.findIndex(x => x.phase !== 'signal'); if (i < 0) i = 0; tideRowsRing.bytes -= Buffer.byteLength(JSON.stringify(tideRowsRing.rows[i])); tideRowsRing.rows.splice(i, 1); }
+   } catch (e) { /* display only */ }
+ }
++// [r1.6] (Mac 11/05: "A restart shouldn't make the journal empty") the ring above is memory-only and starts empty after a restart. At startup, before the warm-up
++// rebuild, today's TradeDay lv_tide rows are RELOADED from the on-disk journal file (read only; the file is never written here) into the ring, oldest first so the
++// newest stay last, under the same 120-row / 64 KB cap, each tagged reloaded:true. snapshot.tide.day is a summary of the WHOLE day file (not the ring), read
++// incrementally (only the bytes appended since the last read), refreshed at most every 30 s.
++const TIDE_RELOAD_MAX = 8 * 1024 * 1024, TIDE_DAY_REFRESH_MS = 30000, TIDE_DAY_CHUNK_MAX = 8 * 1024 * 1024;
++function tideJournalRead(file, from, maxBytes) {   // -> { text, end } : the file from byte `from` (whole lines only when from > 0: the first partial line is dropped), at most maxBytes from the END
++  let fd = null;
++  try { const size = fs.statSync(file).size; let start = Math.max(from, size - maxBytes); const len = size - start; if (len <= 0) return { text: '', end: size };
++    fd = fs.openSync(file, 'r'); const buf = Buffer.alloc(len); const got = fs.readSync(fd, buf, 0, len, start); let text = buf.toString('utf8', 0, got);
++    if (start > 0 && start !== from) text = text.slice(text.indexOf('\n') + 1); return { text, end: start + got }; }
++  finally { if (fd != null) { try { fs.closeSync(fd); } catch (e) { /* closing */ } } }
++}
++const tideTradesReloaded = { day: null, trades: [] };   // [r1.6] (Mac 11/05: "TIDE 0 closed" after the restart) today's closed TIDE trades rebuilt from the journal's live_result (+ live_end) rows, reloaded:true
++function tideRingReload() {   // today's lv_tide KEEP rows from lvj.file -> the ring, and the closed trades -> tideTradesReloaded (lvjDay(now) first). -> { rows, parsed, file, ring, bytes, trades }; never throws
++  const out = { rows: 0, parsed: 0, file: lvj.file ? path.basename(lvj.file) : null, ring: 0, bytes: 0, trades: 0 };
++  try {
++    tideTradesReloaded.day = lvj.day; tideTradesReloaded.trades = [];
++    if (!lvj.file || !fs.existsSync(lvj.file)) return out;
++    const { text } = tideJournalRead(lvj.file, 0, TIDE_RELOAD_MAX), ends = new Map();
++    for (const line of text.split('\n')) { if (!line) continue; let r; try { r = JSON.parse(line); } catch (e) { continue; } out.parsed++; if (!r || r.type !== 'lv_tide') continue;
++      if (r.phase === 'live_end' && r.position) ends.set(String(r.position), r);
++      if (r.phase === 'live_result' && r.position && Number.isFinite(r.qty)) { const e = ends.get(String(r.position)) || null;
++        tideTradesReloaded.trades.push({ id: r.position, setup: null, signalId: r.take || null, dir: null, grade: null, qty: r.qty, avgEntry: r.entry ?? null, openedAt: null, closedAt: Number.isFinite(r.t) ? r.t : null, exitPath: null, exitAvgPx: null, resultR: r.r ?? null,
++          grossUsd: r.usd ?? null, netUsd: Number.isFinite(r.netUsd) ? r.netUsd : e && Number.isFinite(e.realizedNetUsd) ? e.realizedNetUsd : null, realizedPts: r.pts ?? null, fees: r.fees ?? (e ? e.fees ?? null : null), path: r.path || null, realizedSource: r.pts != null ? 'calc' : 'journal', reloaded: true }); }
++      if (!TIDE_KEEP.has(r.phase)) continue; tideRowNote({ ...r, reloaded: true }); out.rows++; }
++    const seen = new Set(); tideTradesReloaded.trades = tideTradesReloaded.trades.filter(t => { const k = String(t.id); if (seen.has(k)) return false; seen.add(k); return true; }).slice(-40);
++  } catch (e) { out.error = String(e && e.message); }
++  out.ring = tideRowsRing.rows.length; out.bytes = tideRowsRing.bytes; out.trades = tideTradesReloaded.trades.length; return out;
++}
++function tideTradesMerged(live) {   // the driver's own closed trades (tide-live state) + the reloaded ones it does not hold (by position id), oldest first
++  const own = Array.isArray(live) ? live : [], ids = new Set(own.map(t => String(t && t.id)));
++  const extra = tideTradesReloaded.day === lvj.day ? tideTradesReloaded.trades.filter(t => !ids.has(String(t.id))) : [];
++  return [...extra, ...own].sort((a, b) => (a.closedAt || 0) - (b.closedAt || 0));
++}
++const tideDay = { file: null, off: 0, rem: '', at: 0, sum: null };
++function tideDayBlank(tradeDay) { return { tradeDay, rows: 0, byPhase: {}, control: null, signals: { live: 0, taken: 0, replayed: 0 }, setups: { armed: 0, noTrade: 0, cancelled: 0 }, trend: { armed: 0, taken: 0, skipped: 0 }, trades: null, tradesWhy: 'no live_result row in the journal (no TIDE trade closed this TradeDay)', restarts: 0, readAt: null }; }
++function tideDayNote(s, r) {   // one journal row into the day summary (lv_tide rows only)
++  if (!r || r.type !== 'lv_tide' || typeof r.phase !== 'string') return;
++  s.rows++; s.byPhase[r.phase] = (s.byPhase[r.phase] || 0) + 1;
++  switch (r.phase) {
++    case 'control_form': s.control = { dir: Number.isFinite(r.dir) ? r.dir : null, kind: r.kind || null, since: Number.isFinite(r.t) ? r.t : null }; break;
++    case 'signal': if (r.shadow === false) s.signals.live++; if (r.rebuilt === true) s.signals.replayed++; else if (r.taken === true) s.signals.taken++; break;   // [r1.6] taken = taken:true and NOT rebuilt (the warm-up replay's rows place no order); rows / byPhase count every lv_tide row of the file, reloaded and rebuilt alike
++    case 'setup_arm': s.setups.armed++; break;
++    case 'grade_no_trade': s.setups.noTrade++; break;
++    case 'setup_cancel': s.setups.cancelled++; break;
++    case 'trend_arm': s.trend.armed++; break;
++    case 'trend_signal': if (r.taken === true) s.trend.taken++; else s.trend.skipped++; break;
++    case 'trend_skip': s.trend.skipped++; break;
++    case 'live_result': { const t = s.trades || (s.trades = { closed: 0, won: 0, lost: 0, even: 0, netUsd: 0, grossUsd: 0, feesUsd: 0, feesKnown: 0 }); s.tradesWhy = null; t.closed++; const u = Number.isFinite(r.usd) ? r.usd : 0; if (u > 0) t.won++; else if (u < 0) t.lost++; else t.even++;
++      t.grossUsd = Math.round((t.grossUsd + u) * 100) / 100; const f = Number.isFinite(r.fees) ? r.fees : 0; if (Number.isFinite(r.fees)) { t.feesUsd = Math.round((t.feesUsd + f) * 100) / 100; t.feesKnown++; } t.netUsd = Math.round((t.netUsd + u - f) * 100) / 100; break; }   // [r1.6] netUsd = gross - the fees the row carries (tideLive r1.2); older rows: gross
++    case 'startup': s.restarts++; break;
++    default: break;
++  }
++}
++function tideDaySummary(now) {   // snapshot.tide.day from the WHOLE on-disk TradeDay journal, refreshed at most every 30 s, reading only what was appended
++  try {
++    if (!lvj.file) return null;
++    const tradeDay = lvj.file.slice(-16, -6);
++    if (tideDay.file !== lvj.file) { tideDay.file = lvj.file; tideDay.off = 0; tideDay.rem = ''; tideDay.at = 0; tideDay.sum = tideDayBlank(tradeDay); }
++    if (now - tideDay.at < TIDE_DAY_REFRESH_MS) return tideDay.sum;
++    tideDay.at = now;
++    let size = 0; try { size = fs.statSync(tideDay.file).size; } catch (e) { if (e && e.code === 'ENOENT') { return tideDay.sum; } throw e; }
++    if (size < tideDay.off) { tideDay.off = 0; tideDay.rem = ''; tideDay.sum = tideDayBlank(tradeDay); }   // the file shrank (replaced): read it again from the start
++    if (size > tideDay.off) {
++      const { text, end } = tideJournalRead(tideDay.file, tideDay.off, TIDE_DAY_CHUNK_MAX);
++      const lines = (tideDay.rem + text).split('\n'); tideDay.rem = lines.pop(); tideDay.off = end;
++      for (const line of lines) { if (!line) continue; let r; try { r = JSON.parse(line); } catch (e) { continue; } tideDayNote(tideDay.sum, r); }
++    }
++    tideDay.sum.readAt = now;
++    return tideDay.sum;
++  } catch (e) { return { tradeDay: lvj.file ? lvj.file.slice(-16, -6) : null, error: String(e && e.message) }; }
++}
+ // [r1.2] write a file atomically: a temp file in the same folder, written + fsynced, then renamed over the target (a reader sees the old or the new file, never a
+ // partial one). The bytes written are exactly the bytes given.
+ function writeFileAtomic(file, data) {
+@@ -1958,7 +2031,8 @@
+   //   wait, no new-model entry in the first N minutes after 15:00 / 00:00 / 06:30 PT or a 4H open. News wait + session flatten / no-entry still apply. The old
+   //   entry paths keep their blocks unchanged. push: one phone line per shadow signal (INFO budget).
+   //   Tool: tools/set-tide.sh off|shadow|clear. "add" / "only" (orders) come with Stage 2 and are refused by this build.
+-  tide: { mode: 'off', useTimeBlocks: true, openWaitMin: 30, push: true, liveArmed: null, oldPathEntries: false, climaxGate: true, staleR: 2, laneAccept: true, controlFree: true, nearestWins: false, ltfOpens: false, waveBiasTrend: true, releaseOnRefusal: true, controlAsBias: true, htfAgainst: 'tag' },   // [r1.5.6] + htfAgainst   // [r1.5.5] waveBiasTrend: gate waveBias >= 0 for with-trend setups   // [r1.5.4] staleR 2 (rule 18 ON) + the four lane / zone switches ON; tools/set-tide.sh lanes=off = r1.5.3 behaviour   // [r1.5.1] climaxGate false = the engine's CLIMAX with-trend block is bypassed   // [2a] liveArmed: written only by tools/set-tide.sh live; oldPathEntries: with mode "live" the old levels path takes no new entries unless true
++  tide: { mode: 'off', useTimeBlocks: true, openWaitMin: 30, push: true, liveArmed: null, oldPathEntries: false, climaxGate: true, staleR: 2, laneAccept: true, controlFree: true, nearestWins: false, ltfOpens: false, waveBiasTrend: true, releaseOnRefusal: true, controlAsBias: true, htfAgainst: 'tag',
++    trendLane: { enabled: true, retestTol: 6, wickMin: 4, stopTicks: 2, capHour: 2, capDay: 6, climax: 'defense-confirms' }, gradeGate: 'aligned-pass', sizeCap: 8 },   // [r1.6] sizeCap 8 (Mac 11/05 ruling; every TIDE entry is 1-8 MNQ inside the hard $400 per-trade max; tools/set-tide.sh sizecap=N); gradeGate 'aligned-pass' (Mac 11/05: a WITH-HTF level setup is not refused by the grade gates; 'strict' = r1.5.6); trendLane (Mac 11/05: ON): the 4H-direction / 1H-harmony / 5m-defense entry lane (lib/trendLane.js); tools/set-tide.sh trend=off = r1.5.6 setups only   // [r1.5.6] + htfAgainst   // [r1.5.5] waveBiasTrend: gate waveBias >= 0 for with-trend setups   // [r1.5.4] staleR 2 (rule 18 ON) + the four lane / zone switches ON; tools/set-tide.sh lanes=off = r1.5.3 behaviour   // [r1.5.1] climaxGate false = the engine's CLIMAX with-trend block is bypassed   // [2a] liveArmed: written only by tools/set-tide.sh live; oldPathEntries: with mode "live" the old levels path takes no new entries unless true
+   // money (MacMoney, lib/moneyRule.js money-r4, read by lib/tideWire.js; written out from its DEFAULTS): sizing.mode "flat" (shipped, the team's "common risk first":
+   //   flatDollars 450 at every grade, a placeholder until Mac sets it) or "grade" (gradeRiskUsd { A: 900, B: 600, C: 300 }, 150K values); entryByGrade false (every grade
+   //   all at once), upgradeAdd off, noFit "skip". Config only. TP1 2/3 / BE / pyramid / TP2 + the R-ladder. NO daily loss limit.
+@@ -2839,6 +2913,9 @@
+   //   PRE_RESTART fallback: setups armed in the warm-up history are journaled, never pushed or taken.
+   function tideRebuildLib() { try { return require('./lib/tideRebuild'); } catch (e) { return null; } }
+   let tideShadow = null, tideBoard = [], tideM1Last = null, tideFeedFails = 0, tideFeedNextAt = 0, tideHtf = null, tideOwnNextAt = 0, tideOwnFails = 0, tideBusy = false, tideM1Tail = null, tideM15Tail = null;
++  let tideRingReloaded = false;   // [r1.6] today's journal rows reloaded into the phone ring once, at the first TIDE poll (before the warm-up rebuild)
++  const tideWarm = { rebuilding: false, doneMin: 0, totalMin: 0, startedAt: null, finishedAt: null, result: null };   // [r1.6] snapshot.tide.warm: the rebuild progress counter (the phone says "warming up - n of N min")
++  function tideWarmView() { return { rebuilding: tideWarm.rebuilding, doneMin: tideWarm.doneMin, totalMin: tideWarm.totalMin, startedAt: tideWarm.startedAt, finishedAt: tideWarm.finishedAt, result: tideWarm.result, live: !!tideLiveReady }; }
+   const tideBook = tideWire.createBiasBook();   // the forming 15m / 30m Levels PRO bias at each evaluation (playbook §2: intrabar); stamped with the time it was read
+   function tideNoteEval(lv15, lv30, htf) {   // refreshAndEvaluate (tideOn only) and tideOwnReading: the board the engine reads + one bias reading
+     try { const sc = lv => (lv && Number.isFinite(lv.biasScore) ? lv.biasScore : null);
+@@ -2891,6 +2968,9 @@
+         // the first read asks for 6000 minutes of clock (about 4 days) so a weekend / holiday restart still gets ~2000 bars (structure r3.2 needs >= ~1500 for the 1H range)
+         const lim = tideM1Last === null ? tideWire.WARM_CLOCK_MIN : Math.min(2000, Math.ceil((now - tideM1Last) / 60000) + 5);
+         if (tideM1Last === null) {   // [r1.1a] the warm-up: the read ladder 6000 -> 3000 -> 2000 -> 1500 at once; all failed -> retried every 30 s (60 s cap) + ONE phone alert
++          if (!tideRingReloaded) { tideRingReloaded = true; lvjDay(now); const rl = tideRingReload();   // [r1.6] the phone ring is not empty after a restart: today's journal rows first (read only), then the startup row
++            log(`  [tide] journal reload: ${rl.rows} of ${rl.parsed} rows of ${rl.file || '(no day file yet)'} into the phone ring (${rl.ring} rows, ${rl.bytes} bytes), ${rl.trades} closed TIDE trade(s) of the TradeDay${rl.error ? ` - ${rl.error}` : ''}`);
++            lvjWrite(tideWire.tideRow('startup', { shadow: !tideLiveOn(), mode: tideWire.modeOf(CONFIG), node: process.version, reloadedRows: rl.rows, reloadedTrades: rl.trades, ringRows: rl.ring, trendLane: tideWire.trendLaneOn(CONFIG), gradeGate: tideWire.gradeGateOf(CONFIG), sizeCap: tideWire.sizeCapOf(CONFIG) }, now)); }
+           const wr = await tideWire.warmRead(l => fetchBars(token, contractId, UNIT.MINUTE, 1, { limit: l }), log);
+           if (!wr.bars) { tideFeedFails++; tideFeedNextAt = now + Math.min(60000, 30000 * tideFeedFails); log(`  [tide] 1m warm-up read failed at every limit (${wr.errors.map(x => x.limit).join(' / ')}) - retried in ${Math.round((tideFeedNextAt - now) / 1000)} s; TIDE is NOT trading yet.`);
+             if (!tideWarmAlerted) { tideWarmAlerted = true; notifyPhone("TIDE warm-up can't read 1m history - not trading yet", `Every 1m history read failed (${wr.errors.map(x => x.limit + ': ' + x.error).join('; ')}). Retrying every 30-60 s.`, { priority: 'high', tags: 'warning' }); } return; }
+@@ -2917,13 +2997,16 @@
+         if (RB && typeof RB.rebuildBias === 'function' && memAvailMb < 400) { log(`  [tide] bias rebuild SKIPPED: only ${memAvailMb} MB available incl. swap (< 400 MB; RSS ${rssMb()} MB) - the PRE_RESTART fallback applies.`);
+           notifyPhone('TIDE warm-up rebuild skipped - low memory', `Only ${memAvailMb} MB of memory (incl. swap) is available, so the bias rebuild was skipped to avoid an out-of-memory kill. TIDE goes live on the PRE_RESTART fallback (setups armed before this start are not taken).`, { priority: 'high', tags: 'warning' }); }
+         else if (RB && typeof RB.rebuildBias === 'function') { const t0 = Date.now(), rssLimitMb = rssMb() + Math.min(300, Math.max(100, memAvailMb - 150)); log(`  [tide] bias rebuild starting (available ${memAvailMb} MB incl. swap, RSS ${rssMb()} MB; worker heap capped at 64 MB; stopped above RSS ${rssLimitMb} MB).`);
++          Object.assign(tideWarm, { rebuilding: true, doneMin: 0, totalMin: 6 * 60, startedAt: t0, finishedAt: null, result: null });   // [r1.6] snapshot.tide.warm
+           try { const H = tideHtf || {}; rbOut = await RB.rebuildBias({ m1: h, htf: { M5: H.M5 || [], M15: H.M15 || [], M30: H.M30 || tideWire.agg30(H.M15 || []), H1: H.H1 || [], H4: H.H4 || [], W: H.W || [] }, now, hours: 6,
+               levelsPro: require('./lib/levelsPro'), worker: true, levelsProPath: require.resolve('./lib/levelsPro'),
+               resourceLimits: { maxOldGenerationSizeMb: 64, maxYoungGenerationSizeMb: 2 }, maxRssMb: rssLimitMb, rssCheckMs: 250,   // [r1.5] RELATIVE: the start RSS + min(300, max(100, available incl. swap - 150)) MB, checked every 250 ms (the heap cap is not enforced on every Node)   // [r1.5] measured: peak +126 MB instead of +250 MB; over the cap the WORKER ends (ERR_WORKER_OUT_OF_MEMORY) -> the fallback
+-              timeoutMs: 15 * 60000, progressMs: 60000, onProgress: x => log(`  [tide] rebuild progress: ${x.done} of ${x.of} minutes (${Math.round((Date.now() - t0) / 1000)} s, RSS ${rssMb()} MB)`) });   // [r1.2] WATCHDOG: 10 min, then the worker is terminated
++              timeoutMs: 15 * 60000, progressMs: 60000, onProgress: x => { if (Number.isFinite(x.done)) tideWarm.doneMin = x.done; if (Number.isFinite(x.of)) tideWarm.totalMin = x.of; log(`  [tide] rebuild progress: ${x.done} of ${x.of} minutes (${Math.round((Date.now() - t0) / 1000)} s, RSS ${rssMb()} MB)`); } });   // [r1.2] WATCHDOG: 10 min, then the worker is terminated   // [r1.6] + snapshot.tide.warm counter
+             RB.fillBook(tideBook, rbOut, tideWire.noteBias); tideBook.rows.sort((a, b) => a.t - b.t); tideCatchup = true;
++            Object.assign(tideWarm, { rebuilding: false, doneMin: tideWarm.totalMin, finishedAt: Date.now(), result: 'rebuilt' });   // [r1.6]
+             log(`  [tide] rebuilt from ${h.length} bars in ${((Date.now() - t0) / 1000).toFixed(1)} s (${rbOut.n} bias minutes, RSS ${rssMb()} MB${rbOut.missing && rbOut.missing.length ? `, ${rbOut.missing.length} without a bar` : ''}${tideHtf ? '' : '; NO higher-timeframe bars yet'}).`); }
+           catch (e) { rbOut = null; log(`  [tide] bias rebuild FAILED (${e && e.message}) - the PRE_RESTART fallback applies (setups armed before this start are not taken).`);
++            Object.assign(tideWarm, { rebuilding: false, finishedAt: Date.now(), result: e && e.timedOut ? 'timed-out' : e && e.rssLimit ? 'stopped-memory' : 'failed' });   // [r1.6]
+             if (e && e.rssLimit) notifyPhone('TIDE warm-up rebuild stopped - memory', `The bias rebuild was stopped at ${e.message}. TIDE goes live on the PRE_RESTART fallback (setups armed before this start are not taken).`, { priority: 'high', tags: 'warning' });
+             else if (e && e.timedOut) notifyPhone('TIDE warm-up rebuild timed out - using the PRE_RESTART fallback', `The bias rebuild did not finish in 15 min (worker terminated). TIDE goes live now; setups armed before this start are not taken.`, { priority: 'high', tags: 'warning' });
+             else notifyPhone('TIDE: warm-up rebuild failed', `The bias rebuild failed (${e && e.message}); setups armed before this start will not be taken.`, { priority: 'high', tags: 'warning' }); } }
+@@ -3477,7 +3560,7 @@
+   } catch (e) { const r = journalMetaErrors.row('plan_terminal_restore', e); if (r) persistJournalMeta(r); }
+   const stateMachine = LIVE ? new LiveStateMachine({ token, accountId: account.id, contractId, pointValue, tickSize, log, notify: notifyPhone, journal: sfJournal, profitLockDollars: CONFIG.profitLockDollars, profitLockPct: CONFIG.profitLockPct, marketableLimitBufferPoints: CONFIG.marketableLimitBufferPoints, pendingExpireMs: CONFIG.pendingExpireMs, trailStepPoints: CONFIG.trailStepPoints, profitTrail: CONFIG.profitTrail, runnerTrailRule: scaleOutRunnerOn(CONFIG) ? { lockPts: CONFIG.scaleOutRunner.runnerLockPts, stepPts: CONFIG.scaleOutRunner.runnerStepPts } : null, blackoutFn: entryWindowReason, blockFn: blackoutReason, restingBlockHorizonMs: CONFIG.noRestingAcrossBlock === false ? 0 : (Number.isFinite(CONFIG.pendingExpireMs) && CONFIG.pendingExpireMs > 0 ? CONFIG.pendingExpireMs : 30 * 60000) + 60000, pendingCancelOnStopTouch: CONFIG.pendingCancelOnStopTouch, noProgressHourEndDefer: CONFIG.noProgressExit.hourEndDefer, fillSlipGuard: CONFIG.fillSlipGuard, tp1FromFill: CONFIG.tp1FromFill === true, noProgressCandles: CONFIG.noProgressExit.candles, entryStopFloorFn: ts => entryFloorAt(ts), entryStopFloorPlanFn: (resting, ts) => entryFloorWindow(resting, ts).pts, newsRestingFn: ts => newsRestingBlock(ts), journalIdFn: () => { const c = openJournalContext || pendingJournalContext; return c ? c.journalId : null; }, stateFile: TRADE_STATE_FILE, entryQuantityCheck: entryQuantityAllowed, alignmentFreshnessFn: alignFreshnessState, entryControlCheck: (dir, source, context) => { const result = entryControlAllowed(dir, source, context?.reclaimOf ? 'reclaim' : context?.wave ? 'wave' : context?.reversal ? 'reversal' : 'entry', 'transport-submit'); try { const jr = require('./lib/journalReceipts'); jr.emit(appendJournal, () => jr.receipt(context?.journalId, 'CONTROL_ADMISSION', { result, seam: 'transport-submit', producer: 'entryControlAllowed/createControlJournal', policy: 'week1-decided-m15-v2', direction: dir, source, exception: 'NONE', measurement: { score: entryControlBoard?.controlBiasScore, valid: entryControlBoard?.controlValid, observedAt: entryControlBoard?.controlObservedAt, evaluatedAt: entryControlBoard?.controlEvaluatedAt }, marketStage: jr.UNKNOWN })); } catch (_) { /* receipt only */ } return result; } }) : null;
+   if (LIVE && tideLiveOn()) tideDrv = tideLive.create({ token, accountId: account.id, contractId, orders: require('./lib/liveOrders'), log, notify: notifyPhone,   // [2a]
+-    cfgFn: () => { let fd = null; try { const f = computeDrawdownFloor(); fd = Number.isFinite(lastAccountBalance) && Number.isFinite(f) ? lastAccountBalance - f : null; } catch (e) { fd = null; } return { ...tideWire.moneyOnly(CONFIG.money), pointValue, tickSize, floorDistanceUsd: fd }; },
++    cfgFn: () => { let fd = null; try { const f = computeDrawdownFloor(); fd = Number.isFinite(lastAccountBalance) && Number.isFinite(f) ? lastAccountBalance - f : null; } catch (e) { fd = null; } return { ...tideWire.liveMoney(CONFIG), pointValue, tickSize, floorDistanceUsd: fd }; },   // [r1.6] maxContracts capped at tide.sizeCap
+     journal: row => { try { lvjDay(Date.now()); lvjWrite(row); } catch (e) { /* journal only */ } }, stateFile: path.join(__dirname, `tide-live-state-${SYMBOL}.json`), take1MaxFn: () => tideWire.take1Max(CONFIG),
+     preCheck: async sig => { const n = Date.now(); if (!tideLiveReady) return 'the warm-up is not done'; if (sig && Number.isFinite(sig.at) && n - sig.at > 10 * 60000) return `stale: the signal is ${Math.round((n - sig.at) / 60000)} min old (> 10)`; if (!(stateMachine.phase === 'FLAT' && !stateMachine.desynced)) return `the old path holds ${stateMachine.phase}`; if (sessionCloseState(n, CONFIG).noEntry) return 'session close (no entry from 12:55 PT)'; { const tb = tideWire.blockAt(CONFIG, n); if (tb) return 'TIME_BLOCK: ' + tb; } if (newsWaitBlock(n)) return 'news wait'; return null; },
+     onEnd: (takeId, res) => { try { if (tideShadow) tideWire.liveFeedback(tideShadow, takeId, res); } catch (e) { /* feedback only */ } }, onTp1: takeId => { try { if (tideShadow) tideWire.liveFeedback(tideShadow, takeId, { tp1Done: true }); } catch (e) { /* feedback only */ } } });
+@@ -5331,8 +5414,10 @@
+         sizing: { mode: sz.mode || null, flatUsd: Number.isFinite(sz.flatDollars) ? sz.flatDollars : null, gradeUsd: tideWire.gradeUsd(CONFIG), take1MaxUsd: tideWire.take1Max(CONFIG), noFit: sz.noFit || null, maxContracts: Number.isFinite(sz.maxContracts) ? sz.maxContracts : null, nearFloor: sz.nearFloor ? !!sz.nearFloor.enabled : null },
+         rules: { useTimeBlocks: CONFIG.tide.useTimeBlocks === true, blocks: tideWire.tideBlocks(CONFIG).map(w => w.slice()), openWaitMin: CONFIG.tide.openWaitMin, oldPathEntries: CONFIG.tide.oldPathEntries === true },
+         rows: tideRowsRing.day === lvj.day ? tideRowsRing.rows.slice() : [],
++        day: tideDaySummary(Date.now()),   // [r1.6] the WHOLE on-disk TradeDay journal summarised (not the ring), refreshed at most every 30 s
++        warm: tideWarmView(),   // [r1.6] the warm-up rebuild progress (rebuilding, doneMin / totalMin, startedAt, finishedAt)
+         board: tideBoardSafe(),   // [r1.3] TIDE's own levels (MacUI-N Addendum r1.3); null on error or over the 5 ms budget
+-        ...(tideLiveOn() ? { position: lv ? lv.position : null, trades: lv ? lv.trades : [], alerts: lv ? lv.alerts : [] } : {}) };
++        ...(tideLiveOn() ? { position: lv ? lv.position : null, trades: tideTradesMerged(lv ? lv.trades : []), alerts: lv ? lv.alerts : [], lastReject: lv ? lv.lastReject : null, rejects: lv ? lv.rejects : [] } : { tradesReloaded: tideTradesMerged([]) }) };   // [r1.6] trades = the driver's + the TradeDay's reloaded ones (reloaded:true); lastReject (tideLive r1.2)
+     } catch (e) { return { v: 1, mode: tideWire.modeOf(CONFIG), error: String(e && e.message) }; }
+   }
+   function tideTagFills(trips, fills) {   // [r1.2] the trip whose time span holds a fill of a TIDE order (tideLive's order ids, kept for the TradeDay) -> model 'tide'
+diff -ruN pkg-live-r1.5.6-wip/bot/tests/tide-live.test.cjs pkg-live-r1.6-wip/bot/tests/tide-live.test.cjs
+--- pkg-live-r1.5.6-wip/bot/tests/tide-live.test.cjs	2026-11-04 17:30:08.998398795 +0000
++++ pkg-live-r1.6-wip/bot/tests/tide-live.test.cjs	2026-11-05 20:53:08.088329964 +0000
+@@ -133,6 +133,17 @@
+     B.tick(27970); await b.D.poll({ lastPx: 27970 }); B.tick(27910); await b.D.poll({ lastPx: 27910 });
+     ok(!b.D.owned() && B.pos === 0 && B.book.length === 0, 'L6d the resumed trade runs to its end (TP1, BE, TP2)'); }
+ 
++  console.log('L6f [r1.2] an r1.1 state file (the pre-r1.6 install) is resumed too: the position is re-owned, no order sent, runs to its end')
++  { const B = broker(), a = drv(B); await a.D.signal(sig(30), plan(30), 'take-6f'); const n0 = B.reqs.length, stopId = stops(B)[0].id;
++    const d = JSON.parse(fs.readFileSync(a.file, 'utf8')); ok(d.version === 'tide-live-r1.2', 'L6f0 the state file is written as r1.2'); d.version = 'tide-live-r1.1'; fs.writeFileSync(a.file, JSON.stringify(d));
++    const b = drv(B, { file: a.file }); ok(b.D.owned() === true, 'L6f1 an r1.1 state file is read: owned');
++    await b.D.start(); await b.D.poll({ lastPx: 27995 });
++    ok(B.reqs.length === n0 && stops(B).length === 1 && stops(B)[0].id === stopId && b.rows.some(r => r.phase === 'live_guard'), 'L6f2 no order at the restart, the same stop rests, the guard re-sent', B.str().slice(n0));
++    ok(JSON.parse(fs.readFileSync(a.file, 'utf8')).version === 'tide-live-r1.2', 'L6f3 the first save re-stamps the file r1.2');
++    B.tick(27970); await b.D.poll({ lastPx: 27970 }); B.tick(27910); await b.D.poll({ lastPx: 27910 });
++    ok(!b.D.owned() && B.pos === 0 && B.book.length === 0, 'L6f4 the resumed r1.1 trade runs to its end');
++    const c = drv(B, { file: a.file }); fs.writeFileSync(a.file, JSON.stringify({ ...d, version: 'tide-live-r0.9' })); const e = drv(B, { file: a.file }); ok(!e.D.owned(), 'L6f5 an unknown version is ignored (kept on disk)'); void c; }
++
+   console.log('L6e restart that finds a naked position -> closed at once');
+   { const B = broker(), a = drv(B); await a.D.signal(sig(30), plan(30), 'take-6e');
+     const st = stops(B)[0]; B.book.splice(B.book.indexOf(st), 1); B.hist.get(st.id).status = 3;
+@@ -314,7 +325,7 @@
+     const fast = await RB.rebuildBias({ m1: m1.slice(-20), htf: {}, now: (t0 + 7200) * 1000, hours: 0.25, levelsPro: { evaluateLevelsPro: () => [{ biasScore: 0.2, levels: [] }] }, timeoutMs: 600000 });
+     ok(fast && fast.n > 0, 'L23c a rebuild that answers in time is used as before');
+     const EX = fs.readFileSync(path.join(ROOT, 'live-executor.js'), 'utf8');
+-    ok(/timeoutMs: 15 \* 60000, progressMs: 60000, onProgress: x => log\(`  \[tide\] rebuild progress:/.test(EX) && /if \(e && e\.timedOut\) notifyPhone\('TIDE warm-up rebuild timed out - using the PRE_RESTART fallback'/.test(EX), 'L23d the executor: 10-min watchdog, progress logged every 60 s, the timeout push, then the fallback (TIDE goes live)'); }
++    ok(/timeoutMs: 15 \* 60000, progressMs: 60000, onProgress: x => \{ if \(Number\.isFinite\(x\.done\)\) tideWarm\.doneMin = x\.done;.*log\(`  \[tide\] rebuild progress:/.test(EX) && /if \(e && e\.timedOut\) notifyPhone\('TIDE warm-up rebuild timed out - using the PRE_RESTART fallback'/.test(EX), 'L23d the executor: 10-min watchdog, progress logged every 60 s, the timeout push, then the fallback (TIDE goes live)'); }
+ 
+   console.log('L22 [r1.1a] the warm-up read ladder: 6000 -> 3000 -> 2000 -> 1500 at once; every failure logged with its cause; all failed -> alert + 30 s retry');
+   { const err = () => { const e = new TypeError('fetch failed'); e.cause = { code: 'UND_ERR_SOCKET' }; return e; };
+@@ -478,7 +489,7 @@
+     const m = M.withRiskMult({ sizing: { flatDollars: 400, gradeRiskUsd: { A: 900, B: 600, C: 300 } } }, 0.5);
+     ok(m.sizing.flatDollars === 200 && m.sizing.gradeRiskUsd.A === 450 && m.sizing.gradeRiskUsd.C === 150 && m.sizing.riskMult === 0.5 && M.withRiskMult(cfg.money, 1) === cfg.money && M.withRiskMult(cfg.money, undefined) === cfg.money && M.withRiskMult(cfg.money, 0) === cfg.money, 'L50d moneyRule.withRiskMult: flat and the A/B/C dollars x m; m 1 / missing / 0 = the cfg itself (never a zero budget)');
+     const EX = fs.readFileSync(path.join(ROOT, 'live-executor.js'), 'utf8'), TL = fs.readFileSync(path.join(ROOT, 'lib/tideLive.js'), 'utf8');
+-    ok(/riskMult: isNum\(sig\.riskMult\) && sig\.riskMult > 0 \? sig\.riskMult : 1, htf: sig\.htf \|\| null,/.test(TL) && /T_MONEY\.withRiskMult\(c, sig\.riskMult\)/.test(TL) && /htfAgainst: 'tag' \}/.test(EX), 'L50e tideLive hands riskMult + htf to the planner event and its take1 pre-check; the executor CONFIG ships tide.htfAgainst tag'); }
++    ok(/riskMult: isNum\(sig\.riskMult\) && sig\.riskMult > 0 \? sig\.riskMult : 1, htf: sig\.htf \|\| null,/.test(TL) && /T_MONEY\.withRiskMult\(c, sig\.riskMult\)/.test(TL) && /htfAgainst: 'tag',\n\s+trendLane: \{[^\n]*\}, gradeGate: '[a-z-]+', sizeCap: \d+ \}/.test(EX), 'L50e tideLive hands riskMult + htf to the planner event and its take1 pre-check; the executor CONFIG ships tide.htfAgainst tag'); }
+   console.log(`tide-live (${L.VERSION}, ${require(path.join(ROOT, 'lib/tideOrders.js')).VERSION}, ${W.VERSION}): ${pass} passed, ${fail} failed`);
+   try { fs.rmSync(DIR, { recursive: true, force: true }); } catch (e) { /* tmp */ }
+   process.exit(fail ? 1 : 0);
+diff -ruN pkg-live-r1.5.6-wip/bot/tests/tide2-exec.test.cjs pkg-live-r1.6-wip/bot/tests/tide2-exec.test.cjs
+--- pkg-live-r1.5.6-wip/bot/tests/tide2-exec.test.cjs	2026-11-04 17:34:13.048573751 +0000
++++ pkg-live-r1.6-wip/bot/tests/tide2-exec.test.cjs	2026-11-05 20:42:36.035778193 +0000
+@@ -93,7 +93,7 @@
+ { const p = W.plan(sig({ stop: 28366.75 + 451 }), C1); ok(!p.ok && p.code === 'GRADE_NO_FIT' && p.stop === 28366.75 + 451, 'B13 GRADE_NO_FIT: the stop is NOT moved to fit (451 pts > $900 at 1 MNQ)', p);
+   ok(ASCII.test(W.pushLine(sig(), p)) && /no trade \(GRADE_NO_FIT\)/.test(W.pushLine(sig(), p)), 'B14 GRADE_NO_FIT push line', W.pushLine(sig(), p)); }
+ { const p = W.plan(sig({ stop: 28366.75 + 450 }), C1); ok(p.ok && p.qty === 1, 'B15 450 pts at A+ = exactly 1 MNQ', p); }
+-{ const p = W.plan(sig({ stop: 28366.75 + 10 }), C1); ok(p.ok && p.qty === 30, 'B16 a 10 pt stop at A+ caps at maxContracts 30', p && p.qty); }
++{ const p = W.plan(sig({ stop: 28366.75 + 10 }), C1); ok(p.ok && p.qty === 8, 'B16 [r1.6] a 10 pt stop at A+ caps at tide.sizeCap 8 (money maxContracts 30 is capped)', p && p.qty); }
+ { const p = W.plan(sig({ stop: 28300 }), C1); ok(!p.ok && p.code === 'TIDE_NO_STOP', 'B17 a stop on the wrong side = no trade', p); }
+ { const p = W.plan(sig({ grade: 'D' }), C1); ok(!p.ok && p.code === 'GRADE_NONE', 'B18 below C = no trade', p); }
+ { const p = W.plan(sig({ dir: 1, entry: 28000, stop: 27900, kind: 'accepted-break', levelName: 'PDL', pools: [{ price: 28250, major: true, name: 'PDH' }], internalPools: [] }), C1);
+@@ -106,7 +106,7 @@
+   ok(/mode/.test(W.configProblem(CFG({}, SZ({ mode: 'kelly' })), CTX) || ''), 'F2 a bad sizing.mode is refused (moneyRule.problem)');
+   ok(/flatDollars/.test(W.configProblem(CFG({}, SZ({ flatDollars: 5000 })), CTX) || ''), 'F3 flatDollars validated 50-2000');
+   ok(/gradeRiskUsd/.test(W.configProblem(CFG({}, SZ({ gradeRiskUsd: { A: 300, B: 600, C: 900 } })), CTX) || ''), 'F4 grade dollars validated in either mode');
+-  const mc = W.moneyCfg(CF, 2, 0.25); ok(mc.sizing === CF.money.sizing && mc.pointValue === 2 && mc.tickSize === 0.25, 'F5 the wiring hands money-r4 the config unchanged (+ pointValue / tickSize only)');
++  const mc = W.moneyCfg(CF, 2, 0.25); ok(mc.sizing.maxContracts === Math.min(CF.money.sizing.maxContracts, 8) && mc.sizing.flatDollars === CF.money.sizing.flatDollars && mc.pointValue === 2 && mc.tickSize === 0.25, 'F5 [r1.6] the wiring hands money-r4 the config with maxContracts capped at tide.sizeCap (+ pointValue / tickSize)');
+   const pf = W.plan(sig(), CF);   // 146.25 pts: flat $450 -> 1 MNQ; grade A+ $900 -> 3 MNQ
+   ok(pf.ok && pf.mode === 'flat' && pf.qty === 1 && pf.budgetUsd === 450 && pf.legNote === 'all at once' && pf.shadow && pf.shadow.line === 'flat 450: 1 MNQ | grade A+ 900: 3 MNQ' && pf.shadow.logOnly === true, 'F6 flat plans the leg; moneyRule.shadowSize logs the grade size beside it', pf);
+   const s4 = sig({ pointDetail: { trap: 1, force: 1, volume: 1, timing: 1, impulse: 0 } }), lf = W.pushLine(s4, W.plan(s4, CF));
+@@ -212,7 +212,7 @@
+   const o = W.shadowStep(sh, { nowMs: 1 }, C1, {}); ok(o.rows.length === W.ROWS_PER_STEP + 1 && o.rows.at(-1).phase === 'rows_capped' && o.rows.at(-1).dropped === 100 - W.ROWS_PER_STEP, 'C7 rows per step are capped (+ one rows_capped row)', o.rows.length); }
+ { const src = code(fs.readFileSync(path.join(ROOT, 'lib/tideWire.js'), 'utf8'));
+   const reqs = [...src.matchAll(/require\(([^)]*)\)/g)].map(m => m[1]);
+-  ok(reqs.length === 4 && reqs.includes("'./tideOrders'") && reqs.includes("'path'") && reqs.includes("'./moneyRule'") && /structure\.js/.test(reqs.join(' ')), 'C8 lib/tideWire.js requires only path, ./moneyRule, ./structure.js and ([2a] live configProblem) ./tideOrders', reqs);
++  ok(reqs.length === 5 && reqs.includes("'./tideOrders'") && reqs.includes("'path'") && reqs.includes("'./moneyRule'") && /structure\.js/.test(reqs.join(' ')) && /trendLane\.js/.test(reqs.join(' ')), 'C8 lib/tideWire.js requires only path, ./moneyRule, ./structure.js, ([2a] live configProblem) ./tideOrders and ([r1.6], lazily) ./trendLane.js', reqs);
+   ok(!/placeOrder|cancelOrder|takeEntry|openEntry|replaceStop|stateMachine|fetch\(|https|child_process|writeFile|appendFile/.test(src), 'C9 lib/tideWire.js has no order / state machine / I/O path'); }
+ 
+ console.log('D executor text');
+@@ -248,9 +248,9 @@
+       'D9b the executor adapter = createAdapter(structure, engineCfgOf(CONFIG)): tide.climaxGate false and tide.staleR reach structure.step at runtime', { off, ship, on, none }); }
+   { // [r1.6] D9c: the real engine resolves them (staleR 0 = rule 18 off; climaxGate false = the gate bypassed); defaults stay ON
+     const S = W.structure(), D = S.DEFAULTS;
+-    ok(S.VERSION === 'tide-structure-r3.7' && D.waveBiasTrend === true && D.htfAgainst === 'tag' && W.DEFAULTS.tide.htfAgainst === 'tag' && W.engineCfgOf({ tide: {} }).htfAgainst === 'tag' && W.engineCfgOf({ tide: { htfAgainst: 'half' } }).htfAgainst === 'half' && /tide\.htfAgainst must be/.test(W.configProblem({ ...W.DEFAULTS, tide: { ...W.DEFAULTS.tide, htfAgainst: 'on' } }, { pointValue: 2, symbol: 'MNQ', minContracts: 1 }) || '') && /HTF context ON \(against: skip\)/.test(W.startupLines({ ...W.DEFAULTS, tide: { ...W.DEFAULTS.tide, mode: 'shadow', htfAgainst: 'skip' }, money: W.moneyDefaults() }).join('\n')) && W.DEFAULTS.tide.waveBiasTrend === true && W.DEFAULTS.tide.releaseOnRefusal === true && W.DEFAULTS.tide.controlAsBias === true && /tide\.controlAsBias must be/.test(W.configProblem({ ...W.DEFAULTS, tide: { ...W.DEFAULTS.tide, controlAsBias: 1 } }, { pointValue: 2, symbol: 'MNQ', minContracts: 1 }) || '') && /tide\.waveBiasTrend must be/.test(W.configProblem({ ...W.DEFAULTS, tide: { ...W.DEFAULTS.tide, waveBiasTrend: 'x' } }, { pointValue: 2, symbol: 'MNQ', minContracts: 1 }) || '') && D.staleR === 2 && D.climaxGate === true && W.DEFAULTS.tide.staleR === 2 && W.DEFAULTS.tide.climaxGate === true && W.staleROf({ tide: {} }) === 2 && W.DEFAULTS.tide.laneAccept === true && W.DEFAULTS.tide.controlFree === true && W.DEFAULTS.tide.nearestWins === false && W.DEFAULTS.tide.ltfOpens === false && /tide\.laneAccept must be/.test(W.configProblem({ ...W.DEFAULTS, tide: { ...W.DEFAULTS.tide, laneAccept: 'x' } }, { pointValue: 2, symbol: 'MNQ', minContracts: 1 }) || '') && W.configProblem({ ...W.DEFAULTS, tide: { ...W.DEFAULTS.tide, staleR: -1 } }, { pointValue: 2, symbol: 'MNQ', minContracts: 1 }) !== null && /tide\.staleR must be/.test(W.configProblem({ ...W.DEFAULTS, tide: { ...W.DEFAULTS.tide, staleR: 'x' } }, { pointValue: 2, symbol: 'MNQ', minContracts: 1 }) || ''),
++    ok(S.VERSION === 'tide-structure-r3.8' && D.gradeGate === 'strict' && D.waveBiasTrend === true && D.htfAgainst === 'tag' && W.DEFAULTS.tide.htfAgainst === 'tag' && W.engineCfgOf({ tide: {} }).htfAgainst === 'tag' && W.engineCfgOf({ tide: { htfAgainst: 'half' } }).htfAgainst === 'half' && /tide\.htfAgainst must be/.test(W.configProblem({ ...W.DEFAULTS, tide: { ...W.DEFAULTS.tide, htfAgainst: 'on' } }, { pointValue: 2, symbol: 'MNQ', minContracts: 1 }) || '') && /HTF context ON \(against: skip\)/.test(W.startupLines({ ...W.DEFAULTS, tide: { ...W.DEFAULTS.tide, mode: 'shadow', htfAgainst: 'skip' }, money: W.moneyDefaults() }).join('\n')) && W.DEFAULTS.tide.waveBiasTrend === true && W.DEFAULTS.tide.releaseOnRefusal === true && W.DEFAULTS.tide.controlAsBias === true && /tide\.controlAsBias must be/.test(W.configProblem({ ...W.DEFAULTS, tide: { ...W.DEFAULTS.tide, controlAsBias: 1 } }, { pointValue: 2, symbol: 'MNQ', minContracts: 1 }) || '') && /tide\.waveBiasTrend must be/.test(W.configProblem({ ...W.DEFAULTS, tide: { ...W.DEFAULTS.tide, waveBiasTrend: 'x' } }, { pointValue: 2, symbol: 'MNQ', minContracts: 1 }) || '') && D.staleR === 2 && D.climaxGate === true && W.DEFAULTS.tide.staleR === 2 && W.DEFAULTS.tide.climaxGate === true && W.staleROf({ tide: {} }) === 2 && W.DEFAULTS.tide.laneAccept === true && W.DEFAULTS.tide.controlFree === true && W.DEFAULTS.tide.nearestWins === false && W.DEFAULTS.tide.ltfOpens === false && /tide\.laneAccept must be/.test(W.configProblem({ ...W.DEFAULTS, tide: { ...W.DEFAULTS.tide, laneAccept: 'x' } }, { pointValue: 2, symbol: 'MNQ', minContracts: 1 }) || '') && W.configProblem({ ...W.DEFAULTS, tide: { ...W.DEFAULTS.tide, staleR: -1 } }, { pointValue: 2, symbol: 'MNQ', minContracts: 1 }) !== null && /tide\.staleR must be/.test(W.configProblem({ ...W.DEFAULTS, tide: { ...W.DEFAULTS.tide, staleR: 'x' } }, { pointValue: 2, symbol: 'MNQ', minContracts: 1 }) || ''),
+       'D9c [r1.5.4 / r1.5.6] (+ htfAgainst tag: engine default, wire default, engineCfgOf plumbing, configProblem, the startup line) the wire ships tide.staleR 2 (rule 18 ON; the engine library default stays 2, the executor always passes the wire value) + climaxGate true; tide.staleR outside 0-10 is refused', { v: S.VERSION, staleR: D.staleR, climaxGate: D.climaxGate }); }
+-  ok(/tide: \{ mode: 'off', useTimeBlocks: true, openWaitMin: 30, push: true, liveArmed: null, oldPathEntries: false, climaxGate: true, staleR: 2, laneAccept: true, controlFree: true, nearestWins: false, ltfOpens: false, waveBiasTrend: true, releaseOnRefusal: true, controlAsBias: true, htfAgainst: 'tag' \}/.test(EX), 'D9 CONFIG ships tide.mode off, the old time blocks off for TIDE, open wait 30');
++  ok(/tide: \{ mode: 'off', useTimeBlocks: true, openWaitMin: 30, push: true, liveArmed: null, oldPathEntries: false, climaxGate: true, staleR: 2, laneAccept: true, controlFree: true, nearestWins: false, ltfOpens: false, waveBiasTrend: true, releaseOnRefusal: true, controlAsBias: true, htfAgainst: 'tag',\n    trendLane: \{ enabled: true, retestTol: 6, wickMin: 4, stopTicks: 2, capHour: 2, capDay: 6, climax: 'defense-confirms' \}, gradeGate: 'aligned-pass', sizeCap: 8 \}/.test(EX), 'D9 CONFIG ships tide.mode off, the old time blocks off for TIDE, open wait 30, [r1.6] trendLane ON (retestTol 6, wick 4, 2 ticks, 2/h 6/day, climax defense-confirms), gradeGate aligned-pass, sizeCap 8');
+   ok(/money: tideWire\.moneyDefaults\(\)/.test(EX) && W.moneyDefaults().sizing.enabled === false && W.moneyDefaults().sizing.mode === 'flat' && S1M().sizing.flatDollars === 450, 'D10 CONFIG ships money.sizing.enabled false, mode flat (Stage-1 money: 450)');
+   { const L = W.moneyDefaults().sizing; ok(L.flatDollars === 400 && L.noFit === 'take1' && L.take1MaxUsd === 400 && L.nearFloor.enabled === false && L.nearFloor.cushionUsd === 1000 && L.nearFloor.dollars === 200 && L.maxContracts === 30 && L.entryByGrade === false && L.enabled === false, 'D10L [2a] LIVE money defaults (Mac 11/04 07:45Z, 50K combine size): flat $400, take1 <= $400, nearFloor OFF ($1,000 -> $200 when on), max 30, entryByGrade false', L); }
+   ok(/CONFIG-LOCAL ERROR: the bot will NOT start because of config-local\.json\.\\n\$\{p\}/.test(EX), 'D11 a bad tide / money config stops the bot with CONFIG-LOCAL ERROR');
+diff -ruN pkg-live-r1.5.6-wip/bot/tests/trend-lane.test.cjs pkg-live-r1.6-wip/bot/tests/trend-lane.test.cjs
+--- pkg-live-r1.5.6-wip/bot/tests/trend-lane.test.cjs	1970-01-01 00:00:00.000000000 +0000
++++ pkg-live-r1.6-wip/bot/tests/trend-lane.test.cjs	2026-11-05 20:59:33.913899581 +0000
+@@ -0,0 +1,216 @@
++#!/usr/bin/env node
++'use strict';
++// TIDE live r1.6 witnesses (MacTrend 11/05): the trend lane (lib/trendLane.js) on synthetic engine states, sizing ($400 max, cap 3), caps, the kept gates,
++// trend=off / grade=strict identity with r1.5.6 (BASE = ../../pkg-live-r1.5.6-wip or $R156_BASE), gradeGate aligned-pass on the 11/04 fixture, the journal reload.
++// usage: nice -n 19 node tests/trend-lane.test.cjs
++const fs = require('fs'), os = require('os'), path = require('path');
++const ROOT = path.resolve(__dirname, '..'), W = require(path.join(ROOT, 'lib/tideWire.js')), S = require(path.join(ROOT, 'lib/structure.js')), TL = require(path.join(ROOT, 'lib/trendLane.js'));
++let pass = 0, fail = 0; const fails = [];
++const ok = (c, n, x) => { if (c) pass++; else { fail++; fails.push(n); console.log('  FAIL ' + n + (x !== undefined ? ' :: ' + JSON.stringify(x).slice(0, 900) : '')); } };
++const U = (h, m) => Date.UTC(2026, 10, 4, h, m) / 1000;   // 11/04 UTC (PST: PT = UTC - 8)
++const bar = (t, o, h, l, c) => ({ t, o, h, l, c, v: 100, vk: true });
++// a synthetic engine state at T (unix sec): DIR down (prior 4H bearish), last 30M bearish, price just under PDL 28290
++function stateAt(T, o = {}) {
++  const t5 = T - 300, trig = o.trig || bar(t5, 28286, 28292.25, 28283.75, 28284);
++  const m5 = []; for (let t = U(11, 0); t < t5; t += 300) m5.push(bar(t, 28300 - (t - U(11, 0)) / 600, 28300.5 - (t - U(11, 0)) / 600, 28299.5 - (t - U(11, 0)) / 600, 28300 - (t + 300 - U(11, 0)) / 600));
++  m5.push(trig);
++  const last30 = o.last30 || bar(U(12, 0), 28300, 28301, 28281, 28282), cur30 = o.cur30 === null ? null : (o.cur30 || bar(U(12, 30), 28282, Math.max(28292.25, trig.h), 28281, trig.c));
++  return { v: 'test', bars: { m5, m15: [bar(U(12, 0), 28300, 28301, 28290, 28291), bar(U(12, 15), 28291, 28295, 28281, 28282)], m30: [bar(U(11, 0), 28300, 28302, 28298, 28300), bar(U(11, 30), 28300, 28301, 28299, 28300), last30], h1: [bar(U(11, 0), 28300, 28302, 28281, 28282)], h4: [] },
++    cur: { m5: null, m15: bar(U(12, 30), 28282, trig.h, 28281, trig.c), m30: cur30, h1: bar(U(12, 0), 28300, 28301, 28281, trig.c), h4: null },
++    htf: o.htf === null ? null : (o.htf || { prev4h: { t: U(7, 0), at: '11-03 23:00', o: 28400, h: 28401, l: 28299, c: 28300, dir: -1, hh: false, ll: true, openSide: -1 }, cur4h: { t: U(11, 0), o: 28300, side: -1, control: null }, daily: { t: U(11, 0) - 43200, o: 28500, side: -1 }, votes: [-1, -1, -1], dir: -1, tie: false }),
++    period: { t: U(11, 0), O4: 28300, control: null }, zones: [], levels: { O4: 28300, O1: 28300, PDH: 28600, PDL: o.pdl === undefined ? 28290 : o.pdl, AsiaH: null, AsiaL: null, LonH: null, LonL: null },
++    piv: { m15: { hi: [{ t: U(12, 15), price: 28295, confT: U(12, 45), len: 900 }], lo: [] }, h1: { hi: [], lo: [] }, h4: { hi: [], lo: [] } }, climax: o.climax || null, mstate: { state: 'TREND', dir: -1, known: true } };
++}
++const CFG = (t = {}) => ({ tide: { ...W.DEFAULTS.tide, mode: 'live', liveArmed: W.LIVE_ARM, ...t }, money: W.moneyDefaults() });
++
++console.log('A the lane on synthetic states (Mac 11/05 spec: prior-4H DIR, 30M harmony, 5M trigger at any tracked level, 30M-wick stop)');
++{ const T = U(12, 45), lane = TL.create(W.trendLaneOf(CFG())), r = lane.step(stateAt(T), T, [{ name: 'PDL', price: 28290 }]);
++  ok(r.signal && r.signal.dir === -1 && r.signal.trend.trigger === 'reject' && r.signal.level.name === 'PDL' && r.signal.entryPrice === 28284 && r.signal.chosenStop === 28292.75 && r.signal.trend.stopBasis === '30m-wick', 'a1 DIR down (prior 4H bearish) + 30M harmony + a 5m REJECTION at PDL 28290 (wick 6.25 >= 4, close 28284 below) -> one SHORT at the 5m close, stop beyond the 30M wick 28292.25 + 2 ticks = 28292.75', r.signal && { trig: r.signal.trend.trigger, lvl: r.signal.level, e: r.signal.entryPrice, s: r.signal.chosenStop, b: r.signal.trend.stopBasis, why: r.rows.map(x => x.phase + ':' + (x.why || '')) });
++  ok(r.rows.some(x => x.phase === 'trend_arm' && x.R === 28290), 'a1b trend_arm row for PDL (R, kind, dirEv, h30)', r.rows);
++  const t5 = T - 300, s2 = stateAt(T, { pdl: null, trig: bar(t5, 28291, 28292, 28283.75, 28284), cur30: bar(U(12, 30), 28290, 28292, 28281, 28284) }), r2 = TL.create(W.trendLaneOf(CFG())).step(s2, T, []);
++  ok(r2.signal && r2.signal.trend.trigger === 'break' && r2.signal.level.name === '30M Open' && r2.signal.level.price === 28290 && r2.signal.chosenStop === 28292.5, 'a2 a 5m BREAK-and-close below the 30M open 28290 (opened 28291 above, closed 28284 below; no wick minimum) -> SHORT, stop 28292 + 2 ticks', r2.signal && { trig: r2.signal.trend.trigger, lvl: r2.signal.level, s: r2.signal.chosenStop });
++  const rb = TL.create(W.trendLaneOf(CFG())).step(stateAt(T, { last30: bar(U(12, 0), 28282, 28301, 28281, 28300) }), T, [{ name: 'PDL', price: 28290 }]);
++  ok(!rb.signal && rb.rows.some(x => x.phase === 'trend_idle' && /30M not in harmony \(last 30M closed against DIR at 11-04 04:00\)/.test(x.why)), 'b the last completed 30M closed BULLISH against DIR -> no entry, trend_idle "30M not in harmony (last 30M closed against DIR at hh:mm)"', rb.rows);
++  const rb2 = TL.create(W.trendLaneOf(CFG())).step(stateAt(T, { htf: { prev4h: { t: U(7, 0), at: '11-03 23:00', o: 28300, h: 28401, l: 28299, c: 28300.5, dir: 0 }, cur4h: null, daily: { side: 0 }, votes: [0, 0, 0], dir: 0 } }), T, []);
++  ok(!rb2.signal && rb2.rows.some(x => x.phase === 'trend_idle' && x.why === 'no 4H direction (prior 4H flat)'), 'b2 a flat prior 4H -> idle "no 4H direction (prior 4H flat)"', rb2.rows);
++  const rc = TL.create(W.trendLaneOf(CFG())).step(stateAt(T, { trig: bar(t5, 28286, 28292.25, 28283.75, 28291) }), T, [{ name: 'PDL', price: 28290 }]);
++  ok(!rc.signal && !rc.rows.some(x => x.phase === 'trend_signal' || x.phase === 'trend_skip'), 'c the 5m closes back on the WRONG side of PDL (28291 > 28290) -> no entry', rc.rows);
++  const T2 = U(12, 36), s3 = stateAt(T2, { trig: bar(T2 - 300, 28286, 28292.25, 28283.75, 28284), cur30: bar(U(12, 30), 28282, 28292.25, 28281, 28284) }), rf2 = TL.create(W.trendLaneOf(CFG())).step(s3, T2, [{ name: 'PDL', price: 28290 }]);
++  ok(rf2.signal && rf2.signal.trend.stopBasis === 'prev-30m-wick' && rf2.signal.chosenStop === 28301.5 && rf2.signal.trend.stopEv.at === '11-04 04:00', 'f2 the 30M candle is 6 min old at the trigger -> the PREVIOUS 30M wick (28301) + 2 ticks = 28301.5, stopBasis prev-30m-wick with its open time', rf2.signal && rf2.signal.trend.stopEv);
++  const ri = TL.create(W.trendLaneOf(CFG())).step(stateAt(T, { climax: { dir: -1, T: T - 900 } }), T, [{ name: 'PDL', price: 28290 }]);
++  ok(ri.signal && ri.signal.trend.climax && ri.signal.trend.climax.sameWay === true, 'i CLIMAX state active (selling climax) + a valid 5m trigger in DIR -> the lane ENTERS (climax "defense-confirms"); the climax is journaled on the signal', ri.signal && ri.signal.trend.climax);
++  const ri2 = TL.create(W.trendLaneOf(CFG({ trendLane: { ...W.TREND_LANE_SHIP, climax: 'block' } }))).step(stateAt(T, { climax: { dir: -1, T: T - 900 } }), T, [{ name: 'PDL', price: 28290 }]);
++  ok(!ri2.signal && ri2.rows.some(x => x.phase === 'trend_skip' && /^CLIMAX/.test(x.why)), 'i2 tide.trendLane.climax "block" -> refused with why CLIMAX', ri2.rows);
++  ok(TL.configProblem({ enabled: true, retestTol: 6, climax: 'defense-confirms', capHour: 2, capDay: 6, minAge30: 10 }) === null && /climax/.test(TL.configProblem({ climax: 'x' }) || '') && /unknown/.test(TL.configProblem({ foo: 1 }) || ''), 'a3 tide.trendLane config validation');
++  ok(W.openWait(Date.UTC(2026, 10, 4, 15, 30), 30) === null && W.blockAt(CFG(), Date.UTC(2026, 10, 4, 15, 30)) === null, 'a4 Mac\'s 07:30 PT example: no open wait (06:30 + 30, 07:00 4H + 30 are over) and no entry block (06:30-07:10) at 07:30 PT'); }
++
++console.log('B sizing: $400 hard max, cap 3 (tide.sizeCap), the lane and level setups alike');
++{ const cfg = CFG(), sig = pts => ({ dir: -1, entry: 28284, stop: 28284 + pts, grade: 'C', gradePoints: 0, kind: 'trend', lane: 'trend', stopTf: '30M', levelName: 'PDL', pools: [{ price: 28200, major: true, name: 'PDL2' }] });
++  const q = pts => { const p = W.plan(sig(pts), cfg, 2, 0.25, null, 50000); return p.ok ? p.qty : p.code + (p.why ? ' | ' + p.why : ''); };
++  ok(q(60) === 3, 'f a 60-pt 30M-wick stop ($120 / lot) -> 3 MNQ (floor(400/120) = 3, cap 3)', q(60));
++  ok(q(19) === 8, 'f4 a 19-pt stop (would be 10 lots) -> capped at 8 (tide.sizeCap, Mac 11/05 ruling)', q(19));
++  ok(q(45) === 4 && q(100) === 2, 'f8 45-pt -> 4 MNQ, 100-pt -> 2 MNQ', [q(45), q(100)]);
++  ok(q(90) === 2, 'f3 a 90-pt stop ($180) -> 2 MNQ', q(90));
++  ok(q(180) === 1, 'm2 a 180-pt stop ($360) -> 1 MNQ', q(180));
++  ok(/^GRADE_NO_FIT_CEILING \| stop 250 pts = \$500 for 1 MNQ > \$400 max: needed a better entry$/.test(q(250)), 'm a 250-pt stop ($500 > $400) -> SKIPPED, code GRADE_NO_FIT_CEILING, why "needed a better entry" (no over-budget take)', q(250));
++  const c8 = CFG({ sizeCap: 3 }); ok(W.plan(sig(19), c8, 2, 0.25, null, 50000).qty === 3 && W.sizeCapOf(c8) === 3 && /tide\.sizeCap/.test(W.configProblem(CFG({ sizeCap: 0 }), { symbol: 'MNQ', pointValue: 2, minContracts: 1 }) || ''), 'f5 tide.sizeCap 3 lowers the cap to 3 (runtime config, set-tide.sh sizecap=N; 0 is refused)');
++  ok(W.liveMoney(cfg).sizing.maxContracts === 8 && W.moneyCfg(cfg).sizing.maxContracts === 8, 'f6 the money cfg the live driver / planner size with carries maxContracts = min(money maxContracts, tide.sizeCap)');
++  ok(/size: \$400 max · cap 8/.test(W.startupLines(cfg)[0]) && /trend lane ON \(prior-4H dir · 30M harmony · 5M trigger at any level · 30M-wick stop · 2\/h 6\/day · climax defense-confirms/.test(W.startupLines(cfg)[0]) && / · journal reload ON;/.test(W.startupLines(cfg)[0]) && /grade gate: aligned-pass/.test(W.startupLines(cfg)[0]), 'f7 the startup line: "size: $400 max · cap 8", "trend lane ON (prior-4H dir · 30M harmony · 5M trigger at any level · 30M-wick stop · 2/h 6/day · climax defense-confirms)", "journal reload ON", "grade gate: aligned-pass"', W.startupLines(cfg)[0].slice(0, 400)); }
++
++console.log('C the wiring: trend_signal rows, the kept gates, re-entry and the hourly cap, trend_skip on a too-wide stop');
++function fakeEngine(lane, stFn, board) {   // an adapter that steps the real lane on a given state and hands its signal to shadowStep like createAdapter does
++  return { version: 'fake', view: () => stFn(), trendNote: (sig, taken, T) => lane.note(sig, taken, T), step(ctx) { const rows = [], signals = []; for (const b of ctx.m1New || []) { const T = Math.floor(b.t / 1000) + 60, lr = lane.step(stFn(T), T, board || []); rows.push(...lr.rows); if (lr.signal) { const ns = W.normSignal(lr.signal, 'fake', null); if (ctx.onSignal) ctx.onSignal(ns, b); else signals.push(ns); } } return { rows, signals }; } };
++}
++{ const cfg = CFG(), lane = TL.create(W.trendLaneOf(cfg)), sh = { engine: fakeEngine(lane, T => stateAt(T), [{ name: 'PDL', price: 28290 }]), seen: new Set() }, T = U(12, 45);
++  const out = W.shadowStep(sh, { nowMs: T * 1000, m1New: [{ t: (T - 60) * 1000, o: 28285, h: 28285, l: 28284, c: 28284, v: 1 }], warm: false, board: [], biasAt: () => null, sessionAt: () => ({ noEntry: false, flattenDue: false }) }, cfg, { flat: true, useTimeBlocks: true, timeBlock: null }, 2, 0.25);
++  const ts = out.rows.find(r => r.phase === 'trend_signal'), sg = out.rows.find(r => r.phase === 'signal');
++  ok(ts && ts.taken === true && ts.size === 8 && ts.stop === 28292.75 && ts.trigger === undefined && ts.R === 28290 && out.takes.length === 1 && sg && sg.takenWhy && /^taken/.test(sg.takenWhy) && sg.kind === 'trend', 'e1 live mode: the lane signal is TAKEN (8 MNQ at an 8.75-pt stop: floor(400/17.5) = 22, cap 8; stop 28292.75), trend_signal + signal rows (takenWhy) written, one take', { ts, takes: out.takes.length, why: sg && sg.takenWhy });
++  W.liveFeedback(sh, out.takes[0].id, { closed: true, tp1Done: true, why: 'tp2' });
++  const T2 = T + 300, s2 = stateAt(T2, { trig: bar(T2 - 300, 28286, 28292.25, 28283.75, 28284) }); sh.engine = fakeEngine(lane, () => s2, [{ name: 'PDL', price: 28290 }]);
++  const o2 = W.shadowStep(sh, { nowMs: T2 * 1000, m1New: [{ t: (T2 - 60) * 1000, o: 28285, h: 28285, l: 28284, c: 28284, v: 1 }], warm: false, board: [], biasAt: () => null, sessionAt: () => ({ noEntry: false, flattenDue: false }) }, cfg, { flat: true }, 2, 0.25);
++  ok(o2.takes.length === 1 && o2.rows.some(r => r.phase === 'trend_signal' && r.taken === true), 'e2 after TP2 (liveFeedback) the next trigger is a RE-ENTRY (taken)', o2.rows.filter(r => r.phase === 'trend_signal'));
++  W.liveFeedback(sh, o2.takes[0].id, { closed: true, tp1Done: false, stopped: true });
++  const T3 = T + 600, s3 = stateAt(T3, { trig: bar(T3 - 300, 28286, 28292.25, 28283.75, 28284) }); sh.engine = fakeEngine(lane, () => s3, [{ name: 'PDL', price: 28290 }]);
++  const o3 = W.shadowStep(sh, { nowMs: T3 * 1000, m1New: [{ t: (T3 - 60) * 1000, o: 28285, h: 28285, l: 28284, c: 28284, v: 1 }], warm: false, board: [], biasAt: () => null, sessionAt: () => ({ noEntry: false, flattenDue: false }) }, cfg, { flat: true }, 2, 0.25);
++  ok(o3.takes.length === 0 && o3.rows.some(r => r.phase === 'trend_skip' && /^CAP_HOUR: 2 trend entries this clock hour \(cap 2\)/.test(r.why)), 'e3 a third trigger in the same clock hour -> trend_skip CAP_HOUR (2/h)', o3.rows);
++  ok(lane.counts(T3).hour === 2 && lane.counts(T3).day === 2, 'e4 the lane counts 2 entries this hour / TradeDay');
++  // d: inside the NY block (06:50 PT = 14:50 UTC) the kept gate refuses the take; the trend_signal row says why
++  const Td = U(14, 50), laneD = TL.create(W.trendLaneOf(cfg)), shD = { engine: fakeEngine(laneD, T => stateAt(T, { trig: bar(T - 300, 28286, 28292.25, 28283.75, 28284), cur30: bar(U(14, 30), 28282, 28292.25, 28281, 28284), last30: bar(U(14, 0), 28300, 28301, 28281, 28282) }), [{ name: 'PDL', price: 28290 }]), seen: new Set() };
++  const od = W.shadowStep(shD, { nowMs: Td * 1000, m1New: [{ t: (Td - 60) * 1000, o: 28285, h: 28285, l: 28284, c: 28284, v: 1 }], warm: false, board: [], biasAt: () => null, sessionAt: () => ({ noEntry: false, flattenDue: false }) }, cfg, { flat: true, useTimeBlocks: true, timeBlock: W.blockAt(cfg, Td * 1000) }, 2, 0.25);
++  const tsd = od.rows.find(r => r.phase === 'trend_signal');
++  ok(od.takes.length === 0 && tsd && tsd.taken === false && /TIME_BLOCK|OPEN_WAIT/.test(tsd.why) && laneD.counts(Td).hour === 0, 'd a trigger inside the NY blockout (06:50 PT) -> refused (TIME_BLOCK or the 30-min open wait, whichever gate answers first), not counted as an entry', tsd);
++  // the lane's own stop too wide: trend_skip with Mac's why
++  const Tw = U(12, 45), laneW = TL.create(W.trendLaneOf(cfg)), shW = { engine: fakeEngine(laneW, T => stateAt(T, { cur30: bar(U(12, 30), 28282, 28540, 28281, 28284) }), [{ name: 'PDL', price: 28290 }]), seen: new Set() };
++  const ow = W.shadowStep(shW, { nowMs: Tw * 1000, m1New: [{ t: (Tw - 60) * 1000, o: 28285, h: 28285, l: 28284, c: 28284, v: 1 }], warm: false, board: [], biasAt: () => null, sessionAt: () => ({ noEntry: false, flattenDue: false }) }, cfg, { flat: true }, 2, 0.25);
++  const sk = ow.rows.find(r => r.phase === 'trend_skip');
++  ok(ow.takes.length === 0 && sk && sk.code === 'GRADE_NO_FIT_CEILING' && /stop 256.5 pts = \$513 for 1 MNQ > \$400 max: needed a better entry/.test(sk.why), 'm3 a 30M wick 256.5 pts away -> trend_skip GRADE_NO_FIT_CEILING "needed a better entry" (the stop is never moved to fit)', sk); }
++
++console.log('G identity: trend=off + grade=strict on the same synthetic bars = the r1.5.6 wire + engine (rows equal after the version strings and the new takenWhy field are set aside)');
++{ const BASE = process.env.R156_BASE || path.resolve(ROOT, '..', '..', 'pkg-live-r1.5.6-wip', 'bot');
++  if (!fs.existsSync(path.join(BASE, 'lib', 'tideWire.js'))) { console.log('  (base r1.5.6 not found at ' + BASE + ': identity witness skipped)'); ok(false, 'g identity witness: base r1.5.6 missing'); }
++  else {
++    const W0 = require(path.join(BASE, 'lib/tideWire.js')), S0 = require(path.join(BASE, 'lib/structure.js'));
++    const bars = []; let px = 28300; for (let i = 0; i < 1500; i++) { const t = U(0, 0) - 1500 * 60 + i * 60, d = Math.sin(i / 37) * 1.5 + (i % 97 === 0 ? 6 : 0) - (i % 131 === 0 ? 7 : 0); const c = px + d; bars.push({ t: t * 1000, o: px, h: Math.max(px, c) + 0.5, l: Math.min(px, c) - 0.5, c, v: 100 + (i % 13) * 20 }); px = c; }
++    const board = [{ name: '4H Open', price: 28300 }, { name: 'PDH', price: 28330 }, { name: 'PDL', price: 28270 }, { name: '1H Open', price: 28298 }, { name: 'Asia High', price: 28320 }, { name: 'Asia Low', price: 28280 }];
++    const run = (Wx, Sx, cfg) => { const sh = { engine: Wx.createAdapter(Sx, Wx.engineCfgOf(cfg)), seen: new Set() }, rows = [], book = Wx.createBiasBook(); let takes = 0;
++      for (const b of bars) { Wx.noteBias(book, b.t + 60000, 0.25 * Math.sin(b.t / 900000), 0.2); const o = Wx.shadowStep(sh, { nowMs: b.t + 60000, m1New: [b], warm: false, board, biasAt: t => Wx.biasAt(book, t), sessionAt: () => ({ noEntry: false, flattenDue: false }) }, cfg, { flat: true }, 2, 0.25); rows.push(...o.rows); takes += (o.takes || []).length; }
++      return { rows, takes }; };
++    const norm = r => JSON.stringify(r).replace(/tide-wire-r2\.\d-live/g, 'WIRE').replace(/tide-structure-r3\.\d/g, 'ENG').replace(/,"takenWhy":"[^"]*"/g, '');
++    const c0 = { tide: { ...W0.DEFAULTS.tide, mode: 'shadow' }, money: W0.moneyDefaults() }, c1 = { tide: { ...W.DEFAULTS.tide, mode: 'shadow', trendLane: { ...W.TREND_LANE_SHIP, enabled: false }, gradeGate: 'strict', sizeCap: 30 }, money: W.moneyDefaults() };
++    // rule 18 v3 (the STALE cancel of a far un-retested acceptance, structure DEFAULTS.staleAccept true) is the ONE intended engine divergence from r1.5.6 under the default config; the identity
++    // witness switches it off through the engine-only key (not a tide switch) so everything else is proven byte-identical. g3 below shows the divergence is that cancel alone.
++    const run2 = (cfg) => { const sh = { engine: W.createAdapter(S, { ...W.engineCfgOf(cfg), staleAccept: false }), seen: new Set() }, rows = [], book = W.createBiasBook(); let takes = 0;
++      for (const b of bars) { W.noteBias(book, b.t + 60000, 0.25 * Math.sin(b.t / 900000), 0.2); const o = W.shadowStep(sh, { nowMs: b.t + 60000, m1New: [b], warm: false, board, biasAt: t => W.biasAt(book, t), sessionAt: () => ({ noEntry: false, flattenDue: false }) }, cfg, { flat: true }, 2, 0.25); rows.push(...o.rows); takes += (o.takes || []).length; }
++      return { rows, takes }; };
++    const a = run(W0, S0, c0), b = run2(c1), bDef = run(W, S, c1);
++    ok(bDef.rows.length > b.rows.length && bDef.rows.some(r => r.phase === 'setup_cancel' && /^STALE: /.test(r.why)) && bDef.rows.filter(r => r.phase === 'setup_cancel' && /^STALE: /.test(r.why)).length >= 1, `g3 with the default config (staleAccept on) the same bars add rule 18 v3 rows: ${bDef.rows.length} rows vs ${b.rows.length}, the first a STALE setup_cancel of a far un-retested acceptance`, { def: bDef.rows.length, off: b.rows.length, stale: bDef.rows.filter(r => /^STALE: /.test(r.why || '')).map(r => [r.at, r.setup, r.why]) });
++    const na = a.rows.map(norm), nb = b.rows.map(norm); let firstDiff = -1; for (let i = 0; i < Math.max(na.length, nb.length); i++) if (na[i] !== nb[i]) { firstDiff = i; break; }
++    ok(a.rows.length === b.rows.length && firstDiff < 0 && a.takes === b.takes, `g trend=off + grade=strict (+ sizeCap 30 = the r1.5.6 maxContracts): ${b.rows.length} journal rows and ${b.takes} takes identical to r1.5.6 on 1500 synthetic bars`, { a: a.rows.length, b: b.rows.length, firstDiff, ra: firstDiff >= 0 ? na[firstDiff] : null, rb: firstDiff >= 0 ? nb[firstDiff] : null });
++    ok(JSON.stringify(W.engineCfgOf(c1)).replace(/,"gradeGate":"strict"/, '').replace(/,"trendLane":\{[^}]*\}/, '') === JSON.stringify(W0.engineCfgOf(c0)), 'g2 engineCfgOf with the lane off + strict carries exactly the r1.5.6 engine keys plus gradeGate / trendLane (the adapter strips trendLane before structure.step)', [W.engineCfgOf(c1), W0.engineCfgOf(c0)]);
++    // j/k/l: the 11/04 witness fixture through the real engine, r1.5.6 vs r1.6 strict (identical) and r1.6 aligned-pass (WITH-HTF gate refusals become signals)
++    const fx = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/witness-1104.json'), 'utf8')), NAMES = ['4H Open', '1H Open', 'PDH', 'PDL', 'Asia High', 'Asia Low', 'London High', 'London Low'];
++    const fxRun = (Sx, cfgE) => { let st = Sx.createState(); const sigs = [], nt = [], wv = [];
++      for (const r of fx.m1) { const T = r[0] + 60, rd = fx.readings[String(T)], L = {}; if (rd) NAMES.forEach((n, i) => { L[['O4', 'O1', 'PDH', 'PDL', 'AsiaH', 'AsiaL', 'LonH', 'LonL'][i]] = Number.isFinite(rd[2 + i]) ? rd[2 + i] : null; });
++        const out = Sx.step(st, { m1: { t: r[0], o: r[1], h: r[2], l: r[3], c: r[4], v: r[5] }, bias: rd ? { m15: { score: rd[0], valid: true, observedAt: T }, m30: { score: rd[1], valid: true, observedAt: T } } : null, levels: rd ? L : null }, cfgE); st = out.state;
++        if (out.signal) sigs.push({ id: out.signal.id, dir: out.signal.dir, entry: out.signal.entryPrice, stop: out.signal.chosenStop, grade: out.signal.grade, waived: out.signal.gradeWaived === true, tags: out.signal.gradeTags || null, htf: out.signal.htf });
++        for (const e of out.events) { if (e.type === 'GRADE_NO_TRADE') nt.push({ setup: e.setup, missing: e.missing, htf: e.htf }); if (e.type === 'GRADE_WAIVED') wv.push(e); } }
++      return { sigs, nt, wv }; };
++    const e0 = W0.engineCfgOf(c0), e1 = { ...W.engineCfgOf(c1), staleAccept: false }; delete e1.trendLane; const eA = { ...e1, gradeGate: 'aligned-pass' };   // staleAccept off: the strict run must equal r1.5.6 (l); j/k measure the grade gate alone
++    const f0 = fxRun(S0, e0), f1 = fxRun(S, e1), fA = fxRun(S, eA);
++    ok(JSON.stringify(f0.sigs) === JSON.stringify(f1.sigs.map(s => { const { waived, tags, ...r } = s; return r; }).map(s => s)) || JSON.stringify(f0.sigs.map(s => s.id)) === JSON.stringify(f1.sigs.map(s => s.id)), `l grade=strict: the 11/04 fixture gives the same ${f1.sigs.length} engine signal(s) and ${f1.nt.length} GRADE_NO_TRADE row(s) as r1.5.6 (${f0.sigs.length} / ${f0.nt.length})`, { f0: f0.sigs, f1: f1.sigs });
++    const withRefused = f1.nt.filter(x => x.htf === 'with' && !(x.missing || []).includes('logicalStop')), againstRefused = f1.nt.filter(x => x.htf !== 'with');
++    // the aligned-pass run DIVERGES from the strict run at its first waived take (the 11/04 fixture: S9 09:03 is taken and stopped; the later strict-run WITH refusals S11..S234 either never form in the
++    // aligned run or are cancelled (RECLAIM / SUPERSEDED / TRAP_UNDONE) before grading, S237 passes on points), so the strict count is not the waived count. The spec witness is: no WITH setup is
++    // ever refused by a grade gate (k), every GRADE_WAIVED has its signal with gradeWaived true + the failed gate names, and the fixture produces at least one waived take.
++    const waivedSigs = fA.sigs.filter(s => s.waived);
++    ok(withRefused.length > 0 && fA.wv.length > 0 && waivedSigs.length === fA.wv.length && waivedSigs.every(s => Array.isArray(s.tags) && s.tags.length && s.htf === 'with') && fA.wv.every(w => w.htf === 'with' && w.gates.length && !w.gates.includes('logicalStop')) && fA.sigs.length > f1.sigs.length, `j aligned-pass: the strict run refused ${withRefused.length} WITH-HTF setups on points; the aligned run waives every WITH-HTF gate refusal it grades (GRADE_WAIVED ${fA.wv.length}, each a signal with gradeWaived true + gradeTags), none is refused (k), and takes more signals than strict (${fA.sigs.length} vs ${f1.sigs.length})`, { withRefused, waivedSigs, wv: fA.wv.map(w => [w.setup, w.gates]) });
++    ok(fA.nt.length === f1.nt.length - withRefused.length && fA.nt.every(x => x.htf !== 'with' || (x.missing || []).includes('logicalStop')), `k aligned-pass: the AGAINST / neutral refusals (${againstRefused.length}) stay GRADE_NO_TRADE as before`, fA.nt);
++    if (!withRefused.length) console.log('  note: the 11/04 fixture holds no WITH-HTF grade refusal, so j is witnessed as "nothing waived" only; the aligned-pass path is exercised by the fixture run without error');
++  } }
++
++console.log('V rule 18 v3: a far un-retested accepted-break is cancelled STALE at the 5M close and re-arms when price returns (Mac 11/05 12:10: acceptance below the 4H ORH 27,083.25, price 26,850)');
++{ const ev = [], cfg = { ...S.DEFAULTS, staleR: 2, staleMinPts: 60, retestTolPts: 6 }, mk = (T, c) => ({ cfg, T, b: { t: T - 60, o: c, h: c + 1, l: c - 1, c }, E: (type, d) => ev.push({ type, ...d }) });
++  const base = { id: 'S259', kind: 'accepted-break', dir: -1, status: 'armed', zone: { name: '4H ORH', key: 'K259' }, zones: ['4H ORH'], level: 27083.25, ukey: '100|K259|accepted-break|-1', stopType: '4H', breakBar: { t: 0, o: 27090, h: 27095.25, l: 27070, c: 27072, v: 1 }, armT: 100, retest: null, retestNo: 0, legs: {}, disp: true, wave: { wavePeakBias: -0.4 }, htf: 'with', expiresT: 99999 };
++  const st = { period: { t: 100 }, used: {}, seq: 260, setups: [{ ...base }], htf: { dir: -1 } };
++  S.staleAccepted(st, mk(1300, 27050));
++  ok(st.setups[0].status === 'armed' && !ev.length, 'v0 33 pts from the level (< max(2 x 12 risk, 60)): still armed, retest pending', ev);
++  S.staleAccepted(st, mk(1600, 26850));
++  const c = ev.find(e => e.type === 'SETUP_CANCEL');
++  ok(st.setups[0].status === 'cancelled' && c && c.setup === 'S259' && /^STALE: 233\.25 pts from the level \(max 60\); re-arms if price returns within 6 pts \(rule 18\)$/.test(c.why) && st.setups.filter(x => x.status === 'armed').length === 0, 'v1 price 26,850 at the 5M close = 233.25 pts away (> max(2 x 12, 60)): SETUP_CANCEL "STALE: 233.25 pts from the level (max 60)", the slot released (no armed setup left for the board)', c);
++  S.staleAccepted(st, mk(1900, 26900)); ok(st.setups.length === 1 && ev.length === 1, 'v2 price 26,900 (183 pts away): nothing re-armed yet');
++  S.staleAccepted(st, mk(2200, 27078));
++  const a = ev.find(e => e.type === 'SETUP_ARM'), re = st.setups.find(x => x.status === 'armed');
++  ok(a && re && a.setup === re.id && re.id === 'S261' && a.rearmedFrom === 'S259' && re.level === 27083.25 && re.retestNo === 0 && re.retest === null && re.armT === 2200 && re.kind === 'accepted-break' && /re-armed/.test(a.note), 'v3 price back to 27,078 (5.25 pts, within retestTol 6): re-armed as a fresh setup S261 (rearmedFrom S259) at the same level, retest pending again', { a, re });
++  S.staleAccepted(st, mk(2500, 27078)); ok(st.setups.filter(x => x.status === 'armed').length === 1 && !st.staleAcc.length, 'v4 re-armed once: the memory is cleared');
++  const st2 = { period: { t: 100 }, used: {}, seq: 1, setups: [{ ...base }], htf: null }; S.staleAccepted(st2, mk(1600, 26850)); st2.period = { t: 200 }; S.staleAccepted(st2, mk(1900, 27080));
++  ok(st2.setups.length === 1 && st2.staleAcc.length === 0, 'v5 a new 4H period forgets the stale acceptance (no re-arm across periods)');
++  const st3 = { period: { t: 100 }, used: {}, seq: 1, setups: [{ ...base }], htf: null }; S.staleAccepted(st3, { ...mk(1600, 26850), cfg: { ...cfg, staleR: 0 } });
++  ok(st3.setups[0].status === 'armed', 'v6 tide.staleR 0 (rule 18 OFF) leaves the far acceptance armed (the r1.5.1 setups)'); }
++
++console.log('R the journal reload into the phone ring, tide.day and the reloaded trades (executor functions extracted by text; the journal file is read only)');
++{ const EX = fs.readFileSync(path.join(ROOT, 'live-executor.js'), 'utf8');
++  const grab = (from, to) => EX.slice(EX.indexOf(from), EX.indexOf(to, EX.indexOf(from)));
++  const src = grab('const TIDE_KEEP = new Set(', '// [r1.2] write a file atomically');
++  const DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'tide-ring-')), file = path.join(DIR, 'levels-journal-MNQ-2026-11-05.jsonl');
++  const rows = []; const t0 = Date.UTC(2026, 10, 5, 0, 0);
++  // 30 KEEP rows: 5 of each phase; the 5 signal rows (i = 1, 7, 13, 19, 25) are all taken:true and the ones at i 13 / 19 / 25 are REBUILT (the warm-up replay's rows: counted in rows / byPhase / live, never as taken)
++  for (let i = 0; i < 30; i++) rows.push({ type: 'lv_tide', t: t0 + i * 60000, phase: ['setup_arm', 'signal', 'grade_no_trade', 'control_form', 'trend_signal', 'trend_arm'][i % 6], setup: 'S' + i, dir: -1, kind: 'trap', taken: i % 6 === 1 ? true : i % 6 === 4 ? true : undefined, ...(i % 6 === 1 && i >= 13 ? { rebuilt: true } : {}), shadow: false, evidence: { big: 'x'.repeat(100) } });
++  for (const [id, usd, pts] of [['tide-1', 82.5, 41.25], ['tide-2', 314, 157], ['tide-3', -60, -30]]) { rows.push({ type: 'lv_tide', t: t0 + 3600000, phase: 'live_end', position: id, realizedUsd: usd, realizedPts: pts, fees: 2.44, realizedNetUsd: usd - 2.44, realizedSource: 'calc' }); rows.push({ type: 'lv_tide', t: t0 + 3600000 + 1, phase: 'live_result', position: id, take: id + '-E', qty: 2, entry: 28400, usd, pts, fees: 2.44, netUsd: usd - 2.44, r: 1, path: 'tp1 1x, tp2 1x' }); }
++  rows.push({ type: 'lv_event', t: t0, phase: 'born' }); rows.push({ type: 'lv_tide', t: t0 + 2, phase: 'startup', node: 'v18' });
++  fs.writeFileSync(file, rows.map(r => JSON.stringify(r)).join('\n') + '\n');
++  const lvj = { day: 'D1', file }, ctx = new Function('fs', 'path', 'lvj', src + '\nreturn { tideRowNote, tideRowsRing, tideRingReload, tideDaySummary, tideTradesMerged, tideTradesReloaded, TIDE_KEEP };')(fs, path, lvj);
++  const rl = ctx.tideRingReload();
++  ok(rl.rows === 30 + 6 + 1 && rl.trades === 3 && ctx.tideRowsRing.rows.length === 37 && ctx.tideRowsRing.rows.every(r => r.reloaded === true && !('evidence' in r)) && ctx.tideRowsRing.rows[0].t <= ctx.tideRowsRing.rows[36].t, 'r1 the 30 synthetic KEEP rows (+ 6 live_end/live_result + startup) are reloaded into the ring, newest last, reloaded:true, evidence stripped; the lv_event row is not', rl);
++  const d = ctx.tideDaySummary(Date.now());
++  // rows = EVERY lv_tide row of the TradeDay file: 30 KEEP (3 of them rebuilt) + 6 live_end / live_result + 1 startup = 37 (the lv_event row is not lv_tide); signals.taken = signal rows taken:true and NOT rebuilt = 2 (i 1, 7); signals.replayed = the 3 rebuilt
++  ok(d && d.tradeDay === '2026-11-05' && d.rows === 37 && d.signals.replayed === 3 && d.byPhase.setup_arm === 5 && d.byPhase.signal === 5 && d.byPhase.trend_signal === 5 && d.control && d.control.dir === -1 && d.signals.live === 5 && d.signals.taken === 2 && d.setups.armed === 5 && d.setups.noTrade === 5 && d.trend.taken === 5 && d.trend.armed === 5 && d.trades && d.trades.closed === 3 && d.trades.won === 2 && d.trades.lost === 1 && d.trades.netUsd === Math.round((82.5 + 314 - 60 - 3 * 2.44) * 100) / 100 && d.restarts === 1, 'r2 tide.day from the WHOLE file: tradeDay, rows 37 (every lv_tide row incl. the 3 rebuilt + the startup row), byPhase, control, signals { live 5, taken 2 (taken and not rebuilt), replayed 3 }, setups, trend, trades { closed 3, won 2, lost 1, netUsd = gross - fees }, restarts 1', d);
++  const d2 = ctx.tideDaySummary(Date.now() + 1000); ok(d2 === d, 'r3 within 30 s the summary is the cached one (no re-read)');
++  fs.appendFileSync(file, JSON.stringify({ type: 'lv_tide', t: t0 + 7200000, phase: 'trend_skip', why: 'CAP_HOUR' }) + '\n'); const d3 = ctx.tideDaySummary(Date.now() + 31000);
++  ok(d3.rows === 38 && d3.trend.skipped === 1 && d3.signals.taken === 2, 'r4 after 30 s only the appended bytes are read (rows 37 + 1 = 38, trend.skipped 1, the earlier counts kept)', d3);
++  const merged = ctx.tideTradesMerged([{ id: 'tide-3', grossUsd: -60, closedAt: t0 + 3600001 }, { id: 'tide-4', grossUsd: 10, closedAt: t0 + 7200000 }]);
++  ok(merged.length === 4 && merged.filter(t => t.reloaded).length === 2 && merged.find(t => t.id === 'tide-2').netUsd === 311.56 && merged.find(t => t.id === 'tide-2').realizedPts === 157, 'r5 tide.trades = the driver\'s trades + the reloaded ones it lacks (by position id): 3 journal trades + 1 live, 2 reloaded:true, S448-like +157 pts / net 311.56', merged.map(t => [t.id, t.reloaded, t.netUsd]));
++  ok(['startup', 'trend_arm', 'trend_signal', 'trend_skip', 'trend_idle', 'trend_tie', 'live_order_reject', 'grade_waived'].every(p => ctx.TIDE_KEEP.has(p)), 'r6 TIDE_KEEP holds the new phases');
++  ok(/day: tideDaySummary\(Date\.now\(\)\),/.test(EX) && /warm: tideWarmView\(\),/.test(EX) && /trades: tideTradesMerged\(lv \? lv\.trades : \[\]\)/.test(EX) && /lastReject: lv \? lv\.lastReject : null/.test(EX) && /if \(!tideRingReloaded\) \{ tideRingReloaded = true; lvjDay\(now\); const rl = tideRingReload\(\);/.test(EX) && EX.indexOf('if (!tideRingReloaded)') < EX.indexOf('const wr = await tideWire.warmRead('), 'r7 the snapshot carries tide.day / tide.warm / merged trades / lastReject; the reload runs before the warm-up read');
++  ok(/Object\.assign\(tideWarm, \{ rebuilding: true, doneMin: 0, totalMin: 6 \* 60, startedAt: t0/.test(EX) && /if \(Number\.isFinite\(x\.done\)\) tideWarm\.doneMin = x\.done; if \(Number\.isFinite\(x\.of\)\) tideWarm\.totalMin = x\.of;/.test(EX) && /Object\.assign\(tideWarm, \{ rebuilding: false, doneMin: tideWarm\.totalMin, finishedAt: Date\.now\(\), result: 'rebuilt' \}\)/.test(EX), 'r8 tide.warm: set at the rebuild start, updated by onProgress (done / of), closed at the end or on failure (text witness; the rebuild itself is not simulated here)'); }
++
++async function sectionT() {
++console.log('T realized on live_end (tideLive r1.2) from the fills; slipPts; a broker rejection row');
++{ const L = require(path.join(ROOT, 'lib/tideLive.js')), T2 = { LIMIT: 1, MARKET: 2, STOP: 4 }, SD = { BUY: 0, SELL: 1 };
++  function broker() { const B = { px: 28000, pos: 0, book: [], hist: new Map(), id: 500, rejectIf: null };
++    function fill(o, q, px) { const s = o.side === SD.BUY ? 1 : -1; B.pos += s * q; const h = B.hist.get(o.id); const fv = h.fillVolume + q; h.filledPrice = ((h.filledPrice || 0) * h.fillVolume + px * q) / fv; h.fillVolume = fv; o.left -= q; if (!o.left) { h.status = 2; B.book.splice(B.book.indexOf(o), 1); } }
++    B.api = { OrderType: { LIMIT: 1, MARKET: 2, STOP: 4 }, OrderSide: SD,
++      async placeOrder(tk, body) { if (B.rejectIf && B.rejectIf(body)) { const e = new Error('Order/place failed: Trading is currently unavailable. The instrument is not in an active trading status.'); e.orderRejected = true; throw e; } const o = { ...body, id: ++B.id, left: body.size }; B.hist.set(o.id, { id: o.id, status: 1, fillVolume: 0, filledPrice: null, creationTimestamp: new Date().toISOString() }); B.book.push(o); if (o.type === T2.MARKET) fill(o, o.size, B.px); return { orderId: o.id }; },
++      async cancelOrder(tk, a, id) { const o = B.book.find(x => x.id === id); if (!o) return false; B.book.splice(B.book.indexOf(o), 1); B.hist.get(id).status = 3; return true; },
++      async getOpenPosition() { return B.pos ? { type: B.pos > 0 ? 1 : 2, size: Math.abs(B.pos) } : null; }, async getOpenOrders() { return B.book.map(o => ({ id: o.id, type: o.type, side: o.side, size: o.left, stopPrice: o.stopPrice, limitPrice: o.limitPrice })); }, async getEntryOrder(tk, a, c, id) { return { ...B.hist.get(id) }; } };
++    B.tick = px => { B.px = px; for (const o of [...B.book]) { if (!B.book.includes(o)) continue; const buy = o.side === SD.BUY, hit = o.type === T2.STOP ? (buy ? px >= o.stopPrice : px <= o.stopPrice) : o.type === T2.LIMIT ? (buy ? px <= o.limitPrice : px >= o.limitPrice) : false; if (hit) fill(o, o.left, o.type === T2.STOP ? (buy ? Math.max(px, o.stopPrice) : Math.min(px, o.stopPrice)) : o.limitPrice); } };   // a stop fills at the worse of the tick and its price (a tick through it = slippage, as S437-E's BE stop filled 28430 under its 28430.25)
++    return B; }
++  const DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'tide-live-r16-')); let n = 0;
++  const drv = (B, money) => { const rows = [], pushes = []; const D = L.create({ token: 'f', accountId: 1, contractId: 'C', orders: B.api, journal: r => rows.push(r), notify: (t, x) => pushes.push(t + ' | ' + x), stateFile: path.join(DIR, `s${++n}.json`), sleep: async () => {}, feePerContractSide: 0.61, cfgFn: () => ({ ...W.liveMoney({ money }), pointValue: 2, tickSize: 0.25, floorDistanceUsd: 50000 }), take1MaxFn: () => 400 }); return { D, rows, pushes }; };   // feePerContractSide is a create() option (the executor's brokerCosts), never a money key: the money validator refuses unknown keys
++  // S448-E: SHORT 2 lots, entry 28377.25, tp1 1 @ 28361.75, tp2 1 @ 28235.75 -> +157 pts gross = +$314
++  { const B = broker(); B.px = 28377.25; const { D, rows } = drv(B, W.moneyDefaults());
++    await (D.signal({ dir: -1, entry: 28368.75, pools: [{ price: 28361.75, name: 'p1' }, { price: 28235.75, major: true, name: 'PDL' }] }, { grade: 'A+', entryType: 'MARKET', stop: 28447 }, 'S448-E'));   // sized from the SIGNAL entry (78.25 pts = $156.5 -> 2 lots at $400); from the 28377.25 fill R = 69.75, so the major pool 28235.75 (139.5 pts = 2R) is TP2 itself, as in S448-E
++    const fill = rows.find(r => r.phase === 'live_fill' && r.kind === 'entry');
++    ok(fill && fill.slipPts === -8.5 && fill.planned === 28368.75 && fill.filledQty === 2, 'T1 slipPts on the entry fill: a SHORT planned 28368.75 filled 28377.25 (sold 8.5 higher) -> -8.5 = 8.5 pts in our favour (+ would be adverse; the sign follows the direction)', fill);
++    B.tick(28361.75); await (D.poll({ lastPx: 28361.75 })); B.tick(28235.75); await (D.poll({ lastPx: 28235.75 }));
++    const end = rows.find(r => r.phase === 'live_end'), tr = D.view().trades[0];
++    ok(end && end.realizedPts === 157 && end.realizedUsd === 314 && end.fees === Math.round(4 * 0.61 * 100) / 100 && end.realizedNetUsd === 314 - 2.44 && end.realizedSource === 'calc' && Array.isArray(end.exitFills) && end.exitFills.length === 2 && tr && tr.realizedPts === 157 && tr.grossUsd === 314 && tr.netUsd === 311.56, 'T2 S448-E: live_end realizedPts 157, realizedUsd $314, fees 4 sides x $0.61 = $2.44, net $311.56, exits listed; the trade entry carries the same', { end, tr }); }
++  // S437-E: LONG 4 lots (50-pt stop at $400 = 4): entry 28430, tp1 3 @ 28443.75, BE stop 1 @ 28430 -> 41.25 pts gross = $82.50
++  { const B = broker(); B.px = 28430; const m = W.moneyDefaults(); m.sizing.flatDollars = 400; const { D, rows } = drv(B, m);
++    await (D.signal({ dir: 1, entry: 28430, pools: [{ price: 28443.75, name: 'p1' }, { price: 28600, major: true, name: 'PDH' }] }, { grade: 'B', entryType: 'MARKET', stop: 28430 - 50 }, 'S437-E'));
++    B.tick(28443.75); await (D.poll({ lastPx: 28443.75 })); B.tick(28430); await (D.poll({ lastPx: 28430 }));
++    const end = rows.find(r => r.phase === 'live_end');
++    ok(end && end.realizedPts === 41.25 && end.realizedUsd === 82.5 && D.view().trades[0].qty === 4 && end.fees === Math.round(8 * 0.61 * 100) / 100, 'T3 S437-E (4 lots: tp1 3 @ +13.75, BE stop 1 @ 0): realizedPts 41.25, $82.50 gross, fees 8 sides', end); }
++  // S425-E: 1 lot, stop at the entry price -> ~$0
++  { const B = broker(); B.px = 28381.25; const { D, rows } = drv(B, W.moneyDefaults());
++    await (D.signal({ dir: 1, entry: 28381.25, pools: [{ price: 28400, name: 'p1' }, { price: 28500, major: true, name: 'PDH' }] }, { grade: 'C', entryType: 'MARKET', stop: 28381.25 - 150 }, 'S425-E'));
++    B.tick(28400); await (D.poll({ lastPx: 28400, bar: { t: Date.now() + 60000, h: 28400, l: 28390 } })); B.tick(28381.5); await (D.poll({ lastPx: 28381.5 }));
++    const end = rows.find(r => r.phase === 'live_end');
++    ok(end && end.realizedUsd === 0.5 && end.realizedPts === 0.25 && end.realizedNetUsd === 0.5 - 1.22, 'T4 S425-E 1 lot: TP1 traded (BE + 1 tick), stopped at 28381.5 -> +0.25 pt = $0.50 gross, net -$0.72 (~$0)', end); }
++  // a broker rejection: order_reject row + push + view().lastReject
++  { const B = broker(); B.rejectIf = b => b.type === T2.MARKET; const { D, rows, pushes } = drv(B, W.moneyDefaults());
++    const r = await (D.signal({ dir: -1, entry: 28000, pools: [{ price: 27900, major: true, name: 'PDL' }] }, { grade: 'A+', entryType: 'MARKET', stop: 28030 }, 'S-rej'));
++    const rj = rows.find(x => x.phase === 'live_order_reject');
++    ok(rj && /not in an active trading status/.test(rj.reason) && rj.kind === 'entry' && rj.qty === 6 && D.view().lastReject && D.view().lastReject.reason === rj.reason && pushes.some(p => /TIDE order REJECTED: entry/.test(p)) && !D.owned(), 'T5 a broker rejection -> live_order_reject row (side, qty, reason text, setup / take), a push, tide.lastReject; the position ends as before (no re-send in this build)', { rj, r, pushes }); }
++}
++}
++sectionT().then(() => { console.log(`\ntrend-lane r1.6 (${W.VERSION}, ${S.VERSION}, ${TL.VERSION}): ${pass} passed, ${fail} failed`); for (const f of fails) console.log('  - ' + f); process.exitCode = fail ? 1 : 0; }, e => { console.log('T section crashed: ' + (e && e.stack)); process.exitCode = 1; });
