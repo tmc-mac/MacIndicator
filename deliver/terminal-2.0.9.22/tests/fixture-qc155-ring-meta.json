@@ -1,0 +1,8 @@
+{
+ "name": "qc155-ring",
+ "synthetic": true,
+ "clock": 1793723700000,
+ "clockIso": "2026-11-03T16:35:00.000Z",
+ "status": "SCANNING",
+ "note": "MacUI-N3 2.0.9.22 (from qc154-flat): the 120-row ring full, the control_form row dropped: control must come from tide.board.control"
+}

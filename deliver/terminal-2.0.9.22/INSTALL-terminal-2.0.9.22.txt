@@ -1,0 +1,49 @@
+PHONE TERMINAL 2.0.9.22  (display only: no bot restart, the bot is not touched)
+=====================================================================================
+What changes: only the phone page (mobile.html). The bot, its settings and your trades are untouched.
+It is 2.0.9.21 (code 0c1bd93e, the one you have now) plus QC-UI's review items:
+  - Day P&L header while TIDE is in a trade: "Day P&L (closed) $x · TIDE open +$y (bot)" (or "(calc: ...)" when the bot
+    sends no open $). Before, the header read closed-only during a TIDE trade.
+  - TIDE card: "4H CONTROL since" is the bar the control formed on (the bot's board time), not the time the row was
+    written after a restart. No more "failed break above the 4H open" guess: "trap · extreme 28,829.50" instead.
+  - TIDE card: a LAST REFUSAL line: "08:28 S279 London High · waveBias wavePeakBias 0.0842 < 0.2". The tape's
+    no-trade mark says the same. The new r1.5.5 "REFUSED ... slot released" cancels get their own mark (⊘).
+  - Now with TIDE live: the old model's "Why no trade right now" card and the Position card's "Score below threshold"
+    line no longer show as reasons. Both sit under "Old levels model (not trading)" (tap to open).
+  - When the bot's 120-row journal ring is full, the TIDE card says so; the 4H control then comes from the board.
+  - Copies and exports say "terminal 2.0.9.22".
+
+Same look everywhere else and the same buttons. The page asks for nothing new.
+With TIDE off the page is 2.0.9.21 (identity-tested, see CHANGES-20922.md).
+Run it when the bot is FLAT (house rule, even for display changes).
+
+Put mobile.html and set-terminal.sh (from this folder) in Downloads, then in PowerShell:
+
+1) Check the files (both must match exactly):
+   cd $env:USERPROFILE\Downloads
+   certutil -hashfile mobile.html SHA256
+      expect: 8b92d0470bd9eb6c5525e752585fe5074e987b98e06c65adc965eb677fdd3997
+   certutil -hashfile set-terminal.sh SHA256
+      expect: d891ef9d830244f682110662f85f080dd23984cbb29ba1740cb3e34aca4fb815   (unchanged)
+
+2) Upload them and check them on the server:
+   scp mobile.html set-terminal.sh root@<HOST>:/root/
+   ssh root@<HOST> "sha256sum /root/mobile.html /root/set-terminal.sh"
+      (the same two codes as above)
+
+3) Install (it asks "Is the bot FLAT?" - type YES):
+   ssh -t root@<HOST> "bash /root/set-terminal.sh install /root/mobile.html 8b92d0470bd9eb6c5525e752585fe5074e987b98e06c65adc965eb677fdd3997"
+   Expect this line (the backup's name may follow it):
+     DONE: mobile.html installed (sha256 verified): before 0c1bd93e -> after 8b92d047.     (you had 2.0.9.21)
+   Any other "before" code: still fine to keep, but send me that line.
+
+4) On your phone: close the MacMillionz page/app completely and open it again.
+   Check on Now: the TIDE card shows "4H CONTROL ... since hh:mm" and, after a refusal, a "LAST REFUSAL" line; the old
+   "Why no trade right now" card is gone from Now while TIDE is live (it is under "Old levels model (not trading)").
+
+If any step prints STOP, nothing changed - send me that output.
+
+UNDO (puts back the page it replaced, 0c1bd93e = 2.0.9.21 - also no restart):
+   ssh -t root@<HOST> "bash /root/set-terminal.sh rollback"
+STATUS (changes nothing):
+   ssh root@<HOST> "bash /root/set-terminal.sh status"

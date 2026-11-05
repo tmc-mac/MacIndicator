@@ -1,0 +1,8 @@
+{
+ "name": "qc155-flat",
+ "synthetic": true,
+ "clock": 1793723700000,
+ "clockIso": "2026-11-03T16:35:00.000Z",
+ "status": "SCANNING",
+ "note": "MacUI-N3 2.0.9.22 (from qc154-flat): r1.5.5 rows: the S279 refusal cancels the setup (REFUSED: waveBias - slot released), grade row waived control4h->bias; board.control.since 07:40 vs the control_form row written 07:31"
+}
