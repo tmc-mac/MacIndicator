@@ -1,8 +1,8 @@
-LEVELS PRO v2.4.1b - paste sheet (3 steps). Paste the "b" file: v2.4.1 (kept for the record) failed with
-"The main body of the script is too long"; v2.4.1b wraps the drawing code in functions, nothing else changed.
+LEVELS PRO v2.4.2 - paste sheet (3 steps). Paste LevelsPRO-v2.4.2.pine (v2.4.1b + the two main lines + the Focus
+toggle). v2.4.1 and v2.4.1b stay in the folder for the record.
 
 1. PASTE. TradingView > Pine Editor > Open > New blank indicator. Select all, delete, paste the whole of
-   LevelsPRO-v2.4.1b.pine (2593 lines; sha256 in SHA256SUMS). Save as "LEVELS PRO v2.4.1b".
+   LevelsPRO-v2.4.2.pine (2601 lines; sha256 in SHA256SUMS). Save as "LEVELS PRO v2.4.2".
    If the editor reports a compile error or "too many tokens", stop: re-paste LevelsPRO-v2.4-dev.pine
    (deliver/levels-pro-2.4-dev, the untouched basis) and send the exact error text to the desk.
 

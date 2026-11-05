@@ -1,5 +1,29 @@
 # Levels PRO v2.4.1 — changes over v2.4-dev (basis, Mac 11/05)
 
+## v2.4.2 (11/05): Mac — "make the lines for the 4H and 30 min opens different from the rest … maybe even a toggle mode where we can disable all the other lines"
+Built on v2.4.1b (sha d53ea42f…, reviewer S3 applied). `LevelsPRO-v2.4.2.pine`, 2601 lines. Two changes, both inside `f_drawLevels`, plus one input line.
+
+**[MAIN] the two main lines** = registry slot 13 "4H Open" (current 4H open, the bot's 4H control level) and slot 15 "30m Open" (the bot's primary 5M reference), desktop AND mobile:
+- `bool is_main = i == 13 or i == 15` (line 1740).
+- line width 3 (line 1765: `is_main ? 3 : isip ? math.max(tw, 3) : tw`), solid (1762: `is_main ? line.style_solid : …` — the rolling-open dotted style no longer applies to these two; the 1H Open stays dotted).
+- label text prefixed `★ ` (1767) and one size up (1786: tiny→small, small→normal, normal→large, large→huge; `lsz` for every other level).
+- mobile: never abbreviated and always in the full-text 2 px set (1755: `m_near = mobile and (is_main or rank < mob_near)`); their packed y is unchanged (packing stays by price, so the ★ plates keep their place in the column and no other plate is dropped).
+- Level-STATE colours untouched: `cc`/`col_viol` text and line colours are exactly 2.4-dev's; the two are told apart by width, solid style, ★ and size only.
+
+**[FOCUS] toggle** `focus_main = input.bool(false, "Focus: 4H + 30M opens only", group=g_dash, …)` (line 209, the Dashboard group with Mobile Mode; default OFF):
+- ON → every level except slots 13/15 takes 2.4-dev's own hide path (1741: `if na(px) or not L_ON or (focus_main and not is_main)` → `line.set_color(col_hide)`, `label.set_color/set_textcolor(col_hide)`, `label.set_text("")`). Nothing is deleted or recreated; pools unchanged (28 lines, 39 labels, 0 boxes, 4 tables). The in-play violet level stays visible if it is one of the two (its `isip` colour/width path is inside the drawn branch). The halo, event glyphs, board, PARITY/EVENTS tables and alerts are unchanged (levels keep computing).
+- OFF → identical to [MAIN] above.
+
+**Main-body budget:** `f_mobPack()` now creates and returns `[M_Y, M_RK]` (tuple return) instead of filling passed arrays, so the last-bar block is two lines (`[M_Y, M_RK] = f_mobPack()`, `f_drawLevels(M_Y, M_RK)`). Main-body lines: v2.4.1b 1,620 → **v2.4.2 1,619** (function bodies 176 → 179) with the new input included.
+
+**Witness by reading (Mobile OFF + Focus OFF):** for every slot other than 13/15, `is_main` is false and each edited expression reduces to its v2.4.1b form: 1741 hide condition (`focus_main and false` = false), 1755 `m_near` (`false or …`), 1762 style, 1765 width, 1767 tag (`"" +`), 1786 size → byte-identical drawing. Slots 13/15 differ only in width (3), style (solid), ★ prefix and size. `diff v2.4.1b v2.4.2`: header (3 lines), title, SCRIPT row, the input, f_mobPack's 2 array lines + return, and f_drawLevels lines 1739-1741, 1755, 1762, 1765, 1767, 1786, plus the 2-line call block.
+
+**Index-guard scan (touched lines):** 1741 `array.get(L_ON, i)` and 1755 `array.get(M_RK, i)` — `i` is the `for i = 0 to NL - 1` variable, both arrays NL-sized; 1762 `array.get(L_ROLL, i)` as before. No new access depends on the other side of an `and`/`or`. New construct: a tuple return `[M_Y, M_RK]` from a user function and tuple destructuring at the call (`[a, b] = f()`), the form 2.4-dev already uses for `f_p_period` / `f_p_level`. `size.huge` is a documented `size.*` constant.
+
+**Tokens:** source 22,642 / inline 39,157 → est. compiled 68.2k (k_inline) / 73.3k (k_linear); +83 source tokens over v2.4.1b. 17 `request.security`, unchanged.
+
+---
+
 ## v2.4.1b (11/05, same day): compile fix — paste THIS file
 Mac's paste of v2.4.1 failed: TradingView **"The main body of the script is too long. Try wrapping code in functions."** (2.4-dev compiles.) That is the main-scope size limit, not the token limit. v2.4.1 had added ~50 main-scope lines to a build already near the limit.
 
