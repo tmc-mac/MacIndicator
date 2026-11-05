@@ -262,16 +262,19 @@ function create(o) {
           return [{type:'ack',key:it.key,price:r.stopPrice},{type:'order-superseded',key:it.replaces}]; // logical old generation ended; no broker cancellation
         } catch(e) { if(e.orderRejected===true){S.dispatch[it.key].status='terminal';delete S.ids[it.key];save();return [{type:'reject',key:it.key,reason:e.message,lastPx:S.lastPx}];}S.needReconcile=true;save();return [{type:'no-ack',key:it.key,reason:e.message},{type:'order-superseded',key:it.replaces}]; }
       }
-      if (it.op === 'modify' && (it.kind === 'tp1' || it.kind === 'tp2')) {   // a target: the old one cancelled first (verified), then the new one
+      if (it.op === 'modify' && (it.kind === 'tp1' || it.kind === 'tp2')) {
         const old = S.ids[it.replaces];
         if (old == null) return [{ type: 'no-ack', key: it.key, reason: 'old target identity unresolved; replacement not sent' }];
-        if (old != null) { const rec = await cancelVerified(old); if (!rec) return [{ type: 'reject', key: it.key, reason: 'the old target could not be cancelled' }];
-          const ack = await verifiedCancelEvent(it.replaces, rec); if (!ack) return [{ type: 'no-ack', key: it.key, reason: 'cancel fill evidence invalid' }];
-          // The planner must account for any fills before considering a new target.
-          return [ack, { type: 'reject', key: it.key, reason: 'target replacement deferred after cancellation' }]; }
-        if ((await posSize()) !== it.expectOpen) return [{ type: 'reject', key: it.key, reason: `the position is not ${it.expectOpen}: target not sent` }];
-        log(`  [LIVE ORDER] TIDE ${it.kind} change: ${it.qty}x LIMIT @ ${it.price} (${it.key})`);
-        return placed(it, { ...base(), type: OrderType.LIMIT, side: sideNum(it.side), size: it.qty, limitPrice: it.price });
+        const rec = await cancelVerified(old);
+        if (!rec) return [{ type: 'reject', key: it.key, reason: 'the old target could not be cancelled' }];
+        const ack = await verifiedCancelEvent(it.replaces, rec);
+        if (!ack) return [{ type: 'no-ack', key: it.key, reason: 'cancel fill evidence invalid' }];
+        // An intervening fill changes the position. The original request cannot
+        // safely be reused; hold until a reviewed regeneration path exists.
+        const message = `${it.kind} was cancelled; its replacement is not working. Check the account and manage the missing target.`;
+        log(`  [tide-live] URGENT: ${message}`); J('target_missing', { kind: it.kind, key: it.key, reason: 'replacement deferred' });
+        P(null, 'TIDE URGENT: target missing', message, CRIT);
+        return [ack, { type: 'reject', key: it.key, reason: 'target cancelled; replacement not sent; manual intervention required' }];
       }
       if (it.op === 'cancel') {
         if (supersedingKey(it.target)) return [{type:'order-superseded',key:it.target}];

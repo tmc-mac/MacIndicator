@@ -57,5 +57,28 @@ async function test(name,fn){try{await fn();}catch(e){failures.push({name,error:
   const x=driver(b);await x.d.signal(signal(),plan(),'modify-test');const old=Object.values(x.d.state().pos.orders).find(o=>o.kind==='tp1');victim=x.d.state().ids[old.key];
   old.price+=1;await x.d.poll({lastPx:1000});const p=x.d.state().pos, original=p.orders[old.key];
   const out={partial,hit,oldFilled:original.filled,oldStatus:original.status,block:p.block,open:p.open,brokerQty:b.q,tp1:Object.values(p.orders).filter(o=>o.kind==='tp1').map(o=>({status:o.status,filled:o.filled})),targetWorking:[...b.all.values()].filter(o=>o.status===1&&o.type===1).map(o=>({size:o.size,price:o.limitPrice}))};console.log(JSON.stringify(out));
-  if(!hit || original.filled!==(partial?1:0) || original.status!=='cancelled'){fail++;console.log('FAIL target modification fill or cancellation');}else console.log('PASS target modification accounting; replacement blocked='+p.block);
+  if(!hit || original.filled!==(partial?1:0) || original.status!=='cancelled' || p.block!=='tp1-rejected'){fail++;console.log('FAIL target modification accounting or explicit hold');}
+  for(let i=0;i<10;i++)await x.d.poll({lastPx:1000});
+  const pre=x.d.state().pos, preIds=Object.values(pre.orders).filter(o=>o.kind==='tp1').map(o=>x.d.state().ids[o.key]).filter(id=>id!=null);
+  const before=[...b.all.values()].filter(o=>preIds.includes(o.id)&&o.status===1);
+  console.log('OBSERVE before restart',JSON.stringify({block:pre.block,live:before.map(o=>o.size)}));
+  const resumed=driver(b,{file:x.file});await resumed.d.start();for(let i=0;i<10;i++)await resumed.d.poll({lastPx:1000});
+  const held=resumed.d.state().pos;
+  const tp1ids=Object.values(held.orders).filter(o=>o.kind==='tp1').map(o=>resumed.d.state().ids[o.key]).filter(id=>id!=null);
+  const restored=[...b.all.values()].filter(o=>tp1ids.includes(o.id)&&o.status===1);
+  if(held.block!==null || restored.length!==1 || restored[0].size!==(partial?6:7)){fail++;console.log('FAIL target restoration',JSON.stringify({block:held.block,restored:restored.map(o=>o.size)}));}
+  else console.log('PASS synthetic target restored after restart at expected remaining size');
+
+} {
+  const b=broker(), x=driver(b);
+  const shortSignal={dir:-1,entry:1000,riskMult:1,htf:'against',pools:[{price:980,name:'pool'},{price:940,name:'far',major:true}]};
+  await x.d.signal(shortSignal,{stop:1020,grade:'A+',entryType:'MARKET'},'partial-stop-target');
+  const stop=Object.values(x.d.state().pos.orders).find(o=>o.kind==='stop'&&o.status==='working');
+  b.fill(b.all.get(x.d.state().ids[stop.key]),1,1020);
+  for(let i=0;i<10;i++)await x.d.poll({lastPx:1000});
+  function snap(d) {const st=d.state(),p=st.pos, ids=Object.values(p.orders).filter(o=>o.kind==='tp2').map(o=>st.ids[o.key]).filter(id=>id!=null);return {block:p.block,open:p.open,broker:b.q,tp2:[...b.all.values()].filter(o=>ids.includes(o.id)&&o.status===1).map(o=>o.size)};}
+  const before=snap(x.d);console.log('OBSERVE tp2 before restart',JSON.stringify(before));
+  const again=driver(b,{file:x.file});await again.d.start();for(let i=0;i<10;i++)await again.d.poll({lastPx:1000});const after=snap(again.d);console.log('OBSERVE tp2 after restart',JSON.stringify(after));
+  if(before.block!=='tp2-rejected'||before.tp2.length || before.open!==9 || after.broker!==-9 || after.block!==null || after.tp2.length!==1 || after.tp2[0]!==2){fail++;console.log('FAIL independent TP2 witness');}
+  else console.log('PASS missing TP2 held before restart and restored once at size 2 after restart');
 }}finally{fs.rmSync(temp,{recursive:true,force:true});}if(fail)process.exitCode=1;})().catch(e=>{console.error(e);process.exitCode=1});
