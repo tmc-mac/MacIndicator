@@ -61,8 +61,10 @@ function create(o) {
     if (Object.entries(d.dispatch).some(([k,x]) => !record(x) || !['unknown','accepted','terminal'].includes(x.status) || !record(x.body) || x.cancelEvidence !== undefined && (!record(x.cancelEvidence) || x.cancelEvidence.type !== 'cancel-ack' || x.cancelEvidence.key !== k || x.cancelEvidence.filledQty !== undefined && (!Number.isSafeInteger(x.cancelEvidence.filledQty) || x.cancelEvidence.filledQty < 0 || !isNum(x.cancelEvidence.avgPx) || x.cancelEvidence.avgPx <= 0)))) return 'saved dispatch record invalid';
     if (Object.values(d.fillOffsets).some(x => !record(x) || !Number.isSafeInteger(x.qty) || x.qty < 0 || !isNum(x.value))) return 'saved fill offsets invalid';
     if (d.hist !== undefined && (!record(d.hist) || typeof d.hist.day !== 'string' || !Array.isArray(d.hist.trades) || !Array.isArray(d.hist.alerts) || d.hist.orderIds !== undefined && !Array.isArray(d.hist.orderIds))) return 'saved history invalid';
+    if (d.pendingInitialStop !== undefined && (!record(d.pendingInitialStop) || d.pendingInitialStop.op !== 'place' || d.pendingInitialStop.kind !== 'stop' || typeof d.pendingInitialStop.key !== 'string' || !Number.isSafeInteger(d.pendingInitialStop.qty) || d.pendingInitialStop.qty <= 0 || !isNum(d.pendingInitialStop.price) || !['BUY','SELL'].includes(d.pendingInitialStop.side))) return 'saved pending initial stop invalid';
     const p = d.pos;
     if (p === null) return ['dispatch','ids','sentAt','fillOffsets'].some(k => Object.keys(d[k]).length) || d.guard != null ? 'saved ownership missing position' : null;
+    if (d.pendingInitialStop && (!p || !p.orders || !p.orders[d.pendingInitialStop.key])) return 'saved pending stop ownership invalid';
     if (!record(p) || typeof p.id !== 'string' || !p.id || p.version !== T.VERSION) return 'saved planner identity invalid';
     const shape = T.initState(p.id);
     for (const [key,value] of Object.entries(shape)) {
@@ -113,9 +115,12 @@ function create(o) {
       if (++steps > MAX_STEPS) { log('  [tide-live] CRITICAL: the event loop did not settle (200 steps) - stopping this pass; the next poll continues.'); P(null, 'TIDE URGENT: loop fence', 'The TIDE order loop hit its fence. Check the account.', CRIT); break; }
       let ev = q.shift(); if (ev.type === 'cancel-ack' && S.dispatch[ev.key] && S.dispatch[ev.key].cancelEvidence) ev = S.dispatch[ev.key].cancelEvidence;
       if (ev.id == null) ev.id = `${S.pos.id}:ev:${++S.ev}`;
-      const r = T.plan(S.pos, ev, ctx()); S.pos = r.state; if (ev.type === 'cancel-ack' && S.dispatch[ev.key]) delete S.dispatch[ev.key].cancelEvidence; save();
+      const r = T.plan(S.pos, ev, ctx()); S.pos = r.state;
+      const initialStop = r.intents.find(i => i.op === 'place' && i.kind === 'stop' && !S.pos.stopKey);
+      if (initialStop) S.pendingInitialStop = initialStop;
+      if (ev.type === 'cancel-ack' && S.dispatch[ev.key]) delete S.dispatch[ev.key].cancelEvidence; save();
       if (r.intents.length || (ev.type !== 'ladder' && ev.type !== 'tp1-traded')) J('step', { event: brief(ev), intents: r.intents.map(i => ({ op: i.op, kind: i.kind, qty: i.qty, price: i.price, key: i.key, code: i.code })), notes: r.notes, statePhase: r.state.phase });
-      for (const it of r.intents) { const back = await exec(it); q.push(...back); save(); }
+      for (const it of r.intents) { const back = await exec(it); if (S.pendingInitialStop && S.pendingInitialStop.key === it.key) delete S.pendingInitialStop; q.push(...back); save(); }
     }
     afterRun();
   }
@@ -331,6 +336,27 @@ function create(o) {
     const ev = { type: 'cancel-ack', key, ...(fill ? { filledQty: fill.filledQty, avgPx: fill.avgPx } : {}) };
     d.cancelEvidence = ev; save(); return ev;
   }
+  // A saved planner transition may precede its first stop dispatch. Only the exact
+  // initial stop with no durable dispatch can be retried; an uncertain dispatch is
+  // reconciled by identity and is never retransmitted.
+  async function recoverInitialStop() {
+    const it = S.pendingInitialStop; if (!it) return true;
+    if (S.dispatch[it.key]) { if (S.dispatch[it.key].status === 'unknown') P(null, 'TIDE URGENT: stop outcome unknown', 'The stop dispatch outcome is unknown. Check the account immediately; it will not be resent.', CRIT); delete S.pendingInitialStop; save(); return true; }
+    const p = S.pos, order = p && p.orders[it.key];
+    if (!p || !order || p.stopKey || p.stopNext !== it.key || order.status !== 'sent' ||
+        order.qty !== it.qty || order.wantPx !== it.price || order.side !== it.side ||
+        p.open !== it.qty || it.side !== (p.dir === 1 ? 'SELL' : 'BUY') || contractProblem()) {
+      log('  [tide-live] initial stop recovery evidence inconsistent; manual intervention required.'); P(null, 'TIDE URGENT: stop recovery held', 'Initial stop recovery could not be verified. Check the account immediately.', CRIT); return false;
+    }
+    const position = await readRetry('initial stop recovery position', () => getOpenPosition(tokenOf(), accountId, contractId));
+    const os = await readRetry('initial stop recovery orders', () => getOpenOrders(tokenOf(), accountId, contractId));
+    if (!position || position.size !== p.open || position.type !== (p.dir === 1 ? 1 : 2) || os.some(x => x.type === OrderType.STOP)) {
+      log('  [tide-live] initial stop recovery broker evidence inconsistent; manual intervention required.'); P(null, 'TIDE URGENT: stop recovery held', 'Initial stop recovery could not be verified. Check the account immediately.', CRIT); return false;
+    }
+    const back = await exec(it); delete S.pendingInitialStop; save();
+    for (const ev of back) await run(ev);
+    return true;
+  }
   async function replayCancelEvidence() {
     for (const d of Object.values(S.dispatch || {})) if (d.cancelEvidence) await run(d.cancelEvidence);
   }
@@ -386,7 +412,7 @@ function create(o) {
   async function pollInner({ lastPx, bar }) {
     if (!owned()) return;
     if (S.loadIncident || contractProblem()) { log(S.loadIncident || contractProblem()); return; }
-    await replayCancelEvidence(); if (!owned()) return;
+    await replayCancelEvidence(); if (!await recoverInitialStop() || !owned()) return;
     S.pollN = (S.pollN || 0) + 1;
     if (isNum(lastPx)) S.lastPx = lastPx;
     if (S.pos.stopNext || Object.values(S.dispatch||{}).some(d=>d.status==='unknown')) S.needReconcile=true;
@@ -478,7 +504,7 @@ function create(o) {
     start: () => serial(async () => {
       if(S.loadIncident||contractProblem()){log(S.loadIncident||contractProblem());return;} 
       if (!owned()) { log(`  [tide-live] ${VERSION}: no TIDE position saved.`); return; }
-      await replayCancelEvidence(); if (!owned()) return;
+      await replayCancelEvidence(); if (!await recoverInitialStop() || !owned()) return;
       log(`  [tide-live] ${VERSION}: resuming TIDE position ${S.pos.id} (${S.pos.phase}, ${S.pos.open}x): reconciling with the broker.`);
       J('restart', { phase: S.pos.phase, open: S.pos.open });
       await snapshot(null); for(const e of await observe()) await run(e); await recoverStopAcks(); await run(await snapshot(null));

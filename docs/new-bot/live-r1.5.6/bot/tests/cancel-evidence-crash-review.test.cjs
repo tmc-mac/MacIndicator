@@ -78,6 +78,19 @@ async function parent() {
       const ev=state.dispatch[saved.key].cancelEvidence;
       if(stage==='before') {assert(ev&&ev.filledQty===1,'partial fill not durably checkpointed');assert.strictEqual(state.pos.orders[saved.key].filled,0,'crash point after ack, not before');}
       else {assert(!ev,'cancel evidence unexpectedly retained');assert.strictEqual(state.pos.orders[saved.key].filled,1,'ack not applied');assert.strictEqual(saved.q,1);}
+      if(stage==='after') {
+        const mismatchFile=path.join(temp,'mismatch.json');fs.writeFileSync(mismatchFile,JSON.stringify(state));
+        const mismatch=broker();mismatch.q=2;mismatch.px=saved.px;mismatch.next=saved.next;mismatch.clock=saved.clock;mismatch.all=new Map(saved.all);
+        const held=driver(mismatch,{file:mismatchFile});await held.d.start();await held.d.poll({lastPx:1000});
+        assert.strictEqual(mismatch.liveStops().length,0,'mismatched position must not submit a stop');
+        assert(held.d.state().pendingInitialStop,'mismatched recovery must retain unsent evidence');
+        const uncertainFile=path.join(temp,'uncertain.json'), uncertainState=clone(state), intent=uncertainState.pendingInitialStop;
+        uncertainState.dispatch[intent.key]={status:'unknown',kind:'stop',body:{}};fs.writeFileSync(uncertainFile,JSON.stringify(uncertainState));
+        const uncertain=broker();uncertain.q=saved.q;uncertain.px=saved.px;uncertain.next=saved.next;uncertain.clock=saved.clock;uncertain.all=new Map(saved.all);
+        const heldUnknown=driver(uncertain,{file:uncertainFile});await heldUnknown.d.start();await heldUnknown.d.poll({lastPx:1000});
+        assert.strictEqual(uncertain.places().filter(x=>x.type===4).length,0,'uncertain dispatch must never be resent');
+        console.log('PASS entry/after negative checks: position mismatch held and uncertain dispatch not resent');
+      }
       const b=broker();b.q=saved.q;b.px=saved.px;b.next=saved.next;b.clock=saved.clock;b.all=new Map(saved.all);
       const d=driver(b,{file});await d.d.start();let o=d.d.state().pos.orders[saved.key];assert.strictEqual(o.filled,1,'partial fill lost at restart');
       const before=o.filled;await d.d.poll({lastPx:1000});const again=driver(b,{file});await again.d.start();o=again.d.state().pos.orders[saved.key];
