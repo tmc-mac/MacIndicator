@@ -1,0 +1,54 @@
+PHONE TERMINAL 2.0.9.23  (display only: no bot restart, the bot is not touched)
+=====================================================================================
+What changes: only the phone page (mobile.html). The bot, its settings and your trades are untouched.
+It is 2.0.9.22 (code 8b92d047, the one you have now) plus:
+  - ONE P&L. The Day P&L cell reads "MacMillionz Bot · Day P&L · closed trades only · n trades" with ONE number, the
+    bot's broker day net (dayPnlNet). When the TopstepX balance figure differs by more than $1 a muted second line
+    says "balance +$716.09 · differs by −$300.51". No "TIDE $x · Old $y" split anywhere: not in the header, not on the
+    Trades tab (the card is "MACMILLIONZ BOT · <TradeDay>", the filter reads All / Bot journal / Account), not on Review
+    (the money line is the same broker day net, never a bare $0.00 when trades exist). Sessions boxes split the same
+    single set of trades by entry time.
+  - Warm-up: after a bot restart the header reads "TIDE warming up · n of 360 min" and Review says the journal counts
+    are rebuilding, never "no control read today".
+  - Hour Wave card: the three-step decision card (4H DIRECTION / 30M HARMONY / 5M EXECUTION) with the verdict line
+    (STAND DOWN / WAIT / GET READY / ACT); the old Hour card content folds under "Candle detail". With the bot you run
+    now (r1.5.6) steps 2-3 say "not in this build (r1.6)".
+  - Every UNKNOWN names its field; the grade is a size tag, not a FAIL tile.
+  - Copies and exports say "terminal 2.0.9.23".
+Not in this build (left for 2.0.9.24): trade rows matched to the TIDE record (level / qty from fills / exits per row),
+TIDE journal P&L from fills, the HTF tag lines, a one-tap journal replay (the "Show on Levels" button opens the trade).
+
+Same look everywhere else and the same buttons. The page asks the bot for nothing new.
+With TIDE off the page is 2.0.9.22 (identity test: see CHANGES-20923.md for what finished before the deadline).
+Run it when the bot is FLAT (house rule, even for display changes).
+
+Put mobile.html and set-terminal.sh (from this folder) in Downloads, then in PowerShell:
+
+1) Check the files (both must match exactly):
+   cd $env:USERPROFILE\Downloads
+   certutil -hashfile mobile.html SHA256
+      expect: fc752789f60bdf28f015ece2a41bbce9cb03a4b29d21185509789472fdc12fc8
+   certutil -hashfile set-terminal.sh SHA256
+      expect: d891ef9d830244f682110662f85f080dd23984cbb29ba1740cb3e34aca4fb815   (unchanged)
+
+2) Upload them and check them on the server:
+   scp mobile.html set-terminal.sh root@<HOST>:/root/
+   ssh root@<HOST> "sha256sum /root/mobile.html /root/set-terminal.sh"
+      (the same two codes as above)
+
+3) Install (it asks "Is the bot FLAT?" - type YES):
+   ssh -t root@<HOST> "bash /root/set-terminal.sh install /root/mobile.html fc752789f60bdf28f015ece2a41bbce9cb03a4b29d21185509789472fdc12fc8"
+   Expect this line (the backup's name may follow it):
+     DONE: mobile.html installed (sha256 verified): before 8b92d047 -> after fc752789.     (you had 2.0.9.22)
+   Any other "before" code: still fine to keep, but send me that line.
+
+4) On your phone: close the MacMillionz page/app completely and open it again.
+   Check the top-right Day P&L: ONE number with "MacMillionz Bot · Day P&L · closed trades only · n trades" under it;
+   no "TIDE" / "Old" split on Now, Trades or Review.
+
+If any step prints STOP, nothing changed - send me that output.
+
+UNDO (puts back the page it replaced, 8b92d047 = 2.0.9.22 - also no restart):
+   ssh -t root@<HOST> "bash /root/set-terminal.sh rollback"
+STATUS (changes nothing):
+   ssh root@<HOST> "bash /root/set-terminal.sh status"

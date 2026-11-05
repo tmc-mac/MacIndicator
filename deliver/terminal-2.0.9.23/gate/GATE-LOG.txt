@@ -1,0 +1,21 @@
+B .23 gate start 20:44:06Z page fc752789f60bdf28f015ece2a41bbce9cb03a4b29d21185509789472fdc12fc8  /tmp/claude-0/-home-user-MacIndicator/381b1833-c8be-58a5-b27d-e767976714fe/scratchpad/macui-n/cand23/mobile.html
+01-qc-20923 20:44:06Z load 2.28 0.86 0.64 page fc752789
+  exit 1
+  qc-20923: 60 passed, 6 failed
+65-feat-20922 20:44:40Z load 2.60 1.14 0.75 page fc752789
+  exit 1
+  feat-20920: 26 passed, 1 failed
+02-plan-leak-20921 20:44:53Z load 2.36 1.14 0.75 page fc752789
+  exit 1
+  plan-leak-20921: 15 passed, 1 failed
+03-qc-20922 20:45:03Z load 2.07 1.12 0.75 page fc752789
+  exit 1
+  qc-20922: 26 passed, 3 failed
+42-shots 20:45:15Z load 1.75 1.09 0.75 page fc752789
+  exit 0
+  shot-20920: OK
+57-no-sideways 20:45:40Z load 1.30 1.04 0.74 page fc752789
+  exit 0
+  no-sideways: 64 passed, 0 failed (7 tabs x 390x844 / 400x800 x dark / light x live / replay page)
+30-identity-vs-2.0.9.22 20:46:38Z load 3.43 1.67 0.97 page fc752789
+30-identity-vs-2.0.9.22 restarted 20:47:09Z in background (log 30-identity-vs-2.0.9.22.txt; ~13 min)

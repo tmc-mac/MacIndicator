@@ -1,0 +1,11 @@
+page /tmp/claude-0/-home-user-MacIndicator/381b1833-c8be-58a5-b27d-e767976714fe/scratchpad/macui-n/cand23/mobile.html
+390x844 dark live: dashboard 390, trades 390, levels 390, risk 390, journal 390, checklist 390, control 390
+400x800 dark live: dashboard 400, trades 400, levels 400, risk 400, journal 400, checklist 400, control 400
+390x844 light live: dashboard 390, trades 390, levels 390, risk 390, journal 390, checklist 390, control 390
+400x800 light live: dashboard 400, trades 400, levels 400, risk 400, journal 400, checklist 400, control 400
+390x844 dark replay: dashboard 390, trades 390, levels 390, risk 390, journal 390, checklist 390, control 390
+400x800 dark replay: dashboard 400, trades 400, levels 400, risk 400, journal 400, checklist 400, control 400
+390x844 light replay: dashboard 390, trades 390, levels 390, risk 390, journal 390, checklist 390, control 390
+400x800 light replay: dashboard 400, trades 400, levels 400, risk 400, journal 400, checklist 400, control 400
+
+no-sideways: 64 passed, 0 failed (7 tabs x 390x844 / 400x800 x dark / light x live / replay page)

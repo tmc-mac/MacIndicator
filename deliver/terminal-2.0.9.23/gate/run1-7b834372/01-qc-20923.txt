@@ -1,0 +1,67 @@
+PASS L1 stand down in the 06:30–07:10 block: "STAND DOWN · time blocks until 07:10 …"
+PASS L1b chips: STRUCTURE ▼ · 30M NOT SENT (idle row carries no 30M fields) · waiting
+PASS L1c STEP 1 words match the arithmetic (price 28,655.25 vs the 4H control)
+PASS L1d the Hour card content is folded under "Candle detail" (closed), the TIDE tape stays out
+PASS L1e the lane card is at most 1.2 screens tall at 390
+FAIL E1 no page errors (t23-standdown) got: console: Error: <rect> attribute width: A negative value is not valid. ("-11.6")
+PASS L2 1H/30M out: "WAIT · 30M not in harmony …"
+PASS L2b STEP 2 chip NOT ALIGNED with "no alignment = no trade"
+PASS E2 no page errors (t23-wait1h)
+PASS L3 armed at R: "GET READY · at 1H Open 28,650.00 (12.00 pts) …"
+PASS L3b chips STRUCTURE ▼ · ALIGNED · WATCHING; STEP 3 names the level, the distance and the next 5m close
+PASS L3c STEP 1 arithmetic
+PASS L3d the small line: re-entries 0/2 · 0/6
+PASS E3 no page errors (t23-getready)
+PASS L4 signal taken: "ACT · defended · 5m close 08:25 · entry 28,641.00 stop 28,654.25"
+PASS L4b STEP 3: at <level> <price> · rejected · 5m close → entry, stop, size
+PASS L4c re-entries 1/2 · 1/6 and the climax state
+PASS L4d ACT carries the direction colour attribute (data-k act, dir -1)
+PASS T1 the tape draws the taken trend signal as ◆
+PASS E4 no page errors (t23-act)
+PASS L5 r1.5.6 (no lane): the verdict reads from the TIDE setup state, lane off
+PASS L5b STEP 1 still from board.htf; STEPS 2–3 "the bot's trend lane is not in this build (r1.6)"
+PASS T2 the Levels "TIDE scanning" line: control, HTF, nearest level, lane
+PASS L5c no board.htf: STEP 1 falls back to board.control (▼ sellers · trap), no HTF word
+PASS L5d with board.htf gone the lane card says nothing about HTF (H7 holds)
+PASS E5 no page errors (qc156-htf)
+PASS P1 the header Day P&L headline is the bot's broker day net +$1,016.60 (the page's balance-change number hidden)
+PASS P2 ONE P&L: "MacMillionz Bot · Day P&L · closed trades only · 6 trades", the balance line; no TIDE / Old split
+PASS D1 Trades: "MacMillionz Bot day net +$1,016.60" (no Old path / TIDE split)
+FAIL D2 today's card: 6 trades of this TradeDay as the bot's, the broker day net and the balance difference, no tag split got: MACMILLIONZ BOT · TUE, NOV 3 · FROM MON 3:00 PM PT +$1,016.60 broker day net · 6 closed · 40 contract-sides MacMillionz Bot · 6 trades · balance +$716.09 · differs by −$300.51 08:10 ▼ SHORT 3 28,660.00 → 28,661.50 −$15.00 07:35 ▲ LONG 5 28,602.50 → 28,625.75 +$226.20 06:02 ▼ SHORT 2 28,701.00 → 28,696.00 +$17.50 05:15 ▲ LONG 3 28,620.00 → 28,690.25 +$418.40 04:40 ▼ SHORT 4 28,655.00 → 28,630.00 +$ rows=6
+PASS D3 Sessions today: one set of trades split by entry time, no bot / not-bot split
+PASS E1 Review money: the broker day net +$1,016.60 as the figure, never a bare $0.00 or a TIDE / account split
+PASS E2 Review Signals: live 0 → no newest-signal line (nothing to explain)
+PASS E3 Review Trend lane row on r1.5.6: "not in this bot build (r1.6)"
+PASS E6 no page errors (t23-pnl1105)
+FAIL D4 r1.6 account.fills: 12 fills tagged MANUAL, the costs, the source got: MACMILLIONZ BOT · TUE, NOV 3 · FROM MON 3:00 PM PT +$1,016.60 broker day net · 6 closed · 40 contract-sides · costs −$24.40 MacMillionz Bot · 12 trades · 12 manual · balance +$716.09 · differs by −$300.51 08:19 ▲ BUY 3 MANUAL 28,661.50 −$15.00 08:10 ▼ SELL 3 MANUAL 28,660.00 07:44 ▼ SELL 5 MANUAL 28 rows=12 man=12
+FAIL D5 Sessions with account.fills: "n bot · n manual" per session got: ay net is +$1,016.60 (6 closed): the split is missing trades or they have not settled yet TradeDay Tue, Nov 3 · from Mon 3:00 PM PT · by entry time, the bot’s PT hours · the bot’s trade tape. MacMillionz Bot · 12 trades today (12 manual) · day net +$1,016.60 · by entry time: Asia 0 · London 8 · NY 4
+PASS E7 no page errors (t23-pnl1105-acct)
+PASS W1 header (t23-warm): "TIDE warming up · …"
+PASS W2 the TIDE card's warm-up line (t23-warm)
+PASS W3 4H control while warming (t23-warm): the day file, else "rebuilding"
+PASS W4 nothing reads "no 4H control read yet" on Now (t23-warm); the stage says warm-up in progress
+PASS W5 Review 4H control (t23-warm): the day file, else "journal empty: warm-up in progress"
+PASS W6 Review never says "no control read today" while warming (t23-warm); the source line says the tape is rebuilding
+PASS E8 no page errors (t23-warm)
+PASS W1 header (t23-warm156): "TIDE warming up · …"
+PASS W2 the TIDE card's warm-up line (t23-warm156)
+PASS W3 4H control while warming (t23-warm156): the day file, else "rebuilding"
+PASS W4 nothing reads "no 4H control read yet" on Now (t23-warm156); the stage says warm-up in progress
+PASS W5 Review 4H control (t23-warm156): the day file, else "journal empty: warm-up in progress"
+PASS W6 Review never says "no control read today" while warming (t23-warm156); the source line says the tape is rebuilding
+PASS E8 no page errors (t23-warm156)
+PASS R1 the Trades tab TIDE row carries a Replay button keyed by the trade id
+PASS R2 the Review trade card carries the Replay button
+PASS E2b Review Signals: the newest live signal under the count (time, setup, zone, side, taken)
+PASS T3 Review "Trend lane: armed 2 · taken 1 · skipped 2" from tide.day
+FAIL R3 a tap opens Levels with the TIDE trade picked, sub "TIDE TRADE REPLAY" got: {"view":"levels","key":"tide-1793720179416","sub":"closed 07:42 PT","jm":"","svg":true,"labels":"04:0004:3005:0005:3006:0006:3007:0007:30MacMillionzLondon High 28,426.50Round 28,400.00NY ORH 28,385.75EQH 28,369.75Round 28,350.00Round 28,300.004H Open accepted 28,287.00Round 28,250.004H ORL 28,247.50
+FAIL R4 the chart shows the journal markers (stop, TP1 / TP2) and says "journal markers only" got:  | 04:0004:3005:0005:3006:0006:3007:0007:30MacMillionzLondon High 28,426.50Round 28,400.00NY ORH 28,385.75EQH 28,369.75Round 28,350.00Round 28,300.004H Open accepted 28,287.00Round 28,250.004H ORL 28,247
+FAIL R5 the page's own replay is running after the tap got: {"cut":false}
+FAIL R6 after the replay the stats read the trade: LONG 6x @ 28,309.25, exit 28,344.17 avg (broker), net +411.68 got: 
+PASS E9 no page errors (t23-trade)
+PASS G1 checklist: GRADE block with 5 neutral tag rows, no FAIL tile, no points scale
+PASS G2 the r1.5.6 note
+PASS G3 the signal row: grade as a size tag + tags, no point dots
+PASS E10 no page errors (qc154-flat)
+PASS U1 every UNKNOWN on Now / header names its reason (": …" or "(…)")
+qc-20923: 58 passed, 8 failed

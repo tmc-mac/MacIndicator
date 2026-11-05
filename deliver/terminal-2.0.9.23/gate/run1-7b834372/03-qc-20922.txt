@@ -1,0 +1,31 @@
+PASS C1 4H CONTROL since = tide.board.control.since 07:40 (the row was written 07:31)
+PASS C2 no invented zone: "trap · extreme 28,829.50"
+PASS R1 LAST REFUSAL line: time, setup, zone from its setup_arm, gate value < limit
+PASS R2 tape ○ detail borrows the zone and the gate text
+PASS N1 the old "Why no trade right now" card is hidden and copied under "Old levels model (not trading)"
+PASS N2 the Position card's old flat reasons are hidden with a TIDE note; copied under the collapse
+PASS N3 no old-model reason reads on Now while TIDE is live (collapsed text not rendered)
+PASS P0 flat: the page's own Day P&L line
+PASS G0 13 rows: no ring note
+PASS E1 no page errors (qc154-flat)
+PASS R3 r1.5.5 grade row: the waived list on the LAST REFUSAL line
+PASS R4 r1.5.5 REFUSED cancel: "refused · <zone> · <why>" detail (its ⊘ glyph leads only outside a cluster)
+PASS E2 no page errors (qc155-flat)
+PASS G1 the 120-row ring note
+PASS G2 control_form row gone: the 4H control from tide.board.control
+PASS E3 no page errors (qc155-ring)
+PASS H1 TIDE card HTF line from tide.board.htf
+PASS H2 header ends with "HTF ↓"
+FAIL H3 the armed setup S281 is tagged WITH HTF ↓ (green) on the TIDE card got: STAGEwait for failarmedretestentered1H Open 28,628.25: armed (tide.board) ["with:WITH HTF ↓"]
+PASS H4 Levels Now: the armed 1H Open carries the tag
+FAIL H5 tape tick detail carries the tag got: ["2 events: 05:58 PT · signal · London ORH @28,466.50 · replayed at warm-up · not tradeable · C · AGAINST HTF ↓ | 06:10 PT · signal · Asia High @28,588.00 · replayed at warm-up · not tradeable · B · WITH HTF ↓","06:27 PT · armed · London ORH 28,466.50 · waiting for the retest","5 events: 08:25 PT · armed · London High 28,660.00 · waiting for the retest of the broken swing / level and a 1m rejection (§8.4) · WITH HTF ↓ | 08:28 PT · rejection · London High | 08:28 PT · no trade · London High · waveBias wavePeakBias 0.0842 < 0.2 · waived control4h→bias · WITH HTF ↓ | 08:28 PT · refused · London High · REFUSED: waveBias - slot released | +1 more"]
+PASS H6 HTF flipped up: S281 short reads AGAINST HTF ↑ (amber), header HTF ↑
+FAIL H7 fields absent (r1.5.5 bot): nothing drawn, no UNKNOWN noise got: {"n":0,"banner":"\n      Live\n      Scanning: looking for entriesTIDE watching ▼ 1H Open 28,628.25 · 24.75 above price · ARMED · 4H ▼ sellers\n      2s\n    ","unknown":true}
+PASS E5 no page errors (qc156-htf)
+PASS P1 in a TIDE trade, r1.5.4 (no openUsd): closed $0.00 · TIDE open +$48.00 (calc = 6 × 4 pts × $2)
+PASS E4 no page errors (qc154-pos)
+PASS P2 with tide.position.openUsd: "+$135.00 (bot)"
+PASS O1 TIDE absent: the page's own header line, the old checklist card untouched
+PASS O2 no page errors (TIDE off)
+
+qc-20922: 26 passed, 3 failed

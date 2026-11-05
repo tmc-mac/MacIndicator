@@ -1,0 +1,9 @@
+qc155-flat dark: 3 shots, sideways 0px, errors 0
+qc155-flat light: 3 shots, sideways 0px, errors 0
+qc154-pos dark: 3 shots, sideways 0px, errors 0
+qc154-pos light: 3 shots, sideways 0px, errors 0
+tide21-leak dark: 3 shots, sideways 0px, errors 0
+tide21-leak light: 3 shots, sideways 0px, errors 0
+mac1814 dark: 2 shots, sideways 0px, errors 0
+mac1814 light: 2 shots, sideways 0px, errors 0
+shot-20920: OK
