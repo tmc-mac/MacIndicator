@@ -1,4 +1,4 @@
-MAC - INSTALL BOT r1.6 "trend lane" (replace <server> with your bot server address)
+MAC - INSTALL BOT r1.6 — WITHDRAWN 11/05 13:25 PT (reviewer BLOCKER: lane break-trigger fires on every period-boundary 5m; r1.6.1 replaces it). DO NOT INSTALL. If installed: bash tools/set-tide.sh trend=off
 =====================================================================================
 What it changes (Mac's spec 11/05; all 5 unit suites green (net-retry 9, board 24, exec 138, live 136, lane 52), replay running in parallel, Mac-box/soak/rig witness skipped on Mac's order):
 - TREND LANE (ON): 4H direction = the previous 4H candle's close; 30M harmony = the last completed 30M closed the same way;

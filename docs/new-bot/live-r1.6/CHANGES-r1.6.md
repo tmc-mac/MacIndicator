@@ -42,3 +42,6 @@ With trend=off, grade=strict, sizecap=30 the journal and orders are meant to be 
 ## Witness status (node v22.22.0, nice -n 19; no v18 on the build box - the server's v18.19.1 run is Mac's rig smoke) - MacTrend-3 re-seal
 - net-retry 9/0 · tide-board 24/0 · tide2-exec 138/0 · tide-live 136/0 (L6a-L6f incl. the r1.1 state-file resume, L50e) · trend-lane 52/0 (j rewritten: the aligned-pass run diverges at its first waived take, so the strict refusal count (18) is not the waived count - the rows are in the test; r2/r4 explicit about rebuilt rows; T1-T5 on the fake broker; v0-v6 rule 18 v3; g/g2/g3/l identity).
 - Identity (g): trend=off + grade=strict + sizeCap 30 + staleAccept off = r1.5.6 rows and takes on 1500 synthetic bars; the 11/04 fixture strict run (l) = r1.5.6's 5 signals / 35 GRADE_NO_TRADE.
+
+## WITHDRAWN (11/05 13:25 PT)
+Reviewer MacQC-Bot-16 reproduced a BLOCKER: trendLane.js break trigger treats the forming 15m/30M/1H/4H open as a level; the first 5m of each period opens on it, so any close in DIR fires a market entry (up to the 2/h 6/day caps). Also: no chase cap on breaks, rollback.sh blind to the r1.6 keys, $400 cap not binding multi-lot sizing, stale INSTALL header. r1.6.1 carries the fixes. The r1.6 zip stays in deliver/ for the record only.
