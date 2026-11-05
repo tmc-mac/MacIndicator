@@ -1,0 +1,42 @@
+MAC - INSTALL BOT r1.6.1 "trend lane" (replace <server> with your bot server address)
+=====================================================================================
+r1.6.1 = r1.6 + the reviewer's fixes: a break trigger needs a real cross of the level (not the period's own open) and must close within 12 pts of it; the $400 max binds every size; rollback.sh refuses to run with r1.6 keys left in config (set-tide.sh sizecap=default added); fee plumbing.
+What it changes (Mac's spec 11/05; all 5 unit suites green (net-retry 9, board 24, exec 138, live 136, lane 52), replay running in parallel, Mac-box/soak/rig witness skipped on Mac's order):
+- TREND LANE (ON): 4H direction = the previous 4H candle's close; 30M harmony = the last completed 30M closed the same way;
+  5M executes on price action at ANY tracked level (rejection or break-and-close) in that direction; stop beyond the 30M wick;
+  re-entries allowed (2 per hour, 6 per day). No ONE_IDEA wait, no waveBias/points, climax does not block a defended 5M.
+- SIZE: $400 is the hard maximum per trade. 1-8 MNQ from the budget (cap 8, Mac 11/05; set-tide.sh sizecap=N). Over 200-pt stops are skipped and say why.
+- GRADE never refuses a setup aligned with the 4H (tag only). Setups against the 4H keep the grading.
+- Journal and trade list survive a restart (reloaded from disk); the phone gets tide.day (whole-day counts) and tide.warm (warm-up state).
+- Each closed trade carries its realized P&L in the journal; broker rejections are journaled and pushed.
+- Rule 18 now also retires a far-away ACCEPTANCE (more than 2x its risk or 60 pts from price): no more "retest pending" 200 pts away; it re-arms if price comes back.
+Everything else is r1.5.6 (HTF context, rule 18, lanes, blockouts 15:00-17:00 / 06:30-07:10 PT, 30-min open wait).
+One restart, then a ~9 min warm-up. Goes on r1.5.6 (live now), r1.5.5, or an r1.6 install.
+Be FLAT in TopstepX first (no MNQ position, no working MNQ orders).
+Put MacBot-TIDE-live-r1.6.1.zip in Downloads, open PowerShell:
+
+  cd $env:USERPROFILE\Downloads
+  Get-FileHash .\MacBot-TIDE-live-r1.6.1.zip
+     (must start with B0784275)
+  scp .\MacBot-TIDE-live-r1.6.1.zip root@<server>:/root/
+  ssh root@<server> "mkdir -p /root/tide-r1.6.1 && cd /root/tide-r1.6.1 && python3 -m zipfile -e /root/MacBot-TIDE-live-r1.6.1.zip . && ls pkg-live"
+  ssh -t root@<server> "cd /root/tide-r1.6.1/pkg-live && bash go.sh"
+     (type YES when asked)
+
+Check the warm-up (wait ~9 min, run again if the LIVE line is not there yet):
+  ssh root@<server> "journalctl -u mac-bot-live --since '-12 min' --no-pager | grep -iE 'trend lane|size:|grade gate|rebuild progress|LIVE: the warm-up|Killed|NOT taken'"
+  You want the startup line with "trend lane ON", "size: $400 max · cap 8", then "[tide] LIVE: the warm-up is done". No "Killed".
+
+Watch it work (read-only, any time):
+  ssh root@<server> "python3 /root/tide-journal-today.py 06:00 2>/dev/null | grep -E 'trend_|signal|live_end' | tail -40"
+  Look for trend_arm (level, 4H dir, 30M harmony), trend_signal taken=true, and realizedUsd on live_end.
+
+Switches (one command each, YES when asked, restart + warm-up):
+  ssh -t root@<server> "cd /root/tide-r1.6.1/pkg-live && bash tools/set-tide.sh trend=off"        (lane off: r1.5.6 level setups only)
+  ssh -t root@<server> "cd /root/tide-r1.6.1/pkg-live && bash tools/set-tide.sh grade=strict"     (grade gates refuse again)
+  ssh -t root@<server> "cd /root/tide-r1.6.1/pkg-live && bash tools/set-tide.sh sizecap=5"        (any 1..30)
+  (put them back: trend=on · grade=aligned-pass · sizecap=8)
+Turn TIDE off / roll back:
+  ssh -t root@<server> "cd /root/tide-r1.6.1/pkg-live && bash tools/set-tide.sh off"
+  ssh -t root@<server> "cd /root/tide-r1.6.1/pkg-live && bash tools/set-tide.sh trend=on grade=aligned-pass"   (clears the r1.6 keys first)
+  ssh -t root@<server> "cd /root/tide-r1.6.1/pkg-live && bash rollback.sh"
