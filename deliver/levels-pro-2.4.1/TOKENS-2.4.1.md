@@ -8,6 +8,7 @@ Counter: the desk's calibrated `tokcount.py` (v2.5.1 → v2.7.1 tools; source-to
 | **LevelsPRO-v2.4.1.pine** | **22,531** (global 20,987, functions 1,544) | **39,046** | **67,979** | **72,978** |
 | **LevelsPRO-v2.4.1b.pine** (compile fix: drawing loop + mobile pre-pass as functions) | **22,571** (global 20,108, functions 2,463) | **39,086** | **68,049** | **73,107** |
 | **LevelsPRO-v2.4.2.pine** (★ main lines + Focus toggle) | **22,642** (global 20,105, functions 2,537) | **39,157** | **68,172** | **73,337** |
+| **LevelsPRO-v2.4.3.pine** (phone anchoring, compact board, glyph markers) | **23,108** (global 19,173, functions 3,935) | **40,016** | **69,732** | **74,847** |
 | delta 2.4.1b vs 2.4-dev | +646 | +805 | +1,402 | +2,092 |
 
 - Desk ceilings (v2.6.3 report): source ≤ 22,900, inline ≤ 40,200 — both met (369 and 1,154 to spare).
@@ -17,3 +18,4 @@ Counter: the desk's calibrated `tokcount.py` (v2.5.1 → v2.7.1 tools; source-to
 
 Main-body size (the limit v2.4.1 hit, "The main body of the script is too long"): 2.4-dev 1,647 main-scope lines, v2.4.1 1,699, v2.4.1b 1,620 (function bodies 91 / 91 / 176). See CHANGES-2.4.1.md v2.4.1b.
 v2.4.2: main-body lines 1,619 (≤ v2.4.1b's 1,620), function bodies 179.
+v2.4.3: main-body lines 1,573, function bodies 261. Source 208 over the desk's 22,900 ceiling; inline within 40,200.

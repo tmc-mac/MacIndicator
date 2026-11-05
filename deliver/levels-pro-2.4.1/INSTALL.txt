@@ -1,8 +1,8 @@
-LEVELS PRO v2.4.2 - paste sheet (3 steps). Paste LevelsPRO-v2.4.2.pine (v2.4.1b + the two main lines + the Focus
-toggle). v2.4.1 and v2.4.1b stay in the folder for the record.
+LEVELS PRO v2.4.3 - paste sheet (3 steps). Paste LevelsPRO-v2.4.3.pine (v2.4.2 + the phone fixes from Mac's 15m
+screenshot). Fallback order: LevelsPRO-v2.4.2.pine, then the untouched 2.4-dev. Older files stay for the record.
 
 1. PASTE. TradingView > Pine Editor > Open > New blank indicator. Select all, delete, paste the whole of
-   LevelsPRO-v2.4.2.pine (2601 lines; sha256 in SHA256SUMS). Save as "LEVELS PRO v2.4.2".
+   LevelsPRO-v2.4.3.pine (2646 lines; sha256 in SHA256SUMS). Save as "LEVELS PRO v2.4.3".
    If the editor reports a compile error or "too many tokens", stop: re-paste LevelsPRO-v2.4-dev.pine
    (deliver/levels-pro-2.4-dev, the untouched basis) and send the exact error text to the desk.
 
@@ -21,5 +21,5 @@ toggle). v2.4.1 and v2.4.1b stay in the folder for the record.
    If two plates still touch, raise Mobile: Label Gap to 0.16; if plates float above their lines when
    zoomed in, lower it to 0.06.
 
-Fallback at any step: re-paste LevelsPRO-v2.4-dev.pine. Nothing in v2.4.1 touches alerts, the bot, or
+Fallback at any step: re-paste LevelsPRO-v2.4.2.pine, then LevelsPRO-v2.4-dev.pine. Nothing in v2.4.1 touches alerts, the bot, or
 any level value.

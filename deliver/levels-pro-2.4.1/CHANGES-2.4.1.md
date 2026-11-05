@@ -1,5 +1,30 @@
 # Levels PRO v2.4.1 — changes over v2.4-dev (basis, Mac 11/05)
 
+## v2.4.3 (11/05, sealed under the hard cut): Mac's 15m phone screenshot (Mobile Mode ON, v2.4.1b) — plates cut under the price scale, plates over event tags, a board covering ~45 % of the pane
+Built on v2.4.2 (sha 5f32e57c…). `LevelsPRO-v2.4.3.pine`, 2646 lines. Everything is gated on `mobile` (Mobile Mode); with it OFF the drawing is byte-identical to v2.4.2 (witness below). Main body 1,619 → **1,573** lines (functions 179 → 261).
+
+**Item 0 — plate anchoring [ANCHOR] (in `f_drawLevels`).** Cause: plates at `bar_index + mob_off` with `label_left` extend RIGHT into the axis whenever the app's right margin (which Pine cannot read or set) is narrower than the plate. Fix: on mobile every plate is anchored at **x = bar_index − `mob_back`** (new input, default 1) with **`label.style_label_right`**, so the text hangs LEFT of the anchor and ends at the last candle — it can never enter the axis, whatever the margin. Lines still extend right to `mob_ext`; the ★ main lines the same. Packing stays vertical (`f_mobPack`). Alternative input `mob_anchor` = "left of last bar" (default) | "at the line start" (plates at the left end of the lines, `label_left`) if the plates cover too many recent candles. **Plates vs the newest event tag:** `f_mobPack` reads the newest live event label's y (`label.get_y` of `EV[(ev_head + EVN − 1) % EVN]`, only while `ev_last_born` is within `event_life`) and treats `[ev_y − gap, ev_y + gap]` as occupied: a plate landing inside moves to `ev_y + gap` and packing continues above it. What Mac should see: a single column of plates hugging the last candles on the LEFT side of the axis, none cut, the ★ 4H / 30m plates among them, the event tags (on their own candles) in clear bands.
+
+**Item 2 — event markers glyph-only [EV-GLYPH] (`f_ev_set`).** On mobile the previously newest marker drops to its first character (▲ ▼ ■ ● ◆) when a new one is born; the newest keeps its words; every marker's tooltip carries the full text (desktop too — tooltip only, no visible change). Colours unchanged.
+
+**Item 1 — mobile dashboard (`f_dashMobile`, the v2.4.2 mobile rows moved verbatim with `r → rr`, called once: `if mob_dash != "off" → r := f_dashMobile(r, planbg)`).** New input `mob_dash` = **compact** (default) | strip | off | full. compact = verdict/WAIT row · BIAS + "ST … · LT …" on one row · the nearest level row (ladder `shown = 1`) · TRIG · EV (plus the E/S/T row while a plan is valid); the LEVELS title, CTRL, TF ALIGN and OPEN POS rows are drawn only in `full`. strip = one row: verdict · bias + score · ">30O SELL"-style nearest level; no ladder rows. off = no board. Table anchored `position.bottom_right` on mobile unless `full` (`dp`); same table object, rows simply not written (the table is cleared every last bar as before); text size = Mobile: Text Size (small).
+
+**Item 3 — TF ALIGN / OPEN POS on one line** (`"15m+ · 1h− · 4h−"`): mobile `full` board only (`str.replace_all(…, " ", " · ")` replaces the `"\n"` form). Desktop already prints `align_str` on one line; left untouched (0 tokens).
+
+**Item 4 — mobile label wording:** near plates read `<abbr> · <state> · <price>` with `SWEEP UP/DN → SWEEP↑/↓`, e.g. `IBL · SWEEP↑ · 27084.75` (the control word stays in the board); far plates `ABBR price`; main lines keep the ★.
+
+**Also:** the event-expiry loop is now `f_ev_expire()` (verbatim move, main-body budget).
+
+**Witness by reading (Mobile OFF):** `f_drawLevels` — `m_ls` false, anchor/style/tag ternaries take their v2.4.2 branches; `f_mobPack` — not executed (`if mobile`); `f_ev_set` — the `if mobile` block skipped, `label.set_tooltip` is the only desktop difference (no pixels); `f_dashMobile` — not called; ladder `shown = n`; `dp` = `panel_pos` mapping. Desktop drawing identical to v2.4.2.
+
+**Scan (touched lines):** `str.substring(pt, 0, 1)` only inside `if str.length(pt) > 1`; `array.get(EV, (ev_head + EVN − 1) % EVN)` index always 0..EVN−1; `array.get(EV_BORN, s)` loop variable (moved line); the strip row's `f_mobile_name(math.max(ip_i, 0))` clamped and under `engaged and ip_i >= 0 ? … : …` (ternary). No new access depends on the other side of an `and`/`or`. New constructs: `label.get_text`, `label.get_y`, `label.set_tooltip`, `str.length`, `str.substring`, integer `%` — all documented v5 built-ins; a user function returning an int (`rr`) assigned with `:=`.
+
+**Tokens:** source 23,108 / inline 40,016 → est. compiled **69.7k (k_inline) / 74.8k (k_linear)**; +466 source tokens over v2.4.2. Source is **208 over the desk's 22,900 source ceiling** (inline 40,016 ≤ 40,200); the TradingView compile governs; fallback v2.4.2 → 2.4-dev.
+
+**Next (not in v2.4.3, listed):** the compact board's EV cell still wraps `" @ "` to two lines; glyph-only also for markers older than the newest at birth time only (an old marker keeps its words until the next birth); a device check of `mob_back` (0 vs 1) and of `mob_gap` against the event band; desktop TF ALIGN unchanged by design.
+
+---
+
 ## v2.4.2 (11/05): Mac — "make the lines for the 4H and 30 min opens different from the rest … maybe even a toggle mode where we can disable all the other lines"
 Built on v2.4.1b (sha d53ea42f…, reviewer S3 applied). `LevelsPRO-v2.4.2.pine`, 2601 lines. Two changes, both inside `f_drawLevels`, plus one input line.
 
