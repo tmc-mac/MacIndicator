@@ -1674,7 +1674,7 @@ if barstate.isfirst
     HALO := line.new(bar_index, close, bar_index + 1, close, color=col_hide, width=4)
 
 // v2.4.1b: the mobile pre-pass as a function (TradingView: "The main body of the script is too long"). Fills M_Y / M_RK in place.
-f_mobPack(float[] M_Y, int[] M_RK) =>
+f_mobPack(M_Y, M_RK) =>
     // v2.4.1 [MOB-PACK]: mobile label layout, once per last bar. (1) visible levels sorted by price (insertion sort, the ladder's loop
     // shape); (2) interval packing bottom-up: label y = its level, or the label below + gap when they would overlap, so no two mobile
     // labels overlap; (3) distance rank (0 = nearest to close) picks the full-label / 2 px set. Desktop never reads M_Y / M_RK.
@@ -1725,7 +1725,7 @@ f_mobPack(float[] M_Y, int[] M_RK) =>
 
 // v2.4.1b: the per-level line/label pass of section 11, moved verbatim into a function (reads the engine arrays, writes only the
 // pooled LN / LB drawings). Behaviour identical to the main-scope loop it replaces.
-f_drawLevels(float[] M_Y, int[] M_RK) =>
+f_drawLevels(M_Y, M_RK) =>
     for i = 0 to NL - 1
         line  ln = array.get(LN, i)
         label lb = array.get(LB, i)

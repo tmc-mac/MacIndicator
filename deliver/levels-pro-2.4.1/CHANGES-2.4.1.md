@@ -66,3 +66,6 @@ Rules, constants and the level-by-level before/after are in `MOBILE-2.4.1.md`. C
 - Level-state colours (sacred, Mac 11/01); no alerts added or changed; no notifications from the chart.
 - PARITY/EVENTS machine-readable tables, the board, the plan, the event glyphs: 2.4-dev's.
 - PWC stays data-only (the bot's registry has no PWC level either).
+
+### v2.4.1b, reviewer S3 (MacArthur, 11/05 21:30Z)
+The two new functions take untyped parameters (`f_mobPack(M_Y, M_RK) =>`, `f_drawLevels(M_Y, M_RK) =>`): the file had no precedent for an array-typed parameter, untyped parameters infer the array type from the call site, behaviour identical. Note: the v2.4.1 refusal was the main-body size limit, not the token limit; TOKENS-2.4.1.md estimates the token limit only.
