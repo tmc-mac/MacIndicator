@@ -1,4 +1,6 @@
 'use strict';
+// OFFLINE CANDIDATE r0. This variant is coupled to tideLive candidate and its
+// explicitly verified execution-safety contract; not a standalone live upgrade.
 // tideOrders r1.2 (Stage 2a groundwork, MacMoney): the TIDE order PLANNER. PURE: no I/O, no clock, no timers, no broker calls, nothing from live-executor.js.
 // It ships OFF: nothing calls it unless Mac switches Stage 2 on. The executor turns its intents into its OWN existing primitives (MAP.md).
 //   plan(state, event, ctx) -> { intents, state, notes }   (state is never mutated; the returned state is a new JSON-safe object)
@@ -87,6 +89,7 @@ function exposure(st, ctx, extra = null) {
 // ---------------------------------------------------------------- the planner
 function plan(state, event, ctx) {
   const st = clone(state), out = [], notes = [], cfg = cfgOf(ctx), ev = event || {}, tick = tickOf(cfg);
+  const safeExit = ctx.executionSafetyContract === 'tide-safety-r1';
   if (st.version !== VERSION) throw new Error(`tideOrders: state version ${st.version} is not ${VERSION}`);
   const eid = eventId(ev);
   if (st.seen.includes(eid)) return { intents: [], state: st, notes: ['duplicate-event'] };
@@ -105,6 +108,7 @@ function plan(state, event, ctx) {
     case 'ack': onAck(); break;
     case 'fill': case 'partial-fill': onFill(); break;
     case 'cancel-ack': onCancelAck(); break;
+    case 'order-superseded': { const old=st.orders[ev.key]; if(old&&LIVE.has(old.status)){old.status='superseded';if(st.stopKey===old.key)st.stopKey=null;} break; }
     case 'reject': onReject(); break;
     case 'no-ack': case 'unknown': onUnknown(); break;
     case 'tp1-traded': onTp1Traded(); break;
@@ -125,7 +129,7 @@ function plan(state, event, ctx) {
     const cp = configProblem(cfg); if (cp) { notes.push('signal-refused:config'); alert('config-problem', cp); return; }
     const dir = ev.dir, okGeo = (dir === 1 || dir === -1) && isNum(ev.entryPx) && isNum(ev.stop) && dir * (ev.entryPx - ev.stop) > 0 && money.gradeKey(ev.grade);
     if (!okGeo) { notes.push('signal-refused:invalid'); return; }
-    const cfgR = money.withRiskMult(cfg, ev.riskMult);   // [r1.5.6] an against-HTF signal (tide.htfAgainst half) sizes at half the dollars; 1 MNQ minimum unchanged
+    const cfgR = money.withRiskMult(cfg, ev.riskMult);   // [r1.5.6] preserve HTF-adjusted budget and existing one-MNQ minimum
     const stopPts = Math.abs(ev.entryPx - ev.stop), sz = money.scaleInPlan(stopPts, ev.grade, cfgR), z = money.sizeFor(stopPts, ev.grade, cfgR);
     if (!(sz.total >= 1)) { notes.push(`signal-refused:${z.code || z.reason}`); return; }
     st.dir = dir; st.grade = money.gradeKey(ev.grade) === 'A' ? 'A+' : money.gradeKey(ev.grade); st.stopPx = ev.stop;
@@ -189,7 +193,7 @@ function plan(state, event, ctx) {
   function onCancelAck() {
     const o = orderOf(ev.key); if (!o) return unknownOrder();
     if (LIVE.has(o.status)) o.status = o.filled > 0 && o.filled === o.qty ? 'done' : 'cancelled';
-    if (o.kind === 'stop' && ev.key === st.stopKey) { st.stopKey = null; if (st.open > 0 && !st.flat) block('stop-cancelled', 'The protective stop was cancelled at the broker while the position is open: a new stop is placed; entries and adds are blocked.'); }
+    if (o.kind === 'stop' && ev.key === st.stopKey) { st.stopKey = null; if (st.open > 0 && !st.flat) { naked('terminal history confirms protective stop cancellation'); return; } }
     if (o.kind === 'entry' && o.leg === 1) afterEntryComplete();
     if (o.kind === 'position' && st.flat && (st.flat.phase === 'sent' || st.flat.phase === 'stalled')) { if (st.open > 0) reprotect('continue', 'the market close ended with contracts left'); else readPosition('the market close ended'); }
   }
@@ -197,7 +201,8 @@ function plan(state, event, ctx) {
     const it = st.intents[ev.key], o = orderOf(ev.key);
     if (!it) return unknownOrder();
     if (it.op === 'flatten') { if (o) o.status = 'rejected'; reprotect('rejected', 'the market close was rejected'); block('flatten-rejected', `The market close was rejected (${ev.reason || 'no reason'}): the protective stop is re-placed at its last acked price at once; no second flatten is sent. Check the account.`); return; }
-    if (it.op === 'read') { block('read-failed', `The position read for the flatten failed (${ev.reason || ''}): retried on the next event.`); if (st.flat) st.flat.readKey = null; quietRead = true; return; }
+    if (it.op === 'read' && st.flat && ev.key !== st.flat.readKey) { notes.push('stale-read-failure'); return; }
+    if (it.op === 'read') { if (st.intents[ev.key]) st.intents[ev.key].answered = true; block('read-failed', `The position read for the flatten failed (${ev.reason || ''}): retried on the next event.`); if (st.flat) st.flat.readKey = null; quietRead = true; return; }
     if (it.op === 'cancel') {
       const tg = orderOf(it.target); if (tg && tg.status === 'cancel-sent') tg.status = 'working';
       if (tg && tg.kind === 'stop' && st.flat && st.flat.phase === 'cancel-stop') {   // ruling 6: the stop cancel is NOT verified -> no market order; one retry, then alert
@@ -230,7 +235,8 @@ function plan(state, event, ctx) {
     const same = st.stopRetry && st.stopRetry.px === o.wantPx && st.stopRetry.qty === o.qty;
     if (!same) { st.stopRetry = { px: o.wantPx, qty: o.qty, tries: 1 }; notes.push('stop-retry-same-price'); emitStop(o.qty, o.wantPx); return; }
     st.stopRetry = null; st.stopFailed = { px: o.wantPx, qty: o.qty };
-    if (!st.stopKey) return naked(`the stop at ${o.wantPx} was rejected twice (${ev.reason || ''}); never widened`);
+    const cover = st.stopKey && st.orders[st.stopKey];
+    if (!cover || remaining(cover) !== st.open || cover.status !== 'working') return naked(`the stop at ${o.wantPx} was rejected twice (${ev.reason || ''}); never widened`);
     else block('stop-rejected', `The stop change to ${o.wantPx} was rejected twice (${ev.reason || ''}); the previous stop keeps protecting. Entries and adds are blocked until a clean reconcile.`);
   }
   // r1.2: open contracts with no working protective stop are never left open: the flatten lifecycle at once (+ alert). Inside a flatten: the exit goes on.
@@ -245,6 +251,8 @@ function plan(state, event, ctx) {
     alert('naked-open', `The position is open with NO working stop and the exit cannot proceed on its own (${F.phase}/${F.holdAs || F.after}): close it by hand NOW.`);
   }
   function onUnknown() {
+    const ri = st.intents[ev.key];
+    if (ri && ri.op === 'read' && st.flat) { if (ev.key !== st.flat.readKey) return; ri.answered = true; st.flat.readKey = null; quietRead = true; block('read-failed', 'Position read unresolved; retained protection and invalidated this read generation.'); return; }
     const o = orderOf(ev.key); if (o && o.status === 'sent') o.status = 'unknown';
     if (o && o.kind === 'position' && st.flat) { reprotect('stalled', 'no answer for the market close'); readPosition('no answer for the market close: never re-sent; the position is read'); }
     block('broker-state-unknown', `No answer for ${ev.key} (${ev.reason || 'no ack'}): treated as possibly working. Entries and adds are blocked; the protection stays until a reconcile.`);
@@ -310,18 +318,19 @@ function plan(state, event, ctx) {
     for (const b of orders) {
       const o = b && b.key != null ? st.orders[b.key] : null;
       if (!o) { clean = false; unknownSeen = true; block('reconcile-unknown-order', `The broker shows an order this plan does not own (${JSON.stringify(b && (b.key ?? b.orderId))}): it is left alone; entries and adds are blocked.`); continue; }
-      seenKeys.add(o.key); if (o.status === 'sent' || o.status === 'unknown') o.status = 'working';
+      seenKeys.add(o.key); if ((o.status === 'sent' || o.status === 'unknown') && !(safeExit && o.key === st.stopNext)) o.status = 'working';
       if (Number.isInteger(b.qty) && b.qty >= 0 && b.qty !== remaining(o) && o.kind !== 'stop') { o.qty = (o.filled || 0) + b.qty; clean = false; }
-      if (o.kind === 'stop' && Number.isInteger(b.qty)) o.qty = b.qty;
-      if (isNum(b.price)) o.price = b.price;   // the broker's level
+      if (o.kind === 'stop' && Number.isInteger(b.qty)) { o.brokerRemainingQty=b.qty; if(!(safeExit && o.key===st.stopNext)) o.qty=(o.filled||0)+b.qty; }
+      if (isNum(b.price) && !(safeExit && o.key===st.stopNext)) o.price = b.price;   // the broker's level
     }
-    for (const o of Object.values(st.orders)) if (LIVE.has(o.status) && !seenKeys.has(o.key)) { const wasCancel = o.status === 'cancel-sent'; o.status = 'gone'; if (!wasCancel && (o.kind === 'tp1' || o.kind === 'tp2' || o.kind === 'add')) clean = false; }
-    if (st.stopNext && st.orders[st.stopNext] && st.orders[st.stopNext].status === 'working') { const old = st.stopKey; st.stopKey = st.stopNext; st.stopNext = null; if (old && st.orders[old] && st.orders[old].status === 'working') cancelOrder(old, 'the replacement stop rests: the old one goes', true); }
-    else if (st.stopNext) st.stopNext = null;
+    for (const o of Object.values(st.orders)) if (LIVE.has(o.status) && !seenKeys.has(o.key)) { clean = false; if (o.status !== 'cancel-sent') o.status = 'unknown'; block('reconcile-unresolved-order', 'Open-order absence is not a terminal outcome; the original intent remains reserved.'); }
+    if (!safeExit && st.stopNext && st.orders[st.stopNext] && st.orders[st.stopNext].status === 'working') { const old = st.stopKey; st.stopKey = st.stopNext; st.stopNext = null; if (old && st.orders[old] && st.orders[old].status === 'working') cancelOrder(old, 'the replacement stop rests: the old one goes', true); }
+    else if (st.stopNext && terminal(st.orders[st.stopNext])) st.stopNext = null;
     if (st.stopKey && !(st.orders[st.stopKey] && LIVE.has(st.orders[st.stopKey].status))) st.stopKey = null;
     if (st.stopKey && isNum(st.orders[st.stopKey].price)) { st.protPx = st.orders[st.stopKey].price; if (st.dir * (st.stopPx - st.protPx) < -EPS) st.stopPx = st.protPx; }
     if (st.addPending) { st.addPending = null; notes.push('add-refused:reconcile'); }
-    if (pos.qty !== st.open) { clean = false; notes.push(`reconcile-qty:${st.open}->${pos.qty}`); st.open = pos.qty; }
+    if (pos.qty !== st.open) { clean = false; notes.push(`reconcile-qty:${st.open}->${pos.qty}`); if(safeExit){st.brokerQty=pos.qty;block('reconcile-qty-unresolved','Broker quantity differs from applied fills; preserve accounting and reconcile exact order history.');return;} st.open = pos.qty; }
+    if (st.open > 0 && !st.stopKey && safeExit && st.stopNext && !terminal(st.orders[st.stopNext])) { block('stop-amend-unresolved', 'Same-order stop evidence unresolved; retain its identity and block risk increases.'); return; }
     if (st.open > 0 && !st.stopKey) { clean = false; return naked(ev.key == null ? 'a restart reconcile found no working stop' : 'a reconcile found no working stop'); }   // r1.2: flatten, never repair-and-wait
     if (clean) { st.block = null; st.alerted = {}; st.stopFailed = null; notes.push('reconcile-clean'); }
     else if (!unknownSeen) block('reconcile-mismatch', 'The reconcile found the broker different from the saved plan: the stop is (re)sized to the broker position; entries, adds and new targets are blocked.');
@@ -388,11 +397,13 @@ function plan(state, event, ctx) {
       if (F.after === 'continue') { F.passes++; F.phase = 'cancel-stop'; } else { F.phase = F.holdAs; if (F.phase === 'rejected') st.closing = false; return; }
     }
     if (F.phase === 'cancel-stop') {
+      if (safeExit) { F.phase = 'reading'; readPosition('verified reducing close: retain protective stop during read and market close'); return; }
       if (st.stopNext && st.orders[st.stopNext] && LIVE.has(st.orders[st.stopNext].status) && st.orders[st.stopNext].status !== 'cancel-sent') return;   // a stop change in flight: let it resolve
       for (const o of liveOf(st, 'stop')) if (o.status !== 'cancel-sent') cancelOrder(o.key, 'flatten: the stop is cancelled (verified) before the market close', true);
       if (!liveOf(st, 'stop').length) { F.phase = 'reading'; readPosition('the stop cancel is verified: read the quantity to close'); }
       return;
     }
+    if (F.phase === 'flat-unresolved' && !Object.values(st.orders).some(o => LIVE.has(o.status))) { F.phase = 'confirming'; F.readKey = null; }
     if ((F.phase === 'reading' || F.phase === 'confirming') && !F.readKey && !quietRead) readPosition('retry the read');
   }
   function readPosition(why) {
@@ -426,18 +437,19 @@ function plan(state, event, ctx) {
     const restart = ev.key == null;   // the executor sends a keyless reconcile only at a restart: no order of ours can still be in flight then
     const seenKeys = new Set();
     for (const b of orders) { const o = b && b.key != null ? st.orders[b.key] : null; if (!o) { alert('reconcile-unknown-order', `The broker shows an order this plan does not own (${JSON.stringify(b && (b.key ?? b.orderId))}): it is left alone.`); continue; } seenKeys.add(o.key); if (o.status === 'sent' || o.status === 'unknown') o.status = 'working'; if (isNum(b.price) && o.kind === 'stop') o.price = b.price; }
-    for (const o of Object.values(st.orders)) if (LIVE.has(o.status) && !seenKeys.has(o.key) && (restart || (o.kind !== 'position' && o.status !== 'sent' && o.status !== 'unknown'))) o.status = 'gone';   // an order still in flight may not be listed yet
+    for (const o of Object.values(st.orders)) if (LIVE.has(o.status) && !seenKeys.has(o.key)) { if (o.status !== 'cancel-sent') o.status = 'unknown'; block('reconcile-unresolved-order', 'Order absent from open snapshot; preserve durable identity until terminal history is applied.'); }
     if (st.stopKey && !(st.orders[st.stopKey] && LIVE.has(st.orders[st.stopKey].status))) st.stopKey = null;
     if (st.stopNext && !(st.orders[st.stopNext] && LIVE.has(st.orders[st.stopNext].status))) st.stopNext = null;
     if (!st.stopKey) { const s = liveOf(st, 'stop').find(o => o.status === 'working'); if (s) st.stopKey = s.key; }
     if (pos.qty > 0 && pos.dir !== st.dir) return reversed(pos);
+    if(safeExit && pos.qty!==st.open){st.brokerQty=pos.qty;block('reconcile-qty-unresolved','Exit snapshot differs from applied fills; no new close or terminal claim until exact history is applied.');return;}
     st.open = pos.qty;
     if (pos.qty === 0) return confirmFlat();
     if (restart) { if (Object.values(st.orders).some(o => o.kind === 'position' && LIVE.has(o.status))) return; reprotect('continue', 'restart: contracts are still open'); return; }
     if (Object.values(st.orders).some(o => o.kind === 'position' && LIVE.has(o.status))) { if (F.phase === 'confirming' || F.phase === 'reading') F.phase = 'sent'; notes.push('flatten-in-flight'); return; }   // never a second one
     if (F.phase === 'stalled' || F.phase === 'cancel-failed') { notes.push(`flatten-${F.phase}:protected`); return; }
     if (F.phase === 'reading') {
-      if (liveOf(st, 'stop').length) { F.phase = 'cancel-stop'; return; }   // a stop rests again: cancel it (verified) before any market order
+      if (!safeExit && liveOf(st, 'stop').length) { F.phase = 'cancel-stop'; return; }   // a stop rests again: cancel it (verified) before any market order
       return sendMarket(pos.qty);
     }
     reprotect('continue', 'contracts are left after the market close');   // 'confirming' / 'sent': the rest is protected first, then the next pass
@@ -446,12 +458,14 @@ function plan(state, event, ctx) {
     const F = st.flat, k = key('position'), side = sideOf(st.dir, true);
     newOrder(k, 'position', { side, orderType: 'MARKET', qty, price: null });
     F.orderKeys.push(k); F.phase = 'sent';
-    emit({ op: 'flatten', kind: 'position', side, qty, price: null, orderType: 'MARKET', key: k, reason: F.reason, expectOpen: qty, stopCancelledVerified: true });
+    emit({ op: 'flatten', kind: 'position', side, qty, price: null, orderType: 'MARKET', key: k, reason: F.reason, expectOpen: qty, stopCancelledVerified: !safeExit, ...(safeExit ? { reduceOnly: true, retainedProtection: true } : {}) });
   }
   function confirmFlat() {
     const F = st.flat; st.open = 0;
     for (const o of Object.values(st.orders)) if (LIVE.has(o.status) && o.status !== 'cancel-sent' && o.kind !== 'position') { if (o.kind === 'stop' && st.stopKey === o.key) st.stopKey = null; cancelOrder(o.key, 'confirmed flat', true); }
-    st.stopNext = null; F.phase = 'done'; F.realized = realizedExit(); notes.push('flatten-confirmed-flat');
+    st.stopNext = null;
+    if (Object.values(st.orders).some(o => LIVE.has(o.status))) { F.phase = 'flat-unresolved'; notes.push('flat-but-orders-unresolved'); return; }
+    F.phase = 'done'; F.realized = realizedExit(); notes.push('flatten-confirmed-flat');
   }
   function reversed(pos) {
     const F = st.flat; F.phase = 'reversed'; st.open = 0;
