@@ -192,6 +192,12 @@ function plan(state, event, ctx) {
   }
   function onCancelAck() {
     const o = orderOf(ev.key); if (!o) return unknownOrder();
+    // Apply the cumulative fill from the same verified terminal record in the
+    // same state transition as cancellation; never terminalize first.
+    if (ev.filledQty != null) {
+      if (!Number.isInteger(ev.filledQty) || ev.filledQty < 0 || ev.filledQty > o.qty || !isNum(ev.avgPx) || ev.avgPx <= 0) return block('bad-fill', `Invalid cancellation fill evidence for ${o.key}.`);
+      if (ev.filledQty > (o.filled || 0)) onFill();
+    }
     if (LIVE.has(o.status)) o.status = o.filled > 0 && o.filled === o.qty ? 'done' : 'cancelled';
     if (o.kind === 'stop' && ev.key === st.stopKey) { st.stopKey = null; if (st.open > 0 && !st.flat) { naked('terminal history confirms protective stop cancellation'); return; } }
     if (o.kind === 'entry' && o.leg === 1) afterEntryComplete();

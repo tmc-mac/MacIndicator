@@ -58,7 +58,7 @@ function create(o) {
     for (const key of ['ev', 'generation']) if (!Number.isSafeInteger(d[key]) || d[key] < 0) return `saved state invalid ${key}`;
     if (Object.values(d.ids).some(x => !(typeof x === 'string' && x.length || Number.isSafeInteger(x) && x > 0))) return 'saved order IDs invalid';
     if (Object.values(d.sentAt).some(x => !isNum(x))) return 'saved dispatch times invalid';
-    if (Object.values(d.dispatch).some(x => !record(x) || !['unknown','accepted','terminal'].includes(x.status) || !record(x.body))) return 'saved dispatch record invalid';
+    if (Object.entries(d.dispatch).some(([k,x]) => !record(x) || !['unknown','accepted','terminal'].includes(x.status) || !record(x.body) || x.cancelEvidence !== undefined && (!record(x.cancelEvidence) || x.cancelEvidence.type !== 'cancel-ack' || x.cancelEvidence.key !== k || x.cancelEvidence.filledQty !== undefined && (!Number.isSafeInteger(x.cancelEvidence.filledQty) || x.cancelEvidence.filledQty < 0 || !isNum(x.cancelEvidence.avgPx) || x.cancelEvidence.avgPx <= 0)))) return 'saved dispatch record invalid';
     if (Object.values(d.fillOffsets).some(x => !record(x) || !Number.isSafeInteger(x.qty) || x.qty < 0 || !isNum(x.value))) return 'saved fill offsets invalid';
     if (d.hist !== undefined && (!record(d.hist) || typeof d.hist.day !== 'string' || !Array.isArray(d.hist.trades) || !Array.isArray(d.hist.alerts) || d.hist.orderIds !== undefined && !Array.isArray(d.hist.orderIds))) return 'saved history invalid';
     const p = d.pos;
@@ -78,6 +78,7 @@ function create(o) {
     if (p.plan === null && (p.open !== 0 || Object.keys(p.orders).length || ['dispatch','ids','sentAt','fillOffsets'].some(k => Object.keys(d[k]).length) || d.guard != null)) return 'saved orders without plan';
     if (['dispatch','ids','sentAt','fillOffsets'].some(k => Object.keys(d[k]).some(id => !Object.prototype.hasOwnProperty.call(p.orders,id)))) return 'saved order ownership is inconsistent';
     if (Object.entries(p.orders).some(([key,x]) => !record(x) || x.key !== key || !['entry','add','stop','tp1','tp2','position'].includes(x.kind) || !['BUY','SELL'].includes(x.side) || !['MARKET','LIMIT','STOP'].includes(x.orderType) || !['sent','working','unknown','cancel-sent','done','cancelled','rejected','superseded'].includes(x.status) || !Number.isSafeInteger(x.qty) || x.qty < 0 || !Number.isSafeInteger(x.filled) || x.filled < 0 || x.filled > x.qty)) return 'saved order record invalid';
+    if (Object.entries(d.dispatch).some(([key,x]) => x.cancelEvidence && x.cancelEvidence.filledQty !== undefined && x.cancelEvidence.filledQty > p.orders[key].qty)) return 'saved cancellation fill exceeds quantity';
     for (const key of ['stopKey','stopNext']) if (p[key] !== null && (!Object.prototype.hasOwnProperty.call(p.orders,p[key]) || p.orders[p[key]].kind !== 'stop')) return 'saved stop reference invalid';
     if (DONE_PHASES.has(p.phase) && (p.open !== 0 || Object.values(p.orders).some(x => ['sent','working','unknown','cancel-sent'].includes(x.status)))) return 'saved terminal phase still owns exposure';
     if (p.phase === 'FLAT' && p.plan !== null) return 'saved flat phase has a plan';
@@ -100,7 +101,7 @@ function create(o) {
     fs.renameSync(tmp,stateFile);const dirfd=fs.openSync(path.dirname(stateFile),'r');try{fs.fsyncSync(dirfd);}finally{fs.closeSync(dirfd);}
   }
   const ctx = () => ({ cfg: cfgFn(), executionSafetyContract: contractProblem() ? null : 'tide-safety-r1' });
-  function owned() { return !!(S.loadIncident || S.pos && S.pos.plan && (!DONE_PHASES.has(S.pos.phase) || Object.values(S.dispatch || {}).some(x => x.status === 'unknown'))); }   // a TIDE position exists (pending, open, closing, reversed)
+  function owned() { return !!(S.loadIncident || S.pos && S.pos.plan && (!DONE_PHASES.has(S.pos.phase) || Object.values(S.dispatch || {}).some(x => x.status === 'unknown' || x.cancelEvidence))); }   // a TIDE position exists (pending, open, closing, reversed)
   function phase() { return S.loadIncident ? 'BLOCKED_STATE' : S.pos ? S.pos.phase : 'FLAT'; }
   const J = (what, data) => { try { journal({ type: 'lv_tide', phase: 'live_' + what, version: VERSION, t: now(), position: S.pos ? S.pos.id : null, take: S.takeId, ...data }); } catch (e) { /* journal only */ } };
   const P = (key, title, text, opts = { priority: 'high', tags: 'chart_with_upwards_trend' }) => { if (key && S.pushed[key]) return; if (key) S.pushed[key] = true; try { notify(title, text, opts); } catch (e) { /* push only */ } };
@@ -110,8 +111,9 @@ function create(o) {
     const q = [firstEvent]; let steps = 0;
     while (q.length) {
       if (++steps > MAX_STEPS) { log('  [tide-live] CRITICAL: the event loop did not settle (200 steps) - stopping this pass; the next poll continues.'); P(null, 'TIDE URGENT: loop fence', 'The TIDE order loop hit its fence. Check the account.', CRIT); break; }
-      const ev = q.shift(); if (ev.id == null) ev.id = `${S.pos.id}:ev:${++S.ev}`;
-      const r = T.plan(S.pos, ev, ctx()); S.pos = r.state; save();
+      let ev = q.shift(); if (ev.type === 'cancel-ack' && S.dispatch[ev.key] && S.dispatch[ev.key].cancelEvidence) ev = S.dispatch[ev.key].cancelEvidence;
+      if (ev.id == null) ev.id = `${S.pos.id}:ev:${++S.ev}`;
+      const r = T.plan(S.pos, ev, ctx()); S.pos = r.state; if (ev.type === 'cancel-ack' && S.dispatch[ev.key]) delete S.dispatch[ev.key].cancelEvidence; save();
       if (r.intents.length || (ev.type !== 'ladder' && ev.type !== 'tp1-traded')) J('step', { event: brief(ev), intents: r.intents.map(i => ({ op: i.op, kind: i.kind, qty: i.qty, price: i.price, key: i.key, code: i.code })), notes: r.notes, statePhase: r.state.phase });
       for (const it of r.intents) { const back = await exec(it); q.push(...back); save(); }
     }
@@ -182,7 +184,7 @@ function create(o) {
   async function cancelVerified(orderId) {
     for(let i=0;i<3;i++) {
       try {await cancelOrder(tokenOf(),accountId,orderId);} catch(e) {}
-      try { const h=await getEntryOrder(tokenOf(),accountId,contractId,orderId,0); if(h && [2,3,4,5].includes(h.status) && Number.isSafeInteger(h.fillVolume) && h.fillVolume>=0) return true; } catch(e) {}
+      try { const h=await getEntryOrder(tokenOf(),accountId,contractId,orderId,0); if(h && String(h.id)===String(orderId) && String(h.accountId)===String(accountId) && h.contractId===contractId && [2,3,4].includes(h.status) && Number.isSafeInteger(h.fillVolume) && h.fillVolume>=0) return h; } catch(e) {}
     }
     return false;
   }
@@ -257,7 +259,11 @@ function create(o) {
       }
       if (it.op === 'modify' && (it.kind === 'tp1' || it.kind === 'tp2')) {   // a target: the old one cancelled first (verified), then the new one
         const old = S.ids[it.replaces];
-        if (old != null && !(await cancelVerified(old))) return [{ type: 'reject', key: it.key, reason: 'the old target could not be cancelled' }];
+        if (old == null) return [{ type: 'no-ack', key: it.key, reason: 'old target identity unresolved; replacement not sent' }];
+        if (old != null) { const rec = await cancelVerified(old); if (!rec) return [{ type: 'reject', key: it.key, reason: 'the old target could not be cancelled' }];
+          const ack = await verifiedCancelEvent(it.replaces, rec); if (!ack) return [{ type: 'no-ack', key: it.key, reason: 'cancel fill evidence invalid' }];
+          // The planner must account for any fills before considering a new target.
+          return [ack, { type: 'reject', key: it.key, reason: 'target replacement deferred after cancellation' }]; }
         if ((await posSize()) !== it.expectOpen) return [{ type: 'reject', key: it.key, reason: `the position is not ${it.expectOpen}: target not sent` }];
         log(`  [LIVE ORDER] TIDE ${it.kind} change: ${it.qty}x LIMIT @ ${it.price} (${it.key})`);
         return placed(it, { ...base(), type: OrderType.LIMIT, side: sideNum(it.side), size: it.qty, limitPrice: it.price });
@@ -271,7 +277,7 @@ function create(o) {
           if (id == null) { S.needReconcile=true; save(); return [{type:'no-ack',key:it.key,reason:'id-less request remains unresolved; absence is not cancellation'}]; }   // absence is not terminal evidence
         }
         log(`  [LIVE ORDER] TIDE cancel ${it.kind} ${id} (${it.reason})`); J('cancel', { key: it.key, target: it.target, orderId: id, reason: it.reason });
-        if (await cancelVerified(id)) { const h = await history(it.target, { quiet: true }); return h.filter(e => e.type === 'fill' || e.type === 'partial-fill').concat([{ type: 'cancel-ack', key: it.target }]); }   // a fill that won the race first
+        const rec = await cancelVerified(id); if (rec) { const ack = await verifiedCancelEvent(it.target, rec); return ack ? [ack] : [{ type: 'no-ack', key: it.key, reason: 'cancel fill evidence invalid' }]; }
         return [{ type: 'reject', key: it.key, reason: 'cancel not verified' }];
       }
       if (it.op === 'flatten') {   // re-read; a MARKET close of min(expectOpen, actual); NO stop cancel here (the lifecycle cancelled it, verified, before)
@@ -294,10 +300,10 @@ function create(o) {
   }
   // the order's history -> fill / cancel-ack / reject events (ProjectX status 1 open, 2 filled, 3 cancelled, 4 expired, 5 rejected); fills are CUMULATIVE
   function supersedingKey(key) { return Object.keys(S.dispatch||{}).find(k=>S.dispatch[k].amends===key && S.ids[k]!=null && String(S.ids[k])===String(S.ids[key])); }
-  async function history(key, { quiet = false } = {}) {
+  async function history(key, { quiet = false, record: supplied } = {}) {
     if (supersedingKey(key)) return [];
     const id = S.ids[key]; if (id == null) return [];
-    let h; try { h = await getEntryOrder(tokenOf(), accountId, contractId, id, S.sentAt[key] || now()); } catch (e) { if (!quiet) log(`  [tide-live] order ${id} history not readable yet (${e.message}).`); return []; }
+    let h; try { h = supplied || await getEntryOrder(tokenOf(), accountId, contractId, id, S.sentAt[key] || now()); } catch (e) { if (!quiet) log(`  [tide-live] order ${id} history not readable yet (${e.message}).`); return []; }
     if (!h || !Number.isSafeInteger(h.fillVolume) || h.fillVolume<0) return [];
     if (rememberOrderId(id)) save();
     const off=S.fillOffsets[key]||{qty:0,value:0}, fv=h.fillVolume-off.qty, fp=fv>0?(h.fillVolume*Number(h.filledPrice)-off.value)/fv:null;
@@ -313,6 +319,20 @@ function create(o) {
     if (h.status === 3 || h.status === 4 || h.status === 2 && o && fv < o.qty) out.push({ type: 'cancel-ack', key });
     if (h.status === 5) out.push({ type: 'reject', key, reason: 'rejected (history)', lastPx: S.lastPx });
     return out;
+  }
+  async function verifiedCancelEvent(key, h) {
+    const d = S.dispatch[key], order = S.pos && S.pos.orders[key];
+    if (!d || !order) return null;
+    const off = S.fillOffsets[key] || { qty: 0, value: 0 }, qty = h.fillVolume - off.qty;
+    if (!Number.isSafeInteger(qty) || qty < 0 || qty > order.qty || qty < order.filled) return null;
+    const events = await history(key, { quiet: true, record: h });
+    const fill = events.find(x => x.type === 'fill' || x.type === 'partial-fill');
+    if (qty > order.filled && !fill) return null;
+    const ev = { type: 'cancel-ack', key, ...(fill ? { filledQty: fill.filledQty, avgPx: fill.avgPx } : {}) };
+    d.cancelEvidence = ev; save(); return ev;
+  }
+  async function replayCancelEvidence() {
+    for (const d of Object.values(S.dispatch || {})) if (d.cancelEvidence) await run(d.cancelEvidence);
   }
   async function snapshot(key) {
     let p, os; S.unreadable = false;
@@ -339,7 +359,7 @@ function create(o) {
       const h = await history(x.key, { quiet: openIds.has(String(S.ids[x.key])) });
       out.push(...h);
     }
-    if (S.staleStop && S.ids[S.staleStop] != null && openIds.has(String(S.ids[S.staleStop]))) { if (await cancelVerified(S.ids[S.staleStop])) { out.push({ type: 'cancel-ack', key: S.staleStop }); S.staleStop = null; } }
+    if (S.staleStop && S.ids[S.staleStop] != null && openIds.has(String(S.ids[S.staleStop]))) { const rec = await cancelVerified(S.ids[S.staleStop]); if (rec) { const ack = await verifiedCancelEvent(S.staleStop, rec); if (ack) { out.push(ack); S.staleStop = null; } } }
     return out;
   }
 
@@ -366,6 +386,7 @@ function create(o) {
   async function pollInner({ lastPx, bar }) {
     if (!owned()) return;
     if (S.loadIncident || contractProblem()) { log(S.loadIncident || contractProblem()); return; }
+    await replayCancelEvidence(); if (!owned()) return;
     S.pollN = (S.pollN || 0) + 1;
     if (isNum(lastPx)) S.lastPx = lastPx;
     if (S.pos.stopNext || Object.values(S.dispatch||{}).some(d=>d.status==='unknown')) S.needReconcile=true;
@@ -378,10 +399,10 @@ function create(o) {
     const e1 = Object.values(p.orders).find(x => x.kind === 'entry' && x.leg === 1);
     if (e1 && !(e1.filled > 0) && ['sent', 'working'].includes(e1.status) && now() - (S.sentAt[e1.key] || now()) > ENTRY_EXPIRE_MS && !S.expireSent) {
       S.expireSent = true; save(); log('  [tide-live] the TIDE entry did not fill in 30 min: cancelled.'); J('entry_expire', { key: e1.key });
-      const id = S.ids[e1.key]; let ok = id == null; if (!ok) { log(`  [LIVE ORDER] TIDE cancel entry ${id} (not filled in 30 min)`); ok = await cancelVerified(id); }
-      if (!ok) { S.expireSent = false; save(); log('  [tide-live] the expired entry cancel is not verified yet - retried next poll.'); return; }
-      const h = await history(e1.key, { quiet: true }); for (const ev of h.filter(x => x.type === 'fill' || x.type === 'partial-fill')) await run(ev);   // a fill that won the race first
-      await run({ type: 'cancel-ack', key: e1.key }); return;
+      const id = S.ids[e1.key]; const rec = id == null ? null : await cancelVerified(id);
+      const ack = rec ? await verifiedCancelEvent(e1.key, rec) : null;
+      if (!ack) { S.expireSent = false; save(); log('  [tide-live] the expired entry cancel is not verified yet - retried next poll.'); return; }
+      await run(ack); return;
     }
     if (!(p.open > 0)) return;
     // the broker position must match the plan; a mismatch (a manual close, a fill not yet seen) -> a keyless reconcile (no order of ours is in flight here: every call is awaited)
@@ -457,6 +478,7 @@ function create(o) {
     start: () => serial(async () => {
       if(S.loadIncident||contractProblem()){log(S.loadIncident||contractProblem());return;} 
       if (!owned()) { log(`  [tide-live] ${VERSION}: no TIDE position saved.`); return; }
+      await replayCancelEvidence(); if (!owned()) return;
       log(`  [tide-live] ${VERSION}: resuming TIDE position ${S.pos.id} (${S.pos.phase}, ${S.pos.open}x): reconciling with the broker.`);
       J('restart', { phase: S.pos.phase, open: S.pos.open });
       await snapshot(null); for(const e of await observe()) await run(e); await recoverStopAcks(); await run(await snapshot(null));
