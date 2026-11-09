@@ -1,0 +1,19 @@
+SETTINGS DELTA: TIDE r1.6.2 config vs Phase A pkg-A43 (read from the shipped sources of both trees)
+Live config-local.json was NOT read (the desk does not touch the live host). Only the shipped defaults are compared.
+
+1. Top-level CONFIG keys: Phase A 138, TIDE r1.6.2 143.
+   TIDE only (not in Phase A): tide, money, htfOpenEntryBlockMin, maxEntryPastLevelPts, planEndsAtTargetTrend.
+   Phase A only: none.
+2. Shared keys with a different shipped value (single-line literals compared):
+   noProgressExit: Phase A { enabled: true, mfePts: 15 } | TIDE { enabled: true, mfePts: 15, candles: 1, hourEndDefer: null }.
+   Multi-line literals were not compared value by value; treat the list above as the start of the check, not the whole of it.
+3. TIDE-only blocks (TIDE r1.6.2 shipped literal, live-executor.js line 2035 and 2041):
+   tide: { mode: 'off', useTimeBlocks: true, openWaitMin: 30, push: true, liveArmed: null, oldPathEntries: false, climaxGate: true, staleR: 2, laneAccept: true, controlFree: true, nearestWins: false, ltfOpens: false, waveBiasTrend: true, releaseOnRefusal: true, controlAsBias: true, htfAgainst: 'tag',
+   money: tideWire.moneyDefaults(),
+4. Loader behaviour that matters for the install (Phase A live-executor.js line ~1603-1683):
+   config-local.json is deep-merged over CONFIG and checked STRICTLY: an unknown key (any tide / money key included) prints CONFIG-LOCAL ERROR and the bot refuses to start.
+   So a live config-local.json that holds TIDE settings must have them removed before the Phase A install. install-nov2-phaseA.sh refuses before any stop if top-level tide/money keys are present.
+5. Stamp settings (Phase A lib/journalMeta.js): the stamp fingerprints an allowlist of TRADING_SETTINGS (Phase A allowlist, no tide/money keys). The stamp line is:
+   [journal] session stamp <id> run <r8> (executor <sha8>, settings <h8>)
+   The TIDE r1.6.2 journalMeta.js differs from Phase A's (sha 8e510ebf vs d41bbe90), so TIDE-era stamps are not comparable to Phase A stamps.
+6. Practical effect: the TIDE settings (tide.mode and the rest, money.sizing) do not exist in the Phase A bot. After the install TIDE is not part of the bot at all, so there is no TIDE setting left to keep.
