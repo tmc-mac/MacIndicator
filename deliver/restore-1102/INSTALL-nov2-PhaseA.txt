@@ -1,0 +1,38 @@
+MAC - INSTALL "NOV 2 BOT" (Phase A, r13.3.5, executor 07e8e798)  (replace <server> with your server address)
+=====================================================================
+What it does: takes the server off TIDE r1.6.2 and puts back the bot that ran Monday Nov 2
+(the +$884 day), with that day's config: flat 3 / min 3, $375 max risk, stop cap 50, TP1 +15,
+levels-only, no candle wait, flatten 13:05. TIDE comes OFF.
+Tested here: boots to LIVE on Node 18.19.1 (the server's version) under a 961 MB limit, 3 restarts OK.
+Install + rollback tested on a copy. NOT tested: a real trading session.
+
+Be FLAT in TopstepX first (no MNQ position, no working MNQ orders).
+Put MacBot-nov2-PhaseA.zip in Downloads, open PowerShell:
+
+1) Check the file:
+  cd $env:USERPROFILE\Downloads
+  Get-FileHash .\MacBot-nov2-PhaseA.zip
+     (must start with 80A95191)
+
+2) Copy it up and unpack:
+  scp .\MacBot-nov2-PhaseA.zip root@<server>:/root/
+  ssh root@<server> "mkdir -p /root/nov2 && cd /root/nov2 && python3 -m zipfile -e /root/MacBot-nov2-PhaseA.zip . && ls MacBot-nov2-PhaseA"
+
+3) Save your current config and put the Nov 2 config in (this also clears the TIDE settings):
+  ssh root@<server> "cp -p /opt/mac-bot/config-local.json /root/nov2/config-local.TIDE-backup.json && cp /root/nov2/MacBot-nov2-PhaseA/config-local.tradeday-2026-11-02.json /opt/mac-bot/config-local.json && echo CONFIG-OK"
+
+4) Install (type YES when asked):
+  ssh -t root@<server> "cd /root/nov2/MacBot-nov2-PhaseA && MACBOT_DIR=/opt/mac-bot bash install-nov2-phaseA.sh tree"
+     You want at the end: "session stamp ... (executor 07e8e798".
+     It prints the BACKUP folder name - copy that line and keep it.
+     If it says STOP before YES: nothing changed. Put your TIDE config back:
+       ssh root@<server> "cp -p /root/nov2/config-local.TIDE-backup.json /opt/mac-bot/config-local.json"
+     and send me the output.
+
+5) Check (wait 2 min):
+  ssh root@<server> "journalctl -u mac-bot-live --since '-5 min' --no-pager | grep -E 'session stamp|config-local|LIVE|Entering live loop|FATAL|ERROR' | tail -20"
+     You want: "applied: 29 setting(s) overridden", "Entering live loop", executor 07e8e798. No FATAL.
+
+ROLLBACK to TIDE r1.6.2 (flat first; use the backup folder name from step 4):
+  ssh -t root@<server> "cd /root/nov2/MacBot-nov2-PhaseA && MACBOT_DIR=/opt/mac-bot bash rollback-nov2-phaseA.sh <BACKUP-FOLDER>"
+  ssh root@<server> "cp -p /root/nov2/config-local.TIDE-backup.json /opt/mac-bot/config-local.json && systemctl restart mac-bot-live"
