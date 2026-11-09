@@ -61,5 +61,5 @@ systemctl is-active --quiet "$SVC" || { echo "$LOG" | tail -20; fail "the bot is
 STAMP=$(echo "$LOG" | grep "session stamp" | tail -1)
 echo "$STAMP" | grep -q "executor $BASE8" || { echo "$LOG" | tail -20; fail "no session stamp with executor $BASE8"; }
 echo "$STAMP"
-echo "DONE: rolled back to TIDE r1.6.2 (executor $BASE8)."
+echo "DONE: rolled back to the previous build (executor $BASE8)."
 exit 0

@@ -43,11 +43,16 @@ echo "Phase A tree OK: $(wc -l < "$SRC/SHA256SUMS") files, executor $WANT"
 
 line "2/6 check the installed bot (read-only)"
 [ -f "$D/live-executor.js" ] || die "no bot found at $D"
-if ! (cd "$D" && sha256sum -c "$FROMF" --status 2>/dev/null); then
+if [ "${ANYBASE:-0}" = 1 ]; then
+  BASE8=$(sha256sum < "$D/live-executor.js" | cut -c1-8)
+  echo "ANYBASE=1: the installed bot is not checked against TIDE r1.6.2. Installed executor: $BASE8."
+  echo "The whole bot dir is backed up first; rollback puts back exactly what is there now (executor $BASE8)."
+elif ! (cd "$D" && sha256sum -c "$FROMF" --status 2>/dev/null); then
   (cd "$D" && sha256sum -c "$FROMF" 2>/dev/null | grep -v ': OK$')
-  die "the installed managed files are not exactly TIDE r1.6.2 (the lines above differ)"
+  die "the installed managed files are not exactly TIDE r1.6.2 (the lines above differ). If this is a later TIDE build, run again with ANYBASE=1"
+else
+  echo "installed bot = TIDE r1.6.2 (executor $BASE8): all 9 managed files match FROM-r162.sha256"
 fi
-echo "installed bot = TIDE r1.6.2 (executor $BASE8): all 9 managed files match FROM-r162.sha256"
 # the Phase A loader is strict: an unknown top-level key in config-local.json makes the bot refuse to start.
 # TIDE keeps its settings under "tide" and "money": clear them before the Phase A install (see the settings delta list).
 if [ -f "$D/config-local.json" ]; then
@@ -58,7 +63,7 @@ if [ -f "$D/config-local.json" ]; then
 fi
 MANAGED=$(awk '{print $2}' "$FROMF" | sort)
 PHASE=$(awk '{print $2}' "$SRC/SHA256SUMS" | sort)
-REMOVE=$(comm -23 <(echo "$MANAGED") <(echo "$PHASE") | sed '/^$/d')
+REMOVE=$(comm -23 <(echo "$MANAGED") <(echo "$PHASE") | sed '/^$/d' | while IFS= read -r f; do [ -e "$D/$f" ] && echo "$f"; done)
 echo "to be removed (managed r1.6.2 files the Phase A tree does not ship): ${REMOVE:-none}"
 NEW=0; CHG=0; SAME=0
 while IFS= read -r f; do
@@ -94,7 +99,7 @@ cp "$BK/TOUCHED.list" "$BK/skip.list"
 echo "backup OK: $BK ($(wc -l < "$BK/PRE-INSTALL.sha256") files; rollback: bash $BK/rollback-nov2-phaseA.sh $BK)"
 
 undo() { echo; echo "UNDO: rolling back from $BK ..."; bash "$BK/rollback-nov2-phaseA.sh" "$BK" --auto
-  echo "The install did not complete (see above). The bot is on TIDE r1.6.2 again if the last line says DONE."; exit 1; }
+  echo "The install did not complete (see above). The bot is back on the build it had before (executor $BASE8) if the last line says DONE."; exit 1; }
 
 line "5/6 install"
 OWN=$(stat -c %U "$D/live-executor.js"); GRP=$(stat -c %G "$D/live-executor.js")
@@ -117,5 +122,5 @@ systemctl is-active --quiet "$SVC" || { echo "$LOG" | tail -30; echo "FAIL: the 
 STAMP=$(echo "$LOG" | grep "session stamp" | tail -1)
 if echo "$STAMP" | grep -q "executor $WANT"; then echo "$STAMP"; else echo "$LOG" | tail -30; echo "FAIL: no session stamp with executor $WANT."; undo; fi
 echo
-echo "DONE: Phase A tree installed (executor $WANT). Rollback to TIDE r1.6.2: bash $BK/rollback-nov2-phaseA.sh $BK"
+echo "DONE: Phase A tree installed (executor $WANT). Rollback to the previous build (executor $BASE8): bash $BK/rollback-nov2-phaseA.sh $BK"
 exit 0
