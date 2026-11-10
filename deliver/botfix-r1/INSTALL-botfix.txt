@@ -1,0 +1,46 @@
+MAC - INSTALL "BOT FIX r1" on the exit-5 build (executor ee216a03 -> 16395252)   PRIVATE - server address inside
+=================================================================================================================
+STATUS: built and checked (103 tests pass, boots to LIVE), but MacDot / MacMillionz have NOT finished reviewing it.
+Installing now is your call.
+
+What it changes:
+  1. SAFE EXITS - every market exit (13:05 close, 05:25 morning-hold close, no-progress exit, exit 5, stop filled through).
+     A lost broker reply no longer counts as "rejected": the bot waits until the broker agrees before it re-places a stop
+     or sends anything else. If the position ever looks wrong it STOPS TRADING and pushes you an urgent alert.
+  2. PHONE - snapshot written safely, build stamp + real broker position/orders sent to the phone, phone buttons read
+     about every 3 s, requests older than 60 s refused, every request answered.
+  3. HEALTH PUSHES - not LIVE 10+ min, 2 restarts in 30 min, warm-up short/failed, every full stop, a safety stop.
+  4. Capped sizing is in the code but OFF (same trading as today).
+Unchanged: entries, size 3, stops, TP1 +15 (2 of 3), runner, control 0.22, no-progress rule, morning hold 05:25-06:00,
+news pause, exit 5 stays OFF in your config.
+
+Be FLAT in TopstepX (no position, no working MNQ orders). Put MacBot-botfix.zip in Downloads, open PowerShell:
+
+1) Check the file:
+  cd $env:USERPROFILE\Downloads
+  Get-FileHash .\MacBot-botfix.zip
+     (must start with 052C4F28)
+
+2) Copy it up and unpack:
+  scp .\MacBot-botfix.zip root@<server>:/root/
+  ssh root@<server> "mkdir -p /root/botfix && cd /root/botfix && python3 -m zipfile -e /root/MacBot-botfix.zip . && ls MacBot-botfix"
+
+3) Install the bot (type YES when asked):
+  ssh -t root@<server> "cd /root/botfix/MacBot-botfix && MACBOT_DIR=/opt/mac-bot bash install-botfix.sh tree"
+     You want at the end: "session stamp ... (executor 16395252" and "DONE". Keep the BACKUP FOLDER line it prints.
+     If it says STOP, nothing was changed - send me the lines.
+
+4) Restart the phone server (the fix changed it too; the bot is not touched by this):
+  ssh root@<server> "systemctl restart mac-bot-proxy.service && sleep 3 && systemctl is-active mac-bot-proxy.service"
+     You want: active
+
+5) Check (wait 2 min):
+  ssh root@<server> "journalctl -u mac-bot-live --since '-5 min' --no-pager | grep -E 'session stamp|\[health\]|capped sizing|level-loss|Entering live loop|FATAL|ERROR' | tail -12"
+     You want: "executor 16395252", "[health] ... alerts ARMED", "capped sizing: off", "level-loss exit off", "Entering live loop".
+     No FATAL / ERROR lines.
+
+6) Phone test: open the terminal, tap Pause 5 min, then Resume. Both should take effect within a few seconds.
+
+ROLLBACK to the exit-5 build (flat first; BACKUP FOLDER from step 3), then restart the phone server again:
+  ssh -t root@<server> "bash <BACKUP-FOLDER>/rollback-botfix.sh <BACKUP-FOLDER>"
+  ssh root@<server> "systemctl restart mac-bot-proxy.service && systemctl is-active mac-bot-proxy.service"
