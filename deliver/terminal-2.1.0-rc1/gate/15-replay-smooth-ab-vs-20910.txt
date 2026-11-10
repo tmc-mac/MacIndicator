@@ -1,0 +1,41 @@
+CASE DONE reel 1x at 04:57:36Z | ref p95 50.1 max 117 lt 434 shapes 3 | page p95 50.1 max 117 lt 434 shapes 3 brain 0/0 errors 0
+CASE DONE reel 4x at 05:02:31Z | ref p95 50.1 max 533 lt 2072 shapes 3 | page p95 50.0 max 467 lt 2086 shapes 3 brain 0/0 errors 0
+CASE DONE chart 1x at 05:04:39Z | ref p95 33.4 max 100 lt 330 shapes 20 | page p95 33.4 max 100 lt 331 shapes 20 brain 0/0 errors 0
+CASE DONE chart 4x at 05:06:51Z | ref p95 33.4 max 483 lt 1697 shapes 17 | page p95 33.5 max 517 lt 1747 shapes 16 brain 0/0 errors 0
+case | page | frames | p95 gap ms | max gap ms | max step % | progress moves | long tasks ms | bar shapes | brain frames / flashes
+reel 1x | 07c95367 (ref) | 304 | 50.1 | 117 | 0.42 | 126 | 434 | 3 | 0 / 0
+reel 1x | page | 316 | 50.1 | 117 | 0.42 | 139 | 434 | 3 | 0 / 0
+reel 4x | 07c95367 (ref) | 256 | 50.1 | 533 | 0.42 | 163 | 2072 | 3 | 0 / 0
+reel 4x | page | 250 | 50.0 | 467 | 0.42 | 154 | 2086 | 3 | 0 / 0
+chart 1x | 07c95367 (ref) | 337 | 33.4 | 100 | 1.43 | 277 | 330 | 20 | 0 / 0
+chart 1x | page | 390 | 33.4 | 100 | 1.43 | 329 | 331 | 20 | 0 / 0
+chart 4x | 07c95367 (ref) | 289 | 33.4 | 483 | 6.91 | 224 | 1697 | 17 | 0 / 0
+chart 4x | page | 312 | 33.5 | 517 | 7.38 | 249 | 1747 | 16 | 0 / 0
+load at the start of each run (limit 3):
+  reel 1x ref0: load 2.76 after waiting 40 s
+  reel 1x new0: load 2.76 after waiting 50 s
+  reel 1x ref1: load 2.91 after waiting 25 s
+  reel 1x new1: load 2.8 after waiting 5 s
+  reel 1x ref2: load 2.93 after waiting 25 s
+  reel 1x new2: load 2.96 after waiting 20 s
+  reel 4x ref0: load 2.88 after waiting 25 s
+  reel 4x new0: load 2.99 after waiting 35 s
+  reel 4x ref1: load 2.88 after waiting 35 s
+  reel 4x new1: load 2.86 after waiting 5 s
+  reel 4x ref2: load 2.82 after waiting 15 s
+  reel 4x new2: load 2.89 after waiting 10 s
+  chart 1x ref0: load 2.77 after waiting 5 s
+  chart 1x new0: load 2.94 after waiting 5 s
+  chart 1x ref1: load 2.55 after waiting 5 s
+  chart 1x new1: load 2.33 after waiting 5 s
+  chart 1x ref2: load 2.34 after waiting 5 s
+  chart 1x new2: load 2.71 after waiting 5 s
+  chart 4x ref0: load 2.24 after waiting 5 s
+  chart 4x new0: load 2 after waiting 5 s
+  chart 4x ref1: load 1.83 after waiting 5 s
+  chart 4x new1: load 1.89 after waiting 5 s
+  chart 4x ref2: load 2.73 after waiting 5 s
+  chart 4x new2: load 2.79 after waiting 5 s
+FAILURES:
+  Wr6 chart 4x: candle shapes drawn 16 < the reference's 17
+replay-smooth-2099: 27 passed, 1 failed

@@ -1,0 +1,432 @@
+diff -ruN base-src/t210-cascade.css src/t210-cascade.css
+--- a/v2src/t210-cascade.css	2026-11-10 02:22:43.212695701 +0000
++++ b/v2src/t210-cascade.css	2026-11-10 02:29:47.910852739 +0000
+@@ -18,7 +18,7 @@
+ .t2c-link { position: absolute; left: 12px; top: 19px; bottom: -1px; width: 4px; border-radius: 2px; background: var(--border); overflow: hidden; }
+ .t2c-link[data-lit="1"] { background: var(--fc); box-shadow: 0 0 10px var(--fc); }
+ .t2c-link b { position: absolute; left: 0; right: 0; top: 0; height: 100%; background: linear-gradient(to bottom, transparent, var(--shine) 45%, #fff 50%, var(--shine) 55%, transparent); opacity: 0; transform: translateY(-100%); will-change: transform; }
+-.t2-cascade[data-state="LIVE"] .t2c-link[data-lit="1"] b { opacity: 0.9; animation: t2c-flow 1.4s linear infinite; }
++.t2-cascade[data-state="LIVE"][data-flow="1"] .t2c-link[data-lit="1"] b { opacity: 0.9; animation: t2c-flow 1.4s linear 2; }
+ @keyframes t2c-flow { from { transform: translateY(-100%); } to { transform: translateY(100%); } }
+ .t2c-b { display: block; min-width: 0; }
+ .t2c-l { font-size: var(--fs-16); font-weight: 800; color: var(--t1); margin-right: 8px; }
+@@ -29,4 +29,4 @@
+ .t2c-v { display: block; font-size: var(--fs-14); color: var(--t1); overflow-wrap: anywhere; margin-top: 2px; } .t2c-v .t2-v { font-family: var(--mono); }
+ .t2c-n[data-state="SKIP"] .t2c-v, .t2c-n[data-state="SKIP"] .t2c-l { color: var(--t2); font-weight: 600; font-size: var(--fs-14); }
+ .t2c-a { display: block; font-size: var(--fs-12); color: var(--t2); font-variant-numeric: tabular-nums; }
+-@media (prefers-reduced-motion: reduce) { .t2-cascade[data-state="LIVE"] .t2c-link[data-lit="1"] b { animation: none; opacity: 0; } }
++@media (prefers-reduced-motion: reduce) { .t2-cascade[data-state="LIVE"][data-flow="1"] .t2c-link[data-lit="1"] b { animation: none; opacity: 0; } }
+diff -ruN base-src/t210-cascade.js src/t210-cascade.js
+--- a/v2src/t210-cascade.js	2026-11-10 02:22:43.212721874 +0000
++++ b/v2src/t210-cascade.js	2026-11-10 02:29:47.910565385 +0000
+@@ -61,7 +61,7 @@
+     if (m.st === 'UNKNOWN') return head + '<div class="t2-big">' + T.unk(m.why) + '</div>' + T.ageLine(m.st, c, m.at, m.age);
+     var dirW = m.ref === 1 ? 'LONG' : m.ref === -1 ? 'SHORT' : null;
+     var sum = m.aligned ? '<b class="t2c-ok">Flow complete</b> ' + m.flow + ' of ' + m.total + ' agree ' + (m.ref === 1 ? 'up' : 'down') : '<b class="t2c-stop">Flow stops</b> <span data-k="blocker">' + esc(m.blocker || 'UNKNOWN') + '</span>';
+-    var h = head + '<div class="t2c-sum" data-k="flow" data-aligned="' + (m.aligned ? 1 : 0) + '">' + sum + '</div><div class="t2c-ref">' + (dirW ? 'against the ' + (m.refSrc === 'candidate' ? 'bot’s ' + dirW + ' candidate' : m.refSrc + '’s own direction (no candidate yet)') : 'no direction to compare with') + '</div>';
++    var h = head + '<div class="t2c-sum" data-k="flow" data-aligned="' + (m.aligned ? 1 : 0) + '">' + sum + '</div><div class="t2c-ref">' + (dirW ? 'compared with the ' + (m.refSrc === 'candidate' ? 'bot’s ' + dirW + ' candidate' : m.refSrc + '’s own direction (no candidate yet)') : 'no direction to compare with') + '</div>';
+     h += '<ol class="t2c" data-dir="' + (m.ref === 1 ? 'up' : m.ref === -1 ? 'down' : 'none') + '" data-flow="' + m.flow + '">';
+     // a link hangs under each node down to the next one; it is lit when the nearest gate node above and the nearest gate node below are both lit
+     var N = m.nodes, up = [], down = [], k, carry = false, chainI = 0;
+@@ -80,11 +80,18 @@
+     return h + T.ageLine(m.st, c, m.at, m.age);
+   }
+   var el = null;
++  // the lit flow runs for 2 cycles (2 x 1.4 s) after the flow changes or the card comes on screen, then stops; off screen it never runs.
++  // data-flow on the card (outside the markup the 1 s render replaces) gates the CSS animation.
++  var FLOW_MS = 2800, FL = { sig: null, on: true, timer: null };
++  function flowRun() { if (FL.timer) clearTimeout(FL.timer); FL.timer = null; if (!el) return; if (!FL.on) { el.dataset.flow = '0'; return; } el.dataset.flow = '1'; FL.timer = setTimeout(function () { FL.timer = null; if (el) el.dataset.flow = '0'; }, FLOW_MS); }
++  function flowSig(m) { var s = m.st + '|' + m.ref + '|' + m.flow + '|' + (m.aligned ? 1 : 0); if (s !== FL.sig) { FL.sig = s; flowRun(); } }
+   function mount() {
+     var v = document.getElementById('t2-verdict'); if (!v || !v.parentNode) return false;
+-    el = T.mk('section', 't2-cascade', 'card t2-card t2-cascade'); el.setAttribute('aria-label', 'HTF cascade'); v.parentNode.insertBefore(el, v.nextSibling); return true;
++    el = T.mk('section', 't2-cascade', 'card t2-card t2-cascade'); el.setAttribute('aria-label', 'HTF cascade'); el.dataset.flow = '0'; v.parentNode.insertBefore(el, v.nextSibling);
++    try { if (typeof IntersectionObserver === 'function') new IntersectionObserver(function (es) { var on = es[es.length - 1].isIntersecting; if (on !== FL.on) { FL.on = on; flowRun(); } }).observe(el); } catch (e) { /* no observer: it still stops after 2 cycles */ }
++    return true;
+   }
+   T.models.cascade = cascadeModel; T.cascadeHtml = cascadeHtml;
+-  function start() { if (!mount()) return; T.EXTRA.push(function (d, c, vis) { if (vis && !vis.now) return; var m = { st: 'UNKNOWN', why: 'cascade view failed', nodes: [] }; try { m = cascadeModel(d, c); T.put(el, cascadeHtml(m, c)); } catch (e) { T.put(el, T.unk('cascade view failed')); } el.dataset.state = m.st; el.dataset.aligned = m.aligned ? '1' : '0'; }); T.render(); }
++  function start() { if (!mount()) return; T.EXTRA.push(function (d, c, vis) { if (vis && !vis.now) return; var m = { st: 'UNKNOWN', why: 'cascade view failed', nodes: [] }; try { m = cascadeModel(d, c); T.put(el, cascadeHtml(m, c)); } catch (e) { T.put(el, T.unk('cascade view failed')); } el.dataset.state = m.st; el.dataset.aligned = m.aligned ? '1' : '0'; flowSig(m); }); T.render(); }
+   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+ })();
+diff -ruN base-src/t210-control.css src/t210-control.css
+--- a/v2src/t210-control.css	2026-11-10 02:22:43.212776896 +0000
++++ b/v2src/t210-control.css	2026-11-10 02:31:12.587963202 +0000
+@@ -2,12 +2,15 @@
+ .t2r-slot:empty { display: none; }
+ .t2r-slot { margin: 8px 0; }
+ .t2r { display: flex; gap: 8px; align-items: flex-start; padding: 10px 10px 10px 12px; border-radius: var(--r-md); border: 1px solid var(--rc); border-left-width: 4px; background: color-mix(in srgb, var(--rc) 10%, var(--s1)); color: var(--t1); font-size: var(--fs-14); line-height: 1.4; --rc: var(--accent); }
+-.t2r[data-state="APPLIED"] { --rc: var(--status-good); } .t2r[data-state="FAILED"] { --rc: var(--status-critical); box-shadow: 0 0 20px -8px var(--status-critical); } .t2r[data-state="LATE"] { --rc: var(--status-warning); }
++.t2r[data-state="APPLIED"] { --rc: var(--status-good); } .t2r[data-state="FILLED"] { --rc: var(--status-warning); box-shadow: 0 0 20px -8px var(--status-warning); } .t2r[data-state="FAILED"] { --rc: var(--status-critical); box-shadow: 0 0 20px -8px var(--status-critical); } .t2r[data-state="LATE"] { --rc: var(--status-warning); }
+ .t2r-t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+ .t2r-w { color: var(--rc); font-weight: 800; letter-spacing: 0.04em; } .t2r-k { font-weight: 700; } .t2r-at { color: var(--t2); font-size: var(--fs-12); font-variant-numeric: tabular-nums; white-space: nowrap; }
+-.t2r-l { font-weight: 600; margin-top: 2px; } .t2r[data-state="FAILED"] .t2r-l { color: var(--status-critical); font-weight: 800; } .t2r[data-state="LATE"] .t2r-l { color: var(--status-warning); font-weight: 800; }
++.t2r-l { font-weight: 600; margin-top: 2px; } .t2r[data-state="FAILED"] .t2r-l { color: var(--status-critical); font-weight: 800; } .t2r[data-state="LATE"] .t2r-l, .t2r[data-state="FILLED"] .t2r-l { color: var(--status-warning); font-weight: 800; }
+ .t2r-n { color: var(--t2); font-size: var(--fs-12); margin-top: 2px; }
+ .t2r-b { display: flex; flex-direction: column; gap: 6px; flex: none; }
+ .t2r-b button { min-height: var(--tap); min-width: 72px; padding: 0 10px; border-radius: var(--r-md); border: 1px solid var(--border-strong); background: var(--s2); color: var(--t1); font-weight: 700; font-size: var(--fs-12); touch-action: manipulation; cursor: pointer; }
+ .t2r-b button[data-t2r="retry"] { border-color: var(--rc); color: var(--rc); }
+-.t2r-b button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; } .t2r-b button:active { opacity: 0.7; }
++.t2r-b button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
++.t2r-b button { transition: transform 80ms ease-out; }
++@media (hover: hover) and (pointer: fine) { .t2r-b button:hover { border-color: var(--rc); background: color-mix(in srgb, var(--rc) 14%, var(--s2)); } }
++.t2r-b button:active { transform: scale(0.96); border-color: var(--rc); background: color-mix(in srgb, var(--rc) 24%, var(--s2)); }
+diff -ruN base-src/t210-control.js src/t210-control.js
+--- a/v2src/t210-control.js	2026-11-10 02:22:43.212792514 +0000
++++ b/v2src/t210-control.js	2026-11-10 03:08:41.314250314 +0000
+@@ -8,7 +8,27 @@
+   'use strict';
+   var T = window.T210; if (!T) return;
+   var fin = function (v) { return typeof v === 'number' && isFinite(v); }, esc = T.esc;
+-  var NOANSWER_MS = 12000, LATE_MS = 45000, R = {}, seq = 0, last404 = false;
++  var NOANSWER_MS = 12000, LATE_MS = 45000, HOLD_MS = 45000, NA_STEP_MS = 15000, R = {}, seq = 0, last404 = false;
++  // QA 11/10 #1, #2: APPLIED must mean the tap CHANGED something. Each send keeps what the bot's snapshot showed at the tap (base): a pause must
++  // move the pause end, a resume must end a running pause, a flatten must close an open position, a cancel must leave no resting entry AND no
++  // new position or fill. APPLIED is held open to correction by later snapshots for 45 s before it is kept.
++  function snapNow() { try { return typeof pcSnap !== 'undefined' ? pcSnap : null; } catch (e) { return null; } }
++  function pauseActive(d, now) { return !!(d && d.pause && fin(d.pause.until) && d.pause.until > now); }
++  function openOf(d) { var t = d && d.levels && d.levels.trade; return t && t.open && typeof t.open === 'object' ? t.open : null; }
++  function rowIds(d) { var t = d && d.levels && d.levels.trade; return t && Array.isArray(t.today) ? t.today.map(function (r) { return r && (r.journalId || r.key); }).filter(Boolean) : null; }
++  function baseOf(d, now) {
++    if (!d || d.available === false || !fin(d.updated)) return null;
++    var o = openOf(d);
++    return { updated: d.updated, pos: 'position' in d ? T.posState(d).kind : undefined, pauseKnown: 'pause' in d, pauseUntil: pauseActive(d, now) ? d.pause.until : null, rows: rowIds(d), openKey: o ? (o.key || o.journalId || null) : null };
++  }
++  function filledSince(d, base) {   // the snapshot shows a position or a fill that was not there at the tap
++    var p = d.position, o = openOf(d), ps = T.posState(d), openNow = ps.kind === 'open' || !!(p && typeof p === 'object' && !p.pending) || !!o;
++    if (openNow && !(base && base.pos === 'open')) return true;
++    if (o && base && base.openKey != null && (o.key || o.journalId) !== base.openKey) return true;
++    var ids = base && base.rows ? rowIds(d) : null; return !!(ids && ids.some(function (id) { return base.rows.indexOf(id) < 0; }));
++  }
++  function holding(d) { var ps = T.posState(d); if (ps.kind === 'pending') return 'the bot says so; its snapshot still shows the resting entry'; if (ps.kind == null) return 'position UNKNOWN: ' + ps.why; if (ps.kind !== 'open') return 'that trade has since closed (see Trades)';
++    return 'you hold ' + (ps.side ? ps.side + (fin(ps.qty) ? ' ' + ps.qty : '') : 'a position') + (fin(ps.avg) ? ' @ ' + T.px(ps.avg) : ''); }
+   var WHAT = { pause: 'Pause', resume: 'Resume', cancel: 'Cancel entry', flatten: 'Flatten' };
+ 
+   /* ── watch the three POSTs (pass-through) ── */
+@@ -22,7 +42,7 @@
+     if (!init || String(init.method || '').toUpperCase() !== 'POST') return;
+     var m = /^\/(pause|flatten|cancel-entry)\?(.*)$/.exec(url); if (!m) return;
+     var q = new URLSearchParams(m[2]), key = m[1] === 'pause' ? (q.get('minutes') === '0' ? 'resume' : 'pause') : m[1] === 'flatten' ? 'flatten' : 'cancel';
+-    var rec = { key: key, st: 'SENDING', at: Date.now(), id: ++seq, minutes: key === 'pause' ? Number(q.get('minutes')) : null };
++    var rec = { key: key, st: 'SENDING', at: Date.now(), id: ++seq, minutes: key === 'pause' ? Number(q.get('minutes')) : null }; rec.base = baseOf(snapNow(), rec.at);
+     R[key] = rec; if (key === 'pause') R.resume = null; if (key === 'resume') R.pause = null; T.render();
+     p.then(function (res) {
+       var status = res.status, okHttp = res.ok;
+@@ -38,37 +58,49 @@
+   }
+ 
+   /* ── the receipt: a pure function of (record, snapshot, now) ── */
+-  function effect(key, d, now) {   // has the bot's snapshot shown the effect? true / false / null (cannot tell)
++  function effect(key, d, now, base) {   // has the bot's snapshot shown the effect? true / false / null (cannot tell). base undefined = not kept: the snapshot alone decides
+     if (!d || d.available === false) return null;
+-    if (key === 'pause') return 'pause' in d ? !!(d.pause && fin(d.pause.until) && d.pause.until > now) : null;
+-    if (key === 'resume') return 'pause' in d ? !d.pause : null;
+-    if (!('position' in d)) return null;
+-    var p = d.position, has = !!(p && Array.isArray(p.markers) && p.markers.length);
+-    return key === 'flatten' ? !(has && !p.pending) : !(has && p.pending);
++    if (key === 'pause') { if (!('pause' in d)) return null; if (!pauseActive(d, now)) return false; return !(base && base.pauseUntil != null && Math.abs(d.pause.until - base.pauseUntil) < 1000); }
++    if (key === 'resume') return 'pause' in d ? !pauseActive(d, now) : null;
++    var ps = T.posState(d); if (ps.kind == null) return null;
++    if (key === 'flatten') return base && base.pos === 'pending' ? ps.kind === 'flat' : ps.kind !== 'open';
++    return ps.kind === 'flat' && !filledSince(d, base);
+   }
+   function receiptModel(rec, d, now, cancelRc) {
+     if (!rec) return null;
+     var m = { key: rec.key, what: WHAT[rec.key] + (rec.key === 'pause' && fin(rec.minutes) ? ' ' + rec.minutes + ' min' : ''), at: rec.at, state: rec.st, seen: d && fin(d.updated) ? d.updated : null };
+     if (rec.st === 'APPLIED') { m.line = rec.appliedLine; m.appliedAt = rec.appliedAt; return m; }
++    if (rec.st === 'FILLED') { m.line = rec.filledLine; m.note = rec.filledNote; m.appliedAt = rec.filledAt; return m; }
+     if (rec.st === 'FAILED') { m.line = rec.why; m.retry = true; return m; }
+     if (rec.st === 'SENDING') { if (now - rec.at > NOANSWER_MS) { m.state = 'FAILED'; m.line = 'no answer after ' + Math.round((now - rec.at) / 1000) + ' s: not confirmed sent'; m.retry = true; } else m.line = 'sending…'; return m; }
+     // SENT: applied only on a snapshot the bot wrote after the send
+-    var newer = m.seen != null && m.seen > rec.at, eff = newer ? effect(rec.key, d, now) : null;
+-    if (rec.key === 'cancel' && cancelRc && typeof cancelRc.outcome === 'string') {
+-      if (cancelRc.outcome === 'cancelled' || cancelRc.outcome === 'resolved') { m.state = 'APPLIED'; m.line = 'entry order ' + cancelRc.outcome + (cancelRc.detail ? ': ' + String(cancelRc.detail).slice(0, 140) : ''); m.appliedAt = now; return m; }
+-      if (cancelRc.outcome === 'filled') { m.state = 'FAILED'; m.line = 'the entry FILLED before the cancel' + (cancelRc.detail ? ': ' + String(cancelRc.detail).slice(0, 140) : ''); return m; }
+-      if (cancelRc.outcome === 'unknown') m.note = String(cancelRc.detail || '').slice(0, 160);
+-    }
+-    if (eff === true) { m.state = 'APPLIED'; m.appliedAt = m.seen;
+-      m.line = rec.key === 'pause' ? 'paused until ' + T.timePT(d.pause.until) : rec.key === 'resume' ? 'resumed: new entries allowed again' : rec.key === 'flatten' ? 'no open position in the bot’s snapshot' : 'no resting entry in the bot’s snapshot'; return m; }
+-    if (now - rec.at > LATE_MS) { m.state = 'LATE'; m.line = 'not applied yet — bot last seen ' + (m.seen != null ? T.ageText(now - m.seen) + ' ago' : 'UNKNOWN: no snapshot'); m.retry = true; return m; }
+-    m.line = 'waiting for the bot (it reads requests about every 20 s)'; return m;
++    var base = rec.base, newer = m.seen != null && m.seen > rec.at, eff = newer ? effect(rec.key, d, now, base) : null, rcOut = rec.key === 'cancel' && cancelRc && typeof cancelRc.outcome === 'string' ? cancelRc.outcome : null;
++    var rcDetail = rcOut && cancelRc.detail ? String(cancelRc.detail).slice(0, 140) : '';
++    // a cancel that lost the race: the entry filled first (the bot says so, or its snapshot shows a position or fill that was not there at the tap)
++    if (rec.key === 'cancel' && (rcOut === 'filled' || newer && 'position' in d && filledSince(d, base))) { m.state = 'FILLED'; m.appliedAt = newer ? m.seen : now;
++      m.line = 'ENTRY FILLED before the cancel — ' + (newer ? holding(d) : 'the bot says so'); m.note = 'Cancel does not close a position; Flatten does.' + (rcOut === 'filled' && rcDetail ? ' Bot: ' + rcDetail : ''); return m; }
++    if (rcOut === 'unknown') m.note = String(cancelRc.detail || '').slice(0, 160);
++    else if (rcOut === 'cancelled' || rcOut === 'resolved') m.note = 'The bot says the entry order was ' + rcOut + (rcDetail ? ': ' + rcDetail : '') + '.';
++    // nothing to change when it was sent: said so, never green, never escalated
++    var noop = !base ? null : rec.key === 'resume' && base.pauseKnown && base.pauseUntil == null ? 'no pause was running when sent: new entries were already allowed'
++      : rec.key === 'flatten' && base.pos === 'flat' ? 'no position and no resting entry when sent: nothing to flatten'
++      : rec.key === 'cancel' && (base.pos === 'flat' || base.pos === 'open') ? 'no resting entry when sent: nothing to cancel' : null;
++    if (noop) { m.line = noop; return m; }
++    if (eff === true) { m.state = 'APPLIED'; m.appliedAt = m.seen; var ps = T.posState(d);
++      m.line = rec.key === 'pause' ? 'paused until ' + T.timePT(d.pause.until) + (base && base.pauseUntil != null ? ' (was until ' + T.timePT(base.pauseUntil) + ')' : '') : rec.key === 'resume' ? 'resumed: new entries allowed again'
++        : rec.key === 'flatten' ? (ps.kind === 'pending' ? 'flat: no open position; a resting entry is still working' : 'no open position in the bot’s snapshot')
++        : rcOut === 'cancelled' || rcOut === 'resolved' ? 'entry order ' + rcOut + (rcDetail ? ': ' + rcDetail : '') : 'no resting entry in the bot’s snapshot';
++      if (rcOut === 'cancelled' || rcOut === 'resolved') m.note = ''; return m; }
++    var again = rec.key === 'pause' && base && base.pauseUntil != null && pauseActive(d, now) && Math.abs(d.pause.until - base.pauseUntil) < 1000 ? 'already paused until ' + T.timePT(d.pause.until) : null;
++    if (!m.note && (rec.key === 'flatten' || rec.key === 'cancel') && newer && 'position' in d && T.posState(d).kind == null) m.note = 'Position UNKNOWN: ' + T.posState(d).why + '.';
++    if (now - rec.at > LATE_MS) { m.state = 'LATE'; m.line = 'not applied yet — ' + (again ? again + ' (the bot has not changed it); ' : '') + 'bot last seen ' + (m.seen != null ? T.ageText(now - m.seen) + ' ago' : 'UNKNOWN: no snapshot'); m.retry = true; return m; }
++    m.line = again ? again + ': waiting for the bot to apply the new pause' : 'waiting for the bot (it reads requests about every 20 s)'; return m;
+   }
+-  var WORD = { SENDING: 'SENDING', SENT: 'SENT', APPLIED: 'APPLIED', FAILED: 'FAILED', LATE: 'NOT APPLIED YET' };
++  var WORD = { SENDING: 'SENDING', SENT: 'SENT', APPLIED: 'APPLIED', FAILED: 'FAILED', LATE: 'NOT APPLIED YET', FILLED: 'NOT CANCELLED' };
+   function receiptHtml(m, withButtons) {
+     if (!m) return '';
+-    var t = m.state === 'APPLIED' && fin(m.appliedAt) ? T.timePT(m.appliedAt, true) : T.timePT(m.at, true);
+-    return '<div class="t2r" data-state="' + m.state + '" data-key="' + m.key + '" role="' + (m.state === 'FAILED' ? 'alert' : 'status') + '"><div class="t2r-t"><b class="t2r-w">' + WORD[m.state] + '</b> <span class="t2r-k">' + esc(m.what) + '</span> <span class="t2r-at">' + (m.state === 'APPLIED' ? 'seen ' : m.state === 'SENDING' || m.state === 'FAILED' ? 'tapped ' : 'sent ') + esc(t) + '</span>'
++    var seenSt = m.state === 'APPLIED' || m.state === 'FILLED', t = seenSt && fin(m.appliedAt) ? T.timePT(m.appliedAt, true) : T.timePT(m.at, true);
++    return '<div class="t2r" data-state="' + m.state + '" data-key="' + m.key + '" role="' + (m.state === 'FAILED' || m.state === 'FILLED' ? 'alert' : 'status') + '"><div class="t2r-t"><b class="t2r-w">' + WORD[m.state] + '</b> <span class="t2r-k">' + esc(m.what) + '</span> <span class="t2r-at">' + (seenSt ? 'seen ' : m.state === 'SENDING' || m.state === 'FAILED' ? 'tapped ' : 'sent ') + esc(t) + '</span>'
+       + '<div class="t2r-l" data-k="line">' + esc(m.state === 'LATE' ? m.line : m.line.charAt(0).toUpperCase() + m.line.slice(1)) + '</div>' + (m.note ? '<div class="t2r-n">' + esc(m.note) + '</div>' : '')
+       + (m.retry && withButtons ? '<div class="t2r-n">Retry arms the button again; the second tap still confirms.</div>' : '') + '</div>'
+       + (withButtons ? '<div class="t2r-b">' + (m.retry ? '<button type="button" data-t2r="retry" data-key="' + m.key + '">Retry</button>' : '') + (m.state !== 'SENDING' ? '<button type="button" data-t2r="clear" data-key="' + m.key + '">Clear</button>' : '') + '</div>' : '') + '</div>';
+@@ -109,7 +141,12 @@
+     var now = c.rec ? Date.now() : c.now, rc = null; try { rc = typeof cancelReceipt !== 'undefined' ? cancelReceipt : null; } catch (e) { rc = null; }
+     var ms = {};
+     ['pause', 'resume', 'cancel', 'flatten'].forEach(function (k) { var rec = R[k]; if (!rec) return; var m = receiptModel(rec, d, now, k === 'cancel' ? rc : null);
+-      if (m.state === 'APPLIED' && rec.st !== 'APPLIED') { rec.st = 'APPLIED'; rec.appliedLine = m.line; rec.appliedAt = m.appliedAt; }   // applied is kept: a later change (the pause ending) does not rewrite the receipt
++      // a fill is a fact: kept. APPLIED is kept only after later snapshots have agreed for 45 s (then a later change, the pause ending, does not rewrite it)
++      if (m.state === 'FILLED' && rec.st !== 'FILLED') { rec.st = 'FILLED'; rec.filledLine = m.line; rec.filledNote = m.note; rec.filledAt = m.appliedAt; }
++      if (m.state === 'APPLIED' && rec.st !== 'APPLIED') { if (rec.okSince == null) rec.okSince = now; if (now - rec.okSince >= HOLD_MS) { rec.st = 'APPLIED'; rec.appliedLine = m.line; rec.appliedAt = m.appliedAt; } }
++      else if (rec.st !== 'APPLIED') rec.okSince = null;
++      // no answer: the alert's text (a live region) changes at most once per 15 s, not every second
++      if (m.state === 'FAILED' && rec.st === 'SENDING') { if (rec.naAt == null || now - rec.naAt >= NA_STEP_MS || now < rec.naAt) { rec.naAt = now; rec.naLine = m.line; } m.line = rec.naLine; }
+       ms[k] = m; });
+     T.put(E.pause, receiptHtml(ms.pause || ms.resume || null, true)); T.put(E.cancel, receiptHtml(ms.cancel || null, true)); T.put(E.flatten, receiptHtml(ms.flatten || null, true));
+     if (E.flattenPos) T.put(E.flattenPos, receiptHtml(ms.flatten || null, false));
+@@ -119,7 +156,7 @@
+       if (/^Pause needs the bot restart/.test(tx) && d && d.available !== false && 'pause' in d && !last404) h.textContent = idle;
+       else if (/^(Pause|Resume) sent:/.test(tx) && (ms.pause || ms.resume)) h.textContent = idle; }
+   }
+-  T.models.receipt = receiptModel; T.models.effect = effect; T.receipts = R;
++  T.models.receipt = receiptModel; T.models.effect = effect; T.models.receiptBase = baseOf; T.receipts = R;
+   function start() { if (!mount()) return; T.EXTRA.push(step); T.render(); }
+   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+ })();
+diff -ruN base-src/t210.css src/t210.css
+--- a/v2src/t210.css	2026-11-10 02:22:43.212810697 +0000
++++ b/v2src/t210.css	2026-11-10 02:29:33.101436615 +0000
+@@ -126,6 +126,7 @@
+ .t2-kv-s { grid-template-columns: minmax(0, 1fr); }
+ .t2-row-t { margin-left: auto; font-size: var(--fs-12); color: var(--t2); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+ .t2-gate[data-res="UNKNOWN"] .t2-gate-r { color: var(--status-warning); border-style: dashed; }
++.t2-gate[data-res="OFF"] .t2-gate-r { color: var(--t2); border-style: dotted; background: transparent; } .t2-gate[data-res="OFF"] .t2-gate-l { color: var(--t2); }
+ .t2-bar-ax { position: relative; } .t2-bar-s { position: absolute; transform: translateX(-50%); }
+ .t2-gear, .t2-more, .t2-alert button, .t2-sheet button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; cursor: pointer; }
+ .t2-gear:active, .t2-more:active, .t2-alert button:active, .t2-sheet button:active { opacity: 0.7; }
+diff -ruN base-src/t210.js src/t210.js
+--- a/v2src/t210.js	2026-11-10 02:22:43.212836029 +0000
++++ b/v2src/t210.js	2026-11-10 02:29:14.161357043 +0000
+@@ -70,35 +70,50 @@
+   }
+ 
+   /* ── shared reads ── */
+-  function posOpen(d) {   // true / false / null (not sent)
+-    if (!d || !('position' in d)) return null;
+-    var p = d.position; if (p === null) return false;
+-    if (p && p.pending) return false;
+-    return !!(p && arr(p.markers).length);
+-  }
+   function openTrade(d) { var t = d && d.levels && d.levels.trade; return t && t.open && typeof t.open === 'object' ? t.open : null; }
++  // THE position read (QA 11/10 #4): Eval, Broker truth, Trades and the receipts all take the position from here. Two sources: the bot's
++  // position object and levels.trade.open. An empty marker list is not "flat" (the bracket may still be going in): the object itself says a
++  // position is there. levels.trade.open = null alone is not "flat" either (a TIDE trade is not in the levels tracker). When the two sources
++  // contradict each other (flat or a resting entry vs an open levels trade, or opposite sides) the position is UNKNOWN on every surface.
++  function posState(d) {   // { kind: 'flat' | 'pending' | 'open' | null, why, side, dir, qty, avg }
++    if (!d || !('position' in d)) return { kind: null, why: 'position not sent' };
++    var p = d.position, o = openTrade(d), pd = p && (p.dir === 1 || p.dir === -1) ? p.dir : null, od = o && (o.dir === 1 || o.dir === -1) ? o.dir : null;
++    if (p !== null && (typeof p !== 'object' || Array.isArray(p))) return { kind: null, why: 'position not readable' };
++    if (p === null && o) return { kind: null, why: 'the bot’s position says flat but levels.trade.open holds an open trade' };
++    if (p === null) return { kind: 'flat' };
++    if (p.pending && o) return { kind: null, why: 'the bot’s position says resting entry but levels.trade.open holds an open trade' };
++    if (pd != null && od != null && pd !== od) return { kind: null, why: 'the position and levels.trade.open give opposite sides' };
++    var dir = pd != null ? pd : od, mk = arr(p.markers), ent = mk.filter(function (x) { return x && x.kind === 'entry'; })[0];
++    var r = { kind: p.pending ? 'pending' : 'open', dir: dir, side: dir === 1 ? 'LONG' : dir === -1 ? 'SHORT' : null };
++    r.qty = r.kind === 'open' && o && fin(o.openQty) ? o.openQty : null; r.avg = r.kind === 'open' && o && fin(o.entry) ? o.entry : ent && fin(ent.price) ? ent.price : null;
++    return r;
++  }
++  function posOpen(d) { var k = posState(d).kind; return k == null ? null : k === 'open'; }   // true / false / null (not sent, or the sources disagree)
+   function dayFigure(d, now) { try { var m = window.macui && window.macui.dayModel ? window.macui.dayModel(d, now) : null; return m && fin(m.v) ? m.v : null; } catch (e) { return null; } }
+ 
+   /* ── (a) stamps ── */
+-  var J = { ref: null, stampId: null, t: null };
++  // J.t = the newest stamped row's own time (which stamp is current); J.readAt = when this phone read the journal (what "read X ago" means, QA 11/10 #5)
++  var J = { ref: null, stampId: null, t: null, readAt: null };
+   function readStamp() {
+     var je = null; try { je = typeof journalEntries !== 'undefined' ? journalEntries : null; } catch (e) { je = null; }
+-    if (je && je !== J.ref) { J.ref = je;
++    if (je && je !== J.ref) { J.ref = je; J.readAt = Date.now();
+       for (var i = 0; i < je.length; i++) { var r = je[i]; if (r && typeof r.stampId === 'string' && /^[0-9a-f]{12}$/.test(r.stampId) && fin(r.t) && (J.t == null || r.t >= J.t)) { J.stampId = r.stampId; J.t = r.t; } }
+-      if (J.stampId) lsSet('t210.stamp', JSON.stringify({ stampId: J.stampId, t: J.t })); }
+-    if (!J.stampId) { try { var o = JSON.parse(lsGet('t210.stamp') || 'null'); if (o && typeof o.stampId === 'string' && /^[0-9a-f]{12}$/.test(o.stampId) && fin(o.t)) { J.stampId = o.stampId; J.t = o.t; } } catch (e) { /* none */ } }
++      if (J.stampId) lsSet('t210.stamp', JSON.stringify({ stampId: J.stampId, t: J.t, readAt: J.readAt })); }
++    if (!J.stampId) { try { var o = JSON.parse(lsGet('t210.stamp') || 'null'); if (o && typeof o.stampId === 'string' && /^[0-9a-f]{12}$/.test(o.stampId) && fin(o.t)) { J.stampId = o.stampId; J.t = o.t; J.readAt = fin(o.readAt) ? o.readAt : null; } } catch (e) { /* none */ } }
+     return J;
+   }
+-  function stampsModel(j, c) {
+-    var st = j && j.stampId ? fresh(j.t, LIMIT.stamp, c.now) : 'UNKNOWN', k = j && j.stampId ? KNOWN_STAMPS[j.stampId] : null;
+-    return { st: st, stampId: j ? j.stampId : null, age: st === 'UNKNOWN' ? null : c.now - j.t, exe: k ? k.exe : null, cfg: k ? k.cfg : null,
++  function stampsModel(j, c, realNow) {
++    realNow = fin(realNow) ? realNow : Date.now();
++    var st = j && j.stampId ? fresh(j.readAt, LIMIT.stamp, realNow) : 'UNKNOWN', k = j && j.stampId ? KNOWN_STAMPS[j.stampId] : null;
++    if (j && j.stampId && st === 'UNKNOWN') st = 'STALE';   // a stamp kept on this phone from an earlier read, read time not kept: old until re-read
++    return { st: st, stampId: j ? j.stampId : null, age: j && j.stampId && fin(j.readAt) ? realNow - j.readAt : null, exe: k ? k.exe : null, cfg: k ? k.cfg : null,
+       why: 'no journal row read yet (the snapshot carries no stamp; open Review once)',
+       whyPair: j && j.stampId ? 'not sent in the snapshot, and this stamp is not in the page’s checked table' : 'needs the build stamp first' };
+   }
+   function stampsHtml(m, c) {
+     var b = '<span class="t2-st-k">build</span> ' + txt(m.stampId, m.st, m.why, 't2-mono');
+     var pair = m.st === 'UNKNOWN' ? '' : m.exe ? '<span class="t2-st-k">exe</span> ' + txt(m.exe, m.st, '', 't2-mono') + ' <span class="t2-st-k">cfg</span> ' + txt(m.cfg, m.st, '', 't2-mono') : '<span class="t2-st-k">exe / cfg</span> ' + unk(m.whyPair);
+-    var tail = m.st === 'STALE' ? '<span class="t2-st-age" data-st="STALE">read ' + esc(ageText(m.age)) + ' ago · open Review to re-read</span>' : m.st === 'LIVE' ? '<span class="t2-st-age" data-st="LIVE">' + esc(stateWord('LIVE', c).toLowerCase() + ' · ' + ageText(m.age)) + '</span>' : '';
++    var tail = m.st === 'STALE' ? '<span class="t2-st-age" data-st="STALE">' + esc(m.age != null ? 'read ' + ageText(m.age) + ' ago' : 'read time not kept') + ' · open Review to re-read</span>' : m.st === 'LIVE' ? '<span class="t2-st-age" data-st="LIVE">' + esc(stateWord('LIVE', c).toLowerCase() + ' · read ' + ageText(m.age) + ' ago') + '</span>' : '';
+     return '<div class="t2-stamp-row" data-st="' + m.st + '" role="group" aria-label="Build and settings stamps">' + '<span class="t2-st-i">' + b + '</span>' + (pair ? '<span class="t2-st-i">' + pair + '</span>' : '') + tail + '</div>';
+   }
+ 
+@@ -107,8 +122,8 @@
+     var st = snapState(d, c), bal = d && fin(d.accountBalance) ? d.accountBalance : null, m = { st: st, cfg: cfg, age: d && fin(d.updated) ? c.now - d.updated : null, at: d && fin(d.updated) ? d.updated : null };
+     if (st === 'UNKNOWN' || bal == null) { m.st = 'UNKNOWN'; m.why = !d || d.available === false ? 'no snapshot' : !fin(d.updated) ? 'snapshot has no time' : d.mode === 'PAPER' ? 'paper mode: no account balance' : 'accountBalance not sent'; return m; }
+     m.bal = bal; m.closedRoom = bal - cfg.fail; m.toTarget = cfg.target - bal;
+-    var po = posOpen(d), o = openTrade(d), op = fin(d.openPnl) ? d.openPnl : null;
+-    if (po === null) { m.nowWhy = 'position state not sent'; }
++    var ps = posState(d), po = ps.kind == null ? null : ps.kind === 'open', o = openTrade(d), op = fin(d.openPnl) ? d.openPnl : null;
++    if (po === null) { m.nowWhy = ps.why === 'position not sent' ? 'position state not sent' : 'position UNKNOWN: ' + ps.why; }
+     else if (po === false) { m.open = 0; m.flat = true; }
+     else if (op == null) { m.nowWhy = 'open P&L not sent while a position is open'; }
+     else if (o && o.priceStale === true) { m.nowWhy = 'the open trade’s price mark is stale'; }
+@@ -117,6 +132,8 @@
+     if (m.open != null) { m.equity = bal + m.open; m.room = m.equity - cfg.fail; m.stops = Math.floor(m.room / FULL_STOP_USD * 10) / 10; m.tone = m.stops > 2 ? 'good' : m.stops >= 1 ? 'warn' : 'crit'; }
+     else m.tone = 'unk';
+     m.day = dayFigure(d, c.now);
++    // the header's day figure carries the open mark; with open P&L UNKNOWN that mark cannot be used here, so the day is the realized part only (QA 11/10 #3)
++    if (m.open == null) { m.dayRealized = true; m.day = d.day && fin(d.day.realized) ? d.day.realized : d.dayTrips && fin(d.dayTrips.net) ? d.dayTrips.net : null; }
+     m.dd = fin(d.remainingDrawdown) ? d.remainingDrawdown : null; m.floor = m.dd != null && fin(d.equity) ? d.equity - m.dd : null;
+     return m;
+   }
+@@ -135,7 +152,8 @@
+     h += '<dl class="t2-kv">'
+       + '<div><dt>closed balance to fail</dt><dd data-k="closedRoom">' + cell(m.closedRoom, usd, m.st, '') + '</dd></div>'
+       + '<div><dt>to target ' + esc(usd0(m.cfg.target)) + '</dt><dd data-k="toTarget">' + (m.toTarget <= 0 ? txt('reached', m.st, '') : cell(m.toTarget, usd, m.st, '')) + '</dd></div>'
+-      + '<div><dt>day P&amp;L (as the header)</dt><dd data-k="day">' + cell(m.day != null ? m.day : NaN, usdS, m.st, 'day figure not sent') + '</dd></div>'
++      + (m.dayRealized ? '<div><dt>day P&amp;L realized <span class="t2-note">(closed trades only: open P&amp;L UNKNOWN)</span></dt><dd data-k="day">' + cell(m.day != null ? m.day : NaN, usdS, m.st, 'realized day P&L not sent') + '</dd></div>'
++        : '<div><dt>day P&amp;L (as the header)</dt><dd data-k="day">' + cell(m.day != null ? m.day : NaN, usdS, m.st, 'day figure not sent') + '</dd></div>')
+       + '<div><dt>trailing drawdown: bot’s own figure (4,500 rule)</dt><dd data-k="dd">' + (m.dd != null ? cell(m.dd, usd, m.st, '') + ' <span class="t2-note">not your fail line</span>' : unk('remainingDrawdown not sent')) + '</dd></div>'
+       + '</dl>';
+     h += '<div class="t2-sub">One full stop = 3 × 50 pts × $2 = $300. The fail line counts open P&amp;L in real time.' + (m.cfg.custom ? ' Lines edited on this phone.' : '') + '</div>';
+@@ -155,14 +173,11 @@
+   function brokerModel(d, c) {
+     var st = snapState(d, c), m = { st: st, age: d && fin(d.updated) ? c.now - d.updated : null, at: d && fin(d.updated) ? d.updated : null, orders: [] };
+     if (st === 'UNKNOWN') { m.why = !d || d.available === false ? 'no snapshot' : 'snapshot has no time'; return m; }
+-    if (!('position' in d)) { m.st = 'UNKNOWN'; m.why = 'position not sent'; return m; }
++    var ps = posState(d); if (ps.kind == null) { m.st = 'UNKNOWN'; m.why = ps.why; return m; }
+     var p = d.position, o = openTrade(d); m.status = typeof d.status === 'string' ? d.status : null; m.desync = m.status === 'DESYNCED';
+-    if (p === null && !o) { m.kind = 'flat'; return m; }
+-    m.kind = p && p.pending ? 'pending' : 'open'; m.flattening = !!(p && p.flattening);
+-    var dir = p && (p.dir === 1 || p.dir === -1) ? p.dir : o && (o.dir === 1 || o.dir === -1) ? o.dir : null;
+-    m.side = dir === 1 ? 'LONG' : dir === -1 ? 'SHORT' : null;
+-    var mk = arr(p && p.markers), ent = mk.filter(function (x) { return x && x.kind === 'entry'; })[0];
+-    m.qty = m.kind === 'open' && o && fin(o.openQty) ? o.openQty : null; m.avg = m.kind === 'open' && o && fin(o.entry) ? o.entry : ent && fin(ent.price) ? ent.price : null;
++    if (ps.kind === 'flat') { m.kind = 'flat'; return m; }
++    m.kind = ps.kind; m.flattening = !!(p && p.flattening); m.side = ps.side; m.qty = ps.qty; m.avg = ps.avg;
++    var mk = arr(p && p.markers);
+     m.verified = o ? o.verified === true : null; m.src = o && typeof o.src === 'string' ? o.src : null;
+     mk.forEach(function (x) { if (!x || x.kind === 'entry' || typeof x.label !== 'string') return;
+       var h = o && (x.kind === 'stop' ? o.stops : o.targets), l = h ? lastOf(h[x.label]) : null;
+@@ -202,6 +217,11 @@
+     if (ex != null && stopP != null && (ex - stopP) * d <= 1) return { text: stopK === 'STOP' ? 'stop' : String(stopK).toLowerCase(), tp1: false, stop: true, initial: stopK === 'STOP' };
+     return { text: null, why: 'exit reason not sent', tp1: false, stop: false };
+   }
++  // the exit painted on a row: entry + side x pts/contract when both are sent (a 3-leg exit has no single price; this is the average the pts
++  // figure is made of, so entry -> exit always equals the pts shown), else the bot's own exit price (QA 11/10 #7)
++  function exitPx(r) { if (fin(r.entry) && fin(r.pts) && (r.dir === 1 || r.dir === -1)) return Math.round((r.entry + r.dir * r.pts) * 100) / 100; return r.exit && fin(r.exit.price) ? r.exit.price : null; }
++  // "avg" when more than one contract left in more than one fill: TP1 then the runner, or the bot's exit price is not the pts figure's price
++  function exitIsAvg(r, e) { if (fin(r.contracts) && r.contracts === 1) return false; if (e && e.tp1) return true; var x = exitPx(r); return x != null && !(r.exit && fin(r.exit.price) && Math.abs(r.exit.price - x) < 0.005); }
+   function ledgerModel(d, c) {
+     var st = snapState(d, c), m = { st: st, age: d && fin(d.updated) ? c.now - d.updated : null, rows: [] };
+     if (st === 'UNKNOWN') { m.why = !d || d.available === false ? 'no snapshot' : 'snapshot has no time'; return m; }
+@@ -212,7 +232,7 @@
+       if (!r || typeof r !== 'object' || r.closedAt == null) return;
+       var e = exitOf(r), planned = fin(r.entry) && fin(r.stop0) ? Math.abs(r.entry - r.stop0) : null, b = r.exit && rt[r.exit.rt] || null, j = jc[r.journalId] || null;
+       var net = fin(r.netPnl) && r.settled === 'broker' ? r.netPnl : null, gross = b && fin(b.grossPnl) ? b.grossPnl : j && fin(j.grossPnl) ? j.grossPnl : null;
+-      m.rows.push({ id: r.journalId || r.key, side: r.dir === 1 ? 'LONG' : r.dir === -1 ? 'SHORT' : null, dir: r.dir, qty: fin(r.contracts) ? r.contracts : null, entry: fin(r.entry) ? r.entry : null, exit: r.exit && fin(r.exit.price) ? r.exit.price : null,
++      m.rows.push({ id: r.journalId || r.key, side: r.dir === 1 ? 'LONG' : r.dir === -1 ? 'SHORT' : null, dir: r.dir, qty: fin(r.contracts) ? r.contracts : null, entry: fin(r.entry) ? r.entry : null, exit: exitPx(r), exitAvg: exitIsAvg(r, e),
+         pts: fin(r.pts) ? r.pts : null, R: fin(r.pts) && planned ? r.pts / planned : null, planned: planned, mae: fin(r.mae) ? r.mae : null, ex: e,
+         event: r.level && typeof r.level.event === 'string' ? r.level.event : null, level: r.level && typeof r.level.name === 'string' ? pt12(r.level.name) : null, levelPx: r.level && fin(r.level.price) ? r.level.price : null,
+         gross: gross, net: net, fees: gross != null && net != null ? gross - net : null, rt: r.exit && typeof r.exit.rt === 'string' ? r.exit.rt : null, rtSize: r.exit && fin(r.exit.size) ? r.exit.size : null, rtSrc: r.exit && r.exit.src || null,
+@@ -223,10 +243,10 @@
+     var sum = 0, all = m.rows.length > 0; m.rows.forEach(function (r) { if (r.net == null) all = false; else sum += r.net; });
+     m.rowsNet = all && fin(d.dayPnlNet) && Math.round(sum * 100) === Math.round(d.dayPnlNet * 100) ? sum : null;
+     m.trips = d.dayTrips && fin(d.dayTrips.n) ? d.dayTrips.n : null; m.at = fin(d.updated) ? d.updated : null;
+-    var dt = d.dayTrips, op = posOpen(d) === false ? 0 : fin(d.openPnl) ? d.openPnl : null;
++    var dt = d.dayTrips, op = posOpen(d) === false ? 0 : posOpen(d) === true && fin(d.openPnl) ? d.openPnl : null;
+     // the day line: closed net + gross + fees from the bot's whole-day round trips, shown only when closed net + open equals the header's figure to the cent
+     if (dt && fin(dt.net) && fin(dt.gross) && m.day != null && op != null && Math.round((dt.net + op) * 100) === Math.round(m.day * 100)) m.dayLine = { net: dt.net, gross: dt.gross, fees: dt.gross - dt.net, open: op };
+-    else m.dayWhy = !dt || !fin(dt.net) || !fin(dt.gross) ? 'the day’s gross and net are not sent' : m.day == null ? 'day figure not sent' : op == null ? 'open P&L not sent' : 'closed net plus open does not equal the header’s day figure, breakdown withheld';
++    else m.dayWhy = !dt || !fin(dt.net) || !fin(dt.gross) ? 'the day’s gross and net are not sent' : m.day == null ? 'day figure not sent' : op == null ? (posOpen(d) === null ? 'position UNKNOWN: ' + posState(d).why : 'open P&L not sent') : 'closed net plus open does not equal the header’s day figure, breakdown withheld';
+     return m;
+   }
+   var ledgerAll = false;
+@@ -234,7 +254,7 @@
+     var tone = r.pts == null ? 'unk' : r.pts > 0 ? 'win' : r.pts < 0 ? 'loss' : 'flat', rtT = r.rt ? r.rt.split('|')[1] : null, rtMs = rtT ? Date.parse(rtT) : NaN;
+     return '<li class="t2-row" data-tone="' + tone + '" data-id="' + esc(r.id) + '"' + (r.fullStop ? ' data-fullstop="1"' : '') + '>'
+       + '<div class="t2-row-a"><span class="t2-row-side" data-k="side">' + txt(r.side, st, 'side not sent', 't2-side') + ' ' + cell(r.qty != null ? r.qty : NaN, function (v) { return v + 'x'; }, st, 'qty not sent') + '</span>'
+-      + '<span class="t2-row-px" data-k="px">' + cell(r.entry != null ? r.entry : NaN, px, st, 'entry not sent') + ' <span class="t2-at">→</span> ' + cell(r.exit != null ? r.exit : NaN, px, st, 'exit price not sent') + '</span><span class="t2-row-t" data-k="time">' + (r.openedAt != null ? esc(timePT(r.openedAt)) : 'time ' + unk('not sent')) + '</span></div>'
++      + '<span class="t2-row-px" data-k="px">' + cell(r.entry != null ? r.entry : NaN, px, st, 'entry not sent') + ' <span class="t2-at">→</span> ' + (r.exit != null && r.exitAvg ? '<small>avg</small> ' : '') + cell(r.exit != null ? r.exit : NaN, px, st, 'exit price not sent') + '</span><span class="t2-row-t" data-k="time">' + (r.openedAt != null ? esc(timePT(r.openedAt)) : 'time ' + unk('not sent')) + '</span></div>'
+       + '<div class="t2-row-b"><span class="t2-pill" data-k="pts">' + cell(r.pts != null ? r.pts : NaN, ptsS, st, 'pts not sent') + (r.pts != null ? ' <small>pts/ct</small>' : '') + '</span>'
+       + '<span class="t2-pill t2-pill-q" data-k="R">' + cell(r.R != null ? r.R : NaN, rS, st, r.pts == null ? 'R needs pts' : 'planned stop not sent') + '</span>'
+       + '<span class="t2-pill t2-pill-q" data-k="mae"><small>worst</small> ' + cell(r.mae != null ? r.mae : NaN, ptsS, st, 'worst excursion not sent') + '</span>'
+@@ -259,6 +279,7 @@
+   }
+ 
+   /* ── (e) gates ── */
++  var OFF_KEYS = { notMacGradeB: 1, notGradeCAsia: 1 };   // blocks the owner switched off (grade-B 10/14, grade-C Asia): listed as OFF
+   function gatesModel(d, c) {
+     var sst = snapState(d, c), m = { st: sst, rows: [], age: null };
+     if (sst === 'UNKNOWN') { m.why = !d || d.available === false ? 'no snapshot' : 'snapshot has no time'; return m; }
+@@ -274,22 +295,23 @@
+       if (it.key === 'news' && !(d.news && fin(d.news.count) && d.news.count > 0)) { m.rows.push({ key: 'news', label: 'News pause', val: null, why: 'no calendar loaded (the pause cannot fire without one)', res: 'UNKNOWN' }); return; }
+       var val = typeof it.detail === 'string' ? it.detail : null;
+       if (it.key === 'controlGate' && d.controlDisplay && fin(d.controlDisplay.score) && fin(d.controlDisplay.threshold)) val = '15m control ' + d.controlDisplay.score.toFixed(3) + ' vs min ' + d.controlDisplay.threshold.toFixed(2) + (val ? ' · ' + val : '');
+-      m.rows.push({ key: it.key, label: pt12(it.label || it.key), val: val == null ? null : pt12(val), res: it.pass === true ? 'PASS' : it.pass === false ? 'BLOCK' : 'WAIT' });
++      var off = OFF_KEYS[it.key] || /(^|\b)(block|gate|filter|check) (is )?(switched )?off\b|\bswitched off\b/i.test(String(it.detail || ''));   // a block the owner switched off is not a gate that passed (QA 11/10 #8)
++      m.rows.push({ key: it.key, label: pt12(it.label || it.key), val: val == null ? null : pt12(val), res: off && it.pass !== false ? 'OFF' : it.pass === true ? 'PASS' : it.pass === false ? 'BLOCK' : 'WAIT' });
+     });
+     if (d.pause && fin(d.pause.until)) m.rows.unshift({ key: 'pause', label: 'Manual pause', val: 'paused until ' + clockPT(d.pause.until), res: 'BLOCK' });
+-    m.n = { PASS: 0, BLOCK: 0, WAIT: 0, UNKNOWN: 0 }; m.rows.forEach(function (r, i) { m.n[r.res]++; r.i = i; });
+-    var ORD = { BLOCK: 0, UNKNOWN: 1, WAIT: 2, PASS: 3 }; m.rows.sort(function (a, b) { return ORD[a.res] - ORD[b.res] || a.i - b.i; });   // what blocks first, then the bot's own order
++    m.n = { PASS: 0, BLOCK: 0, WAIT: 0, UNKNOWN: 0, OFF: 0 }; m.rows.forEach(function (r, i) { m.n[r.res]++; r.i = i; });
++    var ORD = { BLOCK: 0, UNKNOWN: 1, WAIT: 2, PASS: 3, OFF: 4 }; m.rows.sort(function (a, b) { return ORD[a.res] - ORD[b.res] || a.i - b.i; });   // what blocks first, then the bot's own order
+     m.at = t;
+     return m;
+   }
+   function gatesHtml(m, c) {
+     var head = '<div class="t2-head"><span class="t2-title">Gates this build reads</span>' + chip(m.st, c, m.age) + '</div>';
+     if (m.st === 'UNKNOWN') return head + '<div class="t2-big">' + unk(m.why) + '</div><div class="t2-sub">A gate the snapshot does not report is not listed as passing.</div>' + ageLine(m.st, c, m.at, m.age, 'bot evaluated');
+-    var old = m.st === 'STALE', h = head + '<div class="t2-gsum" data-k="sum">' + (old ? '<span class="t2-warnline">Last evaluated ' + esc(ageText(m.age)) + ' ago: results below are old, not current.</span>' : txt(m.n.BLOCK + ' block · ' + m.n.UNKNOWN + ' unknown · ' + m.n.WAIT + ' not evaluated yet · ' + m.n.PASS + ' pass', m.st, '')) + '</div><ul class="t2-gates">';
++    var old = m.st === 'STALE', h = head + '<div class="t2-gsum" data-k="sum">' + (old ? '<span class="t2-warnline">Last evaluated ' + esc(ageText(m.age)) + ' ago: results below are old, not current.</span>' : txt(m.n.BLOCK + ' block · ' + m.n.UNKNOWN + ' unknown · ' + m.n.WAIT + ' not evaluated yet · ' + m.n.PASS + ' pass' + (m.n.OFF ? ' · ' + m.n.OFF + ' off' : ''), m.st, '')) + '</div><ul class="t2-gates">';
+     m.rows.forEach(function (r) {
+       h += '<li class="t2-gate" data-res="' + (old ? 'OLD' : r.res) + '" data-key="' + esc(r.key) + '"><span class="t2-gate-r">' + (old ? '<s class="t2-old" data-st="STALE">' + r.res + '</s>' : r.res === 'WAIT' ? 'WAITING' : r.res) + '</span>'
+         + '<span class="t2-gate-b"><span class="t2-gate-l">' + esc(r.label) + '</span><span class="t2-gate-v">' + (r.res === 'UNKNOWN' ? unk(r.why) : txt(r.val, m.st, 'value not sent')) + '</span></span></li>'; });
+-    return h + '</ul><div class="t2-sub">From the bot’s own entry checklist, in its order. What blocks comes first, then the bot’s own order. Information-only rows (MAC, VIX under levels-only) are left out.</div>' + ageLine(m.st, c, m.at, m.age, 'bot evaluated');
++    return h + '</ul><div class="t2-sub">From the bot’s own entry checklist, in its order. What blocks comes first, then the bot’s own order. Information-only rows (MAC, VIX under levels-only) are left out. OFF = a block the owner switched off: it is not checked.</div>' + ageLine(m.st, c, m.at, m.age, 'bot evaluated');
+   }
+ 
+   function verdictHtml(m, c) {
+@@ -358,7 +380,7 @@
+   var EXTRA = [];   // later stages add (d, c) renderers here
+   function render() {
+     var d = snap(), c = clock(d, Date.now()), cfg = evalCfg(), vis = { now: shown('view-dashboard'), trades: shown('view-trades'), checklist: shown('view-checklist'), control: shown('view-control') };   // a hidden tab costs nothing; it is rendered the moment it is shown
+-    try { put(E.stamp, stampsHtml(stampsModel(readStamp(), c), c)); } catch (e) { put(E.stamp, unk('stamp view failed')); }
++    try { put(E.stamp, stampsHtml(stampsModel(readStamp(), c, Date.now()), c)); } catch (e) { put(E.stamp, unk('stamp view failed')); }
+     var em = { st: 'UNKNOWN', why: 'eval view failed', cfg: cfg }, lm = { st: 'UNKNOWN', rows: [], why: 'trade view failed' };
+     try { em = evalModel(d, cfg, c); if (vis.now) put(E.eval, evalHtml(em, c)); } catch (e) { put(E.eval, unk('eval view failed')); }
+     E.eval.dataset.state = em.st; E.eval.dataset.tone = em.st === 'LIVE' ? em.tone : 'unk';
+@@ -395,7 +417,7 @@
+     else if (a === 'notif') { try { var p = Notification.requestPermission(function () { render(); }); if (p && p.then) p.then(render, render); } catch (e) { render(); } }
+   }
+   window.T210 = { release: '2.1.0', fresh: fresh, worst: worst, ageText: ageText, LIMIT: LIMIT, cell: cell, txt: txt, unk: unk, chip: chip, clock: clock, snapState: snapState, stateWord: stateWord, put: put, mk: mk, EXTRA: EXTRA, E: E, timePT: timePT, datePT: datePT, pt12: pt12, ageLine: ageLine, esc: esc,
+-    models: { stamps: stampsModel, evalScore: evalModel, broker: brokerModel, ledger: ledgerModel, gates: gatesModel, exitOf: exitOf }, render: render };
++    models: { stamps: stampsModel, evalScore: evalModel, broker: brokerModel, ledger: ledgerModel, gates: gatesModel, exitOf: exitOf, posState: posState }, posState: posState, px: px, render: render };
+   function start() { if (!mount()) return; render(); setInterval(render, 1000); document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); }); }
+   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+ })();

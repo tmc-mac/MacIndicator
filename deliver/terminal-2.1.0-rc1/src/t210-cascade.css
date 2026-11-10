@@ -1,0 +1,32 @@
+/* terminal 2.1.0 stage 2: the HTF cascade. Motion: transform and opacity only. */
+.t2-cascade[data-state="LIVE"] { --tone: var(--accent); }
+.t2-cascade[data-state="LIVE"][data-aligned="1"] { --tone: var(--bull); }
+.t2c-sum { font-size: var(--fs-16); line-height: 1.35; color: var(--t1); font-weight: 600; overflow-wrap: anywhere; }
+.t2c-sum b { font-size: var(--fs-20); font-weight: 800; margin-right: 6px; }
+.t2c-ok { color: var(--bull); } .t2c-stop { color: var(--bear); }
+.t2c-ref { font-size: var(--fs-12); color: var(--t2); margin-top: 2px; }
+.t2c { list-style: none; margin: 14px 0 0; padding: 0; --fc: var(--border-strong); }
+.t2c[data-dir="up"] { --fc: var(--bull); --ac: var(--bear); } .t2c[data-dir="down"] { --fc: var(--bear); --ac: var(--bull); }
+.t2c-n { position: relative; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 0 10px; padding-bottom: 16px; --nc: var(--border-strong); }
+.t2c-n:last-child { padding-bottom: 0; }
+.t2c-n[data-state="WITH"] { --nc: var(--fc); } .t2c-n[data-state="AGAINST"] { --nc: var(--ac); } .t2c-n[data-state="UNKNOWN"] { --nc: var(--status-warning); }
+.t2c-dot { width: 18px; height: 18px; margin: 1px 5px 0; border-radius: 50%; border: 3px solid var(--nc); background: var(--s1); position: relative; z-index: 1; box-sizing: border-box; }
+.t2c-n[data-lit="1"] .t2c-dot { background: var(--nc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--nc) 22%, transparent), 0 0 16px var(--nc); }
+.t2c-n[data-state="UNKNOWN"] .t2c-dot, .t2c-n[data-state="SKIP"] .t2c-dot { border-style: dashed; }
+.t2c-n[data-state="SKIP"] .t2c-dot { width: 12px; height: 12px; margin: 4px 8px 0; border-width: 2px; }
+.t2c-n[data-block="1"] .t2c-dot::after { content: ''; position: absolute; inset: -8px; border-radius: 50%; border: 2px solid var(--nc); opacity: 0.55; }
+.t2c-link { position: absolute; left: 12px; top: 19px; bottom: -1px; width: 4px; border-radius: 2px; background: var(--border); overflow: hidden; }
+.t2c-link[data-lit="1"] { background: var(--fc); box-shadow: 0 0 10px var(--fc); }
+.t2c-link b { position: absolute; left: 0; right: 0; top: 0; height: 100%; background: linear-gradient(to bottom, transparent, var(--shine) 45%, #fff 50%, var(--shine) 55%, transparent); opacity: 0; transform: translateY(-100%); will-change: transform; }
+.t2-cascade[data-state="LIVE"][data-flow="1"] .t2c-link[data-lit="1"] b { opacity: 0.9; animation: t2c-flow 1.4s linear 2; }
+@keyframes t2c-flow { from { transform: translateY(-100%); } to { transform: translateY(100%); } }
+.t2c-b { display: block; min-width: 0; }
+.t2c-l { font-size: var(--fs-16); font-weight: 800; color: var(--t1); margin-right: 8px; }
+.t2c-s { font-size: var(--fs-12); font-weight: 800; letter-spacing: 0.03em; color: var(--t2); }
+.t2c-n[data-state="WITH"] .t2c-s { color: var(--fc); } .t2c-n[data-state="AGAINST"] .t2c-s { color: var(--ac); } .t2c-n[data-state="UNKNOWN"] .t2c-s { color: var(--status-warning); }
+.t2c-d { font-weight: 700; letter-spacing: 0; }
+.t2c-blk { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: var(--r-sm); border: 1px solid currentColor; font-weight: 800; }
+.t2c-v { display: block; font-size: var(--fs-14); color: var(--t1); overflow-wrap: anywhere; margin-top: 2px; } .t2c-v .t2-v { font-family: var(--mono); }
+.t2c-n[data-state="SKIP"] .t2c-v, .t2c-n[data-state="SKIP"] .t2c-l { color: var(--t2); font-weight: 600; font-size: var(--fs-14); }
+.t2c-a { display: block; font-size: var(--fs-12); color: var(--t2); font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .t2-cascade[data-state="LIVE"][data-flow="1"] .t2c-link[data-lit="1"] b { animation: none; opacity: 0; } }
