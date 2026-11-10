@@ -1,0 +1,473 @@
+diff --git a/lib/entryCancelRequests.js b/lib/entryCancelRequests.js
+index 0937d28..bca3d54 100644
+--- a/lib/entryCancelRequests.js
++++ b/lib/entryCancelRequests.js
+@@ -1,6 +1,10 @@
+ 'use strict';
+ const fs = require('fs'), path = require('path'), crypto = require('crypto');
+-const terminal = new Set(['cancelled', 'resolved', 'filled']);
++const terminal = new Set(['cancelled', 'resolved', 'filled', 'stale']);
++// r1.1: a cancel request the executor has not picked up within MAX_AGE_MS (60 s, the same limit as flatten / pause in lib/phoneRequests.js) is never acted on:
++// it is closed as 'stale' (journaled and acked STALE) so an old tap can never cancel an entry later, e.g. after a restart. A request already picked up in
++// time ('pending' / 'unknown', tracking retained) is unchanged. A new tap for the same entry after a stale one queues a fresh request.
++const MAX_AGE_MS = 60000;
+ function validTarget(t) {
+   return t && Number.isSafeInteger(t.accountId) && t.accountId > 0 && typeof t.contractId === 'string' && t.contractId.length < 100 &&
+     /^[A-Za-z0-9-]{1,80}$/.test(String(t.orderId)) && /^[a-f0-9-]{36}$/.test(t.entryIdentity);
+@@ -8,7 +12,7 @@ function validTarget(t) {
+ function requestId(symbol, target) {
+   return crypto.createHash('sha256').update(JSON.stringify([symbol,target.accountId,target.contractId,String(target.orderId),target.entryIdentity])).digest('hex');
+ }
+-function store(dir, symbol) {
++function store(dir, symbol, { maxAgeMs = MAX_AGE_MS, now = () => Date.now() } = {}) {
+   if (!/^[A-Z0-9]{1,10}$/.test(symbol)) throw new Error('Invalid symbol');
+   const folder = path.join(dir, `entry-cancel-${symbol}`);
+   function file(id) { if (!/^[a-f0-9]{64}$/.test(id)) throw new Error('Invalid request ID'); return path.join(folder, id + '.json'); }
+@@ -17,10 +21,12 @@ function store(dir, symbol) {
+   function enqueue(target, validate) {
+     if (!validTarget(target)) throw new Error('Missing exact entry identity; refresh the terminal');
+     const id = requestId(symbol, target);
+-    try { return read(id); } catch (e) { if (e.code !== 'ENOENT') throw e; }
++    let old = null;
++    try { old = read(id); if (old.outcome !== 'stale') return old; } catch (e) { if (e.code !== 'ENOENT') throw e; }
+     if (validate) validate(target);
+     fs.mkdirSync(folder, { recursive: true });
+-    const r = { requestId: id, symbol, target, outcome: 'requested', detail: 'Queued; executor has not acknowledged', requestedAt: Date.now(), updatedAt: Date.now(), revision: 0 };
++    const r = { requestId: id, symbol, target, outcome: 'requested', detail: 'Queued; executor has not acknowledged', requestedAt: now(), updatedAt: now(), revision: old ? (old.revision || 0) + 1 : 0 };
++    if (old) { write(r); return r; }   // r1.1: a fresh tap after a stale request
+     try { fs.writeFileSync(file(id), JSON.stringify(r), { flag: 'wx' }); return r; }
+     catch (e) { if (e.code === 'EEXIST') return read(id); throw e; }
+   }
+@@ -36,6 +42,15 @@ function store(dir, symbol) {
+         let r = read(id);
+         if (terminal.has(r.outcome)) continue;
+         if (r.symbol !== symbol || !validTarget(r.target) || requestId(symbol,r.target) !== id) throw new Error('Invalid request target');
++        if (r.outcome === 'requested') {   // r1.1: never picked up within 60 s -> STALE, not acted on (no broker call)
++          const age = Number.isFinite(r.requestedAt) ? now() - r.requestedAt : Infinity;
++          if (!(age <= maxAgeMs)) {
++            r = { ...r, outcome: 'stale', detail: Number.isFinite(age) ? `STALE: written ${Math.round(age / 1000)} s ago (limit ${Math.round(maxAgeMs / 1000)} s); not acted on` : 'STALE: no request time; not acted on', updatedAt: now(), revision: (r.revision || 0) + 1 };
++            write(r);
++            if (report) report(r);
++            continue;
++          }
++        }
+         // Persist consumption BEFORE any broker await. A crash leaves pending, not success.
+         r = { ...r, outcome: 'pending', detail: 'Executor checking exact entry', updatedAt: Date.now(), revision: r.revision + 1 };
+         write(r);
+@@ -50,4 +65,4 @@ function store(dir, symbol) {
+   }
+   return { enqueue, read, process };
+ }
+-module.exports = { store, validTarget, requestId };
++module.exports = { store, validTarget, requestId, MAX_AGE_MS };
+diff --git a/lib/liveStateMachine.js b/lib/liveStateMachine.js
+index 47f5d03..8df576e 100644
+--- a/lib/liveStateMachine.js
++++ b/lib/liveStateMachine.js
+@@ -321,7 +321,7 @@ class LiveStateMachine {
+   // anything else (other size, opposite side, never settles, unreadable) = a latched HALT with an urgent alert. Returns { done, result } or { done: false, st }.
+   async _startupExitInFlight(st) {
+     const x = st.exitInFlight, dir = x.dir === 1 || x.dir === -1 ? x.dir : st.dir, size = Number.isInteger(x.size) && x.size > 0 ? x.size : null;
+-    const T = { 'no-progress': 'no-progress exit', 'level-loss': 'level-loss exit', 'morning-hold': 'morning-hold close', 'session-close': 'session close' }[x.kind] || 'market exit';
++    const T = { 'no-progress': 'no-progress exit', 'level-loss': 'level-loss exit', 'morning-hold': 'morning-hold close', 'session-close': 'session close', manual: 'manual flatten', 'through-stop': 'filled-through-stop exit' }[x.kind] || 'market exit';   // r1.1: + manual, through-stop
+     const write = obj => { try { const tmp = this.stateFile + '.tmp'; fs.writeFileSync(tmp, JSON.stringify({ ...obj, savedAt: Date.now() })); fs.renameSync(tmp, this.stateFile); return true; } catch (e) { this.log(`  [state] could not write the trade state (${e.message}).`); return false; } };
+     const halt = why => {
+       this.desynced = true; this._so1HaltWhy = why; this._haltLatched = write({ ...st, so1Halt: why });
+@@ -330,7 +330,7 @@ class LiveStateMachine {
+       try { this._manage('EXIT_HALT', `Exit safety halt at startup: ${why}.`, { exitInFlight: x }); } catch (e2) { /* journal only */ }
+       return { done: true, result: { latched: true, why } };
+     };
+-    if (!dir || !size || !OPEN_PHASES.concat(['FLATTENING']).includes(st.phase)) return halt(`a ${T} was in flight at the restart but its record is not usable (${JSON.stringify(x).slice(0, 120)})`);
++    if (!dir || !size || !OPEN_PHASES.concat(['FLATTENING'], x.kind === 'through-stop' ? ['PENDING_ENTRY'] : []).includes(st.phase)) return halt(`a ${T} was in flight at the restart but its record is not usable (${JSON.stringify(x).slice(0, 120)})`);
+     this.log(`  [exit-safety] startup: a ${T} (${size}x, outcome ${x.outcome}) was in flight when the bot stopped - reading the broker until it settles before anything else.`);
+     let r = await safeExit.settle(this._settleIo(), dir, size, this._settleOpts());
+     if (r.verdict === 'flat' && r.orders.length) { await this.cancelAllOrdersForContract(); r = await safeExit.settle(this._settleIo(), dir, size, this._settleOpts()); if (r.verdict === 'flat' && r.orders.length) r = { ...r, verdict: 'unsettled' }; }
+@@ -345,7 +345,7 @@ class LiveStateMachine {
+     }
+     if (r.verdict === 'same') {
+       const { exitInFlight, ...rest } = st, st2 = { ...rest, phase: OPEN_PHASES.includes(st.phase) ? st.phase : 'LEG1_OPEN', ...(st.npState && typeof st.npState === 'object' ? { npState: { ...st.npState, sending: false } } : {}) };
+-      if (!OPEN_PHASES.includes(st.phase)) return halt(`a ${T} was accepted before the restart but the broker still shows ${dir === 1 ? 'LONG' : 'SHORT'} ${size}x`);
++      if (!OPEN_PHASES.includes(st.phase)) return halt(`a ${T} was in flight or accepted before the restart and the broker still shows ${dir === 1 ? 'LONG' : 'SHORT'} ${size}x`);
+       if (!write(st2)) return halt(`a ${T} was in flight at the restart; the broker still shows the position but the cleared state could not be written`);
+       this.log(`  [exit-safety] startup: the ${T} did NOT fill (the broker shows the same ${dir === 1 ? 'LONG' : 'SHORT'} ${size}x, nothing working) - resuming the trade; its stop/TP are re-placed by the restore and the exit is retried by its owner (${st.exitAttempts || 0}/${safeExit.EXIT_MAX_ATTEMPTS} attempts used).`);
+       try { this._manage('EXIT_UNKNOWN_NOT_FILLED', `After a restart: the ${T} that was in flight did NOT fill; the broker shows the same position with nothing working. The trade is resumed with its protection; the exit is retried within its cap.`, ex); } catch (e2) { /* journal only */ }
+@@ -390,7 +390,7 @@ class LiveStateMachine {
+     this.stopOrderId = st.stopOrderId; this.targetOrderId = st.targetOrderId; this.leg3StopOrderId = st.leg3StopOrderId; this.entryOrderId = null;
+     this.source = st.source; this.grade = st.grade; this.sessionExit = st.sessionExit; this.peakUnrealized = st.peakUnrealized || 0;
+     this.profitLocked = !!st.profitLocked; this.profitLocked2 = !!st.profitLocked2; this.tightStopPrice = null; this.smartHoldChecked = true;
+-    Object.assign(this, npRestore(st)); this.flattenKind = st.flattenKind === 'no-progress' ? 'no-progress' : st.flattenKind === 'level-loss' ? 'level-loss' : null; this.pxBoundaryAt = Date.now();   // r1.5: without a valid restored fill time, prices from after the restore only   // np1 r1.1: the whole record validated (npRestore)
++    Object.assign(this, npRestore(st)); this.flattenKind = st.flattenKind === 'no-progress' ? 'no-progress' : st.flattenKind === 'level-loss' ? 'level-loss' : st.flattenKind === 'manual' ? 'manual' : null;   // r1.1: an unfinished manual flatten survives a restart this.pxBoundaryAt = Date.now();   // r1.5: without a valid restored fill time, prices from after the restore only   // np1 r1.1: the whole record validated (npRestore)
+     this.lossLevel = lossLevelRestore(st.lossLevel);   // exits5m r1 (null when absent or malformed)
+     this.exitAttempts = Number.isInteger(st.exitAttempts) && st.exitAttempts > 0 ? st.exitAttempts : 0;   // bf-exitsafe: the K cap spans restarts
+     this.phase = st.phase;
+@@ -1041,10 +1041,17 @@ class LiveStateMachine {
+       try { this._manage('FILLED_THROUGH_STOP', `The ${d} entry planned at ${this.intendedEntryPrice.toFixed(2)} filled at ${fill.toFixed(2)} (news or a gap), already at or beyond its planned stop ${st}. The setup was stopped out before it began, so all ${n} contracts are closed at market at once instead of moving the stop with the gap.`, { fill, stop: this.stopPriceIntended, slip: slip.delta }); } catch (e2) { /* journal only */ }
+       this.notify('Filled through the planned stop at news/gap - exited', `${d} ${n}x filled @ ${fill.toFixed(2)}, beyond the planned stop ${st}. Closing all ${n} at market now.`, { priority: 'high', tags: 'rotating_light' });
+     }
++    // r1.1: the through-stop exit is on the safe-exit rule too: a backoff after a rejection, K = 3 market sends in total (rejected or unknown-then-still-open),
++    // the in-flight exit on disk before the send, a lost reply settled before anything else, then HALT. The backup stop rests whenever no exit is in flight.
++    if (this.exitRetryAt && Date.now() < this.exitRetryAt) return;   // backoff after a rejected exit; the backup stop keeps resting
++    const K = safeExit.EXIT_MAX_ATTEMPTS, backupLvl = () => roundToTick(fill - this.dir * Math.abs(this.intendedEntryPrice - this.stopPriceIntended), this.tickSize);
++    const backupStop = async sz => { try { if (!this.stopOrderId) this.stopOrderId = await this.placeProtectiveStop(sz, backupLvl()); } catch (e3) { this.log(`  [live] CRITICAL: the backup stop for ${sz}x could not be placed (${e3.message}).`); } };   // QA 10/16 C1: never naked while the exit retries
++    const capHalt = (sz, why) => this._exitHalt(`the market exit after a fill through the stop ${why} - ${this.exitAttempts} of ${K} market attempts used and the position is still open (${sz}x)`, `Through-stop exit FAILED ${this.exitAttempts}x - FLATTEN IN TOPSTEPX NOW`, `The bot tried ${this.exitAttempts} times to close ${sz}x at market (the entry filled through its stop) and the broker still shows the position. A backup stop was placed where possible. The bot has HALTED (no new entries). Use Flatten / Close position in TopstepX.`);
+     let size;
+     try { const pos = await getOpenPosition(this.token, this.accountId, this.contractId); size = pos ? pos.size : 0; }
+     catch (e) { this.log(`  [live] filled-through-stop exit: position re-read failed (${e.message}) - retrying next poll.`); return; }
+     if (!size) { this.log('  [live] filled-through-stop exit: the position is already 0 - cleaning up.'); await this.cancelAllOrdersForContract(); this.reset(); return; }
++    if ((this.exitAttempts || 0) >= K) { await backupStop(size); capHalt(size, 'reached its cap'); return; }   // checked before the backup stop is touched
+     // ROUND 4 (QA B4): a backup stop from an earlier failed attempt is cancelled (verified) BEFORE the market exit, never after: otherwise the stop can fill
+     // between the exit and its cancel and reverse the position. Still resting = send nothing this poll (the stale-stop sweep retries; the next poll re-evaluates).
+     if (this.stopOrderId) {
+@@ -1052,25 +1059,51 @@ class LiveStateMachine {
+       if (!gone) { this.log('  [live] filled-through-stop exit: the backup stop is still resting - NOT sending the market exit this poll (it would reverse the position if both filled).'); return; }
+       this.stopOrderId = null;
+       try { const p2 = await getOpenPosition(this.token, this.accountId, this.contractId); size = p2 ? p2.size : 0; }
+-      catch (e) { this.log(`  [live] filled-through-stop exit: position re-read after the backup-stop cancel failed (${e.message}) - retrying next poll.`); return; }
++      catch (e) { this.log(`  [live] filled-through-stop exit: position re-read after the backup-stop cancel failed (${e.message}) - backup stop back, retrying next poll.`); await backupStop(size); return; }
+       if (!size) { this.log('  [live] filled-through-stop exit: the backup stop already closed the position - confirming.'); await this.cancelAllOrdersForContract(); this.exitReason = 'through-stop'; this.phase = 'FLATTENING'; return; }
+     }
++    // the in-flight exit is on disk BEFORE the market goes out (a restart while it is unresolved runs the same settle rule, _startupExitInFlight)
++    this.exitAttempts = (this.exitAttempts || 0) + 1;
++    this.exitInFlight = { kind: 'through-stop', dir: this.dir, size, at: Date.now(), attempt: this.exitAttempts, outcome: 'sending' };
++    if (this.stateFile && this.saveState() !== true) {
++      this.exitInFlight = null; this.exitAttempts--;
++      this.log('  [through-stop] the exit intent could not be saved - backup stop back, NOT sending the exit this poll (retried next poll).');
++      await backupStop(size); return;
++    }
+     jr.requestClose(this, 'filled_through_planned_stop', 'AUTOMATIC', '_exitFilledThroughStop after position and backup-stop checks; before market submission');
+-    const sentAt = Date.now();   // bf-exitsafe
++    const sentAt = this.exitInFlight.at;   // bf-exitsafe
+     try { await placeOrder(this.token, { accountId: this.accountId, contractId: this.contractId, type: OrderType.MARKET, side: this.sideFor(this.dir, true), size }); }
+     catch (e) {
+       if (safeExit.classifyExitError(e) === 'unknown') {   // bf-exitsafe: a lost reply is not a failure - settle first; never a backup stop or a second exit on an unknown outcome
++        this.exitInFlight = { ...this.exitInFlight, outcome: 'unknown', err: String(e && e.message || e) }; this.saveState();
++        this.log(`  [through-stop] the market exit (${size}x) was sent but its outcome is UNKNOWN (${e.message}) - sending nothing, no backup stop; reading the broker until it settles.`);
+         const r = await this._confirmNotFilled(await safeExit.settle(this._settleIo(), this.dir, size, this._settleOpts()), this.dir, size, sentAt);
+         try { this._manage('EXIT_OUTCOME_UNKNOWN', `The market exit after the fill through the stop (${size}x) got no reply (${e.message}); the broker settled: ${r.verdict}.`, { verdict: r.verdict, net: r.net, size }); } catch (e2) { /* journal only */ }
+-        if (r.verdict === 'flat') { if (r.orders.length) await this.cancelAllOrdersForContract(); this.exitReason = 'through-stop'; this.phase = 'FLATTENING'; return; }
+-        if (r.verdict !== 'same') { this.flattenKind = null; this.exitWhat = null; this._exitHalt(`the market exit after a fill through the stop (${size}x) got no reply and the broker settled ${r.verdict} (net ${r.net})`, 'Exit outcome UNKNOWN - FLATTEN IN TOPSTEPX NOW', `The market exit for ${size}x (entry filled through its stop) got no reply and the broker shows ${r.verdict === 'unsettled' ? 'no stable picture' : `net ${r.net}`}. The bot has HALTED: no new entries, no orders. Use Flatten / Close position in TopstepX.`); return; }
++        if (r.verdict === 'flat') { this.exitInFlight = { ...this.exitInFlight, outcome: 'filled' }; if (r.orders.length) await this.cancelAllOrdersForContract(); this.exitReason = 'through-stop'; this.phase = 'FLATTENING'; return; }
++        if (r.verdict !== 'same') { this._exitHalt(`the market exit after a fill through the stop (${size}x) got no reply and the broker settled ${r.verdict} (net ${r.net})${r.why ? ': ' + r.why : ''}`, 'Exit outcome UNKNOWN - FLATTEN IN TOPSTEPX NOW', `The market exit for ${size}x (entry filled through its stop) got no reply and the broker shows ${r.verdict === 'unsettled' ? 'no stable picture' : `net ${r.net}`}. The bot has HALTED: no new entries, no orders. Use Flatten / Close position in TopstepX.`); return; }
++        // same: the exit did not happen (position, orders and history agree) -> backup stop back, retry next poll within the cap
++        this.exitInFlight = null;
++        try { this._manage('EXIT_UNKNOWN_NOT_FILLED', `Through-stop exit: the lost-reply exit did NOT fill (${r.reads.length} reads); backup stop placed; attempt ${this.exitAttempts} of ${K} used.`, { size, attempts: this.exitAttempts }); } catch (e2) { /* journal only */ }
++        await backupStop(size);
++        if (this.exitAttempts >= K) { capHalt(size, 'could not be confirmed'); return; }
++        this.log(`  [through-stop] the unknown exit did NOT fill (the broker settled on ${size}x, nothing working) - backup stop placed, retry next poll (${this.exitAttempts}/${K}).`);
++        this._notifyThrottled('EXIT FAILED', 'EXIT FAILED - position open beyond its stop', `The market exit for ${size}x got no reply and the broker still shows the position. A backup stop is resting; the bot retries (at most ${K} attempts, then it halts). Flatten in TopstepX if this repeats.`, { priority: 'urgent', tags: 'rotating_light' });
++        return;
+       }
+-      this.log(`  [live] CRITICAL: market exit after a fill through the stop FAILED (${e.message}) - retrying every poll.`);
+-      this._notifyThrottled('EXIT FAILED', 'EXIT FAILED - position open beyond its stop', `Could not close ${size}x at market (${e.message}). The bot retries every poll. Flatten in TopstepX if this repeats.`, { priority: 'urgent', tags: 'rotating_light' });   // 18f1 F5: max 1 push / position / 60 s
+-      // QA 10/16 C1: never naked while the exit retries - a backup protective stop at the PLANNED distance from the real fill (cleaned up when flat / after the exit)
+-      try { if (!this.stopOrderId) this.stopOrderId = await this.placeProtectiveStop(size, roundToTick(fill - this.dir * Math.abs(this.intendedEntryPrice - this.stopPriceIntended), this.tickSize)); } catch (e3) { /* the UNPROTECTED alert above already fired */ }
++      // a proven REJECTION: nothing happened at the broker -> backup stop back, retry after the backoff, HALT at the cap
++      this.exitInFlight = null;
++      this.sessionExitFails = (this.sessionExitFails || 0) + 1;
++      const capped = this.exitAttempts >= K, wait = safeExit.backoffMs(this.sessionExitFails);
++      this.log(`  [live] CRITICAL: market exit after a fill through the stop was REJECTED (${e.message}) - backup stop back${capped ? '; attempt cap reached, halting' : `, retrying ${wait ? `in ${wait / 1000} s` : 'next poll'}`} (attempt ${this.exitAttempts}/${K}).`);
++      try { this._manage('THROUGH_STOP_EXIT_RETRY', `The market exit after the fill through the stop was rejected (${e.message}); a backup stop is placed${capped ? ' and the attempt cap was reached' : ' and the bot retries'} (attempt ${this.exitAttempts} of ${K}).`, { attempt: this.sessionExitFails, sends: this.exitAttempts }); } catch (e2) { /* journal only */ }
++      await backupStop(size);
++      if (capped) { capHalt(size, `was rejected ${this.sessionExitFails}x (last: ${e.message})`); return; }
++      this.exitRetryAt = Date.now() + wait;
++      this._notifyThrottled('EXIT FAILED', 'EXIT FAILED - position open beyond its stop', `Could not close ${size}x at market (${e.message}). A backup stop is resting; the bot retries (at most ${K} attempts, then it halts). Flatten in TopstepX if this repeats.`, { priority: 'urgent', tags: 'rotating_light' });   // 18f1 F5: max 1 push / position / 60 s
+       return;
+     }
++    this.exitInFlight = { ...this.exitInFlight, outcome: 'accepted', okAt: Date.now() };
++    this.exitRetryAt = 0;
+     this.exitReason = 'through-stop';
+     this.phase = 'FLATTENING';
+   }
+@@ -1233,7 +1266,7 @@ class LiveStateMachine {
+   }
+   async sessionFlatten(reason = 'session close', kind = 'session') {
+     const np = kind === 'no-progress';   // np1: the same verified exit, labelled as the no-progress exit
+-    jr.note(this, 'CLOSE_ATTEMPT', { attemptedCause: np ? 'no_progress' : 'session_close', attemptedActor: 'AUTOMATIC', provenance: 'sessionFlatten caller', phaseObservation: this.phase, desyncedObservation: this.desynced, acceptance: jr.UNKNOWN, statement: 'Session-close function invoked; this attempt does not establish an accepted or initiating close request.' });
++    jr.note(this, 'CLOSE_ATTEMPT', { attemptedCause: np ? 'no_progress' : kind === 'manual' ? 'manual_flatten' : 'session_close', attemptedActor: kind === 'manual' ? 'MANUAL' : 'AUTOMATIC', provenance: 'sessionFlatten caller', phaseObservation: this.phase, desyncedObservation: this.desynced, acceptance: jr.UNKNOWN, statement: 'Session-close function invoked; this attempt does not establish an accepted or initiating close request.' });
+     if (this.desynced) return 'desynced';
+     if (this.phase === 'FLAT') return 'none';
+     if (this.phase === 'FLATTENING') {
+@@ -1275,6 +1308,14 @@ class LiveStateMachine {
+       try { this._manage('LEVEL_LOSS_EXIT', `Level lost: the ${d} position (${size}x) is closed at market (${reason}). The stop was never moved.`, { size, reason }); } catch (e2) { /* journal only */ }
+       this.notify('Level lost - exiting', `Closing ${d} ${size}x at market: ${reason}. Confirming shortly.`, { priority: 'high', tags: 'door' });
+     }
++    if (!this.sessionFlattenStarted && kind === 'manual') {   // r1.1: the phone / daily-floor / time-stop flatten on the safe-exit rule (same wording as before)
++      this.sessionFlattenStarted = true; this.flattenKind = 'manual';
++      this.log(`  [live] MANUAL FLATTEN requested — closing ${size}x at MARKET now (${reason}; safe-exit rule).`);
++      try { this._manage('MANUAL_FLATTEN', `Manual flatten requested: ${size} contracts are being closed at market now.`, {}); } catch (e2) { /* journal only */ }
++      // Tagged by entryPrice/dir so it can be matched back to the entry journal record and the broker's fills (manually ended, not a target/stop).
++      this.journal({ type: 'manual_flatten', t: Date.now(), dir: this.dir, entryPrice: this.entryPrice, contractsAtFlatten: size, ...(this.exitWhat && this.exitWhat !== 'manual' ? { what: this.exitWhat } : {}) });
++      this.notify('Flatten requested', `Closing ${size}x at market now — confirming shortly.`, { tags: 'octagonal_sign' });
++    }
+     if (!this.sessionFlattenStarted) {
+       this.sessionFlattenStarted = true; this.flattenKind = null;
+       const mh = this.exitWhat = /^morning hold/.test(String(reason)) ? 'morning-hold' : 'session';   // bf-exitsafe (S3): the morning hold shares this path but keeps its own wording
+@@ -1292,7 +1333,7 @@ class LiveStateMachine {
+       if (!size) return 'retry';
+     }
+     if (pos && this.dir != null) { const posDir = pos.type === 1 ? 1 : pos.type === 2 ? -1 : this.dir; if (posDir !== this.dir) { await this.handleReversedPosition(pos); return 'retry'; } }
+-    jr.requestClose(this, this.flattenKind === 'no-progress' ? 'no_progress' : this.flattenKind === 'level-loss' ? 'level_loss' : 'session_close', 'AUTOMATIC', 'sessionFlatten after existing guards and position read; before protection cancellation');
++    if (this.flattenKind !== 'manual') jr.requestClose(this, this.flattenKind === 'no-progress' ? 'no_progress' : this.flattenKind === 'level-loss' ? 'level_loss' : 'session_close', 'AUTOMATIC', 'sessionFlatten after existing guards and position read; before protection cancellation');   // r1.1: flattenNow already recorded the manual request
+     // 1. protective orders first, verified (their prices/sizes are remembered so they can be put back if the exit is rejected)
+     let open = [];
+     try { open = await getOpenOrders(this.token, this.accountId, this.contractId); } catch (e) { this.log(`  [session] flatten: order list unreadable (${e.message}) - retrying next poll.`); return 'retry'; }
+@@ -1382,11 +1423,12 @@ class LiveStateMachine {
+     this.sessionPrevPhase = null;
+     this.exitReason = 'session-close';
+     this.phase = 'FLATTENING';
++    if (this.flattenKind === 'manual') jr.note(this, 'CLOSE_SUBMISSION_ACKNOWLEDGED', { requestedMechanism: 'MARKET', observedMechanism: jr.UNKNOWN, certainty: 'PROVISIONAL', statement: 'Flatten market submission acknowledged; exit execution remains unconfirmed.' });
+     return 'sent';
+   }
+   // bf-exitsafe: names for the four exits that share sessionFlatten (S3: every alert and journal text says which exit it is)
+-  _exitTag() { return this.flattenKind === 'no-progress' ? 'no-progress' : this.flattenKind === 'level-loss' ? 'level-loss' : this.exitWhat === 'morning-hold' ? 'morning-hold' : 'session-close'; }
+-  _exitTitle() { return { 'no-progress': 'No-progress exit', 'level-loss': 'Level-loss exit', 'morning-hold': 'Morning-hold close', 'session-close': 'Session close' }[this._exitTag()]; }
++  _exitTag() { return this.flattenKind === 'no-progress' ? 'no-progress' : this.flattenKind === 'level-loss' ? 'level-loss' : this.flattenKind === 'manual' ? 'manual' : (this.exitReason === 'through-stop' || (this.throughStop && this.phase === 'PENDING_ENTRY')) ? 'through-stop' : this.exitWhat === 'morning-hold' ? 'morning-hold' : 'session-close'; }   // r1.1: + manual, through-stop
++  _exitTitle() { const t = this._exitTag(); if (t === 'manual') return { 'daily-floor': 'Daily-floor flatten', 'time-stop': 'Time-stop flatten' }[this.exitWhat] || 'Manual flatten'; return { 'no-progress': 'No-progress exit', 'level-loss': 'Level-loss exit', 'morning-hold': 'Morning-hold close', 'session-close': 'Session close', 'through-stop': 'Through-stop exit' }[t]; }
+   // bf-exitsafe: HALT (no new entries, no further automatic order; latched across restarts until the account is flat with no orders) + one loud alert + journal.
+   _exitHalt(why, title, body) {
+     if (this.desynced && this._so1HaltWhy) return 'desynced';
+@@ -1407,6 +1449,7 @@ class LiveStateMachine {
+     let h;
+     try { h = safeExit.exitOrderSeen(await liveOrdersMod.searchOrdersSince(this.token, this.accountId, this.contractId, since), { side: this.sideFor(dir, true), size, since }); }
+     catch (e) { return { ...r, verdict: 'unsettled', why: `the order history could not be read (${e.message})` }; }
++    if (h === 'unknown') return { ...r, verdict: 'unsettled', why: 'the order history has a row whose type/side/status could not be recognised, so it cannot prove the exit did not fill' };   // r1.1: fail safe
+     return h === 'none' ? r : { ...r, verdict: 'unsettled', why: 'the order history shows the market exit live or filled while the position read still shows it open' };
+   }
+   // bf-exitsafe RULE 1: the market exit's reply was lost or timed out. Nothing is sent and no stop is put back until the broker's position and working orders
+@@ -1556,7 +1599,7 @@ class LiveStateMachine {
+       try { this._manage('POSITION_CLOSED', 'The position is fully closed (the whole trade exited at TP1).', {}); } catch (e2) { /* journal only */ }
+     } else {
+       this.log(`  [LIVE FILL] full stop-out on all ${n} contracts${sure ? '' : ' (unsure: decided by the last price)'}.`);
+-      this.notify('Stopped out', `Full stop-out on all ${n} contracts @ ${stopPx.toFixed(2)}${lockStop != null ? ' (profit lock)' : ''}.`, { priority: 'high', tags: 'chart_with_downwards_trend' });
++      if (!(this.fullStopPushOwner === 'health' && lockStop == null)) this.notify('Stopped out', `Full stop-out on all ${n} contracts @ ${stopPx.toFixed(2)}${lockStop != null ? ' (profit lock)' : ''}.`, { priority: 'high', tags: 'chart_with_downwards_trend' });   // r1.1: ONE push per full stop - the executor's richer "Full stop" push (lib/healthAlerts.js) owns it when wired
+       try { this._manage('STOP_FILLED', `The stop filled: all ${n} contracts closed at about ${stopPx.toFixed(2)}${lockStop != null ? ' (the profit-lock stop)' : ' (the planned stop)'}.${sure ? '' : ' (The broker order list could not tell which order filled; decided by the last price.)'}`, { sure }); } catch (e2) { /* journal only */ }
+     }
+     await this.cancelIfSet('targetOrderId');
+@@ -1795,7 +1838,7 @@ class LiveStateMachine {
+       } else if (size === 0) {
+         this.lastExit = { kind: 'stop', t: Date.now(), dir: this.dir, entry: this.entryPrice, stop: this.stopPriceIntended, lockStop: this.profitTrail ? this.profitTrailStop : null, target1: this.target1, target2: this.target2, contracts: n };   // 10/18: read by the executor (ban / reclaim)
+         this.log(`  [LIVE FILL] full stop-out on all ${n} contracts.`);
+-        this.notify('Stopped out', `Full stop-out on all ${n} contracts @ ${(this.profitTrail && this.profitTrailStop != null ? (this.dir === 1 ? Math.max(this.stopPriceIntended, this.profitTrailStop) : Math.min(this.stopPriceIntended, this.profitTrailStop)) : this.stopPriceIntended).toFixed(2)}${this.profitTrail && this.profitTrailStop != null ? ' (profit lock)' : ''}.`, { priority: 'high', tags: 'chart_with_downwards_trend' });
++        if (!(this.fullStopPushOwner === 'health' && !(this.profitTrail && this.profitTrailStop != null))) this.notify('Stopped out', `Full stop-out on all ${n} contracts @ ${(this.profitTrail && this.profitTrailStop != null ? (this.dir === 1 ? Math.max(this.stopPriceIntended, this.profitTrailStop) : Math.min(this.stopPriceIntended, this.profitTrailStop)) : this.stopPriceIntended).toFixed(2)}${this.profitTrail && this.profitTrailStop != null ? ' (profit lock)' : ''}.`, { priority: 'high', tags: 'chart_with_downwards_trend' });
+         try { this._manage('STOP_FILLED', `The stop filled: all ${n} contracts closed at about ${(this.profitTrail && this.profitTrailStop != null ? (this.dir === 1 ? Math.max(this.stopPriceIntended, this.profitTrailStop) : Math.min(this.stopPriceIntended, this.profitTrailStop)) : this.stopPriceIntended).toFixed(2)}${this.profitTrail && this.profitTrailStop != null ? ' (the profit-lock stop)' : ' (the planned stop)'}.`, {}); } catch (e2) { /* journal only */ }
+         await this.cancelIfSet('targetOrderId');
+         await this.cancelAllOrdersForContract();
+@@ -1906,7 +1949,11 @@ class LiveStateMachine {
+         if (posDir !== this.dir) { await this.handleReversedWhileClosing(pos); return; }
+       }
+       if (size === 0) {
+-        if (this.exitReason === 'session-close' && this.flattenKind === 'no-progress') {   // np1
++        if (this.exitReason === 'session-close' && this.flattenKind === 'manual') {   // r1.1: the manual flatten now runs through sessionFlatten (same texts as before)
++          this.log('  [LIVE FILL] manual flatten confirmed — position fully closed.');
++          this.notify('Flatten confirmed', 'Position fully closed per your flatten request.', { tags: 'checkered_flag' });
++          try { this._manage('FLATTEN_CONFIRMED', 'The manual flatten is confirmed: the position is fully closed.', {}); } catch (e2) { /* journal only */ }
++        } else if (this.exitReason === 'session-close' && this.flattenKind === 'no-progress') {   // np1
+           this.log('  [no-progress] flat confirmed - sweeping every working order.');
+           this.notify('No-progress exit: flat', 'The trade that went nowhere is closed and its orders are cancelled.', { tags: 'hourglass' });
+           try { this._manage('NO_PROGRESS_FLAT_CONFIRMED', 'No-progress exit: flat confirmed; every working order on the contract is being cancelled.', {}); } catch (e2) { /* journal only */ }
+@@ -2669,16 +2716,27 @@ class LiveStateMachine {
+   // Goes through a FLATTENING phase rather than resetting immediately, so
+   // tick() confirms the real position actually hit 0 first — same "never
+   // assume it filled" rule as every other transition in this file.
+-  async flattenNow() {
++  // r1.1: the manual flatten (phone request, also the daily floor and the trend time stop) now runs on the SAME safe-exit rule as every automatic exit:
++  // it is a 'manual' kind of sessionFlatten (protective orders cancelled VERIFIED first, the exit intent on disk before the send, a lost reply = UNKNOWN -> settle,
++  // never a second order while unknown, K = 3 sends with backoff, then HALT). flattenKind 'manual' is persisted, and the executor drives an unfinished manual
++  // flatten every poll (stops still resting, a rejected send waiting its backoff, a restart) until FLAT or HALT. A halted machine sends nothing (flatten in TopstepX).
++  // Returns 'none' | 'sent' | 'retry' | 'desynced' | the pending-cancel result. An unreadable position still THROWS (e.positionUnreadable) before anything is touched.
++  async flattenNow(opts = {}) {
+     const receiptAttempt = jr.consumeCloseAttempt(this); // observer only; consumed even on no-op
+     if (this.phase === 'FLAT' || this.phase === 'FLATTENING') {
+       this.log(`  [live] flatten requested but phase is already ${this.phase} — no-op.`);
+-      return;
++      return this.phase === 'FLAT' ? 'none' : 'sent';
+     }
+-    if (this.phase === 'PENDING_ENTRY') {
++    if (this.phase === 'PENDING_ENTRY' && !this.throughStop) {
+       jr.note(this, 'PENDING_CANCEL_REQUESTED', { requestedAction: 'cancel_pending_entry', attempt: receiptAttempt, statement: 'Pending-entry cancellation requested; this is not a position-close request or a cancellation confirmation.' });
+       return this._cancelPendingVerified({ label: 'manual pending cancel', cancelReason: 'manual entry cancellation verified', logDone: 'manual entry cancellation verified', code: 'MANUAL_ENTRY_CANCEL', manageText: 'Pending entry cancellation verified.', noteTitle: 'Entry cancellation verified', noteText: 'Broker confirms the entry is terminal, unfilled, with no position.' });
+     }
++    if (this.phase === 'PENDING_ENTRY') { this.log('  [live] flatten requested while the filled-through-stop exit is already closing the position - it keeps running on the safe-exit rule; nothing extra is sent.'); return 'sent'; }
++    if (this.desynced) {
++      this.log(`  [exit-safety] flatten requested but the bot is HALTED (${this._so1HaltWhy || 'desync'}) - it sends no order on an unexplained position. Flatten in TopstepX.`);
++      try { this._manage('MANUAL_FLATTEN_REFUSED_HALTED', `A flatten was requested while the bot is halted (${this._so1HaltWhy || 'desync'}); no order was sent. Flatten in TopstepX.`, {}); } catch (e2) { /* journal only */ }
++      return 'desynced';
++    }
+     // profittrail4: an unreadable position must not look like "already flat" (that cancelled every stop and sent no exit): throw instead; the caller keeps the request and retries.
+     const pos = await getOpenPosition(this.token, this.accountId, this.contractId);
+     const size = pos ? pos.size : 0;
+@@ -2686,24 +2744,13 @@ class LiveStateMachine {
+       this.log('  [live] flatten requested but real position is already 0 — cleaning up and resetting.');
+       await this.cancelAllOrdersForContract();
+       this.reset();
+-      return;
++      return 'none';
+     }
+     jr.requestClose(this, receiptAttempt.cause, receiptAttempt.actor, receiptAttempt.provenance);
+-    this.log(`  [live] MANUAL FLATTEN requested — closing ${size}x at MARKET now.`);
+-    await this.cancelIfSet('stopOrderId');
+-    await this.cancelIfSet('targetOrderId');
+-    await this.cancelIfSet('leg3StopOrderId'); // runner trail split — leg3's own stop, separate from leg2's above
+-    const side = this.sideFor(this.dir, true);
+-    await placeOrder(this.token, { accountId: this.accountId, contractId: this.contractId, type: OrderType.MARKET, side, size });
+-    this.notify('Flatten requested', `Closing ${size}x at market now — confirming shortly.`, { tags: 'octagonal_sign' });
+-    try { this._manage('MANUAL_FLATTEN', `Manual flatten requested: ${size} contracts are being closed at market now.`, {}); } catch (e2) { /* journal only */ }
+-    // Tagged by entryPrice/dir (not a trade id — there isn't one) so this
+-    // can be matched back to the entry journal record and the broker's own
+-    // fill-derived trade later, marking it as manually ended rather than
+-    // hitting a target/stop on its own.
+-    this.journal({ type: 'manual_flatten', t: Date.now(), dir: this.dir, entryPrice: this.entryPrice, contractsAtFlatten: size });
+-    jr.note(this, 'CLOSE_SUBMISSION_ACKNOWLEDGED', { requestedMechanism: 'MARKET', observedMechanism: jr.UNKNOWN, certainty: 'PROVISIONAL', statement: 'Flatten market submission acknowledged; exit execution remains unconfirmed.' });
+-    this.phase = 'FLATTENING';
++    // an exit that is already running (session close, morning hold, no-progress, level-loss) keeps its own kind and owner: this call just drives it now
++    if (!this.sessionFlattenStarted) { this.flattenKind = 'manual'; this.exitWhat = opts.what || 'manual'; }
++    const kind = this.flattenKind === 'manual' ? 'manual' : this.flattenKind === 'no-progress' ? 'no-progress' : this.flattenKind === 'level-loss' ? 'level-loss' : 'session';
++    return this.sessionFlatten(opts.reason || 'manual flatten', kind);
+   }
+ 
+   reset() {
+diff --git a/lib/phoneRequests.js b/lib/phoneRequests.js
+index 03b19fd..9500ebe 100644
+--- a/lib/phoneRequests.js
++++ b/lib/phoneRequests.js
+@@ -92,11 +92,16 @@ function createPhoneRequests({ dir, symbol, maxAgeMs = MAX_AGE_MS, now = () => D
+ }
+ 
+ // The ack for a flatten request from the phase before and after the bot's existing flatten path ran. LIVE phases are the state machine's.
+-function flattenResult({ live, phaseBefore, phaseAfter, paperHad } = {}) {
++// r1.1: `result` = flattenNow()'s return (the safe-exit sessionFlatten result): 'desynced' = the bot is halted and sent nothing; 'retry' = the exit is under way
++// but no market order went out this poll (a protective order still resting, a rejected send in its backoff, or a lost reply that settled "still open"); the
++// executor keeps driving it every poll until flat or halt. Without `result` (older callers) the texts are as before.
++function flattenResult({ live, phaseBefore, phaseAfter, paperHad, result } = {}) {
+   if (!live) return paperHad ? ['APPLIED', 'paper: the simulated position / resting order was cleared'] : ['APPLIED', 'ALREADY_FLAT: nothing to close (paper)'];
+   if (phaseBefore === 'FLAT') return ['APPLIED', 'ALREADY_FLAT: the bot was flat; no order sent'];
+   if (phaseBefore === 'FLATTENING') return ['APPLIED', 'ALREADY_FLATTENING: an exit was already under way'];
+   if (phaseBefore === 'PENDING_ENTRY') return ['APPLIED', `resting entry: verified cancel requested (phase now ${phaseAfter})`];
++  if (result === 'desynced') return ['REJECTED', `HALTED: the bot is halted by its exit-safety rule and sends no order - flatten in TopstepX (phase ${phaseAfter})`];
++  if (result === 'retry') return ['APPLIED', `exit under way on the safe-exit rule: no market order this poll (protection still resting, a retry backoff or a settle); retried every poll until flat or halt (phase now ${phaseAfter})`];
+   return ['APPLIED', `market exit sent through the bot's flatten path (phase now ${phaseAfter})`];
+ }
+ // The ack for a pause request from handlePauseRequest()'s return value.
+@@ -112,6 +117,7 @@ function cancelResult(r) {
+   if (r.outcome === 'cancelled') return ['APPLIED', 'cancelled: ' + (r.detail || '')];
+   if (r.outcome === 'resolved') return ['APPLIED', 'resolved: ' + (r.detail || '')];
+   if (r.outcome === 'filled') return ['REJECTED', 'FILLED_FIRST: ' + (r.detail || '')];
++  if (r.outcome === 'stale') return ['STALE', r.detail || 'STALE: not acted on'];   // r1.1: aged out like flatten / pause
+   return null;
+ }
+ 
+diff --git a/lib/safeExit.js b/lib/safeExit.js
+index b0dc6e7..b779f83 100644
+--- a/lib/safeExit.js
++++ b/lib/safeExit.js
+@@ -57,14 +57,33 @@ async function settle(io, dir, size, opts = {}) {
+ }
+ 
+ // Does the order history show our market exit as live or filled? rows = searchOrdersSince(); side = the closing side (OrderSide), type 2 = MARKET.
+-// ProjectX statuses: 3 cancelled, 4 expired, 5 rejected = did not act; anything else (working, filled, unknown) = it may have acted. A row whose time cannot
+-// be parsed counts (conservative: more halts, never a second exit). Returns 'none' | 'seen'.
++// Field names and codes (r1.1, verified - see BF-R11.md): ProjectX Gateway /api/Order/search returns orders[] with id, accountId, contractId,
++// creationTimestamp, updateTimestamp, status, type, side, size, limitPrice, stopPrice, fillVolume, filledPrice. OrderStatus: 0 None, 1 Open, 2 Filled,
++// 3 Cancelled, 4 Expired, 5 Rejected, 6 Pending. OrderType 2 = Market. OrderSide 0 = Bid (buy), 1 = Ask (sell). The same names are already read by
++// lib/brokerAuth.js orderMatches (type/side/size/creationTimestamp) and the entry-cancel path (status/fillVolume/filledPrice).
++// 3 cancelled, 4 expired, 5 rejected = did not act; anything else (working, filled, pending, none) = it may have acted. A row whose time cannot be parsed
++// counts (conservative: more halts, never a second exit).
++// FAIL SAFE (r1.1): a row in the window whose type, side or status is missing or not an integer means the broker's row shape is not the one verified above,
++// so "no matching row" would prove nothing: the answer is then 'unknown' and the caller HALTS (never a second exit). Returns 'none' | 'seen' | 'unknown'.
+ function exitOrderSeen(rows, { side, size, since }) {
+   const DEAD = [3, 4, 5];
+-  const hit = (rows || []).filter(o => o && Number(o.type) === 2 && Number(o.side) === side && (!Number.isFinite(Number(o.size)) || Number(o.size) === size))
+-    .filter(o => { const t = Date.parse(o.creationTimestamp || o.createdAt || ''); return !Number.isFinite(t) || t >= since - 5000; })
++  if (!Array.isArray(rows)) return 'unknown';
++  const isCode = v => v !== null && v !== undefined && v !== '' && Number.isInteger(Number(v));
++  const inWindow = (rows || []).filter(o => o && typeof o === 'object').filter(o => { const t = Date.parse(o.creationTimestamp || o.createdAt || ''); return !Number.isFinite(t) || t >= since - 5000; });
++  if (rows.some(o => !o || typeof o !== 'object') || inWindow.some(o => !isCode(o.type) || !isCode(o.side) || !isCode(o.status))) return 'unknown';
++  const hit = inWindow.filter(o => Number(o.type) === 2 && Number(o.side) === side && (!Number.isFinite(Number(o.size)) || o.size === null || Number(o.size) === size))
+     .filter(o => !DEAD.includes(Number(o.status)));
+   return hit.length ? 'seen' : 'none';
+ }
+ 
+-module.exports = { exitOrderSeen, SETTLE_MAX_MS, SETTLE_READ_MS, SAME_MIN_READS, FLAT_MIN_READS, EXIT_MAX_ATTEMPTS, REJECT_BACKOFF_MS, FLATTEN_STUCK_MS, classifyExitError, signedNet, settle, backoffMs };
++// r1.1: the one-line rule the executor prints at startup ([exits] ...), from the constants above (so the log can never disagree with the code).
++function rulesText() {
++  return `safe-exit rule ON for every market exit (session close, morning hold, no-progress, level-loss, filled-through-stop, phone/manual flatten, daily floor, time stop): `
++    + `a broker success:false = REJECTED, anything else (timeout, lost reply) = UNKNOWN -> no second order, no stop put back until the position and orders settle `
++    + `(N = ${SETTLE_MAX_MS / 1000} s of reads ${SETTLE_READ_MS / 1000} s apart; flat = ${FLAT_MIN_READS} agreeing reads; "still open" = ${SAME_MIN_READS} agreeing reads with nothing working AND the order history showing no live/filled exit); `
++    + `K = ${EXIT_MAX_ATTEMPTS} market sends per exit (backoff ${REJECT_BACKOFF_MS.map(x => x / 1000 + ' s').join(', ')}; the count survives restarts). `
++    + `HALT (no entries, no orders, urgent push) when: K sends fail, the reads never settle, the broker shows the opposite side or another size, or the order history is unreadable / shows the exit live or filled / has an unrecognised row. `
++    + `An accepted exit not flat after ${FLATTEN_STUCK_MS / 1000} s: one urgent alert, no second order.`;
++}
++
++module.exports = { exitOrderSeen, rulesText, SETTLE_MAX_MS, SETTLE_READ_MS, SAME_MIN_READS, FLAT_MIN_READS, EXIT_MAX_ATTEMPTS, REJECT_BACKOFF_MS, FLATTEN_STUCK_MS, classifyExitError, signedNet, settle, backoffMs };
+diff --git a/live-executor.js b/live-executor.js
+index b57a0de..6898423 100644
+--- a/live-executor.js
++++ b/live-executor.js
+@@ -2044,6 +2044,7 @@ async function main() {
+   log(`[tp1] TP1 from the fill: ${CONFIG.tp1FromFill ? (scaleOutRunnerOn(CONFIG) ? 'ON (TP1 = the actual fill +/- the planned TP1 distance on every fill, a fill the slip guard keeps included; the stop handling unchanged)' : 'ON, inactive (the scale-out runner is off: TP1 as planned)') : 'off (tp1FromFill false - a fill the slip guard keeps leaves TP1 at its planned price, as in r13.3.4)'}.`);   // lv1 r13.3.5
+   log(`[lv1] plan ends at its target: ${CONFIG.planEndsAtTarget ? 'ON (a live level event ends for good once a price seen after its birth trades at or through its target, a projected one included, before an entry)' : 'off (planEndsAtTarget false - an event ends on a close back across, a VWAP reset or 30 min, as in r13.3.4)'}.`);   // lv1 r13.3.5
+   log(`[np1] no-progress exit: ${CONFIG.noProgressExit.enabled ? `ON (not seen at +${CONFIG.noProgressExit.mfePts} pts by the first full 5m close after the fill = closed at market)` : 'off'}. Stretch check: ${CONFIG.stretchCheck}${CONFIG.stretchCheck === 'log' ? ' (journal only, trades unchanged)' : ''}. Size: ${CONFIG.flatSizeContracts ? `flat ${CONFIG.flatSizeContracts} contracts at every grade (the $${CONFIG.maxRiskPerTradeUsd} risk cap can size it down)` : 'grade ceilings'}.`);
++  log(`[exits] ${require('./lib/safeExit').rulesText()}`);   // r1.1: the safe-exit rule, printed from lib/safeExit.js's own constants
+   log(`[sr-areas] ${SR_AREAS_VERSION}: ${CONFIG.srAreas === 'show' ? `DISPLAY ONLY - Support & Resistance Areas once per completed 1H bar from the bars already fetched (no provider call); the phone (snapshot srAreas) and ${path.basename(SRA_JOURNAL_PREFIX)}<TradeDay>.jsonl; nothing in trading reads it` : 'off'}.`);   // lv1 r13.6.3
+   log(`[po3] ${PO3_VERSION}: ${CONFIG.po3Observe === 'log' ? `OBSERVE-ONLY - writes po3_state / cluster_map to ${path.basename(PO3_JOURNAL_PREFIX)}<TradeDay>.jsonl (run ${PO3_RUN_ID}), trades unchanged` : 'off'}.`);
+   log(`=== ${LIVE ? 'LIVE ORDER' : 'PAPER TRADING'} EXECUTOR starting for ${symbol} ===`);
+@@ -3013,6 +3014,7 @@ async function main() {
+     if (planTerminals.lastRestoreOutOfScope) log(`[journal] ${planTerminals.lastRestoreOutOfScope} evidence row(s) of plans outside the retained outcome cache left unresolved at startup (no version issued)`);   // r1.5
+   } catch (e) { const r = journalMetaErrors.row('plan_terminal_restore', e); if (r) persistJournalMeta(r); }
+   const stateMachine = LIVE ? new LiveStateMachine({ token, accountId: account.id, contractId, pointValue, tickSize, log, notify: notifyPhone, journal: sfJournal, profitLockDollars: CONFIG.profitLockDollars, profitLockPct: CONFIG.profitLockPct, marketableLimitBufferPoints: CONFIG.marketableLimitBufferPoints, pendingExpireMs: CONFIG.pendingExpireMs, trailStepPoints: CONFIG.trailStepPoints, profitTrail: CONFIG.profitTrail, runnerTrailRule: scaleOutRunnerOn(CONFIG) ? { lockPts: CONFIG.scaleOutRunner.runnerLockPts, stepPts: CONFIG.scaleOutRunner.runnerStepPts } : null, blackoutFn: entryWindowReason, blockFn: blackoutReason, restingBlockHorizonMs: CONFIG.noRestingAcrossBlock === false ? 0 : (Number.isFinite(CONFIG.pendingExpireMs) && CONFIG.pendingExpireMs > 0 ? CONFIG.pendingExpireMs : 30 * 60000) + 60000, pendingCancelOnStopTouch: CONFIG.pendingCancelOnStopTouch, fillSlipGuard: CONFIG.fillSlipGuard, tp1FromFill: CONFIG.tp1FromFill === true, entryStopFloorFn: ts => entryFloorAt(ts), entryStopFloorPlanFn: (resting, ts) => entryFloorWindow(resting, ts).pts, newsRestingFn: ts => newsRestingBlock(ts), journalIdFn: () => { const c = openJournalContext || pendingJournalContext; return c ? c.journalId : null; }, stateFile: TRADE_STATE_FILE, entryQuantityCheck: entryQuantityAllowed, alignmentFreshnessFn: alignFreshnessState, entryControlCheck: (dir, source, context) => { const result = entryControlAllowed(dir, source, context?.reclaimOf ? 'reclaim' : context?.wave ? 'wave' : context?.reversal ? 'reversal' : 'entry', 'transport-submit'); try { const jr = require('./lib/journalReceipts'); jr.emit(appendJournal, () => jr.receipt(context?.journalId, 'CONTROL_ADMISSION', { result, seam: 'transport-submit', producer: 'entryControlAllowed/createControlJournal', policy: 'week1-decided-m15-v2', direction: dir, source, exception: 'NONE', measurement: { score: entryControlBoard?.controlBiasScore, valid: entryControlBoard?.controlValid, observedAt: entryControlBoard?.controlObservedAt, evaluatedAt: entryControlBoard?.controlEvaluatedAt }, marketStage: jr.UNKNOWN })); } catch (_) { /* receipt only */ } return result; } }) : null;
++  if (stateMachine && health) stateMachine.fullStopPushOwner = 'health';   // r1.1: ONE push per full stop - the "Full stop" push below (health.fullStop) replaces the machine's "Stopped out"
+ 
+   // HOTFIX 1 (2026-10-13) same-direction re-entry cooldown state (see ENTRY-GUARD HELPERS and CONFIG.reentryCooldown). In-memory only: a restart
+   // forgets it (the next entry then waits for nothing), which is the old behaviour.
+@@ -4523,8 +4525,8 @@ async function main() {
+       if (lx && lx.kind === 'tp1' && trendLife) trendLife.pastLeg1 = true;
+       if (trendLife && trendLife.filled && !trendLife.pastLeg1 && closedAtLoss(trendLife.dir, trendLife.entryPrice, sfEst ? sfEst.closePx : lastKnownClose)) { noteStopOut(trendLife.dir, 'trend stop-out'); try { onLossClose(trendLife, lx); } catch (e) { log('  [level-ban/reclaim] failed (non-fatal): ' + e.message); } }
+       else if (trendLife && trendLife.filled) noteWinClose(trendLife.dir, trendLife.pastLeg1 ? 'closed after TP1' : 'closed in profit');   // 10/16 (no-op unless reentryCooldownAfterWin)
+-      try { if (lx && lx.kind === 'stop' && lx.lockStop == null && trendLife && trendLife.filled) { const jid = openJournalContext ? openJournalContext.journalId : null;   // bf-alerts r1: full protective stop
+-        health.fullStop({ key: jid || `stop|${lx.t}`, journalId: jid, dir: lx.dir, qty: lx.contracts, entry: Number.isFinite(lx.entry) ? lx.entry : trendLife.entryPrice, exit: sfEst && Number.isFinite(sfEst.closePx) ? sfEst.closePx : lx.stop, grossUsd: sfEst ? sfEst.realizedPnl : null, pointValue, sure: lx.sure }); } } catch (e) { /* notification only */ }
++      try { if (lx && lx.kind === 'stop' && lx.lockStop == null) { const jid = openJournalContext ? openJournalContext.journalId : null;   // bf-alerts r1: full protective stop (r1.1: the ONLY push for it; no trendLife needed)
++        health.fullStop({ key: jid || `stop|${lx.t}`, journalId: jid, dir: lx.dir, qty: lx.contracts, entry: Number.isFinite(lx.entry) ? lx.entry : trendLife ? trendLife.entryPrice : null, exit: sfEst && Number.isFinite(sfEst.closePx) ? sfEst.closePx : lx.stop, grossUsd: sfEst ? sfEst.realizedPnl : null, pointValue, sure: lx.sure }); } } catch (e) { /* notification only */ }
+       trendLife = null;
+     }
+     if (phaseBefore === phaseAfter) return;
+@@ -5670,7 +5672,7 @@ async function main() {
+     notifyPhone('Trend position time-stop', `${CONFIG.trendMaxBarsToTP1}-bar timeout without reaching TP1 — closing all remaining contracts at market.`, { priority: 'high', tags: 'chart_with_downwards_trend' });
+     if (LIVE) {
+       try { require('./lib/journalReceipts').attemptClose(stateMachine, 'trend_timeout', 'AUTOMATIC', 'tickTrendTimeoutBarClose'); } catch (_) { /* receipt only */ }
+-      await stateMachine.flattenNow();
++      await stateMachine.flattenNow({ what: 'time-stop', reason: `trend time stop (${CONFIG.trendMaxBarsToTP1} bars without TP1)` });
+     } else if (position) {
+       paperCloseRemaining(lastKnownClose, 'time-stop');
+       journalPositionClosed(lastKnownClose, position.realizedPnlSoFar);
+@@ -5858,7 +5860,7 @@ async function main() {
+         if (LIVE) {
+           try { require('./lib/journalReceipts').attemptClose(stateMachine, 'flatten_request_file', 'UNKNOWN', 'FLATTEN_REQUEST_FILE consumer; file does not authenticate human actor'); } catch (_) { /* receipt only */ }
+           const flatPh0 = stateMachine.phase;
+-          try { await stateMachine.flattenNow(); flattenReadFails = 0; phoneReq.ack(flatRq, ...require('./lib/phoneRequests').flattenResult({ live: true, phaseBefore: flatPh0, phaseAfter: stateMachine.phase })); }
++          try { const flatRes = await stateMachine.flattenNow(); flattenReadFails = 0; phoneReq.ack(flatRq, ...require('./lib/phoneRequests').flattenResult({ live: true, phaseBefore: flatPh0, phaseAfter: stateMachine.phase, result: flatRes })); }
+           catch (e) {
+             if (!e.positionUnreadable) { try { phoneReq.ack(flatRq, 'REJECTED', 'ERROR: ' + e.message); } catch (e2) { /* ack only */ } throw e; }
+             // profittrail4: the position could not be read, so nothing was cancelled or sent and the bot did NOT reset: keep the request and retry on the next poll
+@@ -5882,6 +5884,13 @@ async function main() {
+           notifyPhone('Flatten (paper)', 'Cleared simulated position per your flatten request.', { tags: 'octagonal_sign' });
+         }
+       }
++      // r1.1: an unfinished manual flatten (phone, daily floor, time stop: protective orders still resting, a rejected send in its backoff, a lost reply settled
++      // "still open", or a restart) is driven every poll on the same safe-exit rule until FLAT or HALT - like the 13:05 session close. Never on a halted machine.
++      if (LIVE && !flatRq && stateMachine.flattenKind === 'manual' && stateMachine.phase !== 'FLAT' && stateMachine.phase !== 'PENDING_ENTRY' && !stateMachine.desynced) {
++        const ph = stateMachine.phase;
++        try { await stateMachine.sessionFlatten('manual flatten (continuing)', 'manual'); } catch (e) { log('  [live] manual flatten step failed (retrying next poll): ' + e.message); }
++        watchLiveLifecycle(ph);
++      }
+ 
+       // ── 10/17 SESSION CLOSE (flatten at sessionFlattenPt, alert if still not flat) ──
+       try { await sessionCloseStep(); } catch (e) { log('  [session] step failed (non-fatal, retried next poll): ' + e.message); }
+@@ -6024,7 +6033,7 @@ async function main() {
+           // riding whatever's still open past the floor.
+           if (LIVE) {
+             try { require('./lib/journalReceipts').attemptClose(stateMachine, 'daily_floor', 'AUTOMATIC', 'daily floor branch'); } catch (_) { /* receipt only */ }
+-            try { await stateMachine.flattenNow(); }
++            try { await stateMachine.flattenNow({ what: 'daily-floor', reason: 'daily floor hit' }); }
+             catch (e) { log('  [live] flatten-on-daily-floor failed (non-fatal — check the exchange/terminal directly): ' + e.message); }
+           } else if (position || pending) {
+             if (position) journalPositionClosed(lastKnownClose, position.realizedPnlSoFar);

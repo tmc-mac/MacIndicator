@@ -1,0 +1,44 @@
+ok   1 rulesText(): N = 20 s settle, K = 3 sends, the HALT conditions, every exit named :: safe-exit rule ON for every market exit (session close, morning hold, no-progress, level-loss, filled-through-stop, phone/manual flatten, daily floor, time stop
+ok   1b the executor prints "[exits] <rule>" at startup, before the executor banner, from the same constants
+ok   2a flatten accepted: verified cancels first, ONE market 3x, FLATTENING, exitInFlight manual, the same journal row / push as before
+ok   2b tick confirms flat: "Flatten confirmed" (same text as before), machine reset
+ok   2c lost reply, the exit DID fill: settled flat, nothing re-placed, no second order
+ok   2d lost reply, NOT filled (position, orders and history agree): ONE order only while unknown; stop + TP1 back at the same prices; 1 of 3 attempts used
+ok   2e the executor driver (sessionFlatten manual) retries next poll: second send accepted, flat
+ok   2f lost reply + a stale position read, history shows the exit filled: HALT, no second order; a later flatten tap on the halted bot sends nothing :: the manual flatten for LONG 3x got no reply and the order history shows the market exit live or filled while the position read still shows it open
+ok   2g rejected 3x: backoff respected, K = 3 sends then HALT ("Manual flatten" named), stop + TP1 resting; no 4th order :: ["retry","retry","retry","desynced","desynced"]
+ok   2h the stop does not cancel (still resting): NO market order (both could fill), TP1 put back, no attempt counted, kept for the next poll
+ok   2i next poll the driver finishes it: one market order, flat
+ok   2j position unreadable: throws positionUnreadable before touching anything (the executor keeps the request, as before)
+ok   2k halted bot: a flatten request sends nothing and reads nothing (flatten in TopstepX)
+ok   2l flat: no-op
+ok   2m daily floor / time stop use the same path, named in alerts and the journal
+ok   2n the manual exit intent is on disk BEFORE the market order goes out
+ok   2o restart, broker still long 3, history shows no order: no order at startup; trade restored with its stop, flattenKind manual kept for the driver, 1 attempt used
+ok   2p the driver then finishes the flatten after the restart
+ok   3a through-stop rejected: backup stop (fill 20010 - the planned 20 pts = 19990) each time, backoff respected, K = 3 sends then HALT (was: retried every poll, no cap); no 4th order
+ok   3b through-stop lost reply, not filled (settled + history): backup stop placed AFTER the settle, attempt 1 of 3
+ok   3c ...three unknown-then-still-open sends: HALT with the backup stop resting (was: uncapped)
+ok   3d through-stop exit intent on disk before the send (restart runs the same settle)
+ok   3e restart: through-stop exit in flight, broker still long 3 -> HALT at startup (no order; Mac flattens) :: a filled-through-stop exit was in flight or accepted before the restart and the broker still shows LONG 3x
+ok   3f through-stop lost reply then flat: no backup stop, FLATTENING (unchanged)
+ok   4a the ProjectX doc row shape (creationTimestamp with microseconds, status/type/side ints): filled/pending = seen, cancelled/rejected/other side = none
+ok   4b a row without integer type/side/status (renamed fields, enum strings) = UNKNOWN, never "none"
+ok   4c ...but only rows inside the window count (an old odd row does not halt)
+ok   4d lost reply, still long, history row without a status: HALT (not proven), no retry :: the session close for LONG 3x got no reply and the order history has a row whose type/side/status could not be recognised, so it cannot prove the exit did not fill
+ok   5a full stop with the health push wired: the machine sends NO "Stopped out" (lastExit kind stop, no lock -> the executor's "Full stop" push)
+ok   5b not wired (tests / old callers): "Stopped out" as before (never zero pushes)
+ok   5c a profit-lock stop (no "Full stop" push for it) keeps its "Stopped out (profit lock)" push
+ok   5d the 1-lot path (_closeWholeLeg1) too
+ok   5e the executor push: exactly one "Full stop" per trade
+ok   5f executor: the owner is wired at construction; the "Full stop" push fires for every full stop (no trendLife condition that could drop it after a restart)
+ok   6a a cancel request not picked up within 60 s: never acted on (no broker call), closed STALE, acked STALE
+ok   6b a stale request stays closed on later polls
+ok   6c a fresh request (30 s) is unchanged: acted on once
+ok   6d a new tap for the same entry after a stale one queues a fresh request and is acted on
+ok   6e a request picked up in time (outcome unknown, tracking retained) is NOT aged out: still followed up
+ok   6f a stale request does not wake the fast poll
+ok   7a flatten acks: sent (unchanged text), retry (under way, retried every poll), desynced (REJECTED HALTED: flatten in TopstepX)
+ok   7b executor: the ack carries the result; an unfinished manual flatten is driven every poll (never on a halted bot); daily floor / time stop labelled
+
+r1.1 tests: 42 passed, 0 failed

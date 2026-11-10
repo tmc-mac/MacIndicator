@@ -1,0 +1,54 @@
+ok   A1 close exactly AT the level: no (long, short)
+ok   A2 exactly 1 tick through: yes (long below, short above)
+ok   A3 not inverted: a close on the trade side never fires
+ok   A4 off-tick level (VWAP-like): needs a full tick beyond the level
+ok   A5 float noise does not eat the 1-tick case
+ok   A6 bad inputs never fire
+ok   B1 boundary: complete exactly at t+5m with a later bar; 1 ms earlier not
+ok   B2 the last bar in the read is never final, however old
+ok   B3 unsorted / duplicate / malformed rows
+ok   B4 missing bars (gap) tolerated
+ok   B5 ISO-string times are rejected (fail closed)
+ok   B6 no read
+ok   C1 long end to end: stop+TP cancelled, one market SELL 3, broker flat, 1 row :: cancel 12 | cancel 11 | MARKET SELL 3 [accept]
+ok   C1b no stop was moved or re-placed, cancels precede the market
+ok   C2 double-fire: later polls send nothing more, still 1 row
+ok   C3 short, level above: close 1 tick above -> market BUY 3, flat
+ok   C4 short: wick 30 pts through + forming bar far through, close below: nothing
+ok   C5 bar straddling the fill (opened before, closed after) DOES count
+ok   C6 bar that completed exactly AT the fill time does not count
+ok   C6b ...1 ms before the bar end it counts
+ok   C7 no level (no levelProof / adopted): never evaluated
+ok   C8 no fill time and no boundary: not evaluated
+ok   C9 earlier loss bar then a reclaim close (missed poll): no late exit
+ok   D1 rejected market: stop put back 3x @ the SAME price, still long 3
+ok   D1b (r1.1) the TP1 limit IS put back after a rejected exit: 1x @ the SAME price 20025, tracked
+ok   D2 (r1.1) persistent rejection: nothing sent inside the backoff, at most K = 3 market sends, then HALT (1 urgent push, EXIT_HALT row); exactly one stop 3x @ 19980 + TP1 resting, 1 row :: {"rs":["retry","desynced",null,null],"inBackoff":"retry","mB":2,"m":3}
+ok   D3 (r1.1) after the cap HALT a broker that now accepts gets NO 4th order (level-loss or session close): still long 3, stop resting; Mac flattens in TopstepX
+     notifications: ["Level lost - exiting","Level-loss exit: exit FAILED - retrying","Level-loss exit: exit REJECTED 3x - FLATTEN IN TOPSTEPX NOW"]
+     D4 trace: cancel 12 | cancel 11 | MARKET SELL 3 [timeout-accepted] => r=sent net=0 resting=[]
+     D4 next poll: r=sent phase=FLATTENING net=0 resting=[] log+=cancel 12 | cancel 11 | MARKET SELL 3 [timeout-accepted]
+ok   D4 flat-read next poll: no second market order (position stays flat)
+     D5 trace: cancel 12 | cancel 11 | MARKET SELL 3 [timeout-accepted] => r=sent net=0
+ok   D5 no double close / flip when the first exit was delivered but the reply was lost and the position read lags
+     D6 trace: cancel 12 | TP1 FILLED during cancel | cancel 11 | MARKET SELL 2 [accept] => r=sent net=0
+ok   D6 TP1 fills during the cancels: the remaining 2 are closed (not 3) - no flip
+ok   E1 np1 already decided its exit: level-loss stays out
+ok   E2 session close / morning hold already flattening (retrying): level-loss stays out
+ok   E3 13:05 close arriving while a level-loss exit retries: one exit, flat
+ok   E3b and the pending level-loss step then sends nothing
+ok   E4 TP1 beat a decided exit: abandoned, nothing sent
+ok   E5 desynced machine: nothing
+ok   F1 (r1.1) lossLevel never set (key false): session-close + no-progress flows identical to pkg-A47 except the documented exit-safety differences (a) snapshot exitInFlight/exitAttempts, (b) TP1 put back after a rejection, (c) the retry row wording
+ok   F1b (r1.1) accepted session close and no-progress: broker calls and journal byte-identical to pkg-A47
+     executor lines touching the feature: 4340,4346,4355,4358,4361,4364,4365,4367,4369,5635,6055,6056
+ok   F2 every executor entry point is gated on the key
+ok   G1 malformed saved level -> ignored (trade left alone)
+     H1 pkg-A47 session close, same script: net=-3 :: cancel 12 | cancel 11 | MARKET SELL 3 [timeout-accepted] | REST STOP 3 @ 19980 | cancel 100 | MARKET SELL 3 [accept]
+ok   H1 (context) the same flip exists TODAY in pkg-A47 for the 13:05 / morning-hold close: pre-existing path, not new code
+     H2 np1, same script: r=sent r2=sent net=0 halt=null :: cancel 12 | cancel 11 | MARKET SELL 3 [timeout-accepted]
+ok   H2 (context) np1 on the same script: halts, one market order, no flip
+     H3 after tick/step/tick: phase=FLAT net=0 resting=[] :: 
+ok   H3 flat read: the stray re-placed stop is swept within the following poll(s)
+
+QA tests: 43 passed, 0 failed; findings: 0
