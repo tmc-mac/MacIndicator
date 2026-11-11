@@ -1,0 +1,190 @@
+{
+ "schema": 1,
+ "source": "office/EXPERIMENTS.md (the expectation and the kill rule are fixed there; this is the machine copy)",
+ "note": "loop_daily.py reads 'feeds' to know which journal rows count for each experiment and rewrites 'running' on every run. Edit everything except 'running' by hand, together with EXPERIMENTS.md.",
+ "experiments": [
+  {
+   "id": "X-01",
+   "leak": "L-03",
+   "title": "TP1 sized by volatility",
+   "rule": "TP1 = 0.75 x ATR(15m) at the fill, min 15, max 60 pts, break-even after +15",
+   "switch": "tp1AtrShadow",
+   "mode": "recording",
+   "started": "2026-11-11",
+   "startedAtUtc": "2026-11-11T02:51:00Z",
+   "minN": 20,
+   "unit": "usd",
+   "expectation": "More dollars per trade than the fixed +15 in NY",
+   "verdictAt": "20 resolved NY cases",
+   "killIf": "Net per trade is not above the fixed target's, or full stops per 10 trades rise by more than 1",
+   "feeds": {
+    "rows": [
+     "tp1_atr_shadow"
+    ],
+    "calc": "tp1AtrShadow",
+    "how": "phase 'resolve' rows with session ny and state 'resolved'; value = sum of shadow.beAfterNetUsd - live.netUsd"
+   },
+   "running": {
+    "asOfTradeDay": "2026-11-11",
+    "n": 0,
+    "value": null,
+    "resolved": 0,
+    "unresolved": 0,
+    "verdict": "too early",
+    "note": "value = shadow (break-even after +15) net minus live net, summed over resolved NY cases; 0 resolve rows in all sessions, 0 of them unresolved",
+    "cases": []
+   }
+  },
+  {
+   "id": "X-02",
+   "leak": "L-01",
+   "title": "Early exit of trades that never work",
+   "rule": "After 120 s, at -10 pts, if never seen +3: close at market",
+   "switch": "earlyAdverseExit",
+   "mode": "live",
+   "started": "2026-11-11",
+   "startedAtUtc": "2026-11-11T02:51:00Z",
+   "minN": 20,
+   "unit": "usd",
+   "expectation": "Smaller average loss; few exits that would have reached TP1",
+   "verdictAt": "20 live exits",
+   "killIf": "More than 1 in 4 early exits would have reached TP1, or net effect is negative",
+   "feeds": {
+    "rows": [
+     "early_adverse_exit",
+     "early_adverse_shadow"
+    ],
+    "calc": "earlyAdverseExit",
+    "how": "n = early_adverse_exit rows with decision 'exit' and orderSent; value from the early_adverse_shadow result of each: wouldHaveHitStop = (stopPts - |exitPts|) x contracts x $2 saved, wouldHaveHitTp1 = (tp1Pts + |exitPts|) x contracts x $2 given up, unresolved = not counted"
+   },
+   "running": {
+    "asOfTradeDay": "2026-11-11",
+    "n": 1,
+    "value": null,
+    "resolved": 0,
+    "unresolved": 1,
+    "verdict": "too early",
+    "note": "n = live early exits; value = dollars saved (+) or given up (-) against the stop / TP1 the trade had, from the 0 exits whose shadow resolved (0 would have hit TP1)",
+    "cases": [
+     {
+      "id": "4380cced-8ba7-4d21-bed6-4ee6ab58ab3c",
+      "exitPts": -10.25,
+      "shadow": "unresolved",
+      "why": "another trade opened"
+     }
+    ]
+   }
+  },
+  {
+   "id": "X-03",
+   "leak": "L-02",
+   "title": "Asia / London: all contracts out at TP1",
+   "rule": "No runner in Asia and London: every contract leaves at TP1",
+   "switch": "sessionRunner",
+   "mode": "live",
+   "started": "2026-11-11",
+   "startedAtUtc": "2026-11-11T02:51:00Z",
+   "minN": 20,
+   "unit": "usd per winning trade",
+   "expectation": "More dollars per winning trade than the old runner rule",
+   "verdictAt": "20 live trades",
+   "killIf": "Average is below what the old rule would have paid on the same trades",
+   "feeds": {
+    "rows": [
+     "runner_rule"
+    ],
+    "calc": "runnerAllAtTp1",
+    "sessions": [
+     "asia",
+     "london"
+    ],
+    "how": "runner_rule rows with mode 'allAtTp1' joined to the ledger; n = those trades that reached TP1; value = their average net dollars"
+   },
+   "running": {
+    "asOfTradeDay": "2026-11-11",
+    "n": 1,
+    "value": 86.34,
+    "resolved": 1,
+    "unresolved": 3,
+    "verdict": "too early",
+    "note": "n = trades under the rule that reached TP1 (4 fills carried the rule); value = average net dollars of those trades. What the old runner rule would have paid on the same trades is not in the journal, so the kill rule cannot be judged by this tool",
+    "cases": [
+     {
+      "id": "90e77c32-767e-4733-b46b-bdc672faf0dd",
+      "session": "asia",
+      "net": 86.34,
+      "exitReason": "tp1-all-out"
+     }
+    ]
+   }
+  },
+  {
+   "id": "X-04",
+   "leak": "L-04",
+   "title": "NY runner by ATR",
+   "rule": "NY runner: stop 2 pts beyond the entry, target 2.0 x ATR(15m)",
+   "switch": "sessionRunnerNy",
+   "mode": "live",
+   "started": "2026-11-11",
+   "startedAtUtc": "2026-11-11T02:51:00Z",
+   "minN": 20,
+   "unit": "usd per winning trade",
+   "expectation": "Runner pays more than the old fixed runner",
+   "verdictAt": "20 live NY trades with a runner",
+   "killIf": "Runner net is below the old rule's on the same trades",
+   "feeds": {
+    "rows": [
+     "runner_rule"
+    ],
+    "calc": "runnerAtrTarget",
+    "sessions": [
+     "ny"
+    ],
+    "how": "runner_rule rows with mode 'atrTarget' joined to the ledger; n = those trades that reached TP1 (so had a runner); value = their average net dollars"
+   },
+   "running": {
+    "asOfTradeDay": "2026-11-11",
+    "n": 0,
+    "value": null,
+    "resolved": 0,
+    "unresolved": 0,
+    "verdict": "too early",
+    "note": "n = trades under the rule that reached TP1 (0 fills carried the rule); value = average net dollars of those trades. What the old runner rule would have paid on the same trades is not in the journal, so the kill rule cannot be judged by this tool",
+    "cases": []
+   }
+  },
+  {
+   "id": "X-05",
+   "leak": "L-05",
+   "title": "Control score by the indicator's formula",
+   "rule": "levelsParity: pine (15m control score computed as the indicator does)",
+   "switch": "levelsParity",
+   "mode": "live",
+   "started": "2026-11-11",
+   "startedAtUtc": "2026-11-11T05:14:32Z",
+   "minN": 20,
+   "unit": "usd per trade",
+   "expectation": "More entries pass the 15m control gate; the added entries are not worse than the rest",
+   "verdictAt": "20 trades that the old formula would have blocked",
+   "killIf": "Those trades lose more per trade than the rest",
+   "feeds": {
+    "rows": [
+     "trade_block",
+     "signal_check"
+    ],
+    "calc": "controlParity",
+    "how": "needs the old formula's score next to the new one on each entry; the journal does not carry it after the switch, so n stays unknown until the bot writes both"
+   },
+   "running": {
+    "asOfTradeDay": "2026-11-11",
+    "n": null,
+    "value": null,
+    "resolved": 1,
+    "unresolved": null,
+    "verdict": "not measurable yet",
+    "note": "not measurable from the journal: after the switch the old formula's score is not written, so the trades it would have blocked cannot be told apart (1 trades since the switch, net $-71.16)",
+    "cases": []
+   }
+  }
+ ]
+}

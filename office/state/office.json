@@ -1,0 +1,390 @@
+{
+ "schema": 1,
+ "generatedAt": "2026-11-11T06:26:36Z",
+ "tradeDay": "2026-11-11",
+ "data": {
+  "lastSlice": "2026-11-11/slice-2205",
+  "rows": 959,
+  "complete": false,
+  "note": "TradeDay incomplete: journal missing 11/10 22:05 PT to 11/11 13:10 PT"
+ },
+ "objective": {
+  "name": "Topstep $50K Combine",
+  "target": 3000,
+  "maxLoss": 2000,
+  "bestDayCap": 1650,
+  "account": "practice"
+ },
+ "combine": {
+  "mode": "virtual",
+  "current": {
+   "startDay": "2026-11-09",
+   "profit": 354.5,
+   "floorRoom": 2354.5,
+   "bestDay": 0.0,
+   "bestDayPct": null,
+   "days": 3,
+   "status": "open",
+   "needPerDay": null
+  },
+  "history": {
+   "started": 20,
+   "passed": 0,
+   "breached": 14,
+   "open": 6,
+   "window": "last 20 TradeDays"
+  }
+ },
+ "day": {
+  "net": 462.56,
+  "trades": 9,
+  "wins": 7,
+  "losses": 2,
+  "fullStops": 0,
+  "avgWin": 78.27,
+  "avgLoss": -42.66,
+  "fees": 32.94,
+  "bySession": {
+   "asia": {
+    "net": 462.56,
+    "trades": 9,
+    "fullStops": 0
+   },
+   "london": {
+    "net": 0.0,
+    "trades": 0,
+    "fullStops": 0
+   },
+   "ny": {
+    "net": 0.0,
+    "trades": 0,
+    "fullStops": 0
+   },
+   "late": {
+    "net": 0.0,
+    "trades": 0,
+    "fullStops": 0
+   }
+  }
+ },
+ "week": {
+  "net": 354.5,
+  "trades": 25,
+  "fullStops": 2,
+  "lossToWin": 1.52,
+  "days": [
+   {
+    "day": "2026-11-09",
+    "net": 0.0,
+    "trades": 0,
+    "fullStops": 0
+   },
+   {
+    "day": "2026-11-10",
+    "net": -108.06,
+    "trades": 16,
+    "fullStops": 2
+   },
+   {
+    "day": "2026-11-11",
+    "net": 462.56,
+    "trades": 9,
+    "fullStops": 0
+   }
+  ]
+ },
+ "health": {
+  "restarts": 5,
+  "settingsChanges": [
+   {
+    "t": "2026-11-11T02:05:42Z",
+    "what": "bot code changed (9 files: brokerReads.js, entryCancelRequests.js, healthAlerts.js, ...), build 8ce446bbb45f"
+   },
+   {
+    "t": "2026-11-11T02:52:03Z",
+    "what": "bot code changed (5 files: edgeExits.js, liveStateMachine.js, phoneSnapshot.js, ...), build 55feac4eb001"
+   },
+   {
+    "t": "2026-11-11T03:43:36Z",
+    "what": "bot code changed (5 files: edgeExits.js, healthAlerts.js, liveStateMachine.js, ...), build 2f4313b42f61"
+   },
+   {
+    "t": "2026-11-11T05:14:44Z",
+    "what": "levelsParity off -> pine"
+   }
+  ],
+  "build": "8e4194fac934",
+  "notes": [
+   "TradeDay incomplete: journal missing 11/10 22:05 PT to 11/11 13:10 PT",
+   "warmup alert at 18:06 PT: Warm-up cut short",
+   "warmup alert at 18:51 PT: Warm-up cut short",
+   "2 trades have no open-excursion data: the virtual combine tests them on closed P&L only"
+  ]
+ },
+ "leaks": [
+  {
+   "id": "L-01",
+   "title": "Full stops never work: the trades that go to the full stop were almost never in profit",
+   "status": "live",
+   "n": 3,
+   "usd": -621.48,
+   "next": "Keep / kill at 20 live cases. Watch \"early exits that would have hit TP1\" (rig witness: 1 of 1)"
+  },
+  {
+   "id": "L-02",
+   "title": "The runner is dead weight in Asia and London",
+   "status": "live",
+   "n": 1,
+   "usd": null,
+   "next": "First live trade +$86.34 against +$75.84 under the old rule. Keep / kill at 20"
+  },
+  {
+   "id": "L-03",
+   "title": "NY: the first target is small against NY candles",
+   "status": "recording",
+   "n": 0,
+   "usd": null,
+   "next": "Offline it showed +$4,009 but nearly doubled full stops. Verdict at 20 resolved"
+  },
+  {
+   "id": "L-04",
+   "title": "NY runner: fixed runner leaves money in trends",
+   "status": "live",
+   "n": 0,
+   "usd": null,
+   "next": "Small sample. Keep / kill at 20"
+  },
+  {
+   "id": "L-05",
+   "title": "Control gate reads \"flat\" while the indicator shows a side",
+   "status": "live",
+   "n": null,
+   "usd": null,
+   "next": "P&L effect not measured. Compare gate passes and their results before / after the switch"
+  },
+  {
+   "id": "L-06",
+   "title": "Trades skipped when the planned stop is wider than the 50-pt cap",
+   "status": "measured",
+   "n": null,
+   "usd": null,
+   "next": "Count skipped signals per day and what they did next; revisit with that data"
+  },
+  {
+   "id": "L-07",
+   "title": "Re-entry right after a full stop",
+   "status": "observed",
+   "n": null,
+   "usd": null,
+   "next": "Measure: result of the next trade in the same direction within 30 min of a full stop"
+  },
+  {
+   "id": "L-08",
+   "title": "High-volatility days: same size and stop as quiet days",
+   "status": "observed",
+   "n": null,
+   "usd": null,
+   "next": "Measure by ATR tercile: stops, wins, net. Candidate: a volatility gauge, record-only"
+  },
+  {
+   "id": "L-09",
+   "title": "Tightening the stop to 25 pts",
+   "status": "killed",
+   "n": null,
+   "usd": null,
+   "next": "Keep the accurate stop distance (standing order)"
+  },
+  {
+   "id": "L-10",
+   "title": "Protect-after-profit (move the stop up once in profit)",
+   "status": "killed",
+   "n": null,
+   "usd": null,
+   "next": "None"
+  },
+  {
+   "id": "L-11",
+   "title": "Entry filters (103 tested)",
+   "status": "killed",
+   "n": null,
+   "usd": null,
+   "next": "A new filter needs a reason first, then a test, not a search"
+  },
+  {
+   "id": "B-01",
+   "title": "One skipped fast check (about 20 s blind) at each 15m close: \"fetch failed\"",
+   "status": "fixed",
+   "n": null,
+   "usd": null,
+   "next": "After the install, count 'ERROR in loop' per day; the new log line gives the idle time"
+  },
+  {
+   "id": "B-02",
+   "title": "Flatten answered \"already flat\" from the bot's own state",
+   "status": "fixed",
+   "n": null,
+   "usd": null,
+   "next": "Install r1.2"
+  },
+  {
+   "id": "B-03",
+   "title": "Entry price shows UNKNOWN on the phone until Review is opened",
+   "status": "fixed",
+   "n": null,
+   "usd": null,
+   "next": "Install r1.2"
+  },
+  {
+   "id": "B-04",
+   "title": "The full ship gate (Mac-box run, restart soak) has not been run on the edge builds",
+   "status": "open",
+   "n": null,
+   "usd": null,
+   "next": "Run it once on r1.2 in the reviewer desk; ask Mac before any long replay loop"
+  },
+  {
+   "id": "B-05",
+   "title": "Indicator and bot read the forming candle seconds apart",
+   "status": "observed",
+   "n": null,
+   "usd": null,
+   "next": "Only if it flips a gate for more than a minute"
+  },
+  {
+   "id": "B-06",
+   "title": "After a restart the bot shows different levels from an uninterrupted run and skipped a short it otherwise takes",
+   "status": "observed",
+   "n": null,
+   "usd": null,
+   "next": "Find out which. If it is the bot, every restart mid-session can cost trades"
+  },
+  {
+   "id": "B-07",
+   "title": "Flatten tapped while the bot is already flat and the broker position cannot be read: repeated urgent pushes",
+   "status": "observed",
+   "n": null,
+   "usd": null,
+   "next": "Fix in edge r1.3"
+  }
+ ],
+ "experiments": [
+  {
+   "id": "X-01",
+   "title": "TP1 sized by volatility",
+   "mode": "recording",
+   "n": 0,
+   "minN": 20,
+   "value": null,
+   "unit": "usd",
+   "verdict": "too early"
+  },
+  {
+   "id": "X-02",
+   "title": "Early exit of trades that never work",
+   "mode": "live",
+   "n": 1,
+   "minN": 20,
+   "value": null,
+   "unit": "usd",
+   "verdict": "too early"
+  },
+  {
+   "id": "X-03",
+   "title": "Asia / London: all contracts out at TP1",
+   "mode": "live",
+   "n": 1,
+   "minN": 20,
+   "value": 86.34,
+   "unit": "usd per winning trade",
+   "verdict": "too early"
+  },
+  {
+   "id": "X-04",
+   "title": "NY runner by ATR",
+   "mode": "live",
+   "n": 0,
+   "minN": 20,
+   "value": null,
+   "unit": "usd per winning trade",
+   "verdict": "too early"
+  },
+  {
+   "id": "X-05",
+   "title": "Control score by the indicator's formula",
+   "mode": "live",
+   "n": null,
+   "minN": 20,
+   "value": null,
+   "unit": "usd per trade",
+   "verdict": "not measurable yet"
+  }
+ ],
+ "blocked": [
+  {
+   "gate": "levels only (no level event)",
+   "count": 23,
+   "wouldHaveWon": 16,
+   "wouldHaveLost": 0,
+   "neither": 0,
+   "unknown": 7
+  },
+  {
+   "gate": "HTF alignment",
+   "count": 9,
+   "wouldHaveWon": 4,
+   "wouldHaveLost": 1,
+   "neither": 0,
+   "unknown": 4
+  },
+  {
+   "gate": "15m control",
+   "count": 8,
+   "wouldHaveWon": 5,
+   "wouldHaveLost": 0,
+   "neither": 1,
+   "unknown": 2
+  },
+  {
+   "gate": "cooldown",
+   "count": 8,
+   "wouldHaveWon": 4,
+   "wouldHaveLost": 1,
+   "neither": 0,
+   "unknown": 3
+  },
+  {
+   "gate": "size below 3 (stop too wide)",
+   "count": 7,
+   "wouldHaveWon": 6,
+   "wouldHaveLost": 0,
+   "neither": 1,
+   "unknown": 0
+  },
+  {
+   "gate": "alignment unknown",
+   "count": 1,
+   "wouldHaveWon": 0,
+   "wouldHaveLost": 0,
+   "neither": 0,
+   "unknown": 1
+  },
+  {
+   "gate": "level ban",
+   "count": 1,
+   "wouldHaveWon": 1,
+   "wouldHaveLost": 0,
+   "neither": 0,
+   "unknown": 0
+  },
+  {
+   "gate": "no chase",
+   "count": 1,
+   "wouldHaveWon": 0,
+   "wouldHaveLost": 0,
+   "neither": 0,
+   "unknown": 1
+  }
+ ],
+ "waitingOnMac": [],
+ "flags": []
+}
