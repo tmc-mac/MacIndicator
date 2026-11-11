@@ -1,0 +1,72 @@
+MAC - INSTALL "EDGE r1.5" (executor 507af74e)   PRIVATE - server address inside
+=======================================================================================================
+Works on EITHER build you have now: edge r1.4 (executor 871d53ca) or edge r1.3 (executor 4168e4bb).
+Anything else it finds = STOP before it asks YES, nothing changed.
+
+What it changes (one trading rule, ON by default):
+  NY RUNNER PROFIT LOCK. NY trades only, only the runner (the last contract after the first target). Once the runner has
+  run +50 points from the entry, its stop moves up to entry +10. Never loosens. The runner's TP2 target is unchanged.
+  Why: you said a good runner coming back to 0 is insane.
+  Honest size: the offline estimate is on only 18 NY trades over 4 days. It is small. It is insurance, worth about $0 to
+  +$32 on that sample. It is an estimate, not a result: we score it live. An alternative that bites sooner (arm +30 /
+  lock +10) is NOT installed; it needs your explicit go. Want a two-step ladder or a different number: ask me.
+  Everything else is the same as r1.4. If you are on r1.3, you also get r1.4's changes (phone server memory fix and the
+  new counters; those only record).
+  Switch: tools/set-runnerlock.sh on | log | off | clear (flat only). Details at the bottom.
+
+Checked (independent desks, on the frozen build): code review SHIP (4 findings fixed, re-reviewed); boot on one core / 961 MB / the server heap limit / 98.7 MB and 150 MB journals, no memory error (peak RSS ~320 MB, same as r1.4); 12+ real hard kills in 4 chains incl. around the lock rows, every start LIVE, no duplicate or orphan stop; +55 replay: stop moves to +10 and exits there (28563.75 vs r1.4 28571.75); +45 replay: no arm, broker orders identical to r1.4; lock off = r1.4 field for field; real 11/02 case fires the same; real-clock run on one core, 13 min x2, no missed 20 s poll; install over r1.4 and r1.3, second run, rollback, refusal when not flat, undo after failed step all pass.
+Known: the exit-through-the-lock market path (a jump over 35 pts in 0.3 s) is covered by a unit test only, not exercised on the rig; a hard kill in the ~1.5 s between the TP1 fill and the runner stop (r1.4 behaviour, not new) restarts the runner on the old trail rule with no lock.
+
+Be FLAT in TopstepX. Put MacBot-edge-r1.5.zip in Downloads, open PowerShell:
+
+0) Quick pre-check of your settings file (one line; it must print nothing, or only a number below 10):
+  ssh root@<server> "grep -o '\"stopPts\"[^,}]*' /opt/mac-bot/config-local.json"
+     If it shows stopPts 10 or more, STOP and tell me (the installer also refuses in that case, nothing changed).
+     No output at all is the normal answer.
+
+1) Check the file:
+  cd $env:USERPROFILE\Downloads
+  Get-FileHash .\MacBot-edge-r1.5.zip
+     (must start with 10C462C3)
+
+2) Copy it up and unpack:
+  scp .\MacBot-edge-r1.5.zip root@<server>:/root/
+  ssh root@<server> "mkdir -p /root/edge15 && cd /root/edge15 && python3 -m zipfile -e /root/MacBot-edge-r1.5.zip . && ls MacBot-edge-r1.5"
+
+3) Install the bot (type YES when asked):
+  ssh -t root@<server> "cd /root/edge15/MacBot-edge-r1.5 && MACBOT_DIR=/opt/mac-bot bash install-edge.sh tree"
+     It takes up to about 2 minutes after YES while it waits for the new stamp.
+     You want at the end: "session stamp ... (executor 507af74e" and "DONE". Keep the rollback line it prints.
+     It also prints which build it replaced ("baseline replaced: edge r1.4" or "edge r1.3").
+     If it says STOP before it asks YES, nothing was changed - send me the lines. (If the STOP says you are already on
+     r1.5, do nothing; running it a second time is always a STOP.)
+     If a step fails halfway it undoes itself and prints UNDO then DONE on the old build: send me the lines.
+     If the window closes or the connection drops DURING step 3, do NOT run the install again. Run
+       ssh root@<server> "ls -d /opt/.edge15-backup-*"
+     and send me the output (the rollback line goes with that folder).
+
+4) Phone server restart: ONLY if the installer printed "NEXT: tmc-proxy.js changed" (that is the case when you came from
+   r1.3). If it printed "tmc-proxy.js is unchanged", skip this step. When needed, THIS RESTARTS THE BOT TOO (the bot's
+   service requires it), so you will see two starts; the memory settings you added stay in place:
+  ssh root@<server> "systemctl restart mac-bot-proxy.service && sleep 3 && systemctl is-active mac-bot-proxy.service"
+     You want: active
+
+5) Check (wait 2 min):
+  ssh root@<server> "journalctl -u mac-bot-live --since '-5 min' --no-pager | grep -E 'session stamp|runner-lock|Entering live loop|FATAL|unusable' | tail -8"
+     You want: "executor 507af74e", a line starting "[runner-lock] NY runner profit lock: ON (", "Entering live loop".
+     No FATAL lines. Then open Trades and Review on the phone a few times: the phone server should stay up.
+
+SWITCH (flat only; each one restarts the bot once, checks the start line, and puts the file back by itself if anything is off):
+  ssh -t root@<server> "MACBOT_DIR=/opt/mac-bot bash /opt/mac-bot/tools/set-runnerlock.sh off"     (lock off = r1.4 trading)
+  ... set-runnerlock.sh log     (rows in the journal with "would have moved to", NO order sent)
+  ... set-runnerlock.sh on      (asks YES twice)
+  ... set-runnerlock.sh clear   (back to the shipped default, which is ON)
+  r1.5's default is ON: you do nothing to have it on. "off" also leaves a "lock" line in your settings file.
+
+ROLLBACK (flat first). The backup folder remembers which build it replaced (r1.4 or r1.3) and puts back exactly that one.
+  BEFORE rolling back, if you ever used set-runnerlock.sh off / log / on, first run
+  ssh -t root@<server> "MACBOT_DIR=/opt/mac-bot bash /opt/mac-bot/tools/set-runnerlock.sh clear"
+  because r1.4 and r1.3 REFUSE to start with that lock line in the settings file (the rollback stops by itself and tells
+  you so, nothing changed, if the line is still there). Then:
+  ssh -t root@<server> "bash <BACKUP-FOLDER>/rollback-edge.sh <BACKUP-FOLDER>"
+  and, if the installer had said to restart the phone server (you came from r1.3), run step 4 again afterwards.
