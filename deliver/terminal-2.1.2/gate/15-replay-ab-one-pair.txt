@@ -1,0 +1,35 @@
+shapes per run reel 1x: ref 3 (p95 33.4) | page 3 (p95 33.4)
+CASE DONE reel 1x at 05:09:52Z | ref p95 33.4 max 100 lt 356 shapes 3 | page p95 33.4 max 83 lt 351 shapes 3 brain 0/0 errors 0
+Wr6 reel 1x: page 3 vs reference range 3..3 over 1 runs (floor 3; page runs 3)
+shapes per run reel 4x: ref 3 (p95 49.9) | page 3 (p95 50.0)
+CASE DONE reel 4x at 05:11:02Z | ref p95 49.9 max 467 lt 1950 shapes 3 | page p95 50.0 max 433 lt 1831 shapes 3 brain 0/0 errors 0
+Wr6 reel 4x: page 3 vs reference range 3..3 over 1 runs (floor 3; page runs 3)
+shapes per run chart 1x: ref 20 (p95 33.4) | page 20 (p95 33.4)
+CASE DONE chart 1x at 05:11:45Z | ref p95 33.4 max 67 lt 300 shapes 20 | page p95 33.4 max 117 lt 589 shapes 20 brain 0/0 errors 0
+Wr6 chart 1x: page 20 vs reference range 20..20 over 1 runs (floor 20; page runs 20)
+shapes per run chart 4x: ref 18 (p95 50.0) | page 18 (p95 33.4)
+CASE DONE chart 4x at 05:12:28Z | ref p95 50.0 max 450 lt 1648 shapes 18 | page p95 33.4 max 450 lt 1607 shapes 18 brain 0/0 errors 0
+Wr6 chart 4x: page 18 vs reference range 18..18 over 1 runs (floor 18; page runs 18)
+case | page | frames | p95 gap ms | max gap ms | max step % | progress moves | long tasks ms | bar shapes | brain frames / flashes
+reel 1x | 07c95367 (ref) | 371 | 33.4 | 100 | 0.42 | 194 | 356 | 3 | 0 / 0
+reel 1x | page | 394 | 33.4 | 83 | 0.42 | 192 | 351 | 3 | 0 / 0
+reel 4x | 07c95367 (ref) | 265 | 49.9 | 467 | 0.42 | 166 | 1950 | 3 | 0 / 0
+reel 4x | page | 261 | 50.0 | 433 | 0.42 | 166 | 1831 | 3 | 0 / 0
+chart 1x | 07c95367 (ref) | 365 | 33.4 | 67 | 0.95 | 306 | 300 | 20 | 0 / 0
+chart 1x | page | 374 | 33.4 | 117 | 1.67 | 309 | 589 | 20 | 0 / 0
+chart 4x | 07c95367 (ref) | 275 | 50.0 | 450 | 6.43 | 223 | 1648 | 18 | 0 / 0
+chart 4x | page | 306 | 33.4 | 450 | 6.43 | 245 | 1607 | 18 | 0 / 0
+load at the start of each run (limit 3):
+  reel 1x ref0: load 1.71
+  reel 1x new0: load 2.64 after waiting 5 s
+  reel 4x ref0: load 2.61 after waiting 5 s
+  reel 4x new0: load 2.82 after waiting 10 s
+  chart 1x ref0: load 2.86 after waiting 5 s
+  chart 1x new0: load 2.76 after waiting 5 s
+  chart 4x ref0: load 2.42 after waiting 5 s
+  chart 4x new0: load 2.41 after waiting 5 s
+FAILURES:
+  Wr2 chart 1x: max frame gap 117 ms > max(100, 1.2 x the reference's 67)
+  Wr3 chart 1x: max progress step 1.67 % > 1.15 x the reference's 0.95 % + 0.1
+  Wr4 chart 1x: long tasks 589 ms > 1.15 x the reference's 300 + 60
+replay-smooth-2099: 25 passed, 3 failed

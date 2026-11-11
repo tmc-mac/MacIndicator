@@ -1,0 +1,199 @@
+{
+ "at": "2026-11-11T05:18:21.899Z",
+ "live": "/tmp/claude-0/-home-user-MacIndicator/381b1833-c8be-58a5-b27d-e767976714fe/scratchpad/term211/mobile.html",
+ "drop": "/tmp/claude-0/-home-user-MacIndicator/381b1833-c8be-58a5-b27d-e767976714fe/scratchpad/term212/mobile.html",
+ "states": {
+  "r133eod": {
+   "ok": true,
+   "requestsIdentical": true,
+   "dialogsIdentical": true,
+   "biasShapeIdentical": true,
+   "stepCountsIdentical": true,
+   "live": {
+    "reqs": [
+     "GET /signal-journal?symbol=MNQ&limit=100&_=<ts>&key=fixture",
+     "GET /trade-stats?symbol=MNQ&_=<ts>&key=fixture",
+     "GET /trade-list?symbol=MNQ&limit=200&_=<ts>&key=fixture",
+     "GET /trade-blocks?symbol=MNQ&limit=60&_=<ts>&key=fixture",
+     "GET /trade-list?symbol=MNQ&limit=200&_=<ts>&key=fixture",
+     "GET /trade-why?symbol=MNQ&journalId=9b2da207-515e-4e76-b7f3-7d30ecb32c7c&_=<ts>&key=fixture",
+     "POST /pause?symbol=MNQ&minutes=5&key=fixture content-length=0",
+     "POST /pause?symbol=MNQ&minutes=10&key=fixture content-length=0",
+     "POST /pause?symbol=MNQ&minutes=15&key=fixture content-length=0",
+     "POST /pause?symbol=MNQ&minutes=30&key=fixture content-length=0"
+    ],
+    "bias": [
+     "GET /bias?symbol=MNQ&_=<ts>&key=fixture"
+    ],
+    "marks": [
+     "views: 3 request(s)",
+     "blocks: 1 request(s)",
+     "why-first-trade: 2 request(s)",
+     "levels-pick-then-back-to-live: 0 request(s)",
+     "pause-preset-0-two-tap: 1 request(s)",
+     "pause-preset-1-two-tap: 1 request(s)",
+     "pause-preset-2-two-tap: 1 request(s)",
+     "pause-preset-3-two-tap: 1 request(s)",
+     "pause-one-tap-only (arms, sends nothing): 0 request(s)"
+    ],
+    "dialogs": [],
+    "errors": [],
+    "external": []
+   },
+   "drop": {
+    "reqs": [
+     "GET /signal-journal?symbol=MNQ&limit=100&_=<ts>&key=fixture",
+     "GET /trade-stats?symbol=MNQ&_=<ts>&key=fixture",
+     "GET /trade-list?symbol=MNQ&limit=200&_=<ts>&key=fixture",
+     "GET /trade-blocks?symbol=MNQ&limit=60&_=<ts>&key=fixture",
+     "GET /trade-list?symbol=MNQ&limit=200&_=<ts>&key=fixture",
+     "GET /trade-why?symbol=MNQ&journalId=9b2da207-515e-4e76-b7f3-7d30ecb32c7c&_=<ts>&key=fixture",
+     "POST /pause?symbol=MNQ&minutes=5&key=fixture content-length=0",
+     "POST /pause?symbol=MNQ&minutes=10&key=fixture content-length=0",
+     "POST /pause?symbol=MNQ&minutes=15&key=fixture content-length=0",
+     "POST /pause?symbol=MNQ&minutes=30&key=fixture content-length=0"
+    ],
+    "bias": [
+     "GET /bias?symbol=MNQ&_=<ts>&key=fixture"
+    ],
+    "marks": [
+     "views: 3 request(s)",
+     "blocks: 1 request(s)",
+     "why-first-trade: 2 request(s)",
+     "levels-pick-then-back-to-live: 0 request(s)",
+     "pause-preset-0-two-tap: 1 request(s)",
+     "pause-preset-1-two-tap: 1 request(s)",
+     "pause-preset-2-two-tap: 1 request(s)",
+     "pause-preset-3-two-tap: 1 request(s)",
+     "pause-one-tap-only (arms, sends nothing): 0 request(s)"
+    ],
+    "dialogs": [],
+    "errors": [],
+    "external": []
+   }
+  },
+  "r133paused": {
+   "ok": true,
+   "requestsIdentical": true,
+   "dialogsIdentical": true,
+   "biasShapeIdentical": true,
+   "stepCountsIdentical": true,
+   "live": {
+    "reqs": [
+     "POST /pause?symbol=MNQ&minutes=0&key=fixture content-length=0"
+    ],
+    "bias": [
+     "GET /bias?symbol=MNQ&_=<ts>&key=fixture"
+    ],
+    "marks": [
+     "resume-two-tap: 1 request(s)"
+    ],
+    "dialogs": [],
+    "errors": [],
+    "external": []
+   },
+   "drop": {
+    "reqs": [
+     "POST /pause?symbol=MNQ&minutes=0&key=fixture content-length=0"
+    ],
+    "bias": [
+     "GET /bias?symbol=MNQ&_=<ts>&key=fixture"
+    ],
+    "marks": [
+     "resume-two-tap: 1 request(s)"
+    ],
+    "dialogs": [],
+    "errors": [],
+    "external": []
+   }
+  },
+  "r133trade": {
+   "ok": true,
+   "requestsIdentical": true,
+   "dialogsIdentical": true,
+   "biasShapeIdentical": true,
+   "stepCountsIdentical": true,
+   "live": {
+    "reqs": [
+     "POST /flatten?symbol=MNQ&key=fixture content-length=0",
+     "POST /flatten?symbol=MNQ&key=fixture content-length=0"
+    ],
+    "bias": [
+     "GET /bias?symbol=MNQ&_=<ts>&key=fixture"
+    ],
+    "marks": [
+     "flatten-position-card-DISMISS: 0 request(s)",
+     "flatten-position-card-ACCEPT: 1 request(s)",
+     "flatten-control-one-tap (arms only): 0 request(s)",
+     "flatten-control-two-tap: 1 request(s)"
+    ],
+    "dialogs": [
+     "confirm: Flatten your MNQ position right now? This closes everything at market immediately. -> dismiss",
+     "confirm: Flatten your MNQ position right now? This closes everything at market immediately. -> accept"
+    ],
+    "errors": [],
+    "external": []
+   },
+   "drop": {
+    "reqs": [
+     "POST /flatten?symbol=MNQ&key=fixture content-length=0",
+     "POST /flatten?symbol=MNQ&key=fixture content-length=0"
+    ],
+    "bias": [
+     "GET /bias?symbol=MNQ&_=<ts>&key=fixture"
+    ],
+    "marks": [
+     "flatten-position-card-DISMISS: 0 request(s)",
+     "flatten-position-card-ACCEPT: 1 request(s)",
+     "flatten-control-one-tap (arms only): 0 request(s)",
+     "flatten-control-two-tap: 1 request(s)"
+    ],
+    "dialogs": [
+     "confirm: Flatten your MNQ position right now? This closes everything at market immediately. -> dismiss",
+     "confirm: Flatten your MNQ position right now? This closes everything at market immediately. -> accept"
+    ],
+    "errors": [],
+    "external": []
+   }
+  },
+  "r133pending": {
+   "ok": true,
+   "requestsIdentical": true,
+   "dialogsIdentical": true,
+   "biasShapeIdentical": true,
+   "stepCountsIdentical": true,
+   "live": {
+    "reqs": [
+     "POST /cancel-entry?symbol=MNQ&target=%7B%22accountId%22%3A0%2C%22contractId%22%3A%22CON.F.US.MNQ.Z26%22%2C%22orderId%22%3A9990001%2C%22entryIdentity%22%3A%22demo-entry-0001%22%7D&key=fixture content-length=0"
+    ],
+    "bias": [
+     "GET /bias?symbol=MNQ&_=<ts>&key=fixture"
+    ],
+    "marks": [
+     "cancel-entry-control-two-tap: 1 request(s)"
+    ],
+    "dialogs": [],
+    "errors": [
+     "console: Failed to load resource: the server responded with a status of 400 (Bad Request)"
+    ],
+    "external": []
+   },
+   "drop": {
+    "reqs": [
+     "POST /cancel-entry?symbol=MNQ&target=%7B%22accountId%22%3A0%2C%22contractId%22%3A%22CON.F.US.MNQ.Z26%22%2C%22orderId%22%3A9990001%2C%22entryIdentity%22%3A%22demo-entry-0001%22%7D&key=fixture content-length=0"
+    ],
+    "bias": [
+     "GET /bias?symbol=MNQ&_=<ts>&key=fixture"
+    ],
+    "marks": [
+     "cancel-entry-control-two-tap: 1 request(s)"
+    ],
+    "dialogs": [],
+    "errors": [
+     "console: Failed to load resource: the server responded with a status of 400 (Bad Request)"
+    ],
+    "external": []
+   }
+  }
+ }
+}

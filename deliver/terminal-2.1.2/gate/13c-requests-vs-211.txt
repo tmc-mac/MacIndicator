@@ -1,0 +1,37 @@
+r133eod      requests IDENTICAL (10)  dialogs IDENTICAL (0)  /bias IDENTICAL  per-step IDENTICAL  external 0  errors live 0 drop 0 (drop-only 0)
+    GET /signal-journal?symbol=MNQ&limit=100&_=<ts>&key=fixture
+    GET /trade-stats?symbol=MNQ&_=<ts>&key=fixture
+    GET /trade-list?symbol=MNQ&limit=200&_=<ts>&key=fixture
+    GET /trade-blocks?symbol=MNQ&limit=60&_=<ts>&key=fixture
+    GET /trade-list?symbol=MNQ&limit=200&_=<ts>&key=fixture
+    GET /trade-why?symbol=MNQ&journalId=9b2da207-515e-4e76-b7f3-7d30ecb32c7c&_=<ts>&key=fixture
+    POST /pause?symbol=MNQ&minutes=5&key=fixture content-length=0
+    POST /pause?symbol=MNQ&minutes=10&key=fixture content-length=0
+    POST /pause?symbol=MNQ&minutes=15&key=fixture content-length=0
+    POST /pause?symbol=MNQ&minutes=30&key=fixture content-length=0
+    step views: 3 request(s)
+    step blocks: 1 request(s)
+    step why-first-trade: 2 request(s)
+    step levels-pick-then-back-to-live: 0 request(s)
+    step pause-preset-0-two-tap: 1 request(s)
+    step pause-preset-1-two-tap: 1 request(s)
+    step pause-preset-2-two-tap: 1 request(s)
+    step pause-preset-3-two-tap: 1 request(s)
+    step pause-one-tap-only (arms, sends nothing): 0 request(s)
+r133paused   requests IDENTICAL (1)  dialogs IDENTICAL (0)  /bias IDENTICAL  per-step IDENTICAL  external 0  errors live 0 drop 0 (drop-only 0)
+    POST /pause?symbol=MNQ&minutes=0&key=fixture content-length=0
+    step resume-two-tap: 1 request(s)
+r133trade    requests IDENTICAL (2)  dialogs IDENTICAL (2)  /bias IDENTICAL  per-step IDENTICAL  external 0  errors live 0 drop 0 (drop-only 0)
+    POST /flatten?symbol=MNQ&key=fixture content-length=0
+    POST /flatten?symbol=MNQ&key=fixture content-length=0
+    dialog confirm: Flatten your MNQ position right now? This closes everything at market immediately. -> dismiss
+    dialog confirm: Flatten your MNQ position right now? This closes everything at market immediately. -> accept
+    step flatten-position-card-DISMISS: 0 request(s)
+    step flatten-position-card-ACCEPT: 1 request(s)
+    step flatten-control-one-tap (arms only): 0 request(s)
+    step flatten-control-two-tap: 1 request(s)
+r133pending  requests IDENTICAL (1)  dialogs IDENTICAL (0)  /bias IDENTICAL  per-step IDENTICAL  external 0  errors live 1 drop 1 (drop-only 0)
+    POST /cancel-entry?symbol=MNQ&target=%7B%22accountId%22%3A0%2C%22contractId%22%3A%22CON.F.US.MNQ.Z26%22%2C%22orderId%22%3A9990001%2C%22entryIdentity%22%3A%22demo-entry-0001%22%7D&key=fixture content-length=0
+    step cancel-entry-control-two-tap: 1 request(s)
+  errors (live / drop): ["console: Failed to load resource: the server responded with a status of 400 (Bad Request)"] / ["console: Failed to load resource: the server responded with a status of 400 (Bad Request)"]
+DROP1 REQUESTS: IDENTICAL

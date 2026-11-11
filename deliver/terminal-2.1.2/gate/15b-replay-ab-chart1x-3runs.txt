@@ -1,0 +1,17 @@
+case reel 1x: measured in the earlier window, not repeated
+case reel 4x: measured in the earlier window, not repeated
+shapes per run chart 1x: ref 20 (p95 33.4), 20 (p95 33.4), 20 (p95 33.4) | page 20 (p95 33.4), 20 (p95 33.4), 20 (p95 33.4)
+CASE DONE chart 1x at 05:25:27Z | ref p95 33.4 max 83 lt 315 shapes 20 | page p95 33.4 max 83 lt 294 shapes 20 brain 0/0 errors 0
+Wr6 chart 1x: page 20 vs reference range 20..20 over 3 runs (floor 20; page runs 20, 20, 20)
+case chart 4x: measured in the earlier window, not repeated
+case | page | frames | p95 gap ms | max gap ms | max step % | progress moves | long tasks ms | bar shapes | brain frames / flashes
+chart 1x | 07c95367 (ref) | 355 | 33.4 | 83 | 1.19 | 293 | 315 | 20 | 0 / 0
+chart 1x | page | 411 | 33.4 | 83 | 1.19 | 350 | 294 | 20 | 0 / 0
+load at the start of each run (limit 3):
+  chart 1x ref0: load 1.73
+  chart 1x new0: load 1.82 after waiting 5 s
+  chart 1x ref1: load 1.79 after waiting 5 s
+  chart 1x new1: load 2.06 after waiting 5 s
+  chart 1x ref2: load 2.18 after waiting 5 s
+  chart 1x new2: load 2.15 after waiting 5 s
+replay-smooth-2099: 7 passed, 0 failed

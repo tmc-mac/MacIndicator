@@ -1,0 +1,21 @@
+page /tmp/claude-0/-home-user-MacIndicator/381b1833-c8be-58a5-b27d-e767976714fe/scratchpad/term212/mobile.html
+t210-nov02 360x780 dark: dashboard 360, trades 360, levels 360, risk 360, journal 360, checklist 360, control 360 | errors 0
+t210-nov02 390x844 dark: dashboard 390, trades 390, levels 390, risk 390, journal 390, checklist 390, control 390 | errors 0
+t210-nov02 428x926 dark: dashboard 428, trades 428, levels 428, risk 428, journal 428, checklist 428, control 428 | errors 0
+t210-nov02 360x780 light: dashboard 360, trades 360, levels 360, risk 360, journal 360, checklist 360, control 360 | errors 0
+t210-nov02 390x844 light: dashboard 390, trades 390, levels 390, risk 390, journal 390, checklist 390, control 390 | errors 0
+t210-nov02 428x926 light: dashboard 428, trades 428, levels 428, risk 428, journal 428, checklist 428, control 428 | errors 0
+t210-inpos 360x780 dark: dashboard 360, trades 360, levels 360, risk 360, journal 360, checklist 360, control 360 | errors 0
+t210-inpos 390x844 dark: dashboard 390, trades 390, levels 390, risk 390, journal 390, checklist 390, control 390 | errors 0
+t210-inpos 428x926 dark: dashboard 428, trades 428, levels 428, risk 428, journal 428, checklist 428, control 428 | errors 0
+t210-inpos 360x780 light: dashboard 360, trades 360, levels 360, risk 360, journal 360, checklist 360, control 360 | errors 0
+t210-inpos 390x844 light: dashboard 390, trades 390, levels 390, risk 390, journal 390, checklist 390, control 390 | errors 0
+t210-inpos 428x926 light: dashboard 428, trades 428, levels 428, risk 428, journal 428, checklist 428, control 428 | errors 0
+t210-missing 360x780 dark: dashboard 360, trades 360, levels 360, risk 360, journal 360, checklist 360, control 360 | errors 0
+t210-missing 428x926 dark: dashboard 428, trades 428, levels 428, risk 428, journal 428, checklist 428, control 428 | errors 0
+t210-missing 360x780 light: dashboard 360, trades 360, levels 360, risk 360, journal 360, checklist 360, control 360 | errors 0
+t210-missing 428x926 light: dashboard 428, trades 428, levels 428, risk 428, journal 428, checklist 428, control 428 | errors 0
+contrast: 13542 text runs measured on the new surfaces, lowest ratio 4.72:1
+old-tab clock sweep (scope all): 0 distinct 24-hour / UTC strings on surfaces older than 2.1.0
+
+budgets-210: 912 passed, 0 failed (3 states x 360 / 390 / 428 x dark / light x 7 tabs; browser time zone Asia/Tokyo)

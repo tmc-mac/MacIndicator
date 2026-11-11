@@ -1,0 +1,38 @@
+PHONE TERMINAL 2.1.2  (page only: no bot restart, the bot is not touched)   repo copy: server address removed
+=========================================================================================================
+Replaces your page 2.1.1 (fa931784). Same Control buttons, same requests to the bot. Fixes the review's four findings:
+  - Flatten receipt: green BOT CONFIRMED only after a broker read, newer than the bot's answer, says FLAT.
+    Until then amber "waiting for the broker to show FLAT"; red "NOT FLAT ... flatten in TopstepX" if a position
+    is still there 20 s later. A halted bot is never green.
+  - Broker card: while the bot is closing a trade a qty difference reads "closing", not MISMATCH.
+    A wrong SIDE is still MISMATCH.
+  - Cancel: a second tap shows its own sent / waiting / result, not the first tap's answer.
+  - Scorecard: HELPED / HURT only with 20+ finished trades; the what-if dollar rows are labelled "estimate".
+Known limits: a bot that halted across a restart and reads FLAT shows amber first, red only after 20 s (the bot-side
+fix comes with bot edge r1.2). Replay pacing: one test run on the Levels chart at 1x stalled once, three re-runs passed.
+Until r1.2 the rule stays: a flatten is done only when Broker truth says FLAT.
+
+Put mobile.html and set-terminal.sh (both from this folder) in Downloads, then in PowerShell:
+
+1) Check the files:
+   cd $env:USERPROFILE\Downloads
+   certutil -hashfile mobile.html SHA256
+      expect: ff2e4b760deeeee7e2de4c0ead3b7714550ca8434ee17a7a572afc925bce1343
+   certutil -hashfile set-terminal.sh SHA256
+      expect: d891ef9d830244f682110662f85f080dd23984cbb29ba1740cb3e34aca4fb815   (same tool as before)
+
+2) Upload and check on the server:
+   scp mobile.html set-terminal.sh root@<server>:/root/
+   ssh root@<server> "sha256sum /root/mobile.html /root/set-terminal.sh"
+      (the same two codes as above)
+
+3) Install (it asks "Is the bot FLAT?" - type YES):
+   ssh -t root@<server> "bash /root/set-terminal.sh install /root/mobile.html ff2e4b760deeeee7e2de4c0ead3b7714550ca8434ee17a7a572afc925bce1343"
+   Expect: DONE: mobile.html installed (sha256 verified): before fa931784 -> after ff2e4b76.
+
+4) On your phone: close the terminal page completely and open it again. Review > Scorecard shows "estimate" on the
+   what-if rows. Tap Pause 5 min: SENT -> BOT CONFIRMED within a few seconds. Then Resume.
+
+If any step prints STOP, nothing changed - send me that output.
+UNDO (puts back 2.1.1, no restart):   ssh -t root@<server> "bash /root/set-terminal.sh rollback"
+STATUS (changes nothing):             ssh root@<server> "bash /root/set-terminal.sh status"

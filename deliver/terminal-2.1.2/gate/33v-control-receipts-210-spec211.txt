@@ -1,0 +1,3 @@
+page /tmp/claude-0/-home-user-MacIndicator/381b1833-c8be-58a5-b27d-e767976714fe/scratchpad/term212/mobile.html
+
+control-receipts-210: 319 passed, 0 failed (4 controls x success / HTTP failure / no answer / not applied in 45 s, painted at 1 s and 30 s; hold prototype; restart hint)
