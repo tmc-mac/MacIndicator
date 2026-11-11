@@ -11,9 +11,9 @@ Machine copy for the daily tool: `office/state/experiments.json`.
 | X-03 | L-02 | Asia / London: all contracts out at TP1 (`sessionRunner`) | live | 11/11 | More dollars per winning trade than the old runner rule | 20 live trades | Average is below what the old rule would have paid on the same trades |
 | X-04 | L-04 | NY runner by ATR: stop 2 pts, target 2.0 x ATR (`sessionRunnerNy`) | live | 11/11 | Runner pays more than the old fixed runner | 20 live NY trades with a runner | Runner net is below the old rule's on the same trades |
 | X-05 | L-05 | Control score by the indicator's formula (`levelsParity: pine`) | live | 11/11 05:14Z | More entries pass the 15m control gate; the added entries are not worse than the rest | 20 trades that the old formula would have blocked | Those trades lose more per trade than the rest |
+| X-06 | L-07 | Stand down 30 min on the same side after a full stop, in Asia and London only (NOT a bot rule yet: the trades are still taken and counted) | counting | 11/11 06:55Z | The Asia / London same-side trades entered within 30 min of a full stop keep losing money as a group; the NY ones keep making money | 20 further Asia + London cases | The next 20 Asia + London cases net zero or better. Also killed for NY from the start: in-sample NY re-entries made +$2,371.94 (n=29) |
 
 ## Not started (candidates, each needs an expectation before any build)
 
-- L-07 stand-down after a full stop (measure offline first).
 - L-08 volatility gauge and size-down (measure offline first).
 - L-06 skipped wide-stop signals (count and outcome, from the journal).
