@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "generatedAt": "2026-11-11T06:51:10Z",
+ "generatedAt": "2026-11-11T07:42:58Z",
  "tradeDay": "2026-11-11",
  "data": {
   "lastSlice": "2026-11-11/slice-2205",
@@ -227,12 +227,28 @@
    "next": "Feeds X-01 (volatility-sized TP1). Candidate to measure next: what a break-even stop after +10 would have done on these AND on the winners (L-10 was killed as a blanket rule; this is the narrow case)"
   },
   {
+   "id": "L-14",
+   "title": "NY trades entered after 09:00 PT lose money; 06:30-09:00 pays",
+   "status": "measured",
+   "n": 0,
+   "usd": null,
+   "next": "X-07: shadow counter, nothing skipped; a live stand-down needs 20 further cases"
+  },
+  {
+   "id": "L-15",
+   "title": "Price touches the TP1 price, the limit does not fill, then the full stop",
+   "status": "measured",
+   "n": null,
+   "usd": null,
+   "next": "X-08: counter in edge r1.4, then a live fix on Mac's go (TP1 at market once touched, or one tick inside). Best candidate for the next live-rule experiment"
+  },
+  {
    "id": "B-01",
    "title": "One skipped fast check (about 20 s blind) at each 15m close: \"fetch failed\"",
    "status": "fixed",
    "n": null,
    "usd": null,
-   "next": "Reinstall once B-08 is mitigated and the r1.2 boot is re-measured with a server-size journal"
+   "next": "Count 'ERROR in loop' per day from 11/11; the new log line gives the idle time"
   },
   {
    "id": "B-02",
@@ -244,11 +260,11 @@
   },
   {
    "id": "B-03",
-   "title": "Entry price shows UNKNOWN on the phone until Review is opened",
-   "status": "fixed",
+   "title": "Closed trades show points and fill UNKNOWN on the phone while the broker's prices are printed on the same card; the Trades and Levels tabs disagree about the same trade",
+   "status": "open",
    "n": null,
    "usd": null,
-   "next": "Install r1.2"
+   "next": "Install r1.3 and 2.2.1"
   },
   {
    "id": "B-04",
@@ -285,7 +301,7 @@
   {
    "id": "B-08",
    "title": "The bot loads its whole trade journal into memory at every start and runs out of memory",
-   "status": "live",
+   "status": "cured in edge r1.3, inst",
    "n": null,
    "usd": null,
    "next": "Measured 11/11: with a 98.7 MB journal both builds die at the 493 MB limit and survive at 560+; edge r1.2 needs no more memory than r1.1. The 1,024 MB limit lasts until the journal is about 180-205 MB (16-21 trading days, extrapolated); start-up already peaks at 860-985 MB of RAM on a 961 MB server. Cure in edge r1.3: one streaming read, parse only the rows the readers use"
@@ -297,6 +313,22 @@
    "n": null,
    "usd": null,
    "next": "Mac confirmed 11/11 that the restart push arrived. The bot was flat throughout"
+  },
+  {
+   "id": "B-10",
+   "title": "The phone server (proxy) loads the whole journal on every Trades / Review request and can run out of memory; the bot reaches the broker only through it",
+   "status": "open",
+   "n": null,
+   "usd": null,
+   "next": "Cure in edge r1.4: streamed reads in the proxy, identical responses"
+  },
+  {
+   "id": "B-11",
+   "title": "Restarting the phone server restarts the bot (the bot's service requires the proxy's)",
+   "status": "known, by design of the ",
+   "n": null,
+   "usd": null,
+   "next": "Every sheet that restarts the phone server must say \"be flat: this restarts the bot too\". Together with B-06 (armed setups lost on restart) a proxy restart mid-session can cost a trade"
   }
  ],
  "experiments": [
@@ -358,6 +390,16 @@
    "minN": 20,
    "value": null,
    "unit": "usd, the trades a stand-down would have skipped",
+   "verdict": "too early"
+  },
+  {
+   "id": "X-07",
+   "title": "NY late session shadow counter (09:00 PT on)",
+   "mode": "counting",
+   "n": 0,
+   "minN": 20,
+   "value": null,
+   "unit": "usd, the NY-late trades a stand-down would have skipped",
    "verdict": "too early"
   }
  ],
@@ -484,6 +526,46 @@
    "fullStopsPer10": 2.5,
    "lossToWin": 1.76
   },
+  "passProbability": {
+   "current": null,
+   "n": 0,
+   "needDays": 10,
+   "daysLeft": 14,
+   "resamples": 5000,
+   "rulesSince": "2026-11-12",
+   "why": "needs 10 days under the current rules, have 0",
+   "reference": {
+    "p": 0.024,
+    "n": 30,
+    "label": "old rules, for reference"
+   }
+  },
+  "sizeTable": [
+   {
+    "contracts": 1,
+    "started": 20,
+    "passed": 0,
+    "breached": 1,
+    "open": 19,
+    "medianDaysToBreach": 19
+   },
+   {
+    "contracts": 2,
+    "started": 20,
+    "passed": 0,
+    "breached": 4,
+    "open": 16,
+    "medianDaysToBreach": 4.5
+   },
+   {
+    "contracts": 3,
+    "started": 20,
+    "passed": 0,
+    "breached": 14,
+    "open": 6,
+    "medianDaysToBreach": 5.5
+   }
+  ],
   "readiness": {
    "need": 2645.5,
    "avgPerDay": -58.83,

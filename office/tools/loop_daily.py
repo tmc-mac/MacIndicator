@@ -221,6 +221,161 @@ def need_per_day(cur, day, day_complete, target_date):
     return {"perDay": round(gap / left, 2), "daysLeft": left, "targetDate": target_date, "gap": gap}
 
 
+# ----------------------------------------------------------------------------- shadow counters and what-ifs (pure, unit tested)
+
+NY_LATE_MIN = 9 * 60                 # X-07: NY trades entered at or after 09:00 PT
+WHATIF_THRESHOLDS = (400, 600, 800, 1000)
+WHATIF_OUTLIER_DAY = "2026-11-03"    # the day that drives most of the daily-loss what-if (11 full stops, 25-pt stop era)
+RULES_SINCE_DAY = "2026-11-12"       # first complete TradeDay entirely under the 11/11 rule set (11/11 itself starts before the installs)
+PASS_MIN_DAYS = 10
+PASS_RESAMPLES = 5000
+SIZES = (1, 2, 3)
+
+
+def is_ny_late(t):
+    if t["session"] != "ny":
+        return False
+    d = pt_dt(t["_tEntry"])
+    return d.hour * 60 + d.minute >= NY_LATE_MIN
+
+
+def group_stats(trades):
+    """n, net, full stops, loss / win and the TradeDays with a negative net, for one group of trades."""
+    sc = score(trades)
+    days = {}
+    for t in trades:
+        days[t["tradeDay"]] = days.get(t["tradeDay"], 0.0) + (t["net"] or 0.0)
+    sc["tradeDays"] = len(days)
+    sc["negDays"] = sum(1 for v in days.values() if v < 0)
+    return sc
+
+
+def ny_late_table(trades, days, since_ms):
+    """X-07 shadow counter: NY entered before / at or after 09:00 PT, for the days given and for entries since since_ms."""
+    ny = [t for t in trades if t["session"] == "ny"]
+    win = [t for t in ny if t["tradeDay"] in set(days)]
+    since = [t for t in ny if t["_tEntry"] >= since_ms]
+    return {w: {"early": group_stats([t for t in g if not is_ny_late(t)]), "late": group_stats([t for t in g if is_ny_late(t)])}
+            for w, g in (("window", win), ("since", since))}
+
+
+def ny_late_text(st, small_n=SMALL_N):
+    out = []
+    for lab, k in (("06:30-09:00 PT", "early"), ("09:00-13:00 PT", "late")):
+        g = st[k]
+        out.append("%s: n=%d%s, %s, %d full stop%s, loss / win %s, %d of %d TradeDays negative" % (
+            lab, g["trades"], ", small" if g["trades"] < small_n else "", usd(g["net"], True), g["fullStops"], "" if g["fullStops"] == 1 else "s",
+            ("%.2f" % g["lossToWin"]) if g["lossToWin"] is not None else "n/a", g["negDays"], g["tradeDays"]))
+    return out
+
+
+def day_path(trades):
+    """(net, low) of one TradeDay: the closed net and the lowest equity inside the day (closed balance, and the open
+    trade's worst excursion where the trade has one; a lower bound)."""
+    bal = low = 0.0
+    for t in trades:
+        wo = t.get("worstOpen")
+        if wo is not None:
+            low = min(low, bal + min(0.0, wo))
+        bal += t["net"] or 0.0
+        low = min(low, bal)
+    return round(bal, 2), round(low, 2)
+
+
+def whatif_day(trades, thr, use_open=False):
+    """Day P&L if no new entry were taken once the day's net had reached -thr. Trades are sequential: the crossing
+    trade is kept (it was already in), later trades are dropped. With use_open the crossing may also be the worst
+    open reading inside a trade (lower bound). Returns (what-if net, stopped?)."""
+    bal = 0.0
+    for t in trades:
+        wo = t.get("worstOpen") if use_open else None
+        crossed_open = wo is not None and bal + min(0.0, wo) <= -thr
+        bal += t["net"] or 0.0
+        if bal <= -thr or crossed_open:
+            return round(bal, 2), True
+    return round(bal, 2), False
+
+
+def whatif_table(day_trades, days, thresholds=WHATIF_THRESHOLDS):
+    """day_trades: {day: [trades with net, worstOpen in entry order]}. Per threshold: baseline, what-if closed, what-if
+    with open readings, days stopped, over `days`; and the same without WHATIF_OUTLIER_DAY."""
+    def one(ds, thr, op):
+        base = what = n = 0.0
+        for d in ds:
+            b = round(sum(t["net"] or 0.0 for t in day_trades.get(d, [])), 2)
+            w, st = whatif_day(day_trades.get(d, []), thr, op)
+            base += b
+            what += w if st else b
+            n += 1 if st else 0
+        return round(base, 2), round(what, 2), int(n)
+    out = []
+    ex = [d for d in days if d != WHATIF_OUTLIER_DAY]
+    for thr in thresholds:
+        row = {"threshold": thr}
+        for key, ds in (("all", days), ("without", ex)):
+            for op, nm in ((False, "closed"), (True, "open")):
+                b, w, n = one(ds, thr, op)
+                row["%s_%s" % (key, nm)] = {"baseline": b, "whatIf": w, "delta": round(w - b, 2), "daysStopped": n}
+        out.append(row)
+    return out
+
+
+def scale_days(sim_days, k, base=3):
+    f = k / float(base)
+    return [{"day": d["day"], "complete": d.get("complete", True),
+             "trades": [{"net": t["net"] * f, "worstOpen": None if t["worstOpen"] is None else t["worstOpen"] * f} for t in d["trades"]]} for d in sim_days]
+
+
+def median(xs):
+    xs = sorted(xs)
+    if not xs:
+        return None
+    m = len(xs) // 2
+    return xs[m] if len(xs) % 2 else (xs[m - 1] + xs[m]) / 2.0
+
+
+def size_table(sim_days, sizes=SIZES, n=HISTORY_DAYS):
+    out = []
+    for k in sizes:
+        h, runs = combine_history(scale_days(sim_days, k), n)
+        out.append({"contracts": k, "started": h["started"], "passed": h["passed"], "breached": h["breached"], "open": h["open"],
+                    "medianDaysToBreach": median([r["days"] for r in runs if r["status"] == "breached"])})
+    return out
+
+
+def pass_probability(paths, state, days_left, resamples=PASS_RESAMPLES, seed=7, min_days=PASS_MIN_DAYS,
+                     target=OBJECTIVE["target"], max_loss=OBJECTIVE["maxLoss"], frac=BEST_DAY_FRAC):
+    """Bootstrap: draw days_left TradeDays (with replacement) from paths [(net, low)], start from the open chain's
+    state {profit, floor, bestDay}, apply the floor (tested at the day's low, trailing the end-of-day balance, locking
+    at the start balance), the target and the best-day rule. Deterministic (fixed seed). p is None below min_days."""
+    import random
+    out = {"p": None, "n": len(paths), "daysLeft": days_left, "resamples": resamples}
+    if len(paths) < min_days:
+        out["why"] = "needs %d days under the current rules, have %d" % (min_days, len(paths))
+        return out
+    if not state or state.get("status") != "open":
+        out["why"] = "no open chain"
+        return out
+    rnd = random.Random(seed)
+    ok = 0
+    for _ in range(resamples):
+        bal, floor, best = state["profit"], state["floor"], state["bestDay"]
+        for _d in range(days_left):
+            net, low = paths[rnd.randrange(len(paths))]
+            if bal + low <= floor:
+                break
+            bal += net
+            best = max(best, net)
+            if bal <= floor:
+                break
+            if bal >= max(float(target), best / frac):
+                ok += 1
+                break
+            floor = max(floor, min(bal - max_loss, 0.0))
+    out["p"] = round(ok / float(resamples), 3)
+    return out
+
+
 # ----------------------------------------------------------------------------- blocked-signal walk (pure, unit tested)
 
 
@@ -850,6 +1005,17 @@ def run_experiment(x, J, trades, day):
             REENTRY_MIN, " / ".join(sess), len(ctx), "" if len(ctx) == 1 else "s", usd(sum(t["net"] or 0 for t in ctx), True) if ctx else "$0.00")
         if len(got) >= x.get("minN", SMALL_N):
             r["verdict"] = "KILL: the cases net zero or better" if r["value"] >= 0 else "evidence holds: write the decision card"
+    elif calc == "nyLate":
+        ny = [t for t in trades if t["session"] == "ny" and t["_tEntry"] >= since and t["tradeDay"] <= day]
+        late = [t for t in ny if is_ny_late(t)]
+        early = [t for t in ny if not is_ny_late(t)]
+        r["n"], r["resolved"], r["unresolved"] = len(late), len(late), 0
+        r["value"] = _r2(sum(t["net"] or 0 for t in late)) if late else None
+        r["cases"] = [{"id": t["id"], "net": t["net"]} for t in late]
+        r["note"] = "shadow counter, nothing is skipped: n = NY trades entered at or after 09:00 PT since the start time; value = their summed net. Context: NY entered 06:30-09:00 PT since then: %d trade%s, %s" % (
+            len(early), "" if len(early) == 1 else "s", usd(sum(t["net"] or 0 for t in early), True) if early else "$0.00")
+        if len(late) >= x.get("minN", SMALL_N):
+            r["verdict"] = "KILL: the cases net zero or better" if r["value"] >= 0 else "evidence holds: write the decision card"
     elif calc == "controlParity":
         post = [t for t in trades if t["_tEntry"] >= since and t["tradeDay"] <= day]
         r["n"] = None
@@ -961,6 +1127,13 @@ def main(argv=None):
         t.setdefault("leak", None)
         t.setdefault("leakWhy", None)
         t["afterFullStopMin"] = after_full_stop_min(t, trades[:i])
+    seen_day = {}
+    for t in trades:
+        prev = seen_day.get(t["tradeDay"])
+        t["rankInDay"] = (prev["rankInDay"] + 1) if prev else 1
+        t["prevResult"] = None if not prev else ("fullStop" if prev["fullStop"] else "win" if (prev["net"] or 0) > 0 else "loss")
+        t["minutesSincePrev"] = round((t["_tEntry"] - prev["_tExit"]) / 60000.0, 1) if prev and prev["_tExit"] else None
+        seen_day[t["tradeDay"]] = t
         t["nearMiss"] = near_miss(t)
     all_days = sorted(d for d in J["dayRows"] if datetime.date(*[int(x) for x in d.split("-")]).weekday() < 5 and (J["dayRows"][d] >= 50 or any(t["tradeDay"] == d for t in trades)))
     cov_all = {d: coverage(J["files"], d) for d in all_days}

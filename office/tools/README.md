@@ -67,6 +67,26 @@ Reads only `office/state/ledger.json`, `office/state/experiments.json`, the kill
 - **Experiments**: n of the number needed and the value as the last daily run left them; a VERDICT, quoted against the kill rule, only when n has reached it; otherwise "recording, n of 20".
 - **Decisions for Mac**: at most 3, from experiments at a verdict (first) and leaks with register status observed or measured (or no register row) that lost more than $500 in the week (`LEAK_DECISION_USD`; $500 is a quarter of the combine's $2,000 floor). A leak whose rule is already live or recording is named under the block but raises no item on dollars alone, and a partial week raises no items at all. With none: "Nothing to decide this week." The block sits between `<!-- decisions:start hash=... -->` and `<!-- decisions:end -->`. The hash is of the text the tool wrote; if the text between the markers no longer matches it, somebody edited it by hand and the tool writes that text back unchanged on every later run (office.json then says `decisionsEditedByHand: true`). To hand the block back to the tool, delete it together with its markers.
 
+## Shadow counters, what-ifs and readiness (added 11/11, all from the ledger)
+
+Daily: ledger.json trades also carry `rankInDay` (1 = first trade of the TradeDay), `prevResult` (`win`, `loss`, `fullStop` or null for the first trade of the day) and `minutesSincePrev` (entry minus the previous trade's exit, same TradeDay). Experiment X-07 (NY late session, `calc: nyLate`): n = NY trades entered at or after 09:00 PT since 2026-11-11T07:30Z, value = their summed net; nothing is skipped; the 06:30-09:00 PT trades are the context.
+
+Weekly card, after the experiments table:
+- **NY late shadow counter** beside X-06: before / after 09:00 PT for the last 20 TradeDays and since the X-07 start (n, net, full stops, loss / win, TradeDays negative).
+- **Daily-loss what-if** at -$400, -$600, -$800, -$1,000: the P&L the days would have had if no entry were taken once the day's net reached the threshold (the crossing trade is kept). Last 20 TradeDays and since 11/11, with and without 11/03, and a "with open" column that also counts a trade's worst open reading as the crossing (a lower bound). It is a what-if, not a rule.
+- **Size table**: virtual combines started on each of the last 20 TradeDays at 1, 2 and 3 contracts (net, fees and worst open reading scaled linearly from the 3-contract result; starts overlap), with passed / breached / open and the median days to breach.
+- **Chance to pass**: bootstrap, 5,000 resamples, fixed seed, of whole TradeDays (closed net and the day's lowest equity) played forward from the open chain over the TradeDays left to `--target-date`, against floor, target and the 55% rule. "Current rules" uses complete TradeDays from `--rules-since` (default 2026-11-12, the first complete day entirely under the 11/11 rule set) and prints nothing below 10 such days; the reference line uses every complete TradeDay in the data (old rules, days with no trade count as $0).
+
+office.json `weekly` gains `passProbability` and `sizeTable` (the daily run carries them over):
+
+```
+"passProbability": { "current": null | 0.0-1.0, "n": days under the current rules, "needDays": 10, "daysLeft": N, "resamples": 5000,
+                     "rulesSince": "2026-11-12", "why": null | "needs 10 days ...", "reference": { "p": 0.0-1.0 | null, "n": days, "label": "old rules, for reference" } },
+"sizeTable": [ { "contracts": 1, "started": 20, "passed": 0, "breached": 0, "open": 0, "medianDaysToBreach": null | days } ]
+```
+
+Limits: the bootstrap treats days as independent and equally likely, and a day's low is only as good as the journal's excursion readings; the what-if days-stopped counts are a handful of days.
+
 ## Journal row types found (all files at 2026-11-11, 71 files, 106,319 rows after de-duplication, 0 unreadable)
 
 | row type | rows | used for |

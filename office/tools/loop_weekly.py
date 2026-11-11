@@ -189,6 +189,8 @@ def main(argv=None):
     ap.add_argument("--week", required=True, help="ISO week like 2026-W46, or 'latest'")
     ap.add_argument("--out", default=None, help="office directory (default: the one this tool lives in)")
     ap.add_argument("--combine-start", default=ld.COMBINE_CHAIN_START)
+    ap.add_argument("--rules-since", default=ld.RULES_SINCE_DAY, help="first complete TradeDay under the current rule set (pass probability)")
+    ap.add_argument("--target-date", default=ld.TARGET_DATE)
     a = ap.parse_args(argv)
     office = os.path.abspath(a.out) if a.out else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     try:
@@ -339,6 +341,47 @@ def main(argv=None):
     L.append(ld.table(["id", "rule", "mode", "cases", "value", "state"],
                       [[x["id"], x["title"], x["mode"], "-" if x["state"] == "not started" else "n unknown of %d" % x["minN"] if x["n"] is None else "%d of %d%s" % (x["n"], x["minN"], small(x["n"])),
                         "-" if x["state"] == "not started" else "unknown" if x["value"] is None else "%s (%s)" % (ld.usd(x["value"], True), x["unit"]), x["line"]] for x in xs]))
+    # ---- shadow counters, what-ifs, size table, pass probability
+    nyl = ld.ny_late_table(upto, d20, _ms("2026-11-11T07:30:00Z"))
+    L += ["", "### Shadow counter beside X-06: NY late session (X-07, nothing is skipped)", ""]
+    for w, lab in (("window", "last %d TradeDays" % len(d20)), ("since", "since 11/10 23:30 PT (X-07 start)")):
+        L.append("- %s:" % lab)
+        L += ["  - " + z for z in ld.ny_late_text(nyl[w])]
+    day_trades = {d["day"]: d["trades"] for d in sim_days}
+    s0 = "2026-11-11"
+    wi_win = ld.whatif_table(day_trades, d20)
+    wi_since = ld.whatif_table(day_trades, [d for d in days if d >= s0])
+    L += ["", "## What-if: stop taking entries for the day at a loss", "",
+          "What-if, not a rule; the practice stage is deliberately measuring the most a day can lose. Each cell is the P&L the days would have had if no new entry were taken once the day's net had reached the threshold (the trade that crossed it is kept). Change = what-if minus actual. \"With open\" also treats a trade's worst open reading as the crossing: a lower bound, because intraday lows are only partly recorded."]
+    L.append("")
+    for lab, tab, ds_n in (("Last %d TradeDays (%s to %s)" % (len(d20), d20[0], d20[-1]), wi_win, len(d20)), ("Since 11/11 (%d TradeDay%s)" % (len([d for d in days if d >= s0]), "" if len([d for d in days if d >= s0]) == 1 else "s"), wi_since, len([d for d in days if d >= s0]))):
+        L.append("**%s**, actual %s" % (lab, ld.usd(tab[0]["all_closed"]["baseline"], True)))
+        L.append("")
+        L.append(ld.table(["stop at", "change, closed net", "days stopped", "change, with open", "change without 11/03 (closed)", "days stopped without 11/03"],
+                          [["-$%d" % r["threshold"], ld.usd(r["all_closed"]["delta"], True), "%d of %d" % (r["all_closed"]["daysStopped"], ds_n),
+                            ld.usd(r["all_open"]["delta"], True), ld.usd(r["without_closed"]["delta"], True), r["without_closed"]["daysStopped"]] for r in tab]))
+        L.append("")
+    r4 = wi_win[0]
+    L.append("11/03 alone (11 full stops, 25-pt stop era) accounts for %s of the %s at -$%d (the rest is %s); at -$800 and -$1000 it is almost all of it. Small samples throughout (a handful of days stopped)." % (
+        ld.usd(r4["all_closed"]["delta"] - r4["without_closed"]["delta"]), ld.usd(r4["all_closed"]["delta"]), r4["threshold"], ld.usd(r4["without_closed"]["delta"])))
+    sz = ld.size_table(sim_days)
+    L += ["", "## Size table (crude)", "", "Virtual combines started on each of the last %d TradeDays at 1, 2 and 3 contracts. Crude: every trade's net, fees included, and its worst open reading are scaled linearly from the 3-contract result, the starts overlap (one bad day is in many of them), and the 55%% rule is applied as usual." % ld.HISTORY_DAYS, ""]
+    L.append(ld.table(["contracts", "starts", "passed", "breached", "open", "median days to breach"],
+                      [[r["contracts"], r["started"], r["passed"], r["breached"], r["open"], ("%.1f" % r["medianDaysToBreach"]) if r["medianDaysToBreach"] is not None else "none breached"] for r in sz]))
+    comp = [d for d in sim_days if d["complete"]]
+    paths_all = [ld.day_path(d["trades"]) for d in comp]
+    paths_cur = [ld.day_path(d["trades"]) for d in comp if d["day"] >= a.rules_since]
+    chain_c = ld.combine_chain(comp, a.combine_start)
+    cur_c = chain_c[-1] if chain_c else None
+    last_c = comp[-1]["day"] if comp else None
+    left = ld.trade_days_left(last_c, True, a.target_date) if last_c else 0
+    st = {"profit": cur_c["profit"], "floor": cur_c["floor"], "bestDay": cur_c["bestDay"], "status": cur_c["status"]} if cur_c else None
+    pc = ld.pass_probability(paths_cur, st, left)
+    pr = ld.pass_probability(paths_all, st, left)
+    L += ["", "## Chance to pass (bootstrap)", "",
+          "Resamples whole TradeDays (closed net and the day's lowest equity) with replacement and plays them forward from the open chain over the %d TradeDays left to %s, against the floor, the target and the 55%% rule. A model of the days we have, not a forecast of the market." % (left, a.target_date), ""]
+    L.append("- Current rules (TradeDays from %s, all complete): %s" % (a.rules_since, ("**%.1f%%** (n=%d days%s, %d resamples)" % (100 * pc["p"], pc["n"], ", small" if pc["n"] < ld.SMALL_N else "", pc["resamples"])) if pc["p"] is not None else "not printed: %s." % pc["why"]))
+    L.append("- Old rules, for reference (all %d complete TradeDays in the data, many rule sets; days with no trade count as $0; the 11/11 day is not over and is left out): %s" % (pr["n"], ("%.1f%% (n=%d days, %d resamples)" % (100 * pr["p"], pr["n"], pr["resamples"])) if pr["p"] is not None else "not printed: %s." % pr["why"]))
     asof = sorted(set(x["asOf"] for x in xs if x["asOf"]))
     L += ["", "Counts are as of the last daily run (TradeDay %s). A verdict is written only when the cases reach the number needed; until then the rule is recording." % (", ".join(asof) or "unknown"), ""]
     L += ["## Decisions for Mac", ""]
@@ -368,6 +411,9 @@ def main(argv=None):
             "worstStopStreak": ws["streak"]["streak"], "mostStopsInDay": ws["streak"]["mostInDay"],
             "bySession": {s: {"net": ws["bySession"][s]["net"], "trades": ws["bySession"][s]["trades"], "fullStops": ws["bySession"][s]["fullStops"]} for s in ld.SESSIONS},
             "previous": ({"week": pw, "net": ps["net"], "trades": ps["trades"], "netPerDay": ps["netPerDay"], "fullStopsPer10": ps["stopsPer10"], "lossToWin": ps["lossToWin"]} if ps else None),
+            "passProbability": {"current": pc["p"], "n": pc["n"], "needDays": ld.PASS_MIN_DAYS, "daysLeft": left, "resamples": pc["resamples"], "rulesSince": a.rules_since, "why": pc.get("why"),
+                                "reference": {"p": pr["p"], "n": pr["n"], "label": "old rules, for reference"}},
+            "sizeTable": sz,
             "readiness": {"need": ready["need"], "avgPerDay": ready["avgPerDay"], "avgDays": ready["n"], "daysAtAverage": ready["days"], "text": readiness_line(ready)},
             "leaks": [{"id": k, "n": v["n"], "usd": round(v["usd"], 2)} for k, v in lw],
             "nearMiss": {"id": "L-13", "n": nmw["n"], "usd": nmw["usd"], "note": "of which: inside the L-01 / L-07 dollars"},

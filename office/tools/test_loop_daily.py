@@ -117,6 +117,72 @@ class VirtualCombine(unittest.TestCase):
         self.assertEqual((h["started"], h["breached"], h["open"]), (3, 2, 1))
 
 
+def tt(day, net, wo=None, session="ny", hour=7, full=False, i=0):
+    ms = ld.pt_wall_ms(day, hour, 0) + i * 600000
+    return {"tradeDay": day, "net": float(net), "worstOpen": wo, "session": session, "_tEntry": ms, "_tExit": ms + 300000, "fullStop": full, "fees": None, "id": "%s-%d" % (day, i)}
+
+
+class WhatIfAndCounters(unittest.TestCase):
+    def test_ny_late_split_at_0900_pt(self):
+        a, b, c, d = tt("2026-11-10", 50, hour=8, i=0), tt("2026-11-10", -100, hour=9, i=1), tt("2026-11-10", -30, hour=12, i=2, full=True), tt("2026-11-10", 99, session="asia", hour=20)
+        self.assertEqual([ld.is_ny_late(x) for x in (a, b, c, d)], [False, True, True, False])
+        t = ld.ny_late_table([a, b, c, d], ["2026-11-10"], 0)
+        self.assertEqual((t["window"]["late"]["trades"], t["window"]["late"]["net"], t["window"]["late"]["fullStops"], t["window"]["late"]["negDays"]), (2, -130.0, 1, 1))
+        self.assertEqual((t["window"]["early"]["trades"], t["window"]["early"]["negDays"]), (1, 0))
+        self.assertEqual(ld.ny_late_table([a, b, c, d], ["2026-11-10"], b["_tEntry"])["since"]["late"]["trades"], 2)
+
+    def test_whatif_day_keeps_the_crossing_trade_and_drops_the_rest(self):
+        d = [tt("2026-11-02", -300, i=0), tt("2026-11-02", -350, i=1), tt("2026-11-02", 500, i=2)]
+        self.assertEqual(ld.whatif_day(d, 600), (-650.0, True))          # -650 crosses -600; the +500 is never taken
+        self.assertEqual(ld.whatif_day(d, 800), (-150.0, False))
+        self.assertEqual(ld.whatif_day([tt("2026-11-02", -100, i=0)], 400), (-100.0, False))
+        # open reading: trade 2 was 400 under water while open (-300 - 400 = -700 <= -600) although it closed at -50
+        d2 = [tt("2026-11-02", -300, i=0), tt("2026-11-02", -50, wo=-400.0, i=1), tt("2026-11-02", 200, i=2)]
+        self.assertEqual(ld.whatif_day(d2, 600), (-150.0, False))        # closed only: never crossed, all taken
+        self.assertEqual(ld.whatif_day(d2, 600, use_open=True), (-350.0, True))
+
+    def test_whatif_table_with_and_without_the_outlier_day(self):
+        dt = {"2026-11-03": [tt("2026-11-03", -700, i=0), tt("2026-11-03", -800, i=1)], "2026-11-04": [tt("2026-11-04", 100, i=0)]}
+        r = ld.whatif_table(dt, ["2026-11-03", "2026-11-04"], thresholds=(600,))[0]
+        self.assertEqual((r["all_closed"]["baseline"], r["all_closed"]["delta"], r["all_closed"]["daysStopped"]), (-1400.0, 800.0, 1))
+        self.assertEqual((r["without_closed"]["baseline"], r["without_closed"]["delta"]), (100.0, 0.0))
+
+    def test_size_table_scales_linearly_and_counts(self):
+        days = [{"day": "d1", "complete": True, "trades": [{"net": -1800.0, "worstOpen": -1800.0}]}, {"day": "d2", "complete": True, "trades": [{"net": -400.0, "worstOpen": -400.0}]}]
+        sz = {r["contracts"]: r for r in ld.size_table(days, n=2)}
+        self.assertEqual((sz[3]["breached"], sz[3]["open"]), (1, 1))      # start d1: -1,800 then -2,200 breaches on day 2; start d2 open
+        self.assertEqual((sz[1]["breached"], sz[1]["open"]), (0, 2))
+        self.assertEqual(sz[3]["medianDaysToBreach"], 2)
+        self.assertIsNone(sz[1]["medianDaysToBreach"])
+        self.assertEqual(ld.scale_days(days, 1)[0]["trades"][0]["net"], -600.0)
+
+    def test_pass_probability_refuses_small_samples_and_is_deterministic(self):
+        st = {"profit": 0.0, "floor": -2000.0, "bestDay": 0.0, "status": "open"}
+        r = ld.pass_probability([(100.0, -50.0)] * 9, st, 14)
+        self.assertIsNone(r["p"])
+        self.assertIn("needs 10 days", r["why"])
+        up = [(300.0, 0.0)] * 10                                          # 3,000 in 10 days, best day 10% of it: always passes in time
+        self.assertEqual(ld.pass_probability(up, st, 14)["p"], 1.0)
+        self.assertEqual(ld.pass_probability(up, st, 9)["p"], 0.0)       # not enough days left
+        down = [(-300.0, -300.0)] * 10
+        self.assertEqual(ld.pass_probability(down, st, 14)["p"], 0.0)
+        mix = [(500.0, -100.0), (-400.0, -450.0)] * 6
+        a, b = ld.pass_probability(mix, st, 14), ld.pass_probability(mix, st, 14)
+        self.assertEqual(a, b)
+        self.assertTrue(0.0 < a["p"] < 1.0)
+        self.assertIsNone(ld.pass_probability(up, dict(st, status="breached"), 14)["p"])
+
+    def test_ledger_position_fields(self):
+        # the fields are written in loop_daily.main; check the rule on hand-made rows through the same arithmetic
+        a, b = tt("2026-11-02", -300, full=True, i=0), tt("2026-11-02", 50, i=1)
+        b["_tEntry"] = a["_tExit"] + 12 * 60000
+        self.assertEqual(round((b["_tEntry"] - a["_tExit"]) / 60000.0, 1), 12.0)
+        self.assertEqual("fullStop" if a["fullStop"] else "win" if a["net"] > 0 else "loss", "fullStop")
+
+    def test_day_path(self):
+        self.assertEqual(ld.day_path([{"net": 100.0, "worstOpen": -250.0}, {"net": -50.0, "worstOpen": None}]), (50.0, -250.0))
+
+
 class TimeAndSession(unittest.TestCase):
     def test_pt_and_tradeday(self):
         ms = ld._utc_ms(2026, 11, 10, 23, 0)                 # 15:00 PST on 11/10

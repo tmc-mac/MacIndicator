@@ -120,6 +120,16 @@ class QuietDecisions(unittest.TestCase):
         self.assertEqual(lw.decision_items(self.X, self.LW, self.ST, partial=True), ([], []))
 
 
+class WeeklyBlocks(unittest.TestCase):
+    def test_pass_probability_block_shape_and_refusal(self):
+        r = ld.pass_probability([(100.0, -10.0)] * 3, {"profit": 0.0, "floor": -2000.0, "bestDay": 0.0, "status": "open"}, 14)
+        self.assertEqual((r["p"], r["n"], r["resamples"]), (None, 3, 5000))
+        self.assertEqual(ld.RULES_SINCE_DAY, "2026-11-12")
+
+    def test_trade_days_left_feeds_the_bootstrap(self):
+        self.assertEqual(ld.trade_days_left("2026-11-10", True, "2026-11-30"), 14)
+
+
 class LeakRank(unittest.TestCase):
     def test_rank_and_session_split(self):
         t = [tr("d", -100, leak="L-12"), tr("d", -50, leak="L-12", session="ny"), tr("d", -300, True, leak="L-01"), tr("d", 80), tr("d", -20)]

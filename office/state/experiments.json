@@ -234,6 +234,38 @@
     "note": "n = trades entered on the same side within 30 min after a full stop, in asia / london, since the start time; value = their summed net (what a stand-down would have skipped). Context only, the rule leaves it out: other sessions 0 trades, $0.00",
     "cases": []
    }
+  },
+  {
+   "id": "X-07",
+   "leak": "L-14",
+   "title": "NY late session shadow counter (09:00 PT on)",
+   "rule": "NY trades entered at or after 09:00 PT, counted only; nothing is skipped",
+   "switch": null,
+   "mode": "counting",
+   "started": "2026-11-11",
+   "startedAtUtc": "2026-11-11T07:30:00Z",
+   "minN": 20,
+   "unit": "usd, the NY-late trades a stand-down would have skipped",
+   "expectation": "NY entries after 09:00 PT keep losing money as a group while 06:30-09:00 entries pay",
+   "verdictAt": "20 NY trades entered after 09:00 PT",
+   "killIf": "The next 20 NY trades entered after 09:00 PT net zero or better",
+   "feeds": {
+    "rows": [
+     "ledger"
+    ],
+    "calc": "nyLate",
+    "how": "ledger trades in session ny entered at or after 09:00 PT and at or after startedAtUtc; n = count, value = summed net; the 06:30-09:00 trades are shown beside it as context"
+   },
+   "running": {
+    "asOfTradeDay": "2026-11-11",
+    "n": 0,
+    "value": null,
+    "resolved": 0,
+    "unresolved": 0,
+    "verdict": "too early",
+    "note": "shadow counter, nothing is skipped: n = NY trades entered at or after 09:00 PT since the start time; value = their summed net. Context: NY entered 06:30-09:00 PT since then: 0 trades, $0.00",
+    "cases": []
+   }
   }
  ]
 }

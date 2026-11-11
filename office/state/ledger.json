@@ -263,6 +263,9 @@
    "leak": "unclassified",
    "leakWhy": "unknown",
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -301,6 +304,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "loss",
+   "minutesSincePrev": 30.0,
    "nearMiss": null
   },
   {
@@ -339,6 +345,9 @@
    "leak": "unclassified",
    "leakWhy": "unknown",
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 126.2,
    "nearMiss": null
   },
   {
@@ -377,6 +386,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "loss",
+   "minutesSincePrev": 158.1,
    "nearMiss": null
   },
   {
@@ -415,6 +427,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 5,
+   "prevResult": "win",
+   "minutesSincePrev": 235.5,
    "nearMiss": null
   },
   {
@@ -453,6 +468,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 13 min after a full stop",
    "afterFullStopMin": 13.4,
+   "rankInDay": 6,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 13.4,
    "nearMiss": null
   },
   {
@@ -491,6 +509,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 11 min after a full stop",
    "afterFullStopMin": 10.7,
+   "rankInDay": 7,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 10.7,
    "nearMiss": null
   },
   {
@@ -529,6 +550,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 8,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 65.0,
    "nearMiss": null
   },
   {
@@ -567,6 +591,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -605,6 +632,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 34.7,
    "nearMiss": null
   },
   {
@@ -643,6 +673,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 42.1,
    "nearMiss": null
   },
   {
@@ -681,6 +714,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -719,6 +755,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 532.3,
    "nearMiss": null
   },
   {
@@ -757,6 +796,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 92.2,
    "nearMiss": null
   },
   {
@@ -795,6 +837,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "win",
+   "minutesSincePrev": 50.2,
    "nearMiss": null
   },
   {
@@ -833,6 +878,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 7.2,
+   "rankInDay": 5,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 7.2,
    "nearMiss": null
   },
   {
@@ -871,6 +919,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -909,6 +960,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "win",
+   "minutesSincePrev": 685.6,
    "nearMiss": null
   },
   {
@@ -947,6 +1001,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "win",
+   "minutesSincePrev": 18.2,
    "nearMiss": null
   },
   {
@@ -985,6 +1042,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -1023,6 +1083,9 @@
    "leak": "unclassified",
    "leakWhy": "unknown",
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "win",
+   "minutesSincePrev": 56.3,
    "nearMiss": null
   },
   {
@@ -1061,6 +1124,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -1099,6 +1165,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "win",
+   "minutesSincePrev": 267.2,
    "nearMiss": null
   },
   {
@@ -1137,6 +1206,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 30.3,
    "nearMiss": null
   },
   {
@@ -1175,6 +1247,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 140.2,
    "nearMiss": null
   },
   {
@@ -1213,6 +1288,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -1251,6 +1329,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 740.0,
    "nearMiss": null
   },
   {
@@ -1289,6 +1370,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -1327,6 +1411,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 120.7,
    "nearMiss": null
   },
   {
@@ -1365,6 +1452,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "win",
+   "minutesSincePrev": 29.4,
    "nearMiss": null
   },
   {
@@ -1403,6 +1493,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 30 min after a full stop",
    "afterFullStopMin": 29.7,
+   "rankInDay": 4,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 29.7,
    "nearMiss": null
   },
   {
@@ -1441,6 +1534,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 5,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 36.6,
    "nearMiss": null
   },
   {
@@ -1479,6 +1575,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 4 min after a full stop",
    "afterFullStopMin": 4.2,
+   "rankInDay": 6,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 4.2,
    "nearMiss": null
   },
   {
@@ -1517,6 +1616,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 0 min after a full stop",
    "afterFullStopMin": 0.5,
+   "rankInDay": 7,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 0.5,
    "nearMiss": null
   },
   {
@@ -1555,6 +1657,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 26.3,
+   "rankInDay": 8,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 26.3,
    "nearMiss": null
   },
   {
@@ -1593,6 +1698,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 9,
+   "prevResult": "win",
+   "minutesSincePrev": 30.9,
    "nearMiss": null
   },
   {
@@ -1631,6 +1739,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 10,
+   "prevResult": "win",
+   "minutesSincePrev": 6.6,
    "nearMiss": null
   },
   {
@@ -1669,6 +1780,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 11,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 75.3,
    "nearMiss": null
   },
   {
@@ -1707,6 +1821,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 8.4,
+   "rankInDay": 12,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 8.4,
    "nearMiss": null
   },
   {
@@ -1745,6 +1862,9 @@
    "leak": "unclassified",
    "leakWhy": "unknown",
    "afterFullStopMin": null,
+   "rankInDay": 13,
+   "prevResult": "win",
+   "minutesSincePrev": 10.3,
    "nearMiss": null
   },
   {
@@ -1783,6 +1903,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -1821,6 +1944,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "win",
+   "minutesSincePrev": 9.4,
    "nearMiss": null
   },
   {
@@ -1859,6 +1985,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 40.5,
    "nearMiss": null
   },
   {
@@ -1897,6 +2026,9 @@
    "leak": "unclassified",
    "leakWhy": "unknown",
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "win",
+   "minutesSincePrev": 17.3,
    "nearMiss": null
   },
   {
@@ -1935,6 +2067,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 5,
+   "prevResult": "loss",
+   "minutesSincePrev": 100.3,
    "nearMiss": null
   },
   {
@@ -1973,6 +2108,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 6,
+   "prevResult": "win",
+   "minutesSincePrev": 38.4,
    "nearMiss": null
   },
   {
@@ -2011,6 +2149,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "win",
+   "minutesSincePrev": 29.9,
    "nearMiss": null
   },
   {
@@ -2049,6 +2190,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 8,
+   "prevResult": "win",
+   "minutesSincePrev": 140.0,
    "nearMiss": null
   },
   {
@@ -2087,6 +2231,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 9,
+   "prevResult": "win",
+   "minutesSincePrev": 51.1,
    "nearMiss": null
   },
   {
@@ -2125,6 +2272,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 10,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 74.3,
    "nearMiss": null
   },
   {
@@ -2163,6 +2313,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 11,
+   "prevResult": "win",
+   "minutesSincePrev": 18.4,
    "nearMiss": null
   },
   {
@@ -2201,6 +2354,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -2239,6 +2395,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 99.8,
    "nearMiss": null
   },
   {
@@ -2277,6 +2436,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 87.2,
    "nearMiss": null
   },
   {
@@ -2315,6 +2477,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "win",
+   "minutesSincePrev": 1.2,
    "nearMiss": null
   },
   {
@@ -2353,6 +2518,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 5,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 5.7,
    "nearMiss": null
   },
   {
@@ -2391,6 +2559,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 6,
+   "prevResult": "win",
+   "minutesSincePrev": 17.4,
    "nearMiss": null
   },
   {
@@ -2429,6 +2600,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "win",
+   "minutesSincePrev": 51.4,
    "nearMiss": null
   },
   {
@@ -2467,6 +2641,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 5.2,
+   "rankInDay": 8,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 5.2,
    "nearMiss": null
   },
   {
@@ -2505,6 +2682,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 27 min after a full stop",
    "afterFullStopMin": 27.2,
+   "rankInDay": 9,
+   "prevResult": "win",
+   "minutesSincePrev": 11.3,
    "nearMiss": null
   },
   {
@@ -2543,6 +2723,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 4.2,
+   "rankInDay": 10,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 4.2,
    "nearMiss": null
   },
   {
@@ -2581,6 +2764,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 11,
+   "prevResult": "win",
+   "minutesSincePrev": 81.2,
    "nearMiss": null
   },
   {
@@ -2619,6 +2805,9 @@
    "leak": "unclassified",
    "leakWhy": "manual-flatten",
    "afterFullStopMin": null,
+   "rankInDay": 12,
+   "prevResult": "win",
+   "minutesSincePrev": 0.7,
    "nearMiss": null
   },
   {
@@ -2657,6 +2846,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 13,
+   "prevResult": "loss",
+   "minutesSincePrev": 69.6,
    "nearMiss": null
   },
   {
@@ -2695,6 +2887,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 14,
+   "prevResult": "win",
+   "minutesSincePrev": 12.5,
    "nearMiss": null
   },
   {
@@ -2733,6 +2928,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 15,
+   "prevResult": "win",
+   "minutesSincePrev": 5.5,
    "nearMiss": null
   },
   {
@@ -2771,6 +2969,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 18.4,
+   "rankInDay": 16,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 18.4,
    "nearMiss": null
   },
   {
@@ -2809,6 +3010,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 28.2,
+   "rankInDay": 17,
+   "prevResult": "win",
+   "minutesSincePrev": 0.8,
    "nearMiss": null
   },
   {
@@ -2847,6 +3051,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 18,
+   "prevResult": "win",
+   "minutesSincePrev": 1.0,
    "nearMiss": null
   },
   {
@@ -2885,6 +3092,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 19,
+   "prevResult": "win",
+   "minutesSincePrev": 4.1,
    "nearMiss": null
   },
   {
@@ -2923,6 +3133,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -2961,6 +3174,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "win",
+   "minutesSincePrev": 2.3,
    "nearMiss": null
   },
   {
@@ -2999,6 +3215,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 8.9,
+   "rankInDay": 3,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 8.9,
    "nearMiss": null
   },
   {
@@ -3037,6 +3256,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 16.6,
+   "rankInDay": 4,
+   "prevResult": "win",
+   "minutesSincePrev": 4.7,
    "nearMiss": null
   },
   {
@@ -3075,6 +3297,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 21 min after a full stop",
    "afterFullStopMin": 20.8,
+   "rankInDay": 5,
+   "prevResult": "win",
+   "minutesSincePrev": 0.3,
    "nearMiss": null
   },
   {
@@ -3113,6 +3338,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 6,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 84.3,
    "nearMiss": null
   },
   {
@@ -3151,6 +3379,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "win",
+   "minutesSincePrev": 0.3,
    "nearMiss": null
   },
   {
@@ -3189,6 +3420,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 6.9,
+   "rankInDay": 8,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 6.9,
    "nearMiss": null
   },
   {
@@ -3227,6 +3461,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 14 min after a full stop",
    "afterFullStopMin": 14.2,
+   "rankInDay": 9,
+   "prevResult": "win",
+   "minutesSincePrev": 0.2,
    "nearMiss": null
   },
   {
@@ -3265,6 +3502,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 10,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 926.2,
    "nearMiss": null
   },
   {
@@ -3303,6 +3543,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -3341,6 +3584,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 233.7,
    "nearMiss": null
   },
   {
@@ -3379,6 +3625,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 50.1,
    "nearMiss": null
   },
   {
@@ -3417,6 +3666,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "win",
+   "minutesSincePrev": 17.3,
    "nearMiss": null
   },
   {
@@ -3455,6 +3707,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 5,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 50.6,
    "nearMiss": null
   },
   {
@@ -3493,6 +3748,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 6,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 54.0,
    "nearMiss": null
   },
   {
@@ -3531,6 +3789,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "win",
+   "minutesSincePrev": 315.2,
    "nearMiss": null
   },
   {
@@ -3569,6 +3830,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 8,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 71.9,
    "nearMiss": null
   },
   {
@@ -3607,6 +3871,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 9,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 130.5,
    "nearMiss": null
   },
   {
@@ -3645,6 +3912,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 10,
+   "prevResult": "win",
+   "minutesSincePrev": 53.8,
    "nearMiss": null
   },
   {
@@ -3683,6 +3953,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 11,
+   "prevResult": "win",
+   "minutesSincePrev": 11.3,
    "nearMiss": null
   },
   {
@@ -3721,6 +3994,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 12,
+   "prevResult": "win",
+   "minutesSincePrev": 13.3,
    "nearMiss": null
   },
   {
@@ -3759,6 +4035,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 13,
+   "prevResult": "win",
+   "minutesSincePrev": 48.9,
    "nearMiss": null
   },
   {
@@ -3797,6 +4076,9 @@
    "leak": "unclassified",
    "leakWhy": "trail-stop",
    "afterFullStopMin": null,
+   "rankInDay": 14,
+   "prevResult": "win",
+   "minutesSincePrev": 16.5,
    "nearMiss": null
   },
   {
@@ -3835,6 +4117,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -3873,6 +4158,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 343.2,
    "nearMiss": false
   },
   {
@@ -3911,6 +4199,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 1 min after a full stop",
    "afterFullStopMin": 1.3,
+   "rankInDay": 3,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 1.3,
    "nearMiss": null
   },
   {
@@ -3949,6 +4240,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 14.4,
+   "rankInDay": 4,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 14.4,
    "nearMiss": null
   },
   {
@@ -3987,6 +4281,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 5,
+   "prevResult": "win",
+   "minutesSincePrev": 14.2,
    "nearMiss": null
   },
   {
@@ -4025,6 +4322,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 6,
+   "prevResult": "win",
+   "minutesSincePrev": 8.9,
    "nearMiss": null
   },
   {
@@ -4063,6 +4363,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "win",
+   "minutesSincePrev": 11.0,
    "nearMiss": null
   },
   {
@@ -4101,6 +4404,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 17.1,
+   "rankInDay": 8,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 17.1,
    "nearMiss": null
   },
   {
@@ -4139,6 +4445,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 9,
+   "prevResult": "win",
+   "minutesSincePrev": 12.0,
    "nearMiss": null
   },
   {
@@ -4177,6 +4486,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 10,
+   "prevResult": "win",
+   "minutesSincePrev": 14.4,
    "nearMiss": null
   },
   {
@@ -4215,6 +4527,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 14 min after a full stop",
    "afterFullStopMin": 14.1,
+   "rankInDay": 11,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 14.1,
    "nearMiss": null
   },
   {
@@ -4253,6 +4568,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 11 min after a full stop",
    "afterFullStopMin": 10.7,
+   "rankInDay": 12,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 10.7,
    "nearMiss": null
   },
   {
@@ -4291,6 +4609,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 19 min after a full stop",
    "afterFullStopMin": 18.6,
+   "rankInDay": 13,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 18.6,
    "nearMiss": null
   },
   {
@@ -4329,6 +4650,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 7 min after a full stop",
    "afterFullStopMin": 6.6,
+   "rankInDay": 14,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 6.6,
    "nearMiss": null
   },
   {
@@ -4367,6 +4691,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 15 min after a full stop",
    "afterFullStopMin": 14.6,
+   "rankInDay": 15,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 14.6,
    "nearMiss": null
   },
   {
@@ -4405,6 +4732,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 1 min after a full stop",
    "afterFullStopMin": 0.6,
+   "rankInDay": 16,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 0.6,
    "nearMiss": null
   },
   {
@@ -4443,6 +4773,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 17,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 129.1,
    "nearMiss": null
   },
   {
@@ -4481,6 +4814,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 18,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 41.5,
    "nearMiss": null
   },
   {
@@ -4519,6 +4855,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 19,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 23.6,
    "nearMiss": null
   },
   {
@@ -4557,6 +4896,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 20,
+   "prevResult": "win",
+   "minutesSincePrev": 3.1,
    "nearMiss": null
   },
   {
@@ -4595,6 +4937,9 @@
    "leak": "unclassified",
    "leakWhy": "manual-flatten",
    "afterFullStopMin": null,
+   "rankInDay": 21,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 117.6,
    "nearMiss": null
   },
   {
@@ -4633,6 +4978,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 22,
+   "prevResult": "loss",
+   "minutesSincePrev": 31.9,
    "nearMiss": null
   },
   {
@@ -4671,6 +5019,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 23,
+   "prevResult": "win",
+   "minutesSincePrev": 49.5,
    "nearMiss": null
   },
   {
@@ -4709,6 +5060,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 29 min after a full stop",
    "afterFullStopMin": 28.9,
+   "rankInDay": 24,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 28.9,
    "nearMiss": null
   },
   {
@@ -4747,6 +5101,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 25,
+   "prevResult": "loss",
+   "minutesSincePrev": 39.0,
    "nearMiss": null
   },
   {
@@ -4785,6 +5142,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -4823,6 +5183,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "win",
+   "minutesSincePrev": 10.5,
    "nearMiss": null
   },
   {
@@ -4861,6 +5224,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "win",
+   "minutesSincePrev": 18.4,
    "nearMiss": null
   },
   {
@@ -4899,6 +5265,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "win",
+   "minutesSincePrev": 11.4,
    "nearMiss": null
   },
   {
@@ -4937,6 +5306,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 14 min after a full stop",
    "afterFullStopMin": 14.4,
+   "rankInDay": 5,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 14.4,
    "nearMiss": null
   },
   {
@@ -4975,6 +5347,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 6,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 110.7,
    "nearMiss": null
   },
   {
@@ -5013,6 +5388,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 60.1,
    "nearMiss": false
   },
   {
@@ -5051,6 +5429,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 8,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 30.1,
    "nearMiss": null
   },
   {
@@ -5089,6 +5470,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 9,
+   "prevResult": "win",
+   "minutesSincePrev": 11.3,
    "nearMiss": false
   },
   {
@@ -5127,6 +5511,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 10,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 319.9,
    "nearMiss": false
   },
   {
@@ -5165,6 +5552,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 11.0,
+   "rankInDay": 11,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 11.0,
    "nearMiss": null
   },
   {
@@ -5203,6 +5593,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 12,
+   "prevResult": "win",
+   "minutesSincePrev": 20.5,
    "nearMiss": true
   },
   {
@@ -5241,6 +5634,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 14 min after a full stop",
    "afterFullStopMin": 14.2,
+   "rankInDay": 13,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 14.2,
    "nearMiss": null
   },
   {
@@ -5279,6 +5675,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 14,
+   "prevResult": "loss",
+   "minutesSincePrev": 200.0,
    "nearMiss": null
   },
   {
@@ -5317,6 +5716,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 15,
+   "prevResult": "win",
+   "minutesSincePrev": 53.8,
    "nearMiss": false
   },
   {
@@ -5355,6 +5757,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 20.0,
+   "rankInDay": 16,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 20.0,
    "nearMiss": null
   },
   {
@@ -5393,6 +5798,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 17,
+   "prevResult": "win",
+   "minutesSincePrev": 17.9,
    "nearMiss": true
   },
   {
@@ -5431,6 +5839,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 18,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 5.7,
    "nearMiss": null
   },
   {
@@ -5469,6 +5880,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 19,
+   "prevResult": "win",
+   "minutesSincePrev": 38.7,
    "nearMiss": false
   },
   {
@@ -5507,6 +5921,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": false
   },
   {
@@ -5545,6 +5962,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 175.9,
    "nearMiss": false
   },
   {
@@ -5583,6 +6003,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 237.0,
    "nearMiss": null
   },
   {
@@ -5621,6 +6044,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "win",
+   "minutesSincePrev": 49.0,
    "nearMiss": false
   },
   {
@@ -5659,6 +6085,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 26 min after a full stop",
    "afterFullStopMin": 25.5,
+   "rankInDay": 5,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 25.5,
    "nearMiss": true
   },
   {
@@ -5697,6 +6126,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 6,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 84.6,
    "nearMiss": null
   },
   {
@@ -5735,6 +6167,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "win",
+   "minutesSincePrev": 364.8,
    "nearMiss": null
   },
   {
@@ -5773,6 +6208,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 8,
+   "prevResult": "win",
+   "minutesSincePrev": 47.1,
    "nearMiss": null
   },
   {
@@ -5811,6 +6249,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 9,
+   "prevResult": "win",
+   "minutesSincePrev": 10.8,
    "nearMiss": false
   },
   {
@@ -5849,6 +6290,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 8.5,
+   "rankInDay": 10,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 8.5,
    "nearMiss": null
   },
   {
@@ -5887,6 +6331,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 25.7,
+   "rankInDay": 11,
+   "prevResult": "win",
+   "minutesSincePrev": 11.5,
    "nearMiss": null
   },
   {
@@ -5925,6 +6372,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 12,
+   "prevResult": "win",
+   "minutesSincePrev": 80.1,
    "nearMiss": false
   },
   {
@@ -5963,6 +6413,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": false
   },
   {
@@ -6001,6 +6454,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 446.6,
    "nearMiss": null
   },
   {
@@ -6039,6 +6495,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "win",
+   "minutesSincePrev": 2.1,
    "nearMiss": false
   },
   {
@@ -6077,6 +6536,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 6.9,
+   "rankInDay": 4,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 6.9,
    "nearMiss": null
   },
   {
@@ -6115,6 +6577,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 5,
+   "prevResult": "win",
+   "minutesSincePrev": 8.8,
    "nearMiss": null
   },
   {
@@ -6153,6 +6618,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 6,
+   "prevResult": "win",
+   "minutesSincePrev": 1.7,
    "nearMiss": null
   },
   {
@@ -6191,6 +6659,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "win",
+   "minutesSincePrev": 9.4,
    "nearMiss": true
   },
   {
@@ -6229,6 +6700,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 14 min after a full stop",
    "afterFullStopMin": 14.4,
+   "rankInDay": 8,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 14.4,
    "nearMiss": false
   },
   {
@@ -6267,6 +6741,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 17 min after a full stop",
    "afterFullStopMin": 17.1,
+   "rankInDay": 9,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 17.1,
    "nearMiss": true
   },
   {
@@ -6305,6 +6782,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 20 min after a full stop",
    "afterFullStopMin": 20.0,
+   "rankInDay": 10,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 20.0,
    "nearMiss": false
   },
   {
@@ -6343,6 +6823,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 11,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 39.7,
    "nearMiss": null
   },
   {
@@ -6381,6 +6864,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 12,
+   "prevResult": "win",
+   "minutesSincePrev": 3.3,
    "nearMiss": false
   },
   {
@@ -6419,6 +6905,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 13,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 157.9,
    "nearMiss": null
   },
   {
@@ -6457,6 +6946,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 14,
+   "prevResult": "win",
+   "minutesSincePrev": 6.3,
    "nearMiss": null
   },
   {
@@ -6495,6 +6987,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 15,
+   "prevResult": "win",
+   "minutesSincePrev": 3.5,
    "nearMiss": null
   },
   {
@@ -6533,6 +7028,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 16,
+   "prevResult": "win",
+   "minutesSincePrev": 1.2,
    "nearMiss": null
   },
   {
@@ -6571,6 +7069,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 17,
+   "prevResult": "win",
+   "minutesSincePrev": 3.0,
    "nearMiss": null
   },
   {
@@ -6609,6 +7110,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 18,
+   "prevResult": "win",
+   "minutesSincePrev": 2.9,
    "nearMiss": true
   },
   {
@@ -6647,6 +7151,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 5.2,
+   "rankInDay": 19,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 5.2,
    "nearMiss": null
   },
   {
@@ -6685,6 +7192,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 13 min after a full stop",
    "afterFullStopMin": 12.6,
+   "rankInDay": 20,
+   "prevResult": "win",
+   "minutesSincePrev": 3.1,
    "nearMiss": false
   },
   {
@@ -6723,6 +7233,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 15.9,
+   "rankInDay": 21,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 15.9,
    "nearMiss": null
   },
   {
@@ -6761,6 +7274,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 22,
+   "prevResult": "win",
+   "minutesSincePrev": 4.7,
    "nearMiss": true
   },
   {
@@ -6799,6 +7315,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 23,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 37.9,
    "nearMiss": null
   },
   {
@@ -6837,6 +7356,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 24,
+   "prevResult": "win",
+   "minutesSincePrev": 7.4,
    "nearMiss": false
   },
   {
@@ -6875,6 +7397,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 6.1,
+   "rankInDay": 25,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 6.1,
    "nearMiss": null
   },
   {
@@ -6913,6 +7438,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 11 min after a full stop",
    "afterFullStopMin": 11.1,
+   "rankInDay": 26,
+   "prevResult": "win",
+   "minutesSincePrev": 1.2,
    "nearMiss": false
   },
   {
@@ -6951,6 +7479,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 13.4,
+   "rankInDay": 27,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 13.4,
    "nearMiss": null
   },
   {
@@ -6989,6 +7520,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 28,
+   "prevResult": "win",
+   "minutesSincePrev": 5.9,
    "nearMiss": null
   },
   {
@@ -7027,6 +7561,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 29,
+   "prevResult": "win",
+   "minutesSincePrev": 6.0,
    "nearMiss": true
   },
   {
@@ -7065,6 +7602,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 30,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 32.8,
    "nearMiss": null
   },
   {
@@ -7103,6 +7643,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 31,
+   "prevResult": "win",
+   "minutesSincePrev": 2.7,
    "nearMiss": false
   },
   {
@@ -7141,6 +7684,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 12.7,
+   "rankInDay": 32,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 12.7,
    "nearMiss": null
   },
   {
@@ -7179,6 +7725,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 20.2,
+   "rankInDay": 33,
+   "prevResult": "win",
+   "minutesSincePrev": 3.6,
    "nearMiss": null
   },
   {
@@ -7217,6 +7766,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": true
   },
   {
@@ -7255,6 +7807,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 428.3,
    "nearMiss": null
   },
   {
@@ -7293,6 +7848,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "win",
+   "minutesSincePrev": 20.5,
    "nearMiss": null
   },
   {
@@ -7331,6 +7889,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "win",
+   "minutesSincePrev": 3.5,
    "nearMiss": false
   },
   {
@@ -7369,6 +7930,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 5,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 33.1,
    "nearMiss": null
   },
   {
@@ -7407,6 +7971,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 6,
+   "prevResult": "win",
+   "minutesSincePrev": 7.7,
    "nearMiss": false
   },
   {
@@ -7445,6 +8012,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 10 min after a full stop",
    "afterFullStopMin": 9.7,
+   "rankInDay": 7,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 9.7,
    "nearMiss": true
   },
   {
@@ -7483,6 +8053,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 24.5,
+   "rankInDay": 8,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 24.5,
    "nearMiss": null
   },
   {
@@ -7521,6 +8094,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 9,
+   "prevResult": "win",
+   "minutesSincePrev": 9.5,
    "nearMiss": null
   },
   {
@@ -7559,6 +8135,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 10,
+   "prevResult": "win",
+   "minutesSincePrev": 155.4,
    "nearMiss": false
   },
   {
@@ -7597,6 +8176,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 5.3,
+   "rankInDay": 11,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 5.3,
    "nearMiss": null
   },
   {
@@ -7635,6 +8217,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 12,
+   "prevResult": "win",
+   "minutesSincePrev": 47.3,
    "nearMiss": false
   },
   {
@@ -7673,6 +8258,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 13,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 90.8,
    "nearMiss": false
   },
   {
@@ -7711,6 +8299,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 14,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 85.0,
    "nearMiss": null
   },
   {
@@ -7749,6 +8340,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -7787,6 +8381,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "win",
+   "minutesSincePrev": 56.8,
    "nearMiss": null
   },
   {
@@ -7825,6 +8422,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "win",
+   "minutesSincePrev": 39.5,
    "nearMiss": null
   },
   {
@@ -7863,6 +8463,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "win",
+   "minutesSincePrev": 14.1,
    "nearMiss": true
   },
   {
@@ -7901,6 +8504,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 15 min after a full stop",
    "afterFullStopMin": 15.0,
+   "rankInDay": 5,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 15.0,
    "nearMiss": false
   },
   {
@@ -7939,6 +8545,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 7 min after a full stop",
    "afterFullStopMin": 7.0,
+   "rankInDay": 6,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 7.0,
    "nearMiss": false
   },
   {
@@ -7977,6 +8586,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 119.8,
    "nearMiss": null
   },
   {
@@ -8015,6 +8627,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 8,
+   "prevResult": "win",
+   "minutesSincePrev": 23.8,
    "nearMiss": null
   },
   {
@@ -8053,6 +8668,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 9,
+   "prevResult": "win",
+   "minutesSincePrev": 16.6,
    "nearMiss": null
   },
   {
@@ -8091,6 +8709,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 10,
+   "prevResult": "loss",
+   "minutesSincePrev": 46.0,
    "nearMiss": null
   },
   {
@@ -8129,6 +8750,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 11,
+   "prevResult": "win",
+   "minutesSincePrev": 10.6,
    "nearMiss": null
   },
   {
@@ -8167,6 +8791,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 12,
+   "prevResult": "win",
+   "minutesSincePrev": 87.2,
    "nearMiss": null
   },
   {
@@ -8205,6 +8832,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 13,
+   "prevResult": "loss",
+   "minutesSincePrev": 6.6,
    "nearMiss": null
   },
   {
@@ -8243,6 +8873,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 14,
+   "prevResult": "win",
+   "minutesSincePrev": 23.1,
    "nearMiss": null
   },
   {
@@ -8281,6 +8914,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 15,
+   "prevResult": "win",
+   "minutesSincePrev": 17.0,
    "nearMiss": null
   },
   {
@@ -8319,6 +8955,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 16,
+   "prevResult": "win",
+   "minutesSincePrev": 193.6,
    "nearMiss": null
   },
   {
@@ -8357,6 +8996,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 17,
+   "prevResult": "win",
+   "minutesSincePrev": 18.8,
    "nearMiss": null
   },
   {
@@ -8395,6 +9037,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 18,
+   "prevResult": "win",
+   "minutesSincePrev": 10.6,
    "nearMiss": null
   },
   {
@@ -8433,6 +9078,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 19,
+   "prevResult": "win",
+   "minutesSincePrev": 9.8,
    "nearMiss": null
   },
   {
@@ -8471,6 +9119,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 20,
+   "prevResult": "win",
+   "minutesSincePrev": 27.9,
    "nearMiss": null
   },
   {
@@ -8509,6 +9160,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 21,
+   "prevResult": "win",
+   "minutesSincePrev": 23.2,
    "nearMiss": true
   },
   {
@@ -8547,6 +9201,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 14.5,
+   "rankInDay": 22,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 14.5,
    "nearMiss": null
   },
   {
@@ -8585,6 +9242,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 23,
+   "prevResult": "win",
+   "minutesSincePrev": 31.4,
    "nearMiss": null
   },
   {
@@ -8623,6 +9283,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 24,
+   "prevResult": "loss",
+   "minutesSincePrev": 16.5,
    "nearMiss": true
   },
   {
@@ -8661,6 +9324,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 16 min after a full stop",
    "afterFullStopMin": 15.5,
+   "rankInDay": 25,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 15.5,
    "nearMiss": null
   },
   {
@@ -8699,6 +9365,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -8737,6 +9406,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "loss",
+   "minutesSincePrev": 15.8,
    "nearMiss": null
   },
   {
@@ -8775,6 +9447,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "loss",
+   "minutesSincePrev": 42.5,
    "nearMiss": true
   },
   {
@@ -8813,6 +9488,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 12.2,
    "nearMiss": false
   },
   {
@@ -8851,6 +9529,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 5,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 50.5,
    "nearMiss": null
   },
   {
@@ -8889,6 +9570,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 6,
+   "prevResult": "loss",
+   "minutesSincePrev": 13.0,
    "nearMiss": null
   },
   {
@@ -8927,6 +9611,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "win",
+   "minutesSincePrev": 86.7,
    "nearMiss": null
   },
   {
@@ -8965,6 +9652,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 8,
+   "prevResult": "win",
+   "minutesSincePrev": 44.3,
    "nearMiss": null
   },
   {
@@ -9003,6 +9693,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 9,
+   "prevResult": "win",
+   "minutesSincePrev": 42.8,
    "nearMiss": null
   },
   {
@@ -9041,6 +9734,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 10,
+   "prevResult": "loss",
+   "minutesSincePrev": 9.9,
    "nearMiss": null
   },
   {
@@ -9079,6 +9775,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 11,
+   "prevResult": "win",
+   "minutesSincePrev": 27.6,
    "nearMiss": null
   },
   {
@@ -9117,6 +9816,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 12,
+   "prevResult": "loss",
+   "minutesSincePrev": 191.1,
    "nearMiss": null
   },
   {
@@ -9155,6 +9857,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 13,
+   "prevResult": "win",
+   "minutesSincePrev": 15.6,
    "nearMiss": false
   },
   {
@@ -9193,6 +9898,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 5.0,
+   "rankInDay": 14,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 5.0,
    "nearMiss": null
   },
   {
@@ -9231,6 +9939,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 19 min after a full stop",
    "afterFullStopMin": 19.3,
+   "rankInDay": 15,
+   "prevResult": "win",
+   "minutesSincePrev": 8.1,
    "nearMiss": null
   },
   {
@@ -9269,6 +9980,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 16,
+   "prevResult": "loss",
+   "minutesSincePrev": 189.1,
    "nearMiss": false
   },
   {
@@ -9307,6 +10021,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 17.5,
+   "rankInDay": 17,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 17.5,
    "nearMiss": null
   },
   {
@@ -9345,6 +10062,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 18,
+   "prevResult": "win",
+   "minutesSincePrev": 11.9,
    "nearMiss": null
   },
   {
@@ -9383,6 +10103,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 19,
+   "prevResult": "loss",
+   "minutesSincePrev": 29.5,
    "nearMiss": null
   },
   {
@@ -9421,6 +10144,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 20,
+   "prevResult": "win",
+   "minutesSincePrev": 15.2,
    "nearMiss": true
   },
   {
@@ -9459,6 +10185,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 21.4,
+   "rankInDay": 21,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 21.4,
    "nearMiss": null
   },
   {
@@ -9497,6 +10226,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 22,
+   "prevResult": "win",
+   "minutesSincePrev": 21.6,
    "nearMiss": null
   },
   {
@@ -9535,6 +10267,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 23,
+   "prevResult": "loss",
+   "minutesSincePrev": 5.2,
    "nearMiss": null
   },
   {
@@ -9573,6 +10308,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 24,
+   "prevResult": "loss",
+   "minutesSincePrev": 4.8,
    "nearMiss": null
   },
   {
@@ -9611,6 +10349,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 25,
+   "prevResult": "win",
+   "minutesSincePrev": 29.9,
    "nearMiss": null
   },
   {
@@ -9649,6 +10390,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 26,
+   "prevResult": "win",
+   "minutesSincePrev": 5.5,
    "nearMiss": null
   },
   {
@@ -9687,6 +10431,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": true
   },
   {
@@ -9725,6 +10472,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 18.2,
+   "rankInDay": 2,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 18.2,
    "nearMiss": null
   },
   {
@@ -9763,6 +10513,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "win",
+   "minutesSincePrev": 25.2,
    "nearMiss": null
   },
   {
@@ -9801,6 +10554,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "loss",
+   "minutesSincePrev": 15.3,
    "nearMiss": null
   },
   {
@@ -9839,6 +10595,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 5,
+   "prevResult": "loss",
+   "minutesSincePrev": 43.9,
    "nearMiss": null
   },
   {
@@ -9877,6 +10636,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 6,
+   "prevResult": "win",
+   "minutesSincePrev": 6.0,
    "nearMiss": null
   },
   {
@@ -9915,6 +10677,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "win",
+   "minutesSincePrev": 10.0,
    "nearMiss": null
   },
   {
@@ -9953,6 +10718,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 8,
+   "prevResult": "win",
+   "minutesSincePrev": 10.0,
    "nearMiss": null
   },
   {
@@ -9991,6 +10759,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 9,
+   "prevResult": "loss",
+   "minutesSincePrev": 336.8,
    "nearMiss": null
   },
   {
@@ -10029,6 +10800,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 10,
+   "prevResult": "win",
+   "minutesSincePrev": 39.0,
    "nearMiss": null
   },
   {
@@ -10067,6 +10841,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 11,
+   "prevResult": "loss",
+   "minutesSincePrev": 210.6,
    "nearMiss": null
   },
   {
@@ -10105,6 +10882,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 12,
+   "prevResult": "win",
+   "minutesSincePrev": 26.0,
    "nearMiss": null
   },
   {
@@ -10143,6 +10923,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 13,
+   "prevResult": "win",
+   "minutesSincePrev": 91.5,
    "nearMiss": null
   },
   {
@@ -10181,6 +10964,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 14,
+   "prevResult": "loss",
+   "minutesSincePrev": 25.5,
    "nearMiss": null
   },
   {
@@ -10219,6 +11005,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 15,
+   "prevResult": "loss",
+   "minutesSincePrev": 14.9,
    "nearMiss": null
   },
   {
@@ -10257,6 +11046,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 16,
+   "prevResult": "win",
+   "minutesSincePrev": 77.4,
    "nearMiss": null
   },
   {
@@ -10295,6 +11087,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 17,
+   "prevResult": "loss",
+   "minutesSincePrev": 42.6,
    "nearMiss": null
   },
   {
@@ -10333,6 +11128,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -10371,6 +11169,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "win",
+   "minutesSincePrev": 54.3,
    "nearMiss": null
   },
   {
@@ -10409,6 +11210,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "loss",
+   "minutesSincePrev": 9.1,
    "nearMiss": null
   },
   {
@@ -10447,6 +11251,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "win",
+   "minutesSincePrev": 107.3,
    "nearMiss": null
   },
   {
@@ -10485,6 +11292,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 5,
+   "prevResult": "win",
+   "minutesSincePrev": 34.2,
    "nearMiss": true
   },
   {
@@ -10523,6 +11333,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 6,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 47.4,
    "nearMiss": null
   },
   {
@@ -10561,6 +11374,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "win",
+   "minutesSincePrev": 80.1,
    "nearMiss": null
   },
   {
@@ -10599,6 +11415,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 8,
+   "prevResult": "win",
+   "minutesSincePrev": 25.8,
    "nearMiss": null
   },
   {
@@ -10637,6 +11456,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 9,
+   "prevResult": "win",
+   "minutesSincePrev": 2.8,
    "nearMiss": null
   },
   {
@@ -10675,6 +11497,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 10,
+   "prevResult": "win",
+   "minutesSincePrev": 5.7,
    "nearMiss": null
   },
   {
@@ -10713,6 +11538,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 11,
+   "prevResult": "win",
+   "minutesSincePrev": 17.6,
    "nearMiss": true
   },
   {
@@ -10751,6 +11579,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 12,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 70.4,
    "nearMiss": false
   },
   {
@@ -10789,6 +11620,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 9.4,
+   "rankInDay": 13,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 9.4,
    "nearMiss": null
   },
   {
@@ -10827,6 +11661,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 15 min after a full stop",
    "afterFullStopMin": 14.9,
+   "rankInDay": 14,
+   "prevResult": "win",
+   "minutesSincePrev": 4.5,
    "nearMiss": null
   },
   {
@@ -10865,6 +11702,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 15,
+   "prevResult": "loss",
+   "minutesSincePrev": 29.0,
    "nearMiss": null
   },
   {
@@ -10903,6 +11743,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 16,
+   "prevResult": "win",
+   "minutesSincePrev": 5.3,
    "nearMiss": null
   },
   {
@@ -10941,6 +11784,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 17,
+   "prevResult": "loss",
+   "minutesSincePrev": 48.7,
    "nearMiss": null
   },
   {
@@ -10979,6 +11825,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 18,
+   "prevResult": "win",
+   "minutesSincePrev": 1.7,
    "nearMiss": null
   },
   {
@@ -11017,6 +11866,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 19,
+   "prevResult": "win",
+   "minutesSincePrev": 4.2,
    "nearMiss": null
   },
   {
@@ -11055,6 +11907,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 20,
+   "prevResult": "win",
+   "minutesSincePrev": 0.5,
    "nearMiss": null
   },
   {
@@ -11093,6 +11948,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 21,
+   "prevResult": "win",
+   "minutesSincePrev": 147.5,
    "nearMiss": false
   },
   {
@@ -11131,6 +11989,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 22,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 83.5,
    "nearMiss": null
   },
   {
@@ -11169,6 +12030,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 23,
+   "prevResult": "loss",
+   "minutesSincePrev": 146.7,
    "nearMiss": true
   },
   {
@@ -11207,6 +12071,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -11245,6 +12112,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "win",
+   "minutesSincePrev": 3.8,
    "nearMiss": null
   },
   {
@@ -11283,6 +12153,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "win",
+   "minutesSincePrev": 2.7,
    "nearMiss": null
   },
   {
@@ -11321,6 +12194,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "loss",
+   "minutesSincePrev": 7.1,
    "nearMiss": null
   },
   {
@@ -11359,6 +12235,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 5,
+   "prevResult": "win",
+   "minutesSincePrev": 2.2,
    "nearMiss": null
   },
   {
@@ -11397,6 +12276,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 6,
+   "prevResult": "win",
+   "minutesSincePrev": 78.4,
    "nearMiss": null
   },
   {
@@ -11435,6 +12317,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "win",
+   "minutesSincePrev": 135.9,
    "nearMiss": null
   },
   {
@@ -11473,6 +12358,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 8,
+   "prevResult": "win",
+   "minutesSincePrev": 21.7,
    "nearMiss": null
   },
   {
@@ -11511,6 +12399,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 9,
+   "prevResult": "loss",
+   "minutesSincePrev": 89.6,
    "nearMiss": true
   },
   {
@@ -11549,6 +12440,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 10,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 50.2,
    "nearMiss": null
   },
   {
@@ -11587,6 +12481,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 11,
+   "prevResult": "win",
+   "minutesSincePrev": 6.8,
    "nearMiss": null
   },
   {
@@ -11625,6 +12522,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 12,
+   "prevResult": "win",
+   "minutesSincePrev": 3.7,
    "nearMiss": null
   },
   {
@@ -11663,6 +12563,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 13,
+   "prevResult": "win",
+   "minutesSincePrev": 5.0,
    "nearMiss": null
   },
   {
@@ -11701,6 +12604,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 14,
+   "prevResult": "win",
+   "minutesSincePrev": 103.6,
    "nearMiss": null
   },
   {
@@ -11739,6 +12645,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 15,
+   "prevResult": "win",
+   "minutesSincePrev": 2.2,
    "nearMiss": null
   },
   {
@@ -11777,6 +12686,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 16,
+   "prevResult": "win",
+   "minutesSincePrev": 5.1,
    "nearMiss": null
   },
   {
@@ -11815,6 +12727,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 17,
+   "prevResult": "win",
+   "minutesSincePrev": 83.0,
    "nearMiss": null
   },
   {
@@ -11853,6 +12768,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 18,
+   "prevResult": "win",
+   "minutesSincePrev": 23.9,
    "nearMiss": false
   },
   {
@@ -11891,6 +12809,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 13.2,
+   "rankInDay": 19,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 13.2,
    "nearMiss": null
   },
   {
@@ -11929,6 +12850,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 20,
+   "prevResult": "win",
+   "minutesSincePrev": 23.6,
    "nearMiss": null
   },
   {
@@ -11967,6 +12891,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 21,
+   "prevResult": "win",
+   "minutesSincePrev": 120.5,
    "nearMiss": null
   },
   {
@@ -12005,6 +12932,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 22,
+   "prevResult": "win",
+   "minutesSincePrev": 111.7,
    "nearMiss": null
   },
   {
@@ -12043,6 +12973,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 23,
+   "prevResult": "win",
+   "minutesSincePrev": 117.0,
    "nearMiss": null
   },
   {
@@ -12081,6 +13014,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -12119,6 +13055,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "win",
+   "minutesSincePrev": 4.3,
    "nearMiss": null
   },
   {
@@ -12157,6 +13096,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "win",
+   "minutesSincePrev": 63.9,
    "nearMiss": null
   },
   {
@@ -12195,6 +13137,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "win",
+   "minutesSincePrev": 46.7,
    "nearMiss": null
   },
   {
@@ -12233,6 +13178,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 5,
+   "prevResult": "loss",
+   "minutesSincePrev": 45.5,
    "nearMiss": null
   },
   {
@@ -12271,6 +13219,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 6,
+   "prevResult": "win",
+   "minutesSincePrev": 20.7,
    "nearMiss": null
   },
   {
@@ -12309,6 +13260,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "loss",
+   "minutesSincePrev": 11.3,
    "nearMiss": null
   },
   {
@@ -12347,6 +13301,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 8,
+   "prevResult": "win",
+   "minutesSincePrev": 6.3,
    "nearMiss": null
   },
   {
@@ -12385,6 +13342,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 9,
+   "prevResult": "win",
+   "minutesSincePrev": 15.9,
    "nearMiss": null
   },
   {
@@ -12423,6 +13383,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 10,
+   "prevResult": "loss",
+   "minutesSincePrev": 30.2,
    "nearMiss": null
   },
   {
@@ -12461,6 +13424,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 11,
+   "prevResult": "loss",
+   "minutesSincePrev": 50.3,
    "nearMiss": null
   },
   {
@@ -12499,6 +13465,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 12,
+   "prevResult": "win",
+   "minutesSincePrev": 116.4,
    "nearMiss": null
   },
   {
@@ -12537,6 +13506,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 13,
+   "prevResult": "win",
+   "minutesSincePrev": 35.3,
    "nearMiss": null
   },
   {
@@ -12575,6 +13547,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 14,
+   "prevResult": "win",
+   "minutesSincePrev": 5.2,
    "nearMiss": null
   },
   {
@@ -12613,6 +13588,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 15,
+   "prevResult": "loss",
+   "minutesSincePrev": 41.8,
    "nearMiss": null
   },
   {
@@ -12651,6 +13629,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 16,
+   "prevResult": "win",
+   "minutesSincePrev": 21.6,
    "nearMiss": null
   },
   {
@@ -12689,6 +13670,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 17,
+   "prevResult": "win",
+   "minutesSincePrev": 20.9,
    "nearMiss": null
   },
   {
@@ -12727,6 +13711,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 18,
+   "prevResult": "loss",
+   "minutesSincePrev": 55.9,
    "nearMiss": null
   },
   {
@@ -12765,6 +13752,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 19,
+   "prevResult": "win",
+   "minutesSincePrev": 178.2,
    "nearMiss": null
   },
   {
@@ -12803,6 +13793,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 20,
+   "prevResult": "win",
+   "minutesSincePrev": 3.3,
    "nearMiss": null
   },
   {
@@ -12841,6 +13834,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 21,
+   "prevResult": "win",
+   "minutesSincePrev": 17.4,
    "nearMiss": null
   },
   {
@@ -12879,6 +13875,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 22,
+   "prevResult": "win",
+   "minutesSincePrev": 4.4,
    "nearMiss": null
   },
   {
@@ -12917,6 +13916,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 23,
+   "prevResult": "win",
+   "minutesSincePrev": 83.8,
    "nearMiss": null
   },
   {
@@ -12955,6 +13957,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 24,
+   "prevResult": "win",
+   "minutesSincePrev": 53.2,
    "nearMiss": null
   },
   {
@@ -12993,6 +13998,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 25,
+   "prevResult": "win",
+   "minutesSincePrev": 1.2,
    "nearMiss": null
   },
   {
@@ -13031,6 +14039,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 26,
+   "prevResult": "win",
+   "minutesSincePrev": 29.8,
    "nearMiss": false
   },
   {
@@ -13069,6 +14080,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 16.9,
+   "rankInDay": 27,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 16.9,
    "nearMiss": null
   },
   {
@@ -13107,6 +14121,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 28,
+   "prevResult": "win",
+   "minutesSincePrev": 102.8,
    "nearMiss": null
   },
   {
@@ -13145,6 +14162,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 29,
+   "prevResult": "win",
+   "minutesSincePrev": 4.2,
    "nearMiss": false
   },
   {
@@ -13183,6 +14203,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 15.0,
+   "rankInDay": 30,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 15.0,
    "nearMiss": null
   },
   {
@@ -13221,6 +14244,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": false
   },
   {
@@ -13259,6 +14285,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 50.2,
    "nearMiss": null
   },
   {
@@ -13297,6 +14326,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "win",
+   "minutesSincePrev": 3.5,
    "nearMiss": false
   },
   {
@@ -13335,6 +14367,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 191.4,
    "nearMiss": null
   },
   {
@@ -13373,6 +14408,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 5,
+   "prevResult": "win",
+   "minutesSincePrev": 96.3,
    "nearMiss": false
   },
   {
@@ -13411,6 +14449,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 17 min after a full stop",
    "afterFullStopMin": 16.9,
+   "rankInDay": 6,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 16.9,
    "nearMiss": null
   },
   {
@@ -13449,6 +14490,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "loss",
+   "minutesSincePrev": 6.7,
    "nearMiss": null
   },
   {
@@ -13487,6 +14531,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 8,
+   "prevResult": "win",
+   "minutesSincePrev": 45.5,
    "nearMiss": null
   },
   {
@@ -13525,6 +14572,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 9,
+   "prevResult": "loss",
+   "minutesSincePrev": 7.1,
    "nearMiss": null
   },
   {
@@ -13563,6 +14613,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 10,
+   "prevResult": "win",
+   "minutesSincePrev": 28.6,
    "nearMiss": null
   },
   {
@@ -13601,6 +14654,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 11,
+   "prevResult": "loss",
+   "minutesSincePrev": 93.4,
    "nearMiss": null
   },
   {
@@ -13639,6 +14695,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 12,
+   "prevResult": "loss",
+   "minutesSincePrev": 25.9,
    "nearMiss": null
   },
   {
@@ -13677,6 +14736,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 13,
+   "prevResult": "win",
+   "minutesSincePrev": 3.4,
    "nearMiss": null
   },
   {
@@ -13715,6 +14777,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 14,
+   "prevResult": "win",
+   "minutesSincePrev": 1.6,
    "nearMiss": null
   },
   {
@@ -13753,6 +14818,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 15,
+   "prevResult": "loss",
+   "minutesSincePrev": 16.9,
    "nearMiss": null
   },
   {
@@ -13791,6 +14859,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 16,
+   "prevResult": "loss",
+   "minutesSincePrev": 23.0,
    "nearMiss": null
   },
   {
@@ -13829,6 +14900,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 17,
+   "prevResult": "win",
+   "minutesSincePrev": 10.2,
    "nearMiss": null
   },
   {
@@ -13867,6 +14941,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 18,
+   "prevResult": "loss",
+   "minutesSincePrev": 5.8,
    "nearMiss": null
   },
   {
@@ -13905,6 +14982,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 19,
+   "prevResult": "win",
+   "minutesSincePrev": 12.3,
    "nearMiss": null
   },
   {
@@ -13943,6 +15023,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 20,
+   "prevResult": "win",
+   "minutesSincePrev": 9.3,
    "nearMiss": false
   },
   {
@@ -13981,6 +15064,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 21,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 86.4,
    "nearMiss": false
   },
   {
@@ -14019,6 +15105,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 6.2,
+   "rankInDay": 22,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 6.2,
    "nearMiss": null
   },
   {
@@ -14057,6 +15146,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 23,
+   "prevResult": "win",
+   "minutesSincePrev": 21.5,
    "nearMiss": false
   },
   {
@@ -14095,6 +15187,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 24,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 52.1,
    "nearMiss": false
   },
   {
@@ -14133,6 +15228,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 25,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 115.6,
    "nearMiss": null
   },
   {
@@ -14171,6 +15269,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 26,
+   "prevResult": "win",
+   "minutesSincePrev": 2.0,
    "nearMiss": false
   },
   {
@@ -14209,6 +15310,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 13 min after a full stop",
    "afterFullStopMin": 12.9,
+   "rankInDay": 27,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 12.9,
    "nearMiss": false
   },
   {
@@ -14247,6 +15351,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 13.5,
+   "rankInDay": 28,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 13.5,
    "nearMiss": null
   },
   {
@@ -14285,6 +15392,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": 23.3,
+   "rankInDay": 29,
+   "prevResult": "win",
+   "minutesSincePrev": 6.3,
    "nearMiss": null
   },
   {
@@ -14323,6 +15433,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 30,
+   "prevResult": "win",
+   "minutesSincePrev": 39.7,
    "nearMiss": false
   },
   {
@@ -14361,6 +15474,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 31,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 77.9,
    "nearMiss": false
   },
   {
@@ -14399,6 +15515,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": false
   },
   {
@@ -14437,6 +15556,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 114.0,
    "nearMiss": false
   },
   {
@@ -14475,6 +15597,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 34.9,
    "nearMiss": null
   },
   {
@@ -14513,6 +15638,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "win",
+   "minutesSincePrev": 12.8,
    "nearMiss": false
   },
   {
@@ -14551,6 +15679,9 @@
    "leak": "L-07",
    "leakWhy": "same-side entry 15 min after a full stop",
    "afterFullStopMin": 14.9,
+   "rankInDay": 5,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 14.9,
    "nearMiss": false
   },
   {
@@ -14589,6 +15720,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 6,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 213.1,
    "nearMiss": null
   },
   {
@@ -14627,6 +15761,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "win",
+   "minutesSincePrev": 6.5,
    "nearMiss": null
   },
   {
@@ -14665,6 +15802,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -14703,6 +15843,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "loss",
+   "minutesSincePrev": 191.7,
    "nearMiss": null
   },
   {
@@ -14741,6 +15884,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "win",
+   "minutesSincePrev": 7.6,
    "nearMiss": null
   },
   {
@@ -14779,6 +15925,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "win",
+   "minutesSincePrev": 3.5,
    "nearMiss": null
   },
   {
@@ -14817,6 +15966,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 5,
+   "prevResult": "win",
+   "minutesSincePrev": 15.8,
    "nearMiss": null
   },
   {
@@ -14855,6 +16007,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 6,
+   "prevResult": "win",
+   "minutesSincePrev": 35.1,
    "nearMiss": true
   },
   {
@@ -14893,6 +16048,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 77.6,
    "nearMiss": null
   },
   {
@@ -14931,6 +16089,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 8,
+   "prevResult": "win",
+   "minutesSincePrev": 5.2,
    "nearMiss": null
   },
   {
@@ -14969,6 +16130,9 @@
    "leak": "L-01",
    "leakWhy": "full stop",
    "afterFullStopMin": null,
+   "rankInDay": 9,
+   "prevResult": "loss",
+   "minutesSincePrev": 122.6,
    "nearMiss": true
   },
   {
@@ -15007,6 +16171,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 10,
+   "prevResult": "fullStop",
+   "minutesSincePrev": 152.2,
    "nearMiss": null
   },
   {
@@ -15045,6 +16212,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 11,
+   "prevResult": "win",
+   "minutesSincePrev": 70.2,
    "nearMiss": null
   },
   {
@@ -15083,6 +16253,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 12,
+   "prevResult": "loss",
+   "minutesSincePrev": 35.7,
    "nearMiss": null
   },
   {
@@ -15121,6 +16294,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 13,
+   "prevResult": "win",
+   "minutesSincePrev": 10.0,
    "nearMiss": null
   },
   {
@@ -15159,6 +16335,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 14,
+   "prevResult": "win",
+   "minutesSincePrev": 3.9,
    "nearMiss": null
   },
   {
@@ -15197,6 +16376,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 15,
+   "prevResult": "loss",
+   "minutesSincePrev": 446.2,
    "nearMiss": null
   },
   {
@@ -15235,6 +16417,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 16,
+   "prevResult": "win",
+   "minutesSincePrev": 3.0,
    "nearMiss": null
   },
   {
@@ -15273,6 +16458,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
    "nearMiss": null
   },
   {
@@ -15311,6 +16499,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "win",
+   "minutesSincePrev": 2.3,
    "nearMiss": null
   },
   {
@@ -15349,6 +16540,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "win",
+   "minutesSincePrev": 1.3,
    "nearMiss": null
   },
   {
@@ -15387,6 +16581,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "win",
+   "minutesSincePrev": 5.0,
    "nearMiss": null
   },
   {
@@ -15425,6 +16622,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 5,
+   "prevResult": "win",
+   "minutesSincePrev": 77.9,
    "nearMiss": null
   },
   {
@@ -15463,6 +16663,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 6,
+   "prevResult": "win",
+   "minutesSincePrev": 16.5,
    "nearMiss": null
   },
   {
@@ -15508,6 +16711,9 @@
    "leak": null,
    "leakWhy": null,
    "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "win",
+   "minutesSincePrev": 17.8,
    "nearMiss": null
   },
   {
@@ -15565,6 +16771,9 @@
    "leak": "L-12",
    "leakWhy": "no-progress exit that closed at a loss",
    "afterFullStopMin": null,
+   "rankInDay": 8,
+   "prevResult": "win",
+   "minutesSincePrev": 95.9,
    "nearMiss": null
   },
   {
@@ -15623,6 +16832,9 @@
    "leak": "L-01",
    "leakWhy": "never worked: closed by the early exit (the live L-01 rule)",
    "afterFullStopMin": null,
+   "rankInDay": 9,
+   "prevResult": "loss",
+   "minutesSincePrev": 52.2,
    "nearMiss": null
   }
  ]
