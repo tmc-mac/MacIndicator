@@ -279,7 +279,6 @@ class R15RunnerLock(unittest.TestCase):
         self.assertEqual(ld.tp2_reached(s, self.T0, self.T0 + 1740000, 1, 20500.0), (False, None))       # covered, never reached
         self.assertEqual(ld.tp2_reached(s, self.T0, self.T0 + 7200000, 1, 20500.0)[0], None)             # samples end early: not computable
         self.assertEqual(ld.tp2_reached(s[:5] + s[20:], self.T0, self.T0 + 1740000, 1, 20500.0)[0], None)   # a hole
-        self.assertEqual(ld.tp2_reached(s, self.T0, self.T0 + 1740000, -1, 19900.0), (True, None) if False else ld.tp2_reached(s, self.T0, self.T0 + 1740000, -1, 19900.0))
         self.assertEqual(ld.tp2_reached(s, self.T0, self.T0 + 1740000, 1, None)[0], None)
         a = self._ledger([{"type": "runner_exit", "t": self.T0, "journalId": "J1", "kind": "stop", "reason": "profit_lock", "lockStep": 1, "tp2": 20100.0}])[0]
         b = dict(a, session="ny")
