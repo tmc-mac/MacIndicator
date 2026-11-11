@@ -1,0 +1,258 @@
+// ===========================================================================
+// 16. DASHBOARD v2.5-ui  -  desktop board + compact mobile layout   [UI5]
+// DISPLAY ONLY. Reads engine state, writes nothing the engine reads.
+//   [UI5-1] Rows that carry one long sentence (ACTION, TARGET, EVENT ...) now
+//           SPAN columns instead of stretching column 2, so the panel is
+//           narrower and the level ladder columns stay tight.
+//   [UI5-2] ACTION row leads with a solid direction chip (LONG / SHORT / WATCH
+//           / CHOP / WAIT) and ends with a tinted grade chip.
+//   [UI5-3] Strength meters (5 blocks) on BIAS, PUSH, FLOW and R:R. PUSH and
+//           FLOW are colored independently (the old row colored both by PUSH).
+//   [UI5-4] TAPE row: time-of-day RVOL and effort-vs-result. Both were already
+//           computed by the tape engine and graded into the plan, never shown.
+//   [UI5-5] $ risk / reward per contract beside the point values.
+//   [UI5-6] Title shows symbol, timeframe and feed status (LIVE / NOT LIVE /
+//           STALE) from the section 15 staleness read.
+//   [UI5-7] PRICE marker row shows which way price is being pushed.
+//   [UI5-8] Ladder name tooltips (tier, weight, touches, ATR distance) and an
+//           optional "nearest N levels" cap for the desktop ladder (0 = all).
+// Every addition has its own toggle below; all OFF + cap 0 gives the v2.4
+// content back in the new spanned layout.
+// The table is rebuilt on each last-bar update so column spans can never go
+// stale when rows appear or disappear.
+// ===========================================================================
+g_ui = "Dashboard UI (v2.5)"
+ui_status = input.bool(true, "Feed Status in Title", group=g_ui, tooltip="LIVE: realtime updates are arriving. NOT LIVE: the last bar is a history bar (market closed or feed not streaming). STALE: the script ran late for the current bar.")
+ui_meters = input.bool(true, "Strength Meters", group=g_ui, tooltip="5-block meters on BIAS, PUSH, FLOW and R:R. Display only.")
+ui_tape   = input.bool(true, "TAPE Row (RVOL + Effort)", group=g_ui, tooltip="Relative volume for this time of day, and what the tape is doing with its effort: ABSORBING, DRIVING, THIN or Quiet. The same reads already feed the plan grade.")
+ui_money  = input.bool(true, "Show $ per Contract on Stop / Target", group=g_ui, tooltip="Points x the instrument's point value, for ONE contract.")
+ui_rows   = input.int(0, "Desktop: Levels Shown (0 = all)", minval=0, maxval=20, group=g_ui, tooltip="Limit the desktop ladder to the N levels nearest price (still in price order). 0 shows every live level, as before. Display only: every level is still scored and drawn on the chart.")
+
+@@PRELUDE@@
+
+var table T = na
+
+f_blank(r, bgc) =>
+    for cc = 0 to NCOL - 1
+        table.cell(T, cc, r, "", bgcolor=bgc)
+
+// Span columns c0..c1 of row r. The spanned cell takes the text, color and
+// background of the cell at c0.
+f_span(r, c0, c1) =>
+    table.merge_cells(T, c0, r, c1, r)
+
+// 5-block magnitude meter for a value on a 0..1 scale (sign is carried by color).
+f_meter(float v) =>
+    int    kf = int(math.round(f_clamp(math.abs(nz(v)), 0.0, 1.0) * 5))
+    string ms = ""
+    for q = 1 to 5
+        ms := ms + (q <= kf ? "■" : "□")
+    ms
+
+// Feed status, from the section 15 staleness read
+feed_txt = p_stale_why == "NOT_REALTIME" ? "○ NOT LIVE" : p_stale ? "● STALE" : "● LIVE"
+feed_col = p_stale_why == "NOT_REALTIME" ? col_amber : p_stale ? col_sell : col_buy
+feed_tip = "Feed status. LIVE = realtime updates arriving. NOT LIVE = last bar is history (market closed or not streaming). STALE = " + (p_stale ? p_stale_why : "none") + ". A silent feed cannot mark itself stale - also check the bar clock."
+
+// Tape strings (short forms of the tape engine's own reads)
+tape_rv_s = na(rvol) ? "RVOL --" : "RVOL " + str.tostring(rvol, "0.00") + "x"
+tape_rv_n = na(rvol) ? "building history" : rvol >= 1.5 ? "HEAVY" : rvol >= 1.0 ? "normal" : rvol >= 0.70 ? "light" : "DEAD"
+tape_ef_s = tape_absorbing ? "ABSORB" : tape_driving ? (eff_dir > 0 ? "DRIVE UP" : "DRIVE DN") : tape_thin ? "THIN" : "quiet"
+tape_tip  = "RVOL: session volume so far vs what this time of day normally carries. " + rvol_str + "\nEFFORT: " + effort_str
+
+// PRICE marker read
+px_push_s = push_st > shift_sens ? "▲ pushing up" : push_st < -shift_sens ? "▼ pushing down" : "balanced"
+px_push_c = push_st > shift_sens ? col_buy : push_st < -shift_sens ? col_sell : txt_lo
+
+if barstate.islast
+    if not na(T)
+        table.delete(T)
+    if show_dash
+        T := table.new(dp, 6, 60, bgcolor=col_bg, border_color=col_brd, border_width=1, frame_color=col_brd, frame_width=1)
+
+if show_dash and barstate.islast
+    int r = 0
+    planbg = plan_valid ? (plan_dir > 0 ? col_grnbg : col_redbg) : (ip_ctl == 1 or ip_ctl == -1) ? col_shbg : col_bg
+
+    // Desktop ladder cap: distance of the Nth nearest live level (1e12 = no cap)
+    float dcut  = 1e12
+    int   n_all = 0
+    float[] dsts = array.new_float(0)
+    for i = 0 to NL - 1
+        float pxd = array.get(L_PX, i)
+        if not na(pxd) and array.get(L_ON, i)
+            n_all += 1
+            array.push(dsts, math.abs(close - pxd))
+    if not mobile and ui_rows > 0 and n_all > ui_rows
+        array.sort(dsts, order.ascending)
+        dcut := array.get(dsts, ui_rows - 1)
+
+    // ----------------------------- MOBILE -----------------------------
+@@MOBILE@@
+
+    // ----------------------------- DESKTOP -----------------------------
+    else
+        // Title: name | symbol + timeframe | feed status
+        f_blank(r, col_bgttl)
+        table.cell(T, 0, r, "LEVELS PRO", text_color=color.white, text_size=tsz, bgcolor=col_bgttl, text_halign=text.align_left)
+        table.cell(T, 1, r, syminfo.ticker + "  " + timeframe.period + "    v2.5", text_color=txt_mid, text_size=cell_sz, bgcolor=col_bgttl, text_halign=text.align_left)
+        f_span(r, 1, 4)
+        table.cell(T, 5, r, ui_status ? feed_txt : "", tooltip=feed_tip, text_color=feed_col, text_size=cell_sz, bgcolor=col_bgttl, text_halign=text.align_right)
+        r += 1
+
+        f_blank(r, col_bgdiv)
+        table.cell(T, 0, r, "  TRADE PLAN", text_color=txt_lo, text_size=cell_sz, bgcolor=col_bgdiv, text_halign=text.align_left)
+        f_span(r, 0, 5)
+        r += 1
+
+        // ACTION: direction chip | the read | grade chip
+        bool   shifting = engaged and (ip_ctl == 1 or ip_ctl == -1)
+        string chip_txt = plan_valid ? (plan_dir > 0 ? "LONG" : "SHORT") : beh_chop and engaged ? "CHOP" : shifting ? "SHIFT" : engaged ? "WATCH" : "WAIT"
+        color  chip_bg  = plan_valid ? (plan_dir > 0 ? col_buy : col_sell) : shifting or (beh_chop and engaged) ? col_shift : col_bg2
+        color  chip_tc  = plan_valid or shifting or (beh_chop and engaged) ? col_bgdiv : txt_mid
+        f_blank(r, planbg)
+        table.cell(T, 0, r, chip_txt, text_color=chip_tc, text_size=tsz, bgcolor=chip_bg, text_halign=text.align_center)
+        table.cell(T, 1, r, action_str, text_color=plan_valid ? action_col : txt_mid, text_size=tsz, bgcolor=planbg, text_halign=text.align_left)
+        f_span(r, 1, 4)
+        table.cell(T, 5, r, grade_str, tooltip="Plan grade. A / A- strong, B / B- tradeable, C / D weak. SCALP signals need B or better.", text_color=grade_col, text_size=tsz, bgcolor=plan_valid ? color.new(grade_col, 82) : planbg, text_halign=text.align_center)
+        r += 1
+
+        if engaged
+            f_blank(r, col_bg2)
+            table.cell(T, 0, r, "IN PLAY", text_color=txt_mid, text_size=cell_sz, bgcolor=col_bg2, text_halign=text.align_left)
+            table.cell(T, 1, r, array.get(L_NAME, math.max(ip_i, 0)) + "  " + str.tostring(ip_px, format.mintick), text_color=f_ctl_col(ip_ctl), text_size=cell_sz, bgcolor=col_bg2, text_halign=text.align_left, text_font_family=font.family_monospace)
+            f_span(r, 1, 2)
+            table.cell(T, 3, r, f_beh_str(ip_beh) + (lvl_above ? "  (above)" : "  (below)"), text_color=f_beh_col(ip_beh), text_size=cell_sz, bgcolor=col_bg2, text_halign=text.align_center)
+            f_span(r, 3, 4)
+            table.cell(T, 5, r, str.tostring(ip_d / atr_ref, "0.00") + " ATR", text_color=txt_hi, text_size=cell_sz, bgcolor=col_bg2, text_halign=text.align_right, text_font_family=font.family_monospace)
+            r += 1
+
+            f_blank(r, col_bg)
+            table.cell(T, 0, r, "APPROACH", text_color=txt_mid, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left)
+            table.cell(T, 1, r, approach_str, text_color=approach_col, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left)
+            f_span(r, 1, 5)
+            r += 1
+
+            f_blank(r, col_bg)
+            table.cell(T, 0, r, "TRIGGER", text_color=txt_mid, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left)
+            table.cell(T, 1, r, trig_str, text_color=trig_col, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left)
+            f_span(r, 1, 4)
+            table.cell(T, 5, r, trig_ok ? "armed" : "waiting", text_color=trig_ok ? col_buy : txt_lo, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_right)
+            r += 1
+
+        if plan_valid
+            string risk_s = str.tostring(eff_risk, "0.0") + " risk" + (ui_money ? "  $" + str.tostring(eff_risk * syminfo.pointvalue, "0") : "")
+            string rew_s  = str.tostring(eff_rew, "0.0") + " reward" + (ui_money ? "  $" + str.tostring(eff_rew * syminfo.pointvalue, "0") : "")
+
+            f_blank(r, col_bg)
+            table.cell(T, 0, r, "ENTRY", text_color=txt_mid, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left)
+            table.cell(T, 1, r, str.tostring(entry_px, format.mintick) + "   " + entry_type, text_color=ready_now ? col_viol : col_amber, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left, text_font_family=font.family_monospace)
+            f_span(r, 1, 4)
+            table.cell(T, 5, r, ready_now ? "fill now" : "wait " + str.tostring(to_entry, "0.0"), text_color=ready_now ? col_buy : txt_lo, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_right, text_font_family=font.family_monospace)
+            r += 1
+
+            f_blank(r, col_bg)
+            table.cell(T, 0, r, "STOP", text_color=txt_mid, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left)
+            table.cell(T, 1, r, str.tostring(stop_px, format.mintick), text_color=col_sell, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left, text_font_family=font.family_monospace)
+            f_span(r, 1, 3)
+            table.cell(T, 4, r, risk_s, tooltip="Points at risk" + (ui_money ? " and dollars for ONE contract" : ""), text_color=col_sell, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_right, text_font_family=font.family_monospace)
+            f_span(r, 4, 5)
+            r += 1
+
+            f_blank(r, col_bg)
+            table.cell(T, 0, r, "TARGET", text_color=txt_mid, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left)
+            table.cell(T, 1, r, tgt_nm + "  " + str.tostring(tgt_px, format.mintick) + (tgt_projected ? "  (no level - projected)" : ""), text_color=tgt_projected ? col_amber : col_buy, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left, text_font_family=font.family_monospace)
+            f_span(r, 1, 3)
+            table.cell(T, 4, r, rew_s, tooltip="Points of reward" + (ui_money ? " and dollars for ONE contract" : ""), text_color=col_buy, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_right, text_font_family=font.family_monospace)
+            f_span(r, 4, 5)
+            r += 1
+
+            f_blank(r, col_bg)
+            table.cell(T, 0, r, "R:R", text_color=txt_mid, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left)
+            table.cell(T, 1, r, str.tostring(eff_rr, "0.0") + " : 1" + (is_limit ? "   (from limit)" : ""), text_color=eff_rr >= 2.0 ? col_buy : col_amber, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left, text_font_family=font.family_monospace)
+            f_span(r, 1, 4)
+            table.cell(T, 5, r, ui_meters ? f_meter(eff_rr / 3.0) : "", tooltip="Full meter = 3 : 1 or better", text_color=eff_rr >= 2.0 ? col_buy : col_amber, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_right)
+            r += 1
+
+        f_blank(r, col_bgdiv)
+        table.cell(T, 0, r, "  BOARD", text_color=txt_lo, text_size=cell_sz, bgcolor=col_bgdiv, text_halign=text.align_left)
+        f_span(r, 0, 5)
+        r += 1
+
+        f_blank(r, bias_bg)
+        table.cell(T, 0, r, "BIAS", text_color=txt_mid, text_size=tsz, bgcolor=bias_bg, text_halign=text.align_left)
+        table.cell(T, 1, r, bias_str, text_color=bias_col, text_size=tsz, bgcolor=bias_bg, text_halign=text.align_left)
+        f_span(r, 1, 3)
+        table.cell(T, 4, r, ui_meters ? f_meter(bias_score / 0.60) : "", tooltip="Board bias strength. Full meter = 0.60 or more either way; the control threshold is " + str.tostring(ctrl_thresh, "0.00") + ".", text_color=bias_col, text_size=cell_sz, bgcolor=bias_bg, text_halign=text.align_right)
+        table.cell(T, 5, r, str.tostring(bias_score, "0.00"), text_color=bias_col, text_size=tsz, bgcolor=bias_bg, text_halign=text.align_right, text_font_family=font.family_monospace)
+        r += 1
+
+        f_blank(r, col_bg2)
+        table.cell(T, 0, r, "CONTROL", text_color=txt_mid, text_size=cell_sz, bgcolor=col_bg2, text_halign=text.align_left)
+        table.cell(T, 1, r, "ST " + st_str, text_color=st_col, text_size=cell_sz, bgcolor=col_bg2, text_halign=text.align_left)
+        f_span(r, 1, 2)
+        table.cell(T, 3, r, "LT " + lt_str, text_color=lt_col, text_size=cell_sz, bgcolor=col_bg2, text_halign=text.align_center)
+        f_span(r, 3, 4)
+        table.cell(T, 5, r, str.tostring(nb) + "B  " + str.tostring(nsl) + "S  " + str.tostring(nsh) + "SH", tooltip="Levels by short-term control: Buyers / Sellers / SHifting", text_color=nsh > 0 ? col_shift : txt_mid, text_size=cell_sz, bgcolor=col_bg2, text_halign=text.align_right, text_font_family=font.family_monospace)
+        r += 1
+
+        // PUSH and FLOW each carry their own color and meter
+        color  push_c = push_st > 0 ? col_buy : push_st < 0 ? col_sell : col_mix
+        color  flow_c = flow_st > 0 ? col_buy : flow_st < 0 ? col_sell : col_mix
+        string pf_s   = pf_diverge ? (push_st > 0 ? "DIVERGE absorb" : "DIVERGE accum") : (push_st > 0 and flow_st > 0) ? "aligned up" : (push_st < 0 and flow_st < 0) ? "aligned dn" : "neutral"
+        f_blank(r, col_bg)
+        table.cell(T, 0, r, "PUSH/FLOW", text_color=txt_mid, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left)
+        table.cell(T, 1, r, "Push " + (ui_meters ? f_meter(push_st) + " " : "") + str.tostring(push_st, "0.00"), text_color=push_c, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left, text_font_family=font.family_monospace)
+        f_span(r, 1, 2)
+        table.cell(T, 3, r, "Flow " + (ui_meters ? f_meter(flow_st) + " " : "") + str.tostring(flow_st, "0.00"), text_color=flow_c, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left, text_font_family=font.family_monospace)
+        f_span(r, 3, 4)
+        table.cell(T, 5, r, pf_s, tooltip=pf_note, text_color=pf_col, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_right)
+        r += 1
+
+        if ui_tape
+            f_blank(r, col_bg2)
+            table.cell(T, 0, r, "TAPE", tooltip=tape_tip, text_color=txt_mid, text_size=cell_sz, bgcolor=col_bg2, text_halign=text.align_left)
+            table.cell(T, 1, r, tape_rv_s + "  " + tape_rv_n, tooltip=tape_tip, text_color=rvol_col, text_size=cell_sz, bgcolor=col_bg2, text_halign=text.align_left)
+            f_span(r, 1, 2)
+            table.cell(T, 3, r, effort_str, tooltip=tape_tip, text_color=effort_col, text_size=cell_sz, bgcolor=col_bg2, text_halign=text.align_left)
+            f_span(r, 3, 5)
+            r += 1
+
+        f_blank(r, col_bg)
+        table.cell(T, 0, r, "TF ALIGN / OPEN", tooltip=open_tip, text_color=txt_mid, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left)
+        table.cell(T, 1, r, align_str, text_color=align_col, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left)
+        f_span(r, 1, 2)
+        table.cell(T, 3, r, align_note, text_color=align_col, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_center)
+        f_span(r, 3, 4)
+        table.cell(T, 5, r, (barstate.isrealtime ? "developing*" : "history mapped"), tooltip=open_tip, text_color=txt_lo, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_right)
+        r += 1
+
+        // Both rows use open possession. Their slot sets differ: TF 15m/1h/4h;
+        // DRIVER 4h/1h/30m and optional 15m. Unknown is never bearish.
+        f_blank(r, col_bg2)
+        table.cell(T, 0, r, "OPEN POS", tooltip=open_tip, text_color=txt_mid, text_size=cell_sz, bgcolor=col_bg2, text_halign=text.align_left)
+        table.cell(T, 1, r, drive_str, text_color=drive_col, text_size=cell_sz, bgcolor=col_bg2, text_halign=text.align_left)
+        f_span(r, 1, 2)
+        table.cell(T, 3, r, drive_tag, text_color=drive_exhaust ? col_shift : drive_col, text_size=cell_sz, bgcolor=col_bg2, text_halign=text.align_center)
+        f_span(r, 3, 4)
+        table.cell(T, 5, r, (drive_known ? str.tostring(drive_bull) + "/" + str.tostring(drive_n) + " above" : "UNKNOWN"), text_color=drive_col, text_size=cell_sz, bgcolor=col_bg2, text_halign=text.align_right, text_font_family=font.family_monospace)
+        r += 1
+
+        // v2.3 EVENT feed: the single latest classifier event, glyph included
+        f_blank(r, col_bg)
+        table.cell(T, 0, r, "EVENT", text_color=txt_mid, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left)
+        table.cell(T, 1, r, ev_last_born >= 0 ? ev_last_txt : "--", text_color=ev_last_born >= 0 ? ev_last_col : txt_lo, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_left)
+        f_span(r, 1, 4)
+        table.cell(T, 5, r, ev_last_born >= 0 ? str.tostring(bar_index - ev_last_born) + "b ago" : "", text_color=txt_lo, text_size=cell_sz, bgcolor=col_bg, text_halign=text.align_right, text_font_family=font.family_monospace)
+        r += 1
+
+        f_blank(r, col_bgdiv)
+        table.cell(T, 0, r, "  LEVEL", text_color=txt_lo, text_size=cell_sz, bgcolor=col_bgdiv, text_halign=text.align_left)
+        table.cell(T, 1, r, "PRICE",  text_color=txt_lo, text_size=cell_sz, bgcolor=col_bgdiv, text_halign=text.align_left)
+        table.cell(T, 2, r, "DIST",   text_color=txt_lo, text_size=cell_sz, bgcolor=col_bgdiv, text_halign=text.align_right)
+        table.cell(T, 3, r, "STATE",  text_color=txt_lo, text_size=cell_sz, bgcolor=col_bgdiv, text_halign=text.align_center)
+        table.cell(T, 4, r, "SHORT",  text_color=txt_lo, text_size=cell_sz, bgcolor=col_bgdiv, text_halign=text.align_center)
+        table.cell(T, 5, r, "LONG",   text_color=txt_lo, text_size=cell_sz, bgcolor=col_bgdiv, text_halign=text.align_right)
+        r += 1
+
+@@LADDER@@
