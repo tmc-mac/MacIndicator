@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "generatedAt": "2026-11-11T08:29:03Z",
+ "generatedAt": "2026-11-11T17:24:52Z",
  "tradeDay": "2026-11-11",
  "data": {
   "lastSlice": "2026-11-11/slice-2205",
@@ -339,6 +339,22 @@
    "n": null,
    "usd": null,
    "next": "The office ledger must ignore null-journalId entry rows and say how many it saw (check loop_daily.py). Fix in a later build: persist the pending context so a restart relinks it. r1.4's new counters never attach to such a trade"
+  },
+  {
+   "id": "B-13",
+   "title": "A restart that ADOPTS a position after TP1 already filled during the downtime leaves the r1.4 TP1 counters blind, and the NY-late row for it carries the restart time, remaining size and exit UNKNOWN",
+   "status": "known, r1.4 record-keepi",
+   "n": null,
+   "usd": null,
+   "next": "Fix later: count it as unresolved \"first seen after TP1\". The loop card's onlyRow / onlyLedger clock check surfaces a wrong NY-late class"
+  },
+  {
+   "id": "B-14",
+   "title": "Poll cadence slips by about the evaluation time (+0.11 to +0.17 s per poll on r1.4); 15m closes block the loop 2.5 s on this rig (cold warm-up 3.7-3.9 s)",
+   "status": "watch",
+   "n": null,
+   "usd": null,
+   "next": "Check warm-up time once on Mac's box after install; a core 2-3x slower still leaves margin"
   }
  ],
  "experiments": [
@@ -410,6 +426,16 @@
    "minN": 20,
    "value": null,
    "unit": "usd, the NY-late trades a stand-down would have skipped",
+   "verdict": "too early"
+  },
+  {
+   "id": "X-10",
+   "title": "NY runner profit lock (+50 arms, stop to entry +10)",
+   "mode": "live",
+   "n": 0,
+   "minN": 20,
+   "value": null,
+   "unit": "usd, summed broker net of the NY runners with a lock armed",
    "verdict": "too early"
   }
  ],

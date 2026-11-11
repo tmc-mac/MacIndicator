@@ -237,6 +237,56 @@ class R14Records(unittest.TestCase):
         self.assertEqual((c["notComputed"], c["disagree"], c["agree"]), (1, 1, 0))
 
 
+class R15RunnerLock(unittest.TestCase):
+    T0 = ld._utc_ms(2026, 11, 11, 15, 30)                       # 07:30 PT, NY
+
+    def _ledger(self, extra, net="9.0"):
+        import json as js
+        t = self.T0
+        base = [js.dumps({"type": "signal_check", "t": t, "outcome": "closed", "journalId": "J1", "dir": 1, "pnlSource": "broker", "realizedPnl": 10.0, "grossPnl": 12.0, "fees": 2.0, "netPnl": float(net), "exitPrice": 20050.0, "exitTime": t + 600000}),
+                js.dumps({"type": "trade_manage", "t": t, "journalId": "J1", "code": "ENTRY_FILLED", "fill": 20000.0})]
+        return ld.build_ledger(ld.load_journal(R14Records._journal(self, base + [js.dumps(e) for e in extra]), names=["data/2026-11-12/slice-0205.jsonl.gz"]))
+
+    def test_r14_journal_builds_the_same_ledger(self):
+        a = self._ledger([])[0]
+        self.assertEqual(a["rules"], {})
+        self.assertNotIn("runnerLock", a["rules"])
+
+    def test_lock_rows_dedupe_per_step_and_exit_authority(self):
+        rows = [{"type": "runner_lock", "t": self.T0 + 1, "journalId": "J1", "mode": "on", "step": 1, "steps": 1, "armPts": 50, "lockPts": 10, "bestPts": 50.25, "wouldStop": 20010.0},
+                {"type": "runner_lock", "t": self.T0 + 2, "journalId": "J1", "mode": "on", "step": 1, "steps": 1, "armPts": 50, "lockPts": 10, "bestPts": 51.0, "wouldStop": 20010.0},
+                {"type": "runner_exit", "t": self.T0 + 3, "journalId": "J1", "kind": "stop", "reason": "profit_lock_market", "lockStep": 1, "lockMode": "on", "price": 99999.0, "tp2": 20100.0, "stop": 20002.0}]
+        r = self._ledger(rows)[0]
+        rl = r["rules"]["runnerLock"]
+        self.assertEqual((rl["rowsSeen"], rl["armedStep"], rl["steps"][0]["bestPts"]), (1, 1, 51.0))   # the later row for the step wins
+        self.assertEqual(r["rules"]["runnerExit"]["reason"], "profit_lock_market")
+        self.assertNotIn("price", r["rules"]["runnerExit"])                                              # runner_exit.price is never copied
+        self.assertEqual(r["net"], 9.0)                                                                  # money = the broker net
+
+    def test_lost_lock_row_and_missing_exit_row_are_tolerated(self):
+        only_exit = self._ledger([{"type": "runner_exit", "t": self.T0 + 3, "journalId": "J1", "kind": "tp2", "reason": "tp2", "lockStep": 1, "lockMode": "on", "tp2": 20100.0}])[0]
+        self.assertEqual((only_exit["rules"]["runnerLock"]["armedStep"], only_exit["rules"]["runnerLock"]["rowsSeen"]), (1, 0))      # F5: lockStep is the authority
+        only_lock = self._ledger([{"type": "runner_lock", "t": self.T0 + 1, "journalId": "J1", "mode": "on", "step": 1, "armPts": 50, "lockPts": 10}])[0]
+        self.assertNotIn("runnerExit", only_lock["rules"])                                                                         # F2: no exit row
+        sm = ld.runner_lock_summary([dict(only_lock, session="ny"), dict(only_exit, session="ny")], {})
+        self.assertEqual((len(sm["armed"]), len(sm["by"]["no exit row"]), len(sm["by"]["tp2"])), (2, 1, 1))
+        unarmed = self._ledger([{"type": "runner_exit", "t": self.T0 + 3, "journalId": "J1", "kind": "stop", "reason": "runner_stop", "lockStep": 0}])[0]
+        self.assertEqual(ld.runner_lock_summary([dict(unarmed, session="ny")], {})["armed"], [])                                   # lockStep 0 = never armed
+
+    def test_tp2_cut_counter_is_never_invented(self):
+        s = [(self.T0 + 60000 * i, 20000.0 + 5 * i) for i in range(1, 30)]
+        self.assertEqual(ld.tp2_reached(s, self.T0, self.T0 + 1740000, 1, 20100.0), (True, None))        # a sample at 20100 or more
+        self.assertEqual(ld.tp2_reached(s, self.T0, self.T0 + 1740000, 1, 20500.0), (False, None))       # covered, never reached
+        self.assertEqual(ld.tp2_reached(s, self.T0, self.T0 + 7200000, 1, 20500.0)[0], None)             # samples end early: not computable
+        self.assertEqual(ld.tp2_reached(s[:5] + s[20:], self.T0, self.T0 + 1740000, 1, 20500.0)[0], None)   # a hole
+        self.assertEqual(ld.tp2_reached(s, self.T0, self.T0 + 1740000, -1, 19900.0), (True, None) if False else ld.tp2_reached(s, self.T0, self.T0 + 1740000, -1, 19900.0))
+        self.assertEqual(ld.tp2_reached(s, self.T0, self.T0 + 1740000, 1, None)[0], None)
+        a = self._ledger([{"type": "runner_exit", "t": self.T0, "journalId": "J1", "kind": "stop", "reason": "profit_lock", "lockStep": 1, "tp2": 20100.0}])[0]
+        b = dict(a, session="ny")
+        sm = ld.runner_lock_summary([b], {"J1": None})
+        self.assertEqual((sm["cutYes"], sm["cutNo"], sm["cutUnknown"]), (0, 0, 1))
+
+
 class TimeAndSession(unittest.TestCase):
     def test_pt_and_tradeday(self):
         ms = ld._utc_ms(2026, 11, 10, 23, 0)                 # 15:00 PST on 11/10

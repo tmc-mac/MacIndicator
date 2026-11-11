@@ -424,8 +424,8 @@ RE_CFG = re.compile(r"^data/(\d{4}-\d{2}-\d{2})/config-local-live\.json$")
 PARSE_TYPES = {"signal_check", "trade_manage", "trade_plan", "entry", "trade_time", "trade_state", "peak_unrealized",
                "trade_block", "session_stamp", "alert", "journal_receipt", "no_progress_outcome", "early_adverse_exit",
                "early_adverse_shadow", "early_adverse_outcome", "early_adverse_check", "runner_rule", "tp1_atr_shadow",
-               "orphan_sweep", "flag", "trade_flag", "mac_flag", "runner_shadow", "tp1_touch", "ny_late_trade"}
-ONCE_TYPES = ("runner_shadow", "tp1_touch", "ny_late_trade")   # r1.4 rows: one per (type, journalId); a later duplicate replaces the earlier
+               "orphan_sweep", "flag", "trade_flag", "mac_flag", "runner_shadow", "tp1_touch", "ny_late_trade", "runner_lock", "runner_exit"}
+ONCE_TYPES = ("runner_shadow", "tp1_touch", "ny_late_trade", "runner_exit")   # r1.4 rows: one per (type, journalId); a later duplicate replaces the earlier
 
 
 class Repo:
@@ -526,7 +526,9 @@ def _file_row(J, ty, r):
             return
         if j:
             lst = J["by"].setdefault(j, {}).setdefault(ty, [])
-            if ty in ONCE_TYPES:
+            if ty == "runner_lock":                    # r1.5: one row per (journalId, step); a later row for the same step wins
+                lst[:] = [q for q in lst if q.get("step") != r.get("step")] + [r]
+            elif ty in ONCE_TYPES:
                 lst[:] = [r]
             else:
                 lst.append(r)
@@ -719,6 +721,8 @@ def build_trade(j, d):
     rr = (d.get("runner_rule") or [None])[-1]
     if rr:
         rules["runner"] = {"mode": rr.get("mode"), "session": rr.get("session"), "atr15": _num(rr.get("atr15")), "tp2": _num(rr.get("tp2"))}
+        if rr.get("lock") is not None:
+            rules["runner"]["lock"] = rr["lock"]                  # r1.5: the lock plan the runner rule carried
     ea = (d.get("early_adverse_exit") or [None])[-1]
     eo = (d.get("early_adverse_outcome") or [None])[-1]
     if ea or eo:
@@ -734,6 +738,16 @@ def build_trade(j, d):
         rules["tp1AtrShadow"] = {"shadowTp1Pts": _num(r.get("shadowTp1Pts")), "state": r.get("state") if s1 else "open",
                                  "beAfter": (r.get("shadow") or {}).get("beAfter") if s1 else None,
                                  "beAfterNetUsd": _num((r.get("shadow") or {}).get("beAfterNetUsd")) if s1 else None}
+    rl = sorted(d.get("runner_lock") or [], key=lambda q: (_num(q.get("step")) or 0))
+    rx = (d.get("runner_exit") or [None])[-1]
+    if rl or (rx and rx.get("lockStep") is not None):
+        armed = max([int(q["step"]) for q in rl if _num(q.get("step")) is not None] + ([int(rx["lockStep"])] if rx and _num(rx.get("lockStep")) is not None else []) + [0])
+        rules["runnerLock"] = {"mode": (rl[-1].get("mode") if rl else (rx or {}).get("lockMode")), "armedStep": armed or None,
+                               "rowsSeen": len(rl), "steps": [{"step": q.get("step"), "armPts": _num(q.get("armPts")), "lockPts": _num(q.get("lockPts")), "bestPts": _num(q.get("bestPts")),
+                                                               "wouldStop": _num(q.get("wouldStop")), "superseded": q.get("superseded") is True, "mode": q.get("mode")} for q in rl]}
+    if rx:
+        rules["runnerExit"] = {"kind": rx.get("kind"), "reason": rx.get("reason"), "lockStep": rx.get("lockStep"), "lockMode": rx.get("lockMode"),
+                               "tp2": _num(rx.get("tp2")), "stop": _num(rx.get("stop"))}          # .price is never copied: the money is the broker's
     tt1 = (d.get("tp1_touch") or [None])[-1]
     if tt1:
         rules["tp1Touch"] = {"state": tt1.get("state"), "touchSource": tt1.get("touchSource"), "touchedAt": iso_utc(tt1.get("touchedAt")), "filled": tt1.get("filled"),
@@ -955,6 +969,43 @@ def _since_ms(x):
     return _utc_ms(*[int(g) for g in m.groups()[:5]]) + int(m.group(6)) * 1000 if m else 0
 
 
+def tp2_reached(samples, t0, end, direction, tp2):
+    """Did the price samples after t0 (up to end) reach tp2? True when a sample did (a lower bound: a touch between
+    samples is missed); False when the samples cover the whole window with no hole over GAP_MAX_MS and none did;
+    None (not computable) when there is no tp2, no direction, or the samples have a hole or end early."""
+    if tp2 is None or direction not in (1, -1) or t0 is None:
+        return None, "no TP2 price or direction in the rows"
+    prev, seen = t0, False
+    for t, p in samples:
+        if t <= t0 or t > end:
+            continue
+        if t - prev > GAP_MAX_MS:
+            return None, "a hole of more than %d s in the price samples" % (GAP_MAX_MS // 1000)
+        prev, seen = t, True
+        if (p - tp2) * direction >= 0:
+            return True, None
+    if not seen or end - prev > GAP_MAX_MS:
+        return None, "the price samples end before the session close"
+    return False, None
+
+
+LOCK_REASONS = ("tp2", "runner_stop", "profit_lock", "profit_lock_market")
+
+
+def runner_lock_summary(trades, cut):
+    """X-10: NY runners with a lock armed, split by exit reason, and the 'TP2 winners cut' counter.
+    cut: {journalId: True / False / None} for the trades the lock stopped (None = not computable)."""
+    armed = [t for t in trades if t["session"] == "ny" and (t["rules"].get("runnerLock") or {}).get("armedStep")]
+    by = {k: [] for k in LOCK_REASONS + ("no exit row",)}
+    for t in armed:
+        rx = t["rules"].get("runnerExit") or {}
+        by[rx.get("reason") if rx.get("reason") in LOCK_REASONS else "no exit row"].append(t)
+    stopped = by["profit_lock"] + by["profit_lock_market"]
+    return {"armed": armed, "by": by, "stopped": stopped,
+            "cutYes": sum(1 for t in stopped if cut.get(t["id"]) is True), "cutNo": sum(1 for t in stopped if cut.get(t["id"]) is False),
+            "cutUnknown": sum(1 for t in stopped if cut.get(t["id"]) is None)}
+
+
 def control_alt_counts(rows):
     """X-05: rows carrying the r1.4 control fields. controlDisagree is written only when true, so absence means
     'agrees' ONLY when controlScoreAlt is not null; with controlScoreAlt null (not near the line) it means 'not computed'.
@@ -1056,6 +1107,25 @@ def run_experiment(x, J, trades, day):
             len(early), "" if len(early) == 1 else "s", usd(sum(t["net"] or 0 for t in early), True) if early else "$0.00")
         if len(late) >= x.get("minN", SMALL_N):
             r["verdict"] = "KILL: the cases net zero or better" if r["value"] >= 0 else "evidence holds: write the decision card"
+    elif calc == "runnerProfitLock":
+        sm = runner_lock_summary([t for t in trades if t["_tEntry"] >= since and t["tradeDay"] <= day], J.get("lockCut") or {})
+        n = len(sm["armed"])
+        r["n"], r["resolved"], r["unresolved"] = n, n - len(sm["by"]["no exit row"]), len(sm["by"]["no exit row"])
+        r["value"] = _r2(sum(t["net"] or 0 for t in sm["armed"])) if n else None
+        r["cases"] = [{"id": t["id"], "reason": (t["rules"].get("runnerExit") or {}).get("reason"), "net": t["net"], "cut": (J.get("lockCut") or {}).get(t["id"])} for t in sm["armed"]]
+        modes = sorted(set((t["rules"].get("runnerLock") or {}).get("mode") or "?" for t in sm["armed"]))
+        steps = {}
+        for j, d_ in J["by"].items():
+            for q in d_.get("runner_lock", []):
+                steps[(q.get("step"), q.get("armPts"), q.get("lockPts"), q.get("mode"))] = 1
+        ladder = "; ".join("step %s: best +%s pts from the entry -> stop at entry +%s (mode %s)" % (k[0], k[1], k[2], k[3]) for k in sorted(steps, key=lambda k: str(k))) or "no runner_lock row yet"
+        cut_txt = ("%d of %d stopped by the lock (%d checked against the price samples: %d no, %d not computable)" % (
+            sm["cutYes"], len(sm["stopped"]), sm["cutYes"] + sm["cutNo"], sm["cutNo"], sm["cutUnknown"])) if sm["stopped"] else "0 stopped by the lock"
+        r["note"] = ("n = NY runners with a lock step armed (modes %s; the exit row's lockStep is the authority, a lost runner_lock row still counts); value = their summed BROKER net. Exits: %d tp2, %d runner_stop, %d profit_lock, %d profit_lock_market, %d with no runner_exit row. "
+                     "Lock ladder: %s. TP2 winners cut (price samples reached TP2 after the lock exit; a lower bound, samples are last prices, not highs): %s. The second kill clause (net against the +2 stop on the same trades) is not computable: the journal does not carry that counterfactual") % (
+            "/".join(modes) or "none yet", len(sm["by"]["tp2"]), len(sm["by"]["runner_stop"]), len(sm["by"]["profit_lock"]), len(sm["by"]["profit_lock_market"]), len(sm["by"]["no exit row"]), ladder, cut_txt)
+        if n >= x.get("minN", SMALL_N):
+            r["verdict"] = ("KILL: the lock cut a would-be TP2 trade %d times (more than once)" % sm["cutYes"]) if sm["cutYes"] > 1 else "ready: TP2 cuts %d (kill above 1); the net-against-+2-stop clause cannot be judged from the journal" % sm["cutYes"]
     elif calc == "controlParity":
         rows = [q for q in J.get("ctl", []) if _num(q.get("t")) and q["t"] >= since and trade_day(q["t"]) <= day]
         ent = [q for q in rows if q["type"] == "entry" and q.get("journalId")]
@@ -1281,6 +1351,15 @@ def main(argv=None):
             data_note = "TradeDay incomplete: journal missing " + "; ".join("%s to %s" % (pt_hm(h0, True), pt_hm(h1, True)) for h0, h1 in cov["holes"])
         notes.insert(0, data_note)
 
+    # ---- r1.5: NY runners the lock stopped: did the price samples reach TP2 afterwards?
+    J["lockCut"] = {}
+    stopped = [t for t in upto if t["session"] == "ny" and (t["rules"].get("runnerExit") or {}).get("reason") in ("profit_lock", "profit_lock_market")]
+    smp_cache = {}
+    for t in stopped:
+        if t["tradeDay"] not in smp_cache:
+            smp_cache[t["tradeDay"]] = load_price_samples(repo, names, t["tradeDay"])[0]
+        res, _why = tp2_reached(smp_cache[t["tradeDay"]], t["_tExit"], pt_wall_ms(t["tradeDay"], 13, 5), t["_dir"], t["rules"]["runnerExit"].get("tp2"))
+        J["lockCut"][t["id"]] = res
     # ---- r1.4 records for the day
     low_closed, run_ = 0.0, 0.0
     for t in todays:
@@ -1558,7 +1637,7 @@ def render_card(day, cov, data_note, sc, by_sess, todays, chain, cur, hist, hist
     for x in xdoc.get("experiments", []):
         r = x["running"]
         n = "unknown" if r["n"] is None else "%d of %d%s" % (r["n"], x.get("minN", SMALL_N), " (small)" if r["n"] < SMALL_N else "")
-        rows.append([x["id"], x.get("title"), x.get("mode"), "since " + pt_hm(_since_ms(x), True), n,
+        rows.append([x["id"], x.get("title"), x.get("mode"), ("since " + pt_hm(_since_ms(x), True)) if _since_ms(x) else "from the r1.5 install", n,
                      "unknown" if r["value"] is None else "%s (%s)" % (usd(r["value"], True), x.get("unit")), r["verdict"]])
     L.append(table(["id", "rule", "mode", "counted", "cases", "value", "verdict"], rows))
     L.append("")

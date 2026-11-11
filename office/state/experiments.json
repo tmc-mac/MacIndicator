@@ -266,6 +266,39 @@
     "note": "shadow counter, nothing is skipped: n = NY trades entered at or after 09:00 PT since the start time; value = their summed net. Context: NY entered 06:30-09:00 PT since then: 0 trades, $0.00",
     "cases": []
    }
+  },
+  {
+   "id": "X-10",
+   "leak": "L-04",
+   "title": "NY runner profit lock (+50 arms, stop to entry +10)",
+   "rule": "One step: best price +50 pts from the entry moves the runner stop to entry +10; mode on / log / off (edge r1.5)",
+   "switch": "sessionRunnerNy.lock",
+   "mode": "live",
+   "started": "pending the r1.5 install",
+   "startedAtUtc": null,
+   "minN": 20,
+   "unit": "usd, summed broker net of the NY runners with a lock armed",
+   "expectation": "The lock keeps part of runners that reach +50 and return, without cutting TP2 winners",
+   "verdictAt": "20 NY runners with a lock armed",
+   "killIf": "The lock cuts a would-be TP2 trade more than once in the next 20 NY runners, or those trades net below zero against the +2 stop",
+   "feeds": {
+    "rows": [
+     "runner_lock",
+     "runner_exit"
+    ],
+    "calc": "runnerProfitLock",
+    "how": "ledger rules.runnerLock / rules.runnerExit (rows runner_lock once per journalId and step, runner_exit once per journalId); n = NY runners with a lock step armed; exits split by reason; money = broker net; TP2 winners cut = lock-stopped trades whose later price samples reached TP2"
+   },
+   "running": {
+    "asOfTradeDay": "2026-11-11",
+    "n": 0,
+    "value": null,
+    "resolved": 0,
+    "unresolved": 0,
+    "verdict": "too early",
+    "note": "n = NY runners with a lock step armed (modes none yet; the exit row's lockStep is the authority, a lost runner_lock row still counts); value = their summed BROKER net. Exits: 0 tp2, 0 runner_stop, 0 profit_lock, 0 profit_lock_market, 0 with no runner_exit row. Lock ladder: no runner_lock row yet. TP2 winners cut (price samples reached TP2 after the lock exit; a lower bound, samples are last prices, not highs): 0 stopped by the lock. The second kill clause (net against the +2 stop on the same trades) is not computable: the journal does not carry that counterfactual",
+    "cases": []
+   }
   }
  ]
 }
