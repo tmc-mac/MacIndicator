@@ -182,7 +182,7 @@
     "resolved": 1,
     "unresolved": null,
     "verdict": "not measurable yet",
-    "note": "not measurable from the journal: after the switch the old formula's score is not written, so the trades it would have blocked cannot be told apart (1 trades since the switch, net $-71.16)",
+    "note": "not measurable from the journal: after the switch the old formula's score is not written, so the trades it would have blocked cannot be told apart (1 trade since the switch, net -$71.16)",
     "cases": []
    }
   }

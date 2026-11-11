@@ -238,7 +238,7 @@ def walk_block(t0, direction, samples, entry=None, stop_pts=None, tp_pts=TP_PTS,
 
 # ----------------------------------------------------------------------------- reading the data repository
 
-RE_TYPE = re.compile(rb'"type":\s*"([A-Za-z_]+)"')
+RE_TYPE = re.compile(rb'"type":\s*"([A-Za-z0-9_]+)"')
 RE_T = re.compile(rb'"t":\s*(\d{12,13})')
 RE_REC = re.compile(rb'"recordedAt":\s*(\d{12,13})')
 RE_SLICE = re.compile(r"^data/(\d{4}-\d{2}-\d{2})/slice-[^/]*\.jsonl\.gz$")
@@ -1156,6 +1156,7 @@ def render_card(day, cov, data_note, sc, by_sess, todays, chain, cur, hist, hist
         nstop = sum(1 for r in block_rows if r["stopFromRow"])
         L.append("Won = price reached +%d pts before the stop distance within %d minutes of the block. Stop distance: the block row's own (%d rows) or %d pts when the row carries none (%d rows)." % (
             TP_PTS, WALK_MIN, nstop, DEFAULT_STOP_PTS, len(block_rows) - nstop))
+        L.append("Reading it: with +%d against a 50-pt stop a market with no edge wins about 77%% of the time (50 / 65), so a gate is costing money only if its blocked signals win clearly more often than that, on a sample that is not small." % TP_PTS)
         L.append("Price source: the levels-minute file (%d samples, one about every 52-80 s, last price only, no high / low). A touch between two samples is not seen, so wins and losses are both under-counted; a block row is written at most once per reason per 15-minute candle, so one setup can appear more than once." % len(samples))
     else:
         L.append("No blocked-signal rows in the journal for this TradeDay.")
