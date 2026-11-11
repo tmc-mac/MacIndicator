@@ -4,6 +4,8 @@ Set up 11/11 at Mac's order: "orchestrating a workflow for our office that will 
 
 **Objective, in order:** pass the Topstep $50K combine, get funded, take the first payout. Every piece of work is ranked by its measured effect on that.
 
+**Working target (Mac, 11/11):** pass the practice combine first: "If we can focus on passing a practice combine we will eventually pass a real one." The practice stage also measures the most the system can win or lose in a day, so there is no daily stop rule.
+
 ## 1. The scoreboard (what "better" means)
 
 The numbers below come from the journal, are recomputed every trading day, and are the only ones a change is judged on.

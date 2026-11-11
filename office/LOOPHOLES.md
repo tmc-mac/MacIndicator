@@ -34,7 +34,7 @@ Seeded 11/11 from the 11/11 edge studies (149 levels trades, 10/28-11/10, live j
 
 | Id | Risk | Evidence | Status |
 |---|---|---|---|
-| R-01 | Topstep's terms prohibit trading from a VPS or remote server | Combine plan, source dated 2026-09-17: a pass can be voided whatever the P&L | **open, Mac's decision** |
-| R-02 | No daily loss limit: 7 full stops in one day breaches the combine the same day | Combine plan section 3 | **open**. Standing order: never stop the bot mid-session as a rule. The daily cycle reports the worst stop streak so the risk is visible |
+| R-01 | Topstep's terms prohibit trading from a VPS or remote server | Combine plan, source dated 2026-09-17: a pass can be voided whatever the P&L | **Mac's ruling 11/11:** not a concern during the practice stage; Topstep's team gave him permission to use the VPS in practice. Revisit before connecting to a real combine |
+| R-02 | No daily loss limit: 7 full stops in one day breaches the combine the same day | Combine plan section 3 | **Mac's ruling 11/11:** accepted for the testing stage ("seeing the max our system can win or lose in a day"). No daily stop rule. The daily cycle reports each day's best and worst result and the worst stop streak |
 | R-03 | Consistency: one day over $1,650 raises the target | Combine plan section 4 | Tracked daily (`bestDayPct`) |
-| R-04 | The bot is on a practice account; no combine is running | 11/11 phone header | **open, Mac's decision**: when to start. The virtual combine gives the readiness evidence |
+| R-04 | The bot is on a practice account; no combine is running | 11/11 phone header | **Mac's ruling 11/11:** "If we can focus on passing a practice combine we will eventually pass a real one." The working target is passing the practice (virtual) combine; no real-combine start date is being chased |
