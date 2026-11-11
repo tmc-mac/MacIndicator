@@ -1,4 +1,5 @@
-MAC - INSTALL "BOT FIX r1.1" on the exit-5 build (executor ee216a03 -> 725b19ff)   PRIVATE - server address inside
+MAC - INSTALL "BOT FIX r1.1b" on the exit-5 build (executor ee216a03 -> 725b19ff)   PRIVATE - server address inside
+(r1.1b = r1.1 with the checksum list fixed; the bot code is identical. Use this zip, not the first r1.1 zip.)
 =================================================================================================================
 STATUS: r1.1 = r1 + the gaps found after r1 (phone Flatten on the safe-exit rule, through-stop retries capped,
 one push per full stop, stale cancel requests refused, [exits] startup line). 195 tests pass, boots to LIVE.
@@ -16,19 +17,19 @@ What it changes:
 Unchanged: entries, size 3, stops, TP1 +15 (2 of 3), runner, control 0.22, no-progress rule, morning hold 05:25-06:00,
 news pause, exit 5 stays OFF in your config.
 
-Be FLAT in TopstepX (no position, no working MNQ orders). Put MacBot-botfix-r1.1.zip in Downloads, open PowerShell:
+Be FLAT in TopstepX (no position, no working MNQ orders). Put MacBot-botfix-r1.1b.zip in Downloads, open PowerShell:
 
 1) Check the file:
   cd $env:USERPROFILE\Downloads
-  Get-FileHash .\MacBot-botfix-r1.1.zip
-     (must start with 12268ABD)
+  Get-FileHash .\MacBot-botfix-r1.1b.zip
+     (must start with 5656164C)
 
 2) Copy it up and unpack:
-  scp .\MacBot-botfix-r1.1.zip root@<server>:/root/
-  ssh root@<server> "mkdir -p /root/botfix11 && cd /root/botfix11 && python3 -m zipfile -e /root/MacBot-botfix-r1.1.zip . && ls MacBot-botfix-r1.1"
+  scp .\MacBot-botfix-r1.1b.zip root@<server>:/root/
+  ssh root@<server> "mkdir -p /root/botfix11b && cd /root/botfix11b && python3 -m zipfile -e /root/MacBot-botfix-r1.1b.zip . && ls MacBot-botfix-r1.1"
 
 3) Install the bot (type YES when asked):
-  ssh -t root@<server> "cd /root/botfix11/MacBot-botfix-r1.1 && MACBOT_DIR=/opt/mac-bot bash install-botfix.sh tree"
+  ssh -t root@<server> "cd /root/botfix11b/MacBot-botfix-r1.1 && MACBOT_DIR=/opt/mac-bot bash install-botfix.sh tree"
      You want at the end: "session stamp ... (executor 725b19ff" and "DONE". Keep the BACKUP FOLDER line it prints.
      If it says STOP, nothing was changed - send me the lines.
 
