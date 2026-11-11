@@ -183,6 +183,60 @@ class WhatIfAndCounters(unittest.TestCase):
         self.assertEqual(ld.day_path([{"net": 100.0, "worstOpen": -250.0}, {"net": -50.0, "worstOpen": None}]), (50.0, -250.0))
 
 
+class R14Records(unittest.TestCase):
+    def test_x05_absence_of_disagree_is_agreement_only_with_a_second_score(self):
+        rows = [{"alt": 0.31, "disagree": False}, {"alt": 0.05, "disagree": True}, {"alt": None, "disagree": False, "why": "not-near-line"}, {"alt": None, "disagree": False}]
+        c = ld.control_alt_counts(rows)
+        self.assertEqual((c["agree"], c["disagree"], c["notComputed"], c["rows"]), (1, 1, 2, 4))
+
+    def _journal(self, lines):
+        import gzip as gz
+        import tempfile
+        d = tempfile.mkdtemp()
+        raw = gz.compress(("\n".join(lines) + "\n").encode())
+
+        class R:
+            def lines(self, n):
+                return [l for l in gz.decompress(raw).split(b"\n") if l.strip()]
+        return R()
+
+    def test_null_journal_id_entry_rows_are_counted_and_never_a_trade(self):
+        import json as js
+        t = ld._utc_ms(2026, 11, 11, 20, 0)
+        rows = [js.dumps({"type": "entry", "t": t, "journalId": None, "dir": 1}), js.dumps({"type": "entry", "t": t + 1, "journalId": "J1", "dir": 1}),
+                js.dumps({"type": "signal_check", "t": t + 2, "outcome": "closed", "journalId": "J1", "dir": 1, "pnlSource": "broker", "realizedPnl": 10.0, "grossPnl": 12.0, "fees": 2.0, "netPnl": 9.0})]
+        J = ld.load_journal(self._journal(rows), names=["data/2026-11-12/slice-0205.jsonl.gz"])
+        self.assertEqual(J["nullEntry"], {"2026-11-11": 1})
+        self.assertEqual(list(J["by"]), ["J1"])
+        self.assertEqual(len(ld.build_ledger(J)), 1)
+
+    def test_new_rows_dedupe_and_absence_is_harmless(self):
+        import json as js
+        t = ld._utc_ms(2026, 11, 11, 20, 0)
+        base = [js.dumps({"type": "signal_check", "t": t, "outcome": "closed", "journalId": "J1", "dir": 1, "pnlSource": "broker", "realizedPnl": 10.0, "grossPnl": 12.0, "fees": 2.0, "netPnl": 9.0}),
+                js.dumps({"type": "trade_manage", "t": t, "journalId": "J1", "code": "ENTRY_FILLED", "fill": 100.0})]
+        r13 = ld.build_ledger(ld.load_journal(self._journal(base), names=["data/2026-11-12/slice-0205.jsonl.gz"]))
+        self.assertEqual(r13[0]["rules"], {})                                    # r1.3 journal: no new rows, nothing breaks
+        dup = base + [js.dumps({"type": "tp1_touch", "t": t + 5, "journalId": "J1", "state": "pending", "touchSource": None}),
+                      js.dumps({"type": "tp1_touch", "t": t + 9, "journalId": "J1", "state": "resolved", "touchSource": "poll", "touchedAt": t + 8, "filled": False, "touchedNotFilled": True}),
+                      js.dumps({"type": "runner_shadow", "t": t + 9, "journalId": "J1", "rule": "allAtTp1", "resolved": True, "oldRuleExit": "TP2", "oldRuleUsdEst": 12.5}),
+                      js.dumps({"type": "ny_late_trade", "t": t + 9, "journalId": "J1", "entryAt": t, "entryPt": "09:05"})]
+        J = ld.load_journal(self._journal(dup), names=["data/2026-11-12/slice-0205.jsonl.gz"])
+        self.assertEqual(len(J["by"]["J1"]["tp1_touch"]), 1)                     # one row per (type, journalId); the later one wins
+        r = ld.build_ledger(J)[0]["rules"]
+        self.assertEqual((r["tp1Touch"]["state"], r["tp1Touch"]["touchSource"], r["tp1Touch"]["touchedNotFilled"]), ("resolved", "poll", True))
+        self.assertEqual((r["runnerShadow"]["oldRuleExit"], r["nyLateRow"]["entryPt"]), ("TP2", "09:05"))
+
+    def test_control_rows_are_collected_whatever_their_type(self):
+        import json as js
+        t = ld._utc_ms(2026, 11, 11, 20, 0)
+        J = ld.load_journal(self._journal([js.dumps({"type": "control_exclusion", "t": t, "controlScoreAlt": None, "controlAltWhy": "not-near-line"}),
+                                           js.dumps({"type": "trade_block", "t": t + 1, "code": "GATE", "dir": 1, "controlScoreAlt": 0.3, "controlDisagree": True})]),
+                            names=["data/2026-11-12/slice-0205.jsonl.gz"])
+        c = ld.control_alt_counts(J["ctl"])
+        self.assertEqual((c["notComputed"], c["disagree"], c["agree"]), (1, 1, 0))
+
+
 class TimeAndSession(unittest.TestCase):
     def test_pt_and_tradeday(self):
         ms = ld._utc_ms(2026, 11, 10, 23, 0)                 # 15:00 PST on 11/10

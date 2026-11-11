@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "generatedAt": "2026-11-11T07:42:58Z",
+ "generatedAt": "2026-11-11T08:29:03Z",
  "tradeDay": "2026-11-11",
  "data": {
   "lastSlice": "2026-11-11/slice-2205",
@@ -44,6 +44,7 @@
   "avgWin": 78.27,
   "avgLoss": -42.66,
   "fees": 32.94,
+  "lowClosedNet": 0.0,
   "bySession": {
    "asia": {
     "net": 462.56,
@@ -94,6 +95,7 @@
   ]
  },
  "health": {
+  "entryRowsWithoutId": 0,
   "restarts": 5,
   "settingsChanges": [
    {
@@ -228,11 +230,11 @@
   },
   {
    "id": "L-14",
-   "title": "NY trades entered after 09:00 PT lose money; 06:30-09:00 pays",
+   "title": "NY trades entered after 09:00 PT lose more than those entered 06:30-09:00",
    "status": "measured",
    "n": 0,
    "usd": null,
-   "next": "X-07: shadow counter, nothing skipped; a live stand-down needs 20 further cases"
+   "next": "X-07: shadow counter since 11/11 07:30Z, nothing skipped; a live stand-down needs 20 further cases"
   },
   {
    "id": "L-15",
@@ -261,10 +263,10 @@
   {
    "id": "B-03",
    "title": "Closed trades show points and fill UNKNOWN on the phone while the broker's prices are printed on the same card; the Trades and Levels tabs disagree about the same trade",
-   "status": "open",
+   "status": "fixed",
    "n": null,
    "usd": null,
-   "next": "Install r1.3 and 2.2.1"
+   "next": "Install 2.2.2. Open items from the review: point value must come from the symbol (2.2.2), older saved rows beyond the newest 10"
   },
   {
    "id": "B-04",
@@ -329,6 +331,14 @@
    "n": null,
    "usd": null,
    "next": "Every sheet that restarts the phone server must say \"be flat: this restarts the bot too\". Together with B-06 (armed setups lost on restart) a proxy restart mid-session can cost a trade"
+  },
+  {
+   "id": "B-12",
+   "title": "A pending entry that fills while the bot is down (killed between the fill and the protective stop) gets an entry journal row with journalId null; the original pending row stays orphaned and reads UNKNOWN at later restarts",
+   "status": "known, record-keeping on",
+   "n": null,
+   "usd": null,
+   "next": "The office ledger must ignore null-journalId entry rows and say how many it saw (check loop_daily.py). Fix in a later build: persist the pending context so a restart relinks it. r1.4's new counters never attach to such a trade"
   }
  ],
  "experiments": [

@@ -424,7 +424,8 @@ RE_CFG = re.compile(r"^data/(\d{4}-\d{2}-\d{2})/config-local-live\.json$")
 PARSE_TYPES = {"signal_check", "trade_manage", "trade_plan", "entry", "trade_time", "trade_state", "peak_unrealized",
                "trade_block", "session_stamp", "alert", "journal_receipt", "no_progress_outcome", "early_adverse_exit",
                "early_adverse_shadow", "early_adverse_outcome", "early_adverse_check", "runner_rule", "tp1_atr_shadow",
-               "orphan_sweep", "flag", "trade_flag", "mac_flag"}
+               "orphan_sweep", "flag", "trade_flag", "mac_flag", "runner_shadow", "tp1_touch", "ny_late_trade"}
+ONCE_TYPES = ("runner_shadow", "tp1_touch", "ny_late_trade")   # r1.4 rows: one per (type, journalId); a later duplicate replaces the earlier
 
 
 class Repo:
@@ -451,7 +452,7 @@ def load_journal(repo, names=None):
     """Every journal file (4-hour slices and full journals), rows de-duplicated by their exact text."""
     names = names if names is not None else repo.names()
     J = {"files": [], "types": {}, "dayRows": {}, "by": {}, "blocks": [], "stamps": [], "alerts": [], "receipts": {},
-         "flags": [], "orphans": [], "bad": 0, "rows": 0, "tmax": 0, "names": names}
+         "flags": [], "orphans": [], "ctl": [], "nullEntry": {}, "bad": 0, "rows": 0, "tmax": 0, "names": names}
     seen = set()
     for n in names:
         kind = "slice" if RE_SLICE.match(n) else "full" if RE_FULL.match(n) else None
@@ -476,7 +477,8 @@ def load_journal(repo, names=None):
             if t is not None:
                 td = trade_day(t)
                 J["dayRows"][td] = J["dayRows"].get(td, 0) + 1
-            if ty not in PARSE_TYPES or (ty == "signal_check" and b'"outcome":"sat_out"' in l):
+            has_alt = b"controlScoreAlt" in l
+            if (ty not in PARSE_TYPES and not has_alt) or (ty == "signal_check" and b'"outcome":"sat_out"' in l and not has_alt):
                 continue
             if ty == "journal_receipt" and b"ECONOMICS_MATCH_OBSERVED" not in l:
                 continue
@@ -485,7 +487,11 @@ def load_journal(repo, names=None):
             except ValueError:
                 J["bad"] += 1
                 continue
-            _file_row(J, ty, r)
+            if has_alt:
+                J["ctl"].append({"type": ty, "t": r.get("t"), "journalId": r.get("journalId"), "alt": r.get("controlScoreAlt"),
+                                 "disagree": r.get("controlDisagree") is True, "why": r.get("controlAltWhy")})
+            if ty in PARSE_TYPES and not (ty == "signal_check" and r.get("outcome") not in ("closed", "traded")):
+                _file_row(J, ty, r)
         J["files"].append({"name": n, "kind": kind, "rows": k, "new": new, "tmin": lo, "tmax": hi})
         J["rows"] += new
         if hi:
@@ -512,10 +518,18 @@ def _file_row(J, ty, r):
                 J["receipts"][j] = {"at": r.get("recordedAt") or 0, "realized": eo["realizedPnl"], "exitTime": eo.get("exitTime")}
     else:
         j = r.get("tradeJournalId") if ty == "trade_state" else r.get("journalId")
+        if ty == "entry" and not j:
+            td = trade_day(r["t"]) if _num(r.get("t")) else None
+            J["nullEntry"][td] = J["nullEntry"].get(td, 0) + 1        # B-12: an entry row with no journal id is never a trade
+            return
         if ty == "signal_check" and r.get("outcome") not in ("closed", "traded"):
             return
         if j:
-            J["by"].setdefault(j, {}).setdefault(ty, []).append(r)
+            lst = J["by"].setdefault(j, {}).setdefault(ty, [])
+            if ty in ONCE_TYPES:
+                lst[:] = [r]
+            else:
+                lst.append(r)
         elif ty == "peak_unrealized":
             pass
 
@@ -720,6 +734,16 @@ def build_trade(j, d):
         rules["tp1AtrShadow"] = {"shadowTp1Pts": _num(r.get("shadowTp1Pts")), "state": r.get("state") if s1 else "open",
                                  "beAfter": (r.get("shadow") or {}).get("beAfter") if s1 else None,
                                  "beAfterNetUsd": _num((r.get("shadow") or {}).get("beAfterNetUsd")) if s1 else None}
+    tt1 = (d.get("tp1_touch") or [None])[-1]
+    if tt1:
+        rules["tp1Touch"] = {"state": tt1.get("state"), "touchSource": tt1.get("touchSource"), "touchedAt": iso_utc(tt1.get("touchedAt")), "filled": tt1.get("filled"),
+                             "touchedNotFilled": tt1.get("touchedNotFilled") is True}
+    rs = (d.get("runner_shadow") or [None])[-1]
+    if rs:
+        rules["runnerShadow"] = {"rule": rs.get("rule"), "oldRuleExit": rs.get("oldRuleExit"), "oldRuleUsdEst": _num(rs.get("oldRuleUsdEst")), "resolved": rs.get("resolved")}
+    nl = (d.get("ny_late_trade") or [None])[-1]
+    if nl:
+        rules["nyLateRow"] = {"entryAt": iso_utc(nl.get("entryAt")), "entryPt": nl.get("entryPt")}
     stamp = None
     for r in ef + ([ent] if ent else []) + closed:
         if r.get("stampId"):
@@ -931,6 +955,22 @@ def _since_ms(x):
     return _utc_ms(*[int(g) for g in m.groups()[:5]]) + int(m.group(6)) * 1000 if m else 0
 
 
+def control_alt_counts(rows):
+    """X-05: rows carrying the r1.4 control fields. controlDisagree is written only when true, so absence means
+    'agrees' ONLY when controlScoreAlt is not null; with controlScoreAlt null (not near the line) it means 'not computed'.
+    Rows from before r1.4 have no controlScoreAlt key at all and never reach this function."""
+    c = {"agree": 0, "disagree": 0, "notComputed": 0, "rows": 0}
+    for r in rows:
+        c["rows"] += 1
+        if r.get("alt") is None:
+            c["notComputed"] += 1
+        elif r.get("disagree"):
+            c["disagree"] += 1
+        else:
+            c["agree"] += 1
+    return c
+
+
 def run_experiment(x, J, trades, day):
     """Running n and value of one experiment from its journal rows, for rows on TradeDays up to `day`."""
     since, calc = _since_ms(x), (x.get("feeds") or {}).get("calc")
@@ -1017,13 +1057,24 @@ def run_experiment(x, J, trades, day):
         if len(late) >= x.get("minN", SMALL_N):
             r["verdict"] = "KILL: the cases net zero or better" if r["value"] >= 0 else "evidence holds: write the decision card"
     elif calc == "controlParity":
-        post = [t for t in trades if t["_tEntry"] >= since and t["tradeDay"] <= day]
-        r["n"] = None
-        r["value"] = None
-        r["resolved"] = len(post)
-        r["note"] = "not measurable from the journal: after the switch the old formula's score is not written, so the trades it would have blocked cannot be told apart (%d trade%s since the switch, net %s)" % (
-            len(post), "" if len(post) == 1 else "s", usd(sum(t["net"] or 0 for t in post), True))
-        r["verdict"] = "not measurable yet"
+        rows = [q for q in J.get("ctl", []) if _num(q.get("t")) and q["t"] >= since and trade_day(q["t"]) <= day]
+        ent = [q for q in rows if q["type"] == "entry" and q.get("journalId")]
+        ca, ce = control_alt_counts(rows), control_alt_counts(ent)
+        if not rows:
+            r["n"], r["value"], r["verdict"] = None, None, "not measurable yet"
+            r["note"] = "no row with the second control score (controlScoreAlt) yet: it arrives with r1.4. Without it the trades the old formula would have blocked cannot be told apart"
+        else:
+            dis = {q["journalId"] for q in ent if q["disagree"] and q["alt"] is not None}
+            got = [t for t in trades if t["id"] in dis]
+            r["n"], r["resolved"], r["unresolved"] = len(dis), len(got), len(dis) - len(got)
+            r["value"] = _r2(sum(t["net"] or 0 for t in got)) if got else None
+            r["cases"] = [{"id": t["id"], "net": t["net"]} for t in got]
+            r["note"] = ("n = entries whose two control scores disagree about the 0.22 line; value = their summed net. All rows with the second score: %d agree, %d disagree, %d not computed; entries: %d agree, %d disagree, %d not computed. "
+                         "'Not computed' means the row was far from the line (controlAltWhy not-near-line): absence of controlDisagree is read as agreement only when the second score is present, and disagreements beyond 0.15 from the line are not seen") % (
+                ca["agree"], ca["disagree"], ca["notComputed"], ce["agree"], ce["disagree"], ce["notComputed"])
+            r["verdict"] = "too early"
+            if len(dis) >= x.get("minN", SMALL_N):
+                r["verdict"] = "ready: compare their net per trade with the rest (kill rule in EXPERIMENTS.md)"
     else:
         r["n"], r["note"], r["verdict"] = None, "no calculator for this experiment in loop_daily.py", "not measured"
     return r
@@ -1230,6 +1281,23 @@ def main(argv=None):
             data_note = "TradeDay incomplete: journal missing " + "; ".join("%s to %s" % (pt_hm(h0, True), pt_hm(h1, True)) for h0, h1 in cov["holes"])
         notes.insert(0, data_note)
 
+    # ---- r1.4 records for the day
+    low_closed, run_ = 0.0, 0.0
+    for t in todays:
+        run_ += t["net"] or 0.0
+        low_closed = min(low_closed, run_)
+    tdids = {t["id"] for t in todays}
+    touch = [J["by"][j]["tp1_touch"][-1] for j in J["by"] if j in tdids and J["by"][j].get("tp1_touch")]
+    nlrows = {j for j in J["by"] if j in tdids and J["by"][j].get("ny_late_trade")}
+    nl_ledger = {t["id"] for t in todays if is_ny_late(t)}
+    r14 = {"nullEntry": J["nullEntry"].get(day, 0),
+           "touch": {"rows": len(touch), "resolved": sum(1 for q in touch if q.get("state") == "resolved"),
+                     "touchedNotFilled": sum(1 for q in touch if q.get("touchedNotFilled") is True),
+                     "poll": sum(1 for q in touch if q.get("touchedAt") is not None and q.get("touchSource") == "poll"),
+                     "bar1m": sum(1 for q in touch if q.get("touchedAt") is not None and q.get("touchSource") == "bar1m"),
+                     "unresolved": sum(1 for q in touch if q.get("state") != "resolved")},
+           "nyLate": {"rows": len(nlrows), "ledger": len(nl_ledger), "onlyRow": len(nlrows - nl_ledger), "onlyLedger": len(nl_ledger - nlrows) if nlrows else None},
+           "lowClosedNet": _r2(low_closed)}
     # ---- experiments
     xpath = os.path.join(office, "state", "experiments.json")
     try:
@@ -1282,11 +1350,11 @@ def main(argv=None):
                                  "bestDayPct": cur["bestDayPct"], "days": cur["days"], "status": cur["status"], "needPerDay": need["perDay"] if need else None} if cur else None),
                     "history": hist},
         "day": {"net": sc["net"], "trades": sc["trades"], "wins": sc["wins"], "losses": sc["losses"], "fullStops": sc["fullStops"],
-                "avgWin": sc["avgWin"], "avgLoss": sc["avgLoss"], "fees": sc["fees"],
+                "avgWin": sc["avgWin"], "avgLoss": sc["avgLoss"], "fees": sc["fees"], "lowClosedNet": r14["lowClosedNet"],
                 "bySession": {s: {"net": by_sess[s]["net"], "trades": by_sess[s]["trades"], "fullStops": by_sess[s]["fullStops"]} for s in SESSIONS}},
         "week": {"net": wsc["net"], "trades": wsc["trades"], "fullStops": wsc["fullStops"], "lossToWin": wsc["lossToWin"],
                  "days": [{"day": d, "net": score(by_day[d])["net"], "trades": len(by_day[d]), "fullStops": sum(1 for t in by_day[d] if t["fullStop"])} for d in wdays]},
-        "health": {"restarts": len(stamps_day), "settingsChanges": [{"t": iso_utc(c["t"]), "what": c["what"]} for c in changes], "build": build, "notes": notes},
+        "health": {"entryRowsWithoutId": r14["nullEntry"], "restarts": len(stamps_day), "settingsChanges": [{"t": iso_utc(c["t"]), "what": c["what"]} for c in changes], "build": build, "notes": notes},
         "leaks": leaks,
         "experiments": [{"id": x["id"], "title": x.get("title"), "mode": x.get("mode"), "n": x["running"]["n"], "minN": x.get("minN", SMALL_N),
                          "value": x["running"]["value"], "unit": x.get("unit"), "verdict": x["running"]["verdict"]} for x in xdoc.get("experiments", [])],
@@ -1309,7 +1377,7 @@ def main(argv=None):
     with open(os.path.join(office, "reviews", "STATUS.md"), "w", encoding="utf8") as f:
         f.write(status)
     card = render_card(day, cov, data_note, sc, by_sess, todays, chain, cur, hist, hist_runs, sim_days, ap_day, leak_rank, last5, gates, block_rows,
-                       samples, lm_used, xdoc, changes, changes_all, stamps_day, build, notes, waiting, wdays, by_day, wsc, recon_ok, brk_n, led_real, rec_n, rec_sum, reg, need, nm5)
+                       samples, lm_used, xdoc, changes, changes_all, stamps_day, build, notes, waiting, wdays, by_day, wsc, recon_ok, brk_n, led_real, rec_n, rec_sum, reg, need, nm5, r14)
     p = os.path.join(office, "reviews", "daily", day + ".md")
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with open(p, "w", encoding="utf8") as f:
@@ -1363,7 +1431,7 @@ def render_status(day, cov, data_note, last_complete, cur, need, wk, wsc, wdays,
 
 
 def render_card(day, cov, data_note, sc, by_sess, todays, chain, cur, hist, hist_runs, sim_days, ap_day, leak_rank, last5, gates, block_rows,
-                samples, lm_used, xdoc, changes, changes_all, stamps_day, build, notes, waiting, wdays, by_day, wsc, recon_ok, brk_n, led_real, rec_n, rec_sum, reg, need=None, nm5=None):
+                samples, lm_used, xdoc, changes, changes_all, stamps_day, build, notes, waiting, wdays, by_day, wsc, recon_ok, brk_n, led_real, rec_n, rec_sum, reg, need=None, nm5=None, r14=None):
     L = []
     L.append("# Daily card: TradeDay %s" % day)
     L.append("")
@@ -1400,6 +1468,8 @@ def render_card(day, cov, data_note, sc, by_sess, todays, chain, cur, hist, hist
             streak = streak + 1 if t["fullStop"] else 0
             best = max(best, streak)
         L.append("Worst run of full stops in a row: %d (risk R-02: there is no daily loss limit)." % best)
+        if r14:
+            L.append("Lowest closed running net of the day: %s. It counts closed trades only and ignores open P&L inside a trade, so it is a lower bound on the drawdown." % usd(r14["lowClosedNet"], True))
     L.append("")
     L.append("Week %s so far: %s on %d trades, %d full stops, loss / win %s." % (iso_week(day), usd(wsc["net"], True), wsc["trades"], wsc["fullStops"],
              ("%.2f (n=%d wins, %d losses%s)" % (wsc["lossToWin"], wsc["wins"], wsc["losses"], ", small" if min(wsc["wins"], wsc["losses"]) < SMALL_N else "")) if wsc["lossToWin"] is not None else "n/a"))
@@ -1507,6 +1577,17 @@ def render_card(day, cov, data_note, sc, by_sess, todays, chain, cur, hist, hist
         if n != data_note and not n.startswith("ledger and broker receipts"):
             L.append("- %s." % n.rstrip("."))
     L.append("- Skipped fast checks (\"fetch failed\", B-01) are not in the journal: unknown from this data.")
+    if r14:
+        L.append("- Entry rows without a journal id (B-12: a pending entry that filled while the bot was down): %d seen in this TradeDay; they are ignored, never counted as trades." % r14["nullEntry"])
+        tc = r14["touch"]
+        if tc["rows"]:
+            L.append("- TP1 touch watch (record only): %d trade%s watched, %d resolved, %d touched TP1 without a fill (%d seen by poll price, %d by 1m bar), %d unresolved. Touches rest on polled prices, not ticks: a TP1 touched inside one poll interval is not seen." % (
+                tc["rows"], "" if tc["rows"] == 1 else "s", tc["resolved"], tc["touchedNotFilled"], tc["poll"], tc["bar1m"], tc["unresolved"]))
+        else:
+            L.append("- TP1 touch watch: no `tp1_touch` rows (they start with r1.4).")
+        nl = r14["nyLate"]
+        L.append("- Clocks: the ledger and the X-07 count use the broker's entry time; the bot's own `ny_late_trade` row uses its fill-seen time, which can differ by seconds near 09:00 PT%s." % (
+            ("; this day: %d row%s, %d only in the bot's rows, %s only in the ledger" % (nl["rows"], "" if nl["rows"] == 1 else "s", nl["onlyRow"], nl["onlyLedger"])) if nl["rows"] else " (no `ny_late_trade` rows this day)"))
     L.append("")
     if changes:
         L.append("Settings and code changes in this TradeDay, with the day's trades before and after each change time:")

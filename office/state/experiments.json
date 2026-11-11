@@ -192,10 +192,10 @@
     "asOfTradeDay": "2026-11-11",
     "n": null,
     "value": null,
-    "resolved": 1,
+    "resolved": null,
     "unresolved": null,
     "verdict": "not measurable yet",
-    "note": "not measurable from the journal: after the switch the old formula's score is not written, so the trades it would have blocked cannot be told apart (1 trade since the switch, net -$71.16)",
+    "note": "no row with the second control score (controlScoreAlt) yet: it arrives with r1.4. Without it the trades the old formula would have blocked cannot be told apart",
     "cases": []
    }
   },

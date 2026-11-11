@@ -87,6 +87,16 @@ office.json `weekly` gains `passProbability` and `sizeTable` (the daily run carr
 
 Limits: the bootstrap treats days as independent and equally likely, and a day's low is only as good as the journal's excursion readings; the what-if days-stopped counts are a handful of days.
 
+## r1.4 records (the tool is ready; the rows arrive when r1.4 is installed)
+
+- **X-05 (control parity)**: counts rows that carry `controlScoreAlt`. `controlDisagree` is written only when true, so its absence means "agrees" only when `controlScoreAlt` is not null; with `controlScoreAlt` null (`controlAltWhy: not-near-line`) it means "not computed". The card gives agree / disagree / not computed separately. Disagreements further than 0.15 from the 0.22 line are not seen. n = entries whose two scores disagree; value = their summed net. Rows without the key (r1.3 journals) are not counted at all.
+- **Lowest closed running net** (`day.lowClosedNet` in office.json, the card's scoreboard): the lowest running total of closed trades in the TradeDay; it ignores open P&L inside a trade, so it is a lower bound on the drawdown (the bot's own `day.risk.lowNet` has the same limit).
+- **Clocks**: the ledger, the session and the X-07 / NY-late counts use the broker's entry time. The bot's `ny_late_trade` row uses its own fill-seen time (`fillAt`); the two can differ by seconds near 09:00 PT. The card prints, per day, how many `ny_late_trade` rows have no late trade in the ledger and the reverse.
+- **TP1 touch** (`tp1_touch`): stored per trade (`rules.tp1Touch`: state, touchSource `poll` or `bar1m`, touchedAt, filled, touchedNotFilled). Touches rest on polled prices and 1m bars, not ticks; a TP1 touched inside one poll interval is not seen. The card counts watched / resolved / touched-not-filled by source.
+- **`runner_shadow`** is stored per trade (`rules.runnerShadow`); **`ny_late_trade`** as `rules.nyLateRow`.
+- **B-12**: an `entry` row with a null journal id is never a trade; the card's data section prints how many were seen in the TradeDay (office.json `health.entryRowsWithoutId`).
+- Rows of `runner_shadow`, `tp1_touch` and `ny_late_trade` are kept once per (type, journalId); a later duplicate replaces the earlier one. A journal without any of them (r1.3) builds the same ledger as before.
+
 ## Journal row types found (all files at 2026-11-11, 71 files, 106,319 rows after de-duplication, 0 unreadable)
 
 | row type | rows | used for |
