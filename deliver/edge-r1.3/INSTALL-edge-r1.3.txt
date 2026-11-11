@@ -1,0 +1,57 @@
+MAC - INSTALL "EDGE r1.3" on edge r1.1 (executor dd2fdc4a -> 4168e4bb)   repo copy: server address removed
+=======================================================================================================
+What it changes (everything edge r1.2 had, plus the cure for tonight's crash):
+  1. START-UP MEMORY: the bot no longer loads the whole trade journal into memory at each start. One streamed read.
+     With a journal the size of yours it starts inside the old 493 MB limit, peaking near 310 MB (before: 860+ MB).
+  2. "fetch failed" at each 15m close: the phone server keeps connections open 75 s, the bot lets dead connections
+     drop after each evaluation, and a failed READ is retried once. Orders are never retried.
+  3. Flatten answers: a halted bot answers "REJECTED HALTED"; "already flat" only after a broker read says flat;
+     no more repeated urgent pushes when the broker cannot be read.
+  4. Phone data: the entry fill on each trade row; the Flag button's bot side (records your flag, no trading effect;
+     the button itself comes with a later terminal page).
+Trading rules are exactly edge r1.1. No new settings: control parity and the 1,024 MB memory setting stay as they are.
+Checked: independent code review says SHIP WITH NOTES; ship gate run on this exact zip's files:
+  - boot under the server's old 493 MB limit with a 98.7 MB and a 150 MB journal: live loop in about 3.5 s, peak
+    memory 316-323 MB, no out-of-memory (the build you run now dies at that limit);
+  - 4 hard kills mid-session: every start came back live; an open position was picked up before TP1 and after
+    TP1 with its resting orders kept; no order was placed twice;
+  - one replay session matched edge r1.1 order for order (2 trades, 38 broker events);
+  - restart, not-live and warm-up pushes: 28 of 28 tests; install, refused second install and byte-for-byte
+    rollback tested on this exact zip.
+NOT MET, and the same on the build you run now: after a restart an armed 3-minute setup did not come back, so the
+  bot skipped a trade it takes when it runs uninterrupted. Avoid restarting the bot mid-session when you can.
+MacDot's HOLD on edge r1.2 (no findings posted) is unanswered; you chose to install on our own review and gate.
+
+Be FLAT in TopstepX. Put MacBot-edge-r1.3.zip in Downloads, open PowerShell:
+
+1) Check the file:
+  cd $env:USERPROFILE\Downloads
+  Get-FileHash .\MacBot-edge-r1.3.zip
+     (must start with 0DA09A2A)
+
+2) Copy it up and unpack:
+  scp .\MacBot-edge-r1.3.zip root@<server>:/root/
+  ssh root@<server> "mkdir -p /root/edge13 && cd /root/edge13 && python3 -m zipfile -e /root/MacBot-edge-r1.3.zip . && ls MacBot-edge-r1.3"
+
+3) Install the bot (type YES when asked):
+  ssh -t root@<server> "cd /root/edge13/MacBot-edge-r1.3 && MACBOT_DIR=/opt/mac-bot bash install-edge.sh tree"
+     You want at the end: "session stamp ... (executor 4168e4bb" and "DONE". Keep the rollback line it prints.
+     If it says STOP, nothing was changed - send me the lines.
+
+4) Restart the phone server with more memory room (its file changed; this also protects it: opening the Trades or
+   Review tabs makes it load the whole journal, and at today's journal size that can run it out of memory):
+  ssh root@<server> "echo c2V0IC1lCm1rZGlyIC1wIC9ldGMvc3lzdGVtZC9zeXN0ZW0vbWFjLWJvdC1wcm94eS5zZXJ2aWNlLmQKcHJpbnRmICdbU2VydmljZV1cbkVudmlyb25tZW50PU5PREVfT1BUSU9OUz0tLW1heC1vbGQtc3BhY2Utc2l6ZT0xMDI0XG4nID4gL2V0Yy9zeXN0ZW1kL3N5c3RlbS9tYWMtYm90LXByb3h5LnNlcnZpY2UuZC9oZWFwLmNvbmYKc3lzdGVtY3RsIGRhZW1vbi1yZWxvYWQKc3lzdGVtY3RsIHJlc3RhcnQgbWFjLWJvdC1wcm94eS5zZXJ2aWNlCnNsZWVwIDMKZWNobyAicGhvbmUgc2VydmVyOiAkKHN5c3RlbWN0bCBpcy1hY3RpdmUgbWFjLWJvdC1wcm94eS5zZXJ2aWNlKSIKc3lzdGVtY3RsIHNob3cgbWFjLWJvdC1wcm94eS5zZXJ2aWNlIC1wIEVudmlyb25tZW50IC0tdmFsdWUgfCB0ciAnICcgJ1xuJyB8IGdyZXAgLWMgJ21heC1vbGQtc3BhY2Utc2l6ZT0xMDI0JyB8IHNlZCAncy9eL2hlYXAgc2V0dGluZyBsaW5lcyBmb3VuZDogLycKZWNobyBQUk9YWS1IRUFQLTEwMjQtU0VUCg== | base64 -d | bash"
+     You want: "phone server: active", "heap setting lines found: 1", PROXY-HEAP-1024-SET
+     The bot may log one failed read during this restart; that one is expected.
+
+5) Check (wait 2 min):
+  ssh root@<server> "journalctl -u mac-bot-live --since '-5 min' --no-pager | grep -E 'session stamp|control score|Entering live loop|FATAL|unusable' | tail -8"
+     You want: "executor 4168e4bb", "control score: Pine parity", "Entering live loop". No FATAL lines.
+
+6) Tomorrow, count the failures (should be 0 or close to it; it was about one per 15m close):
+  ssh root@<server> "journalctl -u mac-bot-live --since today --no-pager | grep -c 'ERROR in loop'"
+     If any remain, send me:  journalctl -u mac-bot-live --since today --no-pager | grep '\[fetch\]' | tail -5
+
+ROLLBACK to edge r1.1 (flat first): run the rollback line step 3 printed, as
+  ssh -t root@<server> "bash <BACKUP-FOLDER>/rollback-edge.sh <BACKUP-FOLDER>"
+  then run step 4 again so the phone server restarts on the old file (the memory setting stays, which is fine).
