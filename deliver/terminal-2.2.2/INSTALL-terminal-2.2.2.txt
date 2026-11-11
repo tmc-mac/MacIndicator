@@ -1,0 +1,45 @@
+PHONE TERMINAL 2.2.2  (page only: no bot restart, the bot is not touched)   (server address omitted)
+=========================================================================================================
+Installs over 2.2 (768134e8). Same Control buttons, same requests to the bot.
+Fixes what your 11:04 PM screenshots showed, and what the reviews found in the first fix:
+  - Closed trades no longer say "pts UNKNOWN · no fill seen" next to printed broker prices. Entry, points, duration
+    and R come from the broker's round trip, tagged "(broker)", and read the SAME on Now, Trades, Levels (today's and
+    saved trades, including the detail cells), Review. Your two trades read: -31.50 pts (broker) and -16.25 pts (broker).
+  - Point value comes from the bot's contract (MNQ 2, MES 5, MGC 10). Any other contract, or none, reads UNKNOWN
+    with the reason instead of a number. If every closed trade suddenly reads "point value unknown", tell me.
+  - Just after a close, before the broker settles it: "pts UNKNOWN · exit not settled by the broker yet".
+  - A round trip is used only if it matches that trade's own entry within 2 points.
+  - Wording: "result -0.63 R" and "peak +0.30 R" (peak R UNKNOWN when the bot's own entry fill is missing).
+  - Older saved rows show points as "(bot, from broker)", never "(broker)", with entry UNKNOWN.
+  - If the bot's fill differs from the broker's, a muted line says so; the headline never changes.
+  - Also from the 2.2 review: future-dated Office file reads "age unknown"; "completeness not stated" when the file
+    does not say; the 30m row no longer blinks out at :00 and :30; an agreeing 30m info row below a stop is unlit.
+Known and left for the next build: the replay header can still print "fill time unknown" above the correct broker
+duration line. Same number, two lines.
+Checked: independent review SEND WITH RULES; 8 test suites pass (resolver 175/0, painted 570/0, budgets 912/0,
+requests identical to 2.2.1); replay smoothness vs 2.2 passed 28/0 and 14/0 after one noisy first run on a busy machine.
+
+Put mobile.html and set-terminal.sh (both from this folder) in Downloads, then in PowerShell:
+
+1) Check the files:
+   cd $env:USERPROFILE\Downloads
+   certutil -hashfile mobile.html SHA256
+      expect: 99ec1630fc9426e4b049d7d03449e7b3118bebe9246d9dbad043d59e56191db4
+   certutil -hashfile set-terminal.sh SHA256
+      expect: d891ef9d830244f682110662f85f080dd23984cbb29ba1740cb3e34aca4fb815   (same tool as before)
+
+2) Upload and check on the server:
+   scp mobile.html set-terminal.sh root@<server>:/root/
+   ssh root@<server> "sha256sum /root/mobile.html /root/set-terminal.sh"
+      (the same two codes as above)
+
+3) Install (it asks "Is the bot FLAT?" - type YES):
+   ssh -t root@<server> "bash /root/set-terminal.sh install /root/mobile.html 99ec1630fc9426e4b049d7d03449e7b3118bebe9246d9dbad043d59e56191db4"
+   Expect: DONE: mobile.html installed (sha256 verified): before 768134e8 -> after 99ec1630.
+
+4) On your phone: close the terminal page completely and open it again. Open Trades and Levels: the two Nov 10 trades
+   (10:55 PM and 10:01 PM) show entry, "(broker)" points and a duration, and the same number on both tabs. Office still shows in Review.
+
+If any step prints STOP, nothing changed - send me that output.
+UNDO (puts back 2.2, no restart):   ssh -t root@<server> "bash /root/set-terminal.sh rollback"
+STATUS (changes nothing):           ssh root@<server> "bash /root/set-terminal.sh status"
