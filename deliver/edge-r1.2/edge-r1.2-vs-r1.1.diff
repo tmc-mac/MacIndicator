@@ -1,0 +1,624 @@
+diff --git a/EDGE-R12.md b/EDGE-R12.md
+new file mode 100644
+index 0000000..b7bdea8
+--- /dev/null
++++ b/EDGE-R12.md
+@@ -0,0 +1,161 @@
++# edge r1.2: the "fetch failed" after every 15m close, the entry fill on the phone, and three terminal-review fixes
++
++Base: edge r1.1 (7debdc4, executor dd2fdc4a). Branch `edge12`. Builder desk, 2026-11-11.
++
++**The bot skipped its first intrabar check after most 15m closes because it sent that request on a connection the proxy had already closed. This build removes the cause in two places and retries read-only calls once.**
++
++**`tmc-proxy.js` CHANGED. Mac must restart the proxy service after the install for that part to take effect.** The bot-side fixes work without the proxy restart.
++
++No trading decision changed. No order path gained a retry.
++
++## 1. Root cause
++
++One sentence: the bar-close evaluation blocks Node for more than 5 s, the proxy closes idle connections after 5 s, and the bot's next request goes out on one of those dead connections and fails at once with `UND_ERR_SOCKET "other side closed"`.
++
++How it happens, step by step:
++
++1. At a 15m close the bot reads 10 timeframes at once. Node's `fetch` opens 10 connections to the proxy and keeps them for reuse.
++2. The evaluation that follows is one long synchronous block. Nothing else in the bot runs during it, including the timer that would drop connections older than 4 s.
++3. `tmc-proxy.js` used Node's default `keepAliveTimeout` of 5 s. It closes the 10 idle connections.
++4. The evaluation ends and the intrabar check starts at once (`live-executor.js`, `refreshAndEvaluate({ fast: true })`). Its requests go out on connections the proxy closed. Node reports `TypeError: fetch failed`.
++
++### Evidence (repro on Node 18.19.1, the real `tmc-proxy.js`, the bot's real `lib/bars.js`)
++
++`tests/fetchfail/repro.js` runs the bar-close pattern: `fetchAllTimeframes`, a synchronous block, then `fetchFastTimeframes`. Results are in `tests/fetchfail/results.jsonl`.
++
++| Bot `lib/bars.js` | Proxy | Block | Loop turn | Cycles | Failed cycles | Cause |
++|---|---|---|---|---|---|---|
++| r1.1 | r1.1 | 5.3 s | no | 40 | **39** | `UND_ERR_SOCKET` "other side closed", 7 ms after the block |
++| r1.2 (retry) | r1.1 | 5.3 s | no | 20 | 0 | 95 failed attempts, 95 recovered by the retry |
++| r1.1 | r1.2 (75 s) | 5.3 s | no | 20 | 0 | none |
++| r1.1 | r1.1 | 5.3 s | yes | 20 | 0 | none |
++| r1.2 | r1.2 | 5.3 s | yes | 500 | **0** | none; 0 failed attempts, so nothing needed the retry (7,500 calls) |
++
++Earlier sweep (6 cycles each, r1.1 on both sides): a block of 0 s or 4.5 s gave 0 failures; 5.2 s and 6 s gave 5 of 6. An idle wait of 4.5, 5.2 or 6 s with the event loop free gave 0 failures. So the trigger is the blocked loop across the 5 s mark, not the idle time alone.
++
++This matches the live log:
++
++- The error arrives about 100 ms after "New 15m bar closed", far below the 15 s timeout.
++- It is at the intrabar check, the first request after the bar-close evaluation.
++- It happens on almost every close (81 on 11/10), which a narrow timing race would not do.
++- The one startup case ("broker position unreadable (fetch failed)") is the same pattern: the first read after the warm-up evaluation.
++- 11/05 to 11/08 ran a different build against the same proxy with 0 errors.
++
++### What is not proven
++
++The length of the evaluation on Mac's server was not measured. On this rig the warm-up takes about 1 s, so the live block of 5 s or more is inferred from the pattern above. The new log line settles it: every failed call now logs how long the proxy had been silent, for example `[fetch] /api/History/retrieveBars failed: UND_ERR_SOCKET (5304 ms after the proxy's last answer)`. A value of 5000 ms or more confirms this cause.
++
++## 2. Fixes for the fetch failure
++
++| # | Where | What | Needs the proxy restart |
++|---|---|---|---|
++| 1 | `live-executor.js` `refreshAndEvaluate` | One event-loop turn after each evaluation (a 0 ms timer, then `setImmediate`). Node drops the closed connections before the next request. The evaluation result is returned untouched. | no |
++| 2 | `tmc-proxy.js` | `keepAliveTimeout` 75 s (was 5 s), `headersTimeout` 80 s. Connections now outlive the evaluation. This is the only fix that also protects an order call sent right after a long block. | **yes** |
++| 3 | `lib/bars.js` `rawPtxFetch` | A connection-level failure is retried once after 150 ms, on read-only paths only. | no |
++| 4 | `lib/bars.js`, `live-executor.js` | Logging and a counter (below). | no |
++
++### The retry rule
++
++Retried once, 150 ms later, only when the error is `TypeError: fetch failed` whose cause is `ECONNRESET`, `EPIPE`, `UND_ERR_SOCKET`, `ECONNREFUSED` or "other side closed". The second failure propagates.
++
++Exact retried paths (`RETRY_READ_PATHS`, exact match, anything else is not retried):
++
++- `/api/History/retrieveBars`
++- `/api/Position/searchOpen`
++- `/api/Order/search`
++- `/api/Order/searchOpen`
++- `/api/Account/search`
++- `/api/Trade/search`
++- `/api/Contract/search`
++
++`/api/Trade/search` and `/api/Contract/search` were not named in the brief. Both are read-only searches the bot already calls; say so if they should come off the list.
++
++Never retried: `/api/Order/place`, `/api/Order/cancel`, `/api/Order/modify` (not called by this code, tested anyway), `/api/Auth/loginKey`, `/api/Auth/validate`, and any path not on the list. Those keep one attempt and the same error as before, so the order machine's UNKNOWN and safe-exit handling is unchanged.
++
++Not treated as connection-level, so never retried even on a read path: a timeout, an abort, an HTTP status, `success: false`.
++
++### Logging and counter
++
++- Each failed call logs one line: `[fetch] <path> failed: <cause code> (<ms> after the proxy's last answer) - read-only path, retrying once in 150 ms` or `- not retried`. No token, no body.
++- "ERROR in loop (continuing)" now ends with `[fetch <path> cause <code>]`.
++- Phone snapshot, top level: `fetchFailures { lastHour, recoveredLastHour, lastAt, lastPath, lastCause, lastIdleMs }`. No alert is tied to it. It is in the snapshot, not in the health heartbeat file.
++
++## 3. Entry fill in the snapshot
++
++`fill: { price, t, orderId, source: 'FILL_OBSERVED' }` on each `recentTrades[]` row, on `levels.trade.open` and on each `levels.trade.today[]` row.
++
++- Source: the same note that writes the journal's `journal_receipt` FILL_OBSERVED row (`lib/liveStateMachine.js`, three call sites). The executor's journal writer hands that row to `lib/phoneSnapshot.js`.
++- The first observation per trade is kept. It is rebuilt from the journal file at startup.
++- `null` when no fill was observed for the row. `price` or `orderId` is `null` when the bot did not have it.
++- Added keys only.
++
++## 4. Terminal review fixes (`review/TERM-211-REVIEW.md`)
++
++### 4.1 Flatten ack order (D1)
++
++| Case | Before | Now |
++|---|---|---|
++| Bot halted, any phase | `APPLIED, ALREADY_FLAT` when the phase was FLAT | `REJECTED`, `HALTED: flatten in TopstepX ...` |
++| Bot flat, broker flat | `APPLIED, ALREADY_FLAT` without a broker read | `APPLIED, ALREADY_FLAT ... the broker position read says flat`, after a position read made for the request |
++| Bot flat, broker holds a position | `APPLIED, ALREADY_FLAT` | `REJECTED`, `NOT_FLAT_AT_BROKER: ... the broker shows SHORT 3 @ price ...` |
++| Bot flat, position unreadable | `APPLIED, ALREADY_FLAT` | `PENDING, POSITION_UNREADABLE`, kept and retried (the existing path) |
++| Acked APPLIED or PENDING with the position open, then the bot halts | no further ack | a second ack, same id: `REJECTED`, `HALTED: flatten in TopstepX - the bot halted before the position was flat`, `followUp: true` |
++
++- The change is in the executor's request handler and `lib/phoneRequests.js`. `flattenNow` in the order machine is untouched, so the daily floor and the time stop behave as before.
++- The broker read for a flat bot is one extra `Position/searchOpen` per flatten request.
++- A halted bot with a resting entry: `flattenNow` still runs its verified cancel as before; the ack now says `REJECTED HALTED` (it used to say `APPLIED, resting entry: verified cancel requested`).
++- A flat bot that finds a position at the broker only reports it. Adopting or closing it stays with the existing reconciliation.
++
++### 4.2 `openQty` while FLATTENING (D2)
++
++While FLATTENING the open size is now the size the exit order was sent for (`exitInFlight.size`, the broker position read at the send). Before it was `contracts - leg1 - leg2`: 1 of 3, or 0 on an all-at-TP1 trade.
++
++What reads `openQty`: only `lib/levelPanel.js` (the trade's `qty` tape and `levels.trade.open.openQty`, which also go into the saved trade replay record). No trading decision reads it. When no exit size is on record the old figure stays.
++
++### 4.3 Rule facts on the trade
++
++- `rule.session`: the session of the fill.
++- `rule.stopPts`, `rule.tp2AtrMult`: the ATR runner's numbers this trade got; `null` unless `runnerMode` is `atrTarget`. `rule.stopPts` is the runner's stop after TP1, not the initial stop.
++- `scorecard.earlyExit.pts { exit { n, sum, avg }, shadow { n, sum, avg } }`: points per contract the fired exits made (broker gross), and where the untouched plan ended.
++- The scorecard file gained four counters. A file written by edge r1.1 loads with its counts kept (tested); trades counted before this build have no points.
++
++Shapes: `edge2/SNAPSHOT-CONTRACT.md`, note dated 2026-11-11 05:10Z.
++
++## 5. Tests
++
++| Suite | edge r1.1 | edge r1.2 |
++|---|---|---|
++| test/fetch-retry.test.js (new) | - | **10/10** |
++| test/phone-snapshot.test.js | 15/15 | **24/24** (15 kept, 9 new) |
++| test/scorecard.test.js | 15/15 | **18/18** (15 kept, 3 new) |
++| tests/health-alerts-tests.js | 28/28 | **28/28** |
++| tests/edge1-tests.js | 79/79 | **79/79** |
++| exitsafe-tests.js | 63/63 | **63/63** |
++| r11-tests.js | 42/42 | **42/42** |
++| qa-tests-r11.js | 43/43 | **43/43** |
++| c5-tests.js (CL = config-off) | 25/25 | **25/25** |
++| reviewer file `review-edge1-tests.js` | 29/29 | **29/29** |
++
++- The three `node --test` suites also pass on Node 18.19.1 (52/52).
++- Existing tests edited, because the behaviour they pinned was changed on purpose: one phone-snapshot test (ALREADY_FLAT now needs the broker read) and three `ruleOf` equality checks in the scorecard suite (three added keys).
++- **Decision identity** against edge r1.1 on the edge1 script (`edge1-identity.js`): 96 trace entries each, **0 differ**.
++- **Repro as a test:** `node tests/fetchfail/repro.js --bars <r1.1 lib/bars.js> --proxy <r1.1 tmc-proxy.js> --turn 0 --expect fail` shows the failure; `node tests/fetchfail/repro.js` (this tree, 500 cycles) must show 0. Needs port 8787 free. Result of the 500-cycle run: **0 failed cycles of 500**, 0 failed attempts, 2,674 s.
++- **Boot:** one 60 s full-process boot on Node 18.19.1, the bot on Node's real `fetch` through the real `tmc-proxy.js` (r1.2) to the fake gateway. Warm-up complete, live loop entered, clean shutdown, no error line. Snapshot carries `fetchFailures` (all zero), `scorecard.earlyExit.pts`, `recentTrades: []`. Output: `botfix/edge12boot/out.txt`.
++
++Test results: `botfix/edge12-tests/results/`. Runner: `botfix/edge12-tests/run-all.sh`.
++
++## 6. Limits
++
++1. The live evaluation time is inferred, not measured (section 1). The first failed call after the install logs the idle time and confirms or refutes it.
++2. The boot was flat and did not cross a 15m close. The fill, the flatten follow-up and the FLATTENING size are unit-tested; their executor wiring has not seen a trade.
++3. Not run here, by instruction: the replay rig, the restart soak, the trade witness, the Mac-box cgroup run and the install path. They are the reviewer desk's ship gate.
++4. The proxy's 75 s keep-alive moves the stale-connection window instead of removing it: a block that straddles the 74 s to 75 s mark of an idle connection could still hit it. The loop turn and the read retry cover that case for reads.
++5. An order call sent on a dead connection is still not retried, by design. With the proxy restarted and the loop turn in place that situation should no longer arise after an evaluation; if it does, the order machine handles it as before.
++6. Other long synchronous blocks outside `refreshAndEvaluate` are not covered by the loop turn. The proxy change and the read retry cover them.
++7. The suites were run one at a time at nice 19 with a load gate, except one short re-run (three suites) that started while the load was above 2.5.
++
++## 7. Install note
++
++- Files changed: `live-executor.js`, `lib/bars.js`, `lib/phoneRequests.js`, `lib/phoneSnapshot.js`, `lib/scorecard.js`, `tmc-proxy.js`.
++- **Restart the proxy service as well as the bot.** Restarting the proxy drops the phone's and terminal's open connections for a moment.
++- Executor sha8: d0413a7c.
+diff --git a/lib/bars.js b/lib/bars.js
+index 1377410..888173f 100644
+--- a/lib/bars.js
++++ b/lib/bars.js
+@@ -15,19 +15,90 @@ const UNIT = { SECOND: 1, MINUTE: 2, HOUR: 3, DAY: 4, WEEK: 5, MONTH: 6 };
+ // connection over the ~49h weekly market closure silently died with nothing
+ // on either end to notice. AbortSignal.timeout() turns that into a normal
+ // rejected promise, which the caller's existing catch-and-retry handles.
+-async function rawPtxFetch(path, body, token) {
+-  const r = await fetch(PROXY_BASE + path, {
+-    method: 'POST',
+-    headers: {
+-      'Content-Type': 'application/json',
+-      Authorization: `Bearer ${token}`,
+-    },
+-    body: JSON.stringify(body),
+-    signal: AbortSignal.timeout(15000),
+-  });
++//
++// edge r1.2 (live finding 11/09-11/11: "TypeError: fetch failed" ~100 ms after most 15m closes; the first intrabar check was skipped each time).
++// Root cause, reproduced (EDGE-R12.md): Node's fetch keeps the proxy connections of the bar-close burst open for reuse; tmc-proxy.js closed an idle
++// connection after 5 s (Node's http default). The bar-close evaluation is one long synchronous block, so the bot's own "this connection is too old"
++// timer could not run; the next request went out on a connection the proxy had already closed -> UND_ERR_SOCKET "other side closed".
++//   1. CONNECTION-LEVEL failures (the request never got an answer because the socket was dead) are retried ONCE after 150 ms, on READ-ONLY paths only
++//      (RETRY_READ_PATHS, exact match, default deny). A timeout is NOT a connection-level failure and is never retried here.
++//   2. Order/place, Order/cancel, Order/modify, every Auth path and anything not on the list keep exactly the previous behaviour: one attempt, the
++//      error propagates (the order machine's own UNKNOWN / safe-exit handling decides). A state-changing call is never sent twice from here.
++//   3. Every failed attempt is counted (fetchFailureStats) and logged as path + cause code only (no token, no body).
++const RETRY_READ_PATHS = new Set([
++  '/api/History/retrieveBars',
++  '/api/Position/searchOpen',
++  '/api/Order/search',
++  '/api/Order/searchOpen',
++  '/api/Account/search',
++  '/api/Trade/search',
++  '/api/Contract/search',
++]);
++const CONN_CAUSE_CODES = new Set(['ECONNRESET', 'EPIPE', 'UND_ERR_SOCKET', 'ECONNREFUSED']);
++const CONN_RETRY_DELAY_MS = 150;
++// The cause code of a connection-level fetch failure, else null (HTTP statuses, timeouts, aborts, bad JSON = null).
++function connFailureCode(e) {
++  if (!e || e.name !== 'TypeError' || e.message !== 'fetch failed') return null;
++  const c = e.cause; if (!c || typeof c !== 'object') return null;
++  if (typeof c.code === 'string' && CONN_CAUSE_CODES.has(c.code)) return c.code;
++  if (typeof c.message === 'string' && /other side closed/i.test(c.message)) return typeof c.code === 'string' && c.code ? c.code : 'OTHER_SIDE_CLOSED';
++  return null;
++}
++// A short label for any transport failure: the cause code, else the error name (TimeoutError, AbortError, ...). Never the message of an HTTP body.
++function fetchCauseOf(e) {
++  const c = e && e.cause;
++  if (c && typeof c === 'object' && typeof c.code === 'string' && c.code) return c.code;
++  if (c && typeof c === 'object' && typeof c.message === 'string' && /other side closed/i.test(c.message)) return 'OTHER_SIDE_CLOSED';
++  return e && typeof e.name === 'string' && e.name ? e.name : 'UNKNOWN';
++}
++const fetchFail = { times: [], recovered: [], lastAt: null, lastPath: null, lastCause: null, lastIdleMs: null, lastAnswerAt: null };
++let fetchLog = null;   // set by the executor (setFetchLog); null = silent
++function setFetchLog(fn) { fetchLog = typeof fn === 'function' ? fn : null; }
++function noteFetchFailure(path, cause, t = Date.now()) {
++  fetchFail.times.push(t); if (fetchFail.times.length > 2000) fetchFail.times.shift();
++  fetchFail.lastAt = t; fetchFail.lastPath = path; fetchFail.lastCause = cause;
++  fetchFail.lastIdleMs = fetchFail.lastAnswerAt != null ? t - fetchFail.lastAnswerAt : null;   // how long since the proxy last answered anything (>= 5000 = the idle-connection case)
++}
++// For the health heartbeat / phone snapshot: failed fetch ATTEMPTS (transport level, not HTTP statuses) in the last hour, and the latest one.
++function fetchFailureStats(now = Date.now()) {
++  const since = now - 3600000, n = a => { let k = 0; for (let i = a.length - 1; i >= 0 && a[i] > since; i--) k++; return k; };
++  return { lastHour: n(fetchFail.times), recoveredLastHour: n(fetchFail.recovered), lastAt: fetchFail.lastAt, lastPath: fetchFail.lastPath, lastCause: fetchFail.lastCause, lastIdleMs: fetchFail.lastIdleMs };
++}
++function _resetFetchFailures() { fetchFail.times = []; fetchFail.recovered = []; fetchFail.lastAt = fetchFail.lastPath = fetchFail.lastCause = fetchFail.lastIdleMs = fetchFail.lastAnswerAt = null; }
++const fetchSleep = ms => new Promise(r => setTimeout(r, ms));
++async function rawPtxFetchOnce(path, body, token) {
++  let r;
++  try {
++    r = await fetch(PROXY_BASE + path, {
++      method: 'POST',
++      headers: {
++        'Content-Type': 'application/json',
++        Authorization: `Bearer ${token}`,
++      },
++      body: JSON.stringify(body),
++      signal: AbortSignal.timeout(15000),
++    });
++  } catch (e) {
++    // transport failure: tag it (path + cause code only) so every caller's log line can say what failed
++    try { e.fetchPath = path; e.fetchCause = fetchCauseOf(e); noteFetchFailure(path, e.fetchCause); } catch (_) { /* observation only */ }
++    throw e;
++  }
++  fetchFail.lastAnswerAt = Date.now();   // any HTTP answer: the connection worked
+   if (!r.ok) { const e = new Error(`${path} -> HTTP ${r.status}`); e.status = r.status; throw e; }
+   return r.json();
+ }
++async function rawPtxFetch(path, body, token) {
++  try { return await rawPtxFetchOnce(path, body, token); }
++  catch (e) {
++    const code = connFailureCode(e), retry = code != null && RETRY_READ_PATHS.has(path);
++    if (e && e.fetchPath && fetchLog) { try { fetchLog(`  [fetch] ${path} failed: ${e.fetchCause}${fetchFail.lastIdleMs != null ? ` (${fetchFail.lastIdleMs} ms after the proxy's last answer)` : ''}${retry ? ` - read-only path, retrying once in ${CONN_RETRY_DELAY_MS} ms` : ' - not retried'}`); } catch (_) { /* log only */ } }
++    if (!retry) throw e;
++    await fetchSleep(CONN_RETRY_DELAY_MS);
++    const d = await rawPtxFetchOnce(path, body, token);   // the second failure propagates (tagged and counted like the first)
++    fetchFail.recovered.push(Date.now()); if (fetchFail.recovered.length > 2000) fetchFail.recovered.shift();
++    return d;
++  }
++}
+ 
+ // 10/18 (live finding 10/15: token expired after 24 h -> every call 401, bot blind): when `token` is a lib/brokerAuth.js BrokerAuth, an HTTP 401
+ // re-logs in (rate-limited) and retries THIS call once. /api/Order/place is retried only after the broker's order lists prove the first attempt
+@@ -189,4 +260,5 @@ function htfClosedAt(htfBars, ts, barDurationMs) {
+   return result;
+ }
+ 
+-module.exports = { UNIT, unitDurationMs, fetchBars, fetchAllTimeframes, fetchFastTimeframes, EXTRA_FAST_TF, htfOpenAt, htfClosedAt, ptxFetch, rawPtxFetch };
++module.exports = { UNIT, unitDurationMs, fetchBars, fetchAllTimeframes, fetchFastTimeframes, EXTRA_FAST_TF, htfOpenAt, htfClosedAt, ptxFetch, rawPtxFetch,
++  RETRY_READ_PATHS, CONN_RETRY_DELAY_MS, connFailureCode, fetchCauseOf, fetchFailureStats, setFetchLog, _resetFetchFailures };
+diff --git a/lib/phoneRequests.js b/lib/phoneRequests.js
+index 9500ebe..14ce6ca 100644
+--- a/lib/phoneRequests.js
++++ b/lib/phoneRequests.js
+@@ -86,21 +86,46 @@ function createPhoneRequests({ dir, symbol, maxAgeMs = MAX_AGE_MS, now = () => D
+     return false;
+   }
+ 
++  // edge r1.2 (terminal review D1): a flatten that was acked APPLIED or PENDING while the position was still open is FOLLOWED. If the bot then halts
++  // before it is flat, one more ack goes out for the SAME request id: REJECTED HALTED, so the phone stops showing a confirmed flatten. A flat bot ends
++  // the follow silently (the broker read on the phone confirms it). One request is followed at a time (the newest).
++  let followed = null;
++  function follow(rq) { followed = rq && rq.id != null ? { id: rq.id, type: rq.type, requestedAt: rq.requestedAt, receivedAt: rq.receivedAt } : null; }
++  function followCheck({ halted, flat, why } = {}) {
++    if (!followed) return null;
++    if (halted === true) {
++      const rq = followed; followed = null;
++      return ack(rq, 'REJECTED', `HALTED: flatten in TopstepX - the bot halted before the position was flat${why ? ` (${String(why).slice(0, 120)})` : ''}; it sends no further order`, { followUp: true });
++    }
++    if (flat === true) followed = null;
++    return null;
++  }
+   function setJournal(fn) { journal = typeof fn === 'function' ? fn : null; }
+   function view() { return { lastAck, recent: acks.slice(), appliedAt: { ...appliedAt }, maxAgeMs, pollMs: 3000 }; }
+-  return { take, ack, requeue, pendingNew, sleepOrWake, view, setJournal, files };
++  return { take, ack, requeue, pendingNew, sleepOrWake, view, setJournal, files, follow, followCheck, following: () => (followed ? followed.id : null) };
+ }
+ 
+ // The ack for a flatten request from the phase before and after the bot's existing flatten path ran. LIVE phases are the state machine's.
+ // r1.1: `result` = flattenNow()'s return (the safe-exit sessionFlatten result): 'desynced' = the bot is halted and sent nothing; 'retry' = the exit is under way
+ // but no market order went out this poll (a protective order still resting, a rejected send in its backoff, or a lost reply that settled "still open"); the
+ // executor keeps driving it every poll until flat or halt. Without `result` (older callers) the texts are as before.
+-function flattenResult({ live, phaseBefore, phaseAfter, paperHad, result } = {}) {
++// edge r1.2 (terminal review D1): `halted` (the machine is halted / desynced, before or after the call) is checked BEFORE the phase: a halted bot always
++// answers REJECTED HALTED, whatever its phase (a halt latched across a restart leaves phase FLAT while the account can hold a position). ALREADY_FLAT is
++// answered only with `broker.flat === true` (a broker position read made for this request); a position at the broker while the bot is flat = REJECTED
++// NOT_FLAT_AT_BROKER with the position; no broker read given = REJECTED BROKER_NOT_CHECKED (never a green "already flat" on the bot's word alone).
++function posText(b) { return `${b.side || 'position'} ${Number.isFinite(b.size) ? b.size : '?'}${Number.isFinite(b.avgPrice) ? ' @ ' + b.avgPrice : ''}`; }
++function flattenResult({ live, phaseBefore, phaseAfter, paperHad, result, halted, broker } = {}) {
+   if (!live) return paperHad ? ['APPLIED', 'paper: the simulated position / resting order was cleared'] : ['APPLIED', 'ALREADY_FLAT: nothing to close (paper)'];
+-  if (phaseBefore === 'FLAT') return ['APPLIED', 'ALREADY_FLAT: the bot was flat; no order sent'];
++  if (halted === true || result === 'desynced') return ['REJECTED', `HALTED: flatten in TopstepX - the bot is halted by its exit-safety rule and sends no order (phase ${phaseAfter})`];
++  const flatAnswer = was => {
++    if (broker && broker.flat === true) return ['APPLIED', `ALREADY_FLAT: ${was} and the broker position read says flat; no order sent`];
++    if (broker && broker.flat === false) return ['REJECTED', `NOT_FLAT_AT_BROKER: the bot is flat but the broker shows ${posText(broker)}; no order sent - flatten in TopstepX`];
++    return ['REJECTED', 'BROKER_NOT_CHECKED: the bot is flat but the broker position was not read; no order sent - check TopstepX'];
++  };
++  if (phaseBefore === 'FLAT') return flatAnswer('the bot was flat');
+   if (phaseBefore === 'FLATTENING') return ['APPLIED', 'ALREADY_FLATTENING: an exit was already under way'];
+   if (phaseBefore === 'PENDING_ENTRY') return ['APPLIED', `resting entry: verified cancel requested (phase now ${phaseAfter})`];
+-  if (result === 'desynced') return ['REJECTED', `HALTED: the bot is halted by its exit-safety rule and sends no order - flatten in TopstepX (phase ${phaseAfter})`];
++  if (result === 'none') return flatAnswer('the position was already closed (leftover orders cancelled)');   // an open phase whose broker read was 0: the bot reset
+   if (result === 'retry') return ['APPLIED', `exit under way on the safe-exit rule: no market order this poll (protection still resting, a retry backoff or a settle); retried every poll until flat or halt (phase now ${phaseAfter})`];
+   return ['APPLIED', `market exit sent through the bot's flatten path (phase now ${phaseAfter})`];
+ }
+diff --git a/lib/phoneSnapshot.js b/lib/phoneSnapshot.js
+index a246c6f..0f88a26 100644
+--- a/lib/phoneSnapshot.js
++++ b/lib/phoneSnapshot.js
+@@ -38,7 +38,39 @@ function buildView() { return build ? { ...build } : null; }
+ const EXIT_ROW_CODES = new Set(['TP1_FILLED', 'TP2_OR_BE', 'RUNNER_STOPPED', 'STOP_FILLED', 'POSITION_CLOSED', 'PROFIT_LOCK_CASH', 'MARKET_EXIT', 'SMART_HOLD_EXIT', 'TIME_STOP',
+   'NO_PROGRESS_EXIT', 'NO_PROGRESS_ABANDONED', 'LEVEL_LOSS_EXIT', 'LEVEL_LOSS_ABANDONED', 'EARLY_ADVERSE_EXIT', 'EARLY_ADVERSE_ABANDONED', 'SESSION_FLATTEN', 'MORNING_FLATTEN', 'MANUAL_FLATTEN', 'FLATTEN_CONFIRMED']);
+ const byJid = new Map();
++// edge r1.2: the entry fill the bot OBSERVED, per journalId, from the same note that writes the journal's journal_receipt FILL_OBSERVED row
++// (lib/liveStateMachine.js). The first observation of a trade is kept (a later re-observation never rewrites it). Display only.
++const fillByJid = new Map();
++function indexFill(e) {
++  if (e.journalId === 'UNKNOWN' || fillByJid.has(e.journalId)) return;
++  const t = fin(e.recordedAt) ? e.recordedAt : fin(e.t) ? e.t : null, id = e.entryOrderId;
++  fillByJid.set(e.journalId, { price: fin(e.averagePrice) && e.averagePrice > 0 ? e.averagePrice : null, t,
++    orderId: (typeof id === 'number' && Number.isFinite(id)) || (typeof id === 'string' && id && id !== 'UNKNOWN') ? id : null, source: 'FILL_OBSERVED' });
++  while (fillByJid.size > 400) fillByJid.delete(fillByJid.keys().next().value);
++}
++// { price, t, orderId, source: 'FILL_OBSERVED' } or null (no fill observed for this journalId: a manual trade, an ambiguous match, an older journal).
++function fillOf(journalId) { const f = typeof journalId === 'string' && journalId ? fillByJid.get(journalId) : null; return f ? { ...f } : null; }
++// The Levels panel's trade rows (trade.open, trade.today[]) + fill, by each row's journalId. A copy; the panel object is not changed. Additive only.
++function withFills(panel) {
++  try {
++    if (!panel || typeof panel !== 'object' || !panel.trade || typeof panel.trade !== 'object') return panel;
++    const add = o => (o && typeof o === 'object' ? { ...o, fill: fillOf(o.journalId) } : o);
++    return { ...panel, trade: { ...panel.trade, open: add(panel.trade.open), today: Array.isArray(panel.trade.today) ? panel.trade.today.map(add) : panel.trade.today } };
++  } catch (e) { return panel; }
++}
++// edge r1.2: the open quantity the bot holds, for the Levels panel's trade tape (display / journal only). FLATTENING = the size the exit order was sent for
++// (exitInFlight.size: the broker position read at the send), until the flat is confirmed; with no such size (the stop closed it first, an older state) the
++// previous figure (contracts - leg1 - leg2) stays. Every other phase is unchanged.
++function openQtyOf(sm) {
++  if (!sm) return null;
++  if (sm.phase === 'LEG1_OPEN') return sm.contracts;
++  if (sm.phase === 'LEG23_OPEN') return sm.contracts - sm.leg1Size;
++  if (sm.phase === 'FLATTENING') { const x = sm.exitInFlight; if (x && fin(x.size) && x.size > 0) return x.size; return sm.contracts - sm.leg1Size - sm.leg2Size; }
++  if (sm.phase === 'LEG3_OPEN') return sm.contracts - sm.leg1Size - sm.leg2Size;
++  return null;
++}
+ function indexJournal(e) {
++  if (e && typeof e === 'object' && e.type === 'journal_receipt' && e.status === 'FILL_OBSERVED' && typeof e.journalId === 'string' && e.journalId) { indexFill(e); return; }
+   if (!e || typeof e !== 'object' || typeof e.journalId !== 'string' || !e.journalId || !fin(e.t)) return;
+   let code = null;
+   if (e.type === 'trade_manage' && EXIT_ROW_CODES.has(e.code)) code = e.code;
+@@ -147,5 +179,5 @@ function extras(base, ctx) {
+   out.phoneFields = 1;   // version of the botfix-B additive fields
+   return out;
+ }
+-function _reset() { build = null; byJid.clear(); fillGroups = new Map(); }
+-module.exports = { writeAtomic, write, setBuild, buildView, indexJournal, exitReasonOf, noteFills, moneyOf, brokerView, newsGateView, extras, _reset };
++function _reset() { build = null; byJid.clear(); fillByJid.clear(); fillGroups = new Map(); }
++module.exports = { writeAtomic, write, setBuild, buildView, indexJournal, exitReasonOf, fillOf, withFills, openQtyOf, noteFills, moneyOf, brokerView, newsGateView, extras, _reset };
+diff --git a/lib/scorecard.js b/lib/scorecard.js
+index 49477a2..7042cdf 100644
+--- a/lib/scorecard.js
++++ b/lib/scorecard.js
+@@ -70,10 +70,12 @@ function rulesView({ eae, runner, runnerNy, scaleOutOn, sessionNow, atr15Now, at
+ }
+ 
+ // ---- aggregates ----
++const EAE_PTS_KEYS = ['firedPtsN', 'firedPtsSum', 'shadowPtsN', 'shadowPtsSum'];   // edge r1.2: added counters; a scorecard file written before them loads with 0 (never thrown away)
+ function emptyAgg() {
+   const sess = f => Object.fromEntries(SESSIONS.map(s => [s, f()]));
+   return {
+-    eae: { fired: 0, passed: 0, unassessed: 0, logWouldExit: 0, firedNetUsd: 0, stop: 0, tp1: 0, unresolved: 0, pending: 0, estSavedUsd: 0 },
++    eae: { fired: 0, passed: 0, unassessed: 0, logWouldExit: 0, firedNetUsd: 0, stop: 0, tp1: 0, unresolved: 0, pending: 0, estSavedUsd: 0,
++      firedPtsN: 0, firedPtsSum: 0, shadowPtsN: 0, shadowPtsSum: 0 },   // edge r1.2: the same story in points per contract (EAE_PTS_KEYS)
+     runner: sess(() => ({ trades: 0, tp1Hits: 0, allAtTp1Count: 0, n: 0, tp2Hits: 0, stoppedAtPlus2: 0, sessionClosed: 0, other: 0, runnerNetUsd: 0, reached30: 0, runnerPtsSum: 0, runnerPtsN: 0 })),
+     tp1s: { n: 0, resolved: 0, unresolved: 0, pending: 0, plainUsd: 0, beUsd: 0, liveUsd: 0, liveMissing: 0, extraPlain: 0, extraBe: 0, pTp1: 0, pStop: 0, bTp1: 0, bStop: 0, bBe: 0 },
+     totals: sess(() => ({ trades: 0, wins: 0, fullStops: 0, netUsd: 0, grossUsd: 0, contracts: 0 })),
+@@ -86,7 +88,8 @@ function fold(a, r, ctx) {
+   const closed = !r.open;
+   // early exit
+   if (closed) {
+-    if (r.eae === 'fired') { a.eae.fired++; if (m && fin(m.netUsd)) a.eae.firedNetUsd += m.netUsd; }
++    if (r.eae === 'fired') { a.eae.fired++; if (m && fin(m.netUsd)) a.eae.firedNetUsd += m.netUsd;
++      if (m && fin(m.grossUsd) && fin(pv) && pv > 0 && r.contracts > 0) { a.eae.firedPtsN++; a.eae.firedPtsSum += m.grossUsd / (pv * r.contracts); } }   // edge r1.2: broker gross points per contract of the exit
+     else if (r.eae === 'passed') a.eae.passed++;
+     else if (r.eae === 'unassessed') a.eae.unassessed++;
+     else if (r.eae === 'log-would-exit') a.eae.logWouldExit++;
+@@ -97,6 +100,7 @@ function fold(a, r, ctx) {
+     else if (es.state === 'unresolved') a.eae.unresolved++;
+     else if (es.state === 'stop' || es.state === 'tp1') {
+       a.eae[es.state]++;
++      if (closed && fin(es.stopPts) && fin(es.tp1Pts)) { a.eae.shadowPtsN++; a.eae.shadowPtsSum += es.state === 'stop' ? -es.stopPts : es.tp1Pts; }   // edge r1.2: what the untouched plan ended at, in points
+       if (closed && m && fin(m.grossUsd) && fin(es.stopPts) && fin(es.tp1Pts) && fin(pv) && r.contracts > 0) {
+         const plan = es.state === 'stop' ? -es.stopPts * pv * r.contracts : es.tp1Pts * pv * r.contracts;
+         a.eae.estSavedUsd += m.grossUsd - plan;
+@@ -157,7 +161,10 @@ function viewOf(agg, ctx) {
+   const t = a.tp1s;
+   return {
+     earlyExit: { fired: a.eae.fired, passed: a.eae.passed, unassessed: a.eae.unassessed, logWouldExit: a.eae.logWouldExit, firedNetUsd: r2(a.eae.firedNetUsd),
+-      shadow: { wouldHaveHitStop: a.eae.stop, wouldHaveHitTp1: a.eae.tp1, unresolved: a.eae.unresolved, pending: a.eae.pending }, estSavedUsd: r2(a.eae.estSavedUsd) },
++      shadow: { wouldHaveHitStop: a.eae.stop, wouldHaveHitTp1: a.eae.tp1, unresolved: a.eae.unresolved, pending: a.eae.pending }, estSavedUsd: r2(a.eae.estSavedUsd),
++      // edge r1.2: points per contract. exit = what the fired exits actually made (broker gross; negative = lost); shadow = where the untouched plan ended (-stop or +TP1)
++      pts: { exit: { n: a.eae.firedPtsN, sum: r2(a.eae.firedPtsSum), avg: a.eae.firedPtsN > 0 ? r2(a.eae.firedPtsSum / a.eae.firedPtsN) : null },
++        shadow: { n: a.eae.shadowPtsN, sum: r2(a.eae.shadowPtsSum), avg: a.eae.shadowPtsN > 0 ? r2(a.eae.shadowPtsSum / a.eae.shadowPtsN) : null } } },
+     runner,
+     tp1AtrShadow: ctx.tp1Mode === 'log' ? { mode: 'log', n: t.n, resolved: t.resolved, unresolved: t.unresolved, pending: t.pending,
+       shadowNetUsd: { plain: r2(t.plainUsd), beAfter15: r2(t.beUsd) }, liveNetUsd: r2(t.liveUsd), liveNetUsdMissing: t.liveMissing,
+@@ -199,6 +206,7 @@ function createScorecard(opts) {
+         if (!o || typeof o !== 'object' || o.version !== VERSION || !fin(o.since) || !o.agg || !Array.isArray(o.recs)) why = 'the file does not have the scorecard shape';
+         else {
+           const base = emptyAgg();   // every counter must be a finite number, or the file is not trusted
++          if (o.agg.eae && typeof o.agg.eae === 'object') for (const k of EAE_PTS_KEYS) if (o.agg.eae[k] === undefined) o.agg.eae[k] = 0;   // edge r1.2: a file from edge r1.1 has no points counters yet
+           const okNum = (x, y) => Object.keys(y).every(k => (typeof y[k] === 'object' ? x && typeof x[k] === 'object' && okNum(x[k], y[k]) : x && fin(x[k])));
+           if (!okNum(o.agg, base)) why = 'a counter is missing or not a number';
+           else if (!o.recs.every(r => r && typeof r === 'object' && typeof r.id === 'string' && (r.dir === 1 || r.dir === -1) && fin(r.entry))) why = 'a trade record is malformed';
+@@ -239,7 +247,8 @@ function createScorecard(opts) {
+       if (ty !== 'runner_rule' && ty !== 'early_adverse_exit' && ty !== 'early_adverse_check' && ty !== 'tp1_atr_shadow' && !(ty === 'trade_manage' && e.code === 'EARLY_ADVERSE_ABANDONED')) return;
+       let f = facts.get(e.journalId);
+       if (!f) { f = {}; facts.set(e.journalId, f); while (facts.size > 400) facts.delete(facts.keys().next().value); }
+-      if (ty === 'runner_rule') { f.runnerMode = e.mode; if (fin(e.atr15)) f.atr15 = e.atr15; f.tp2 = fin(e.tp2) ? e.tp2 : null; if (e.session) f.session = e.session; }
++      if (ty === 'runner_rule') { f.runnerMode = e.mode; if (fin(e.atr15)) f.atr15 = e.atr15; f.tp2 = fin(e.tp2) ? e.tp2 : null; if (e.session) f.session = e.session;
++        f.stopPts = fin(e.stopPts) ? e.stopPts : null; f.tp2AtrMult = fin(e.tp2AtrMult) ? e.tp2AtrMult : null; }   // edge r1.2: the rule numbers THIS trade got
+       else if (ty === 'tp1_atr_shadow') { if (e.phase === 'open' && fin(e.atr15) && !fin(f.atr15)) f.atr15 = e.atr15; }
+       else if (ty === 'early_adverse_exit' && (e.result === 'expired' || e.decision === 'expired')) { f.eae = 'unassessed'; f.eaeAbandoned = true; f.eaeExpired = true; }   // edge r1.1 (S2): decided, never sent, expired - the rule did not act on this trade
+       else if (ty === 'early_adverse_exit') { f.eae = e.decision === 'exit' ? 'fired' : 'log-would-exit'; f.eaeAt = fin(e.closeAt) ? e.closeAt : null; f.eaePts = fin(e.pts) ? e.pts : null; f.eaeDecidedAt = fin(e.t) ? e.t : null;
+@@ -250,12 +259,16 @@ function createScorecard(opts) {
+   }
+   // The per-trade `rule` object of the snapshot. closed: the trade is over (no row can still arrive).
+   function ruleOf(journalId, closed) {
+-    if (typeof journalId !== 'string' || !journalId) return { runnerMode: null, atr15AtFill: null, tp2Price: null, earlyExit: null, earlyExitAt: null, earlyExitPts: null };
++    if (typeof journalId !== 'string' || !journalId) return { runnerMode: null, atr15AtFill: null, tp2Price: null, earlyExit: null, earlyExitAt: null, earlyExitPts: null, session: null, stopPts: null, tp2AtrMult: null };
+     const f = facts.get(journalId) || {}, mode = eaeMode();
++    // edge r1.2: session = the session of the fill (the runner_rule row, else the scorecard's own record of the trade); stopPts / tp2AtrMult = the ATR runner's numbers this trade got
++    let sess = SESSIONS.includes(f.session) ? f.session : null;
++    if (!sess && st) { const rec = st.recs.find(x => x.jid === journalId); if (rec && SESSIONS.includes(rec.session)) sess = rec.session; }
+     const ee = f.eae || (mode === 'off' ? 'off' : closed ? 'unassessed' : null);
+     const rm = f.runnerMode || 'live';
+     return { runnerMode: rm, atr15AtFill: fin(f.atr15) ? f.atr15 : null, tp2Price: rm === 'atrTarget' && fin(f.tp2) ? f.tp2 : null, earlyExit: ee,
+-      earlyExitAt: (ee === 'fired' || ee === 'passed' || ee === 'log-would-exit') && fin(f.eaeAt) ? f.eaeAt : null, earlyExitPts: (ee === 'fired' || ee === 'passed' || ee === 'log-would-exit') && fin(f.eaePts) ? f.eaePts : null };
++      earlyExitAt: (ee === 'fired' || ee === 'passed' || ee === 'log-would-exit') && fin(f.eaeAt) ? f.eaeAt : null, earlyExitPts: (ee === 'fired' || ee === 'passed' || ee === 'log-would-exit') && fin(f.eaePts) ? f.eaePts : null,
++      session: sess, stopPts: rm === 'atrTarget' && fin(f.stopPts) ? f.stopPts : null, tp2AtrMult: rm === 'atrTarget' && fin(f.tp2AtrMult) ? f.tp2AtrMult : null };
+   }
+ 
+   // ---- shadows ----
+diff --git a/live-executor.js b/live-executor.js
+index 6a4fbf2..dc5fc6c 100644
+--- a/live-executor.js
++++ b/live-executor.js
+@@ -36,7 +36,8 @@ const https = require('https');
+ const path = require('path');
+ const readline = require('readline');
+ const crypto = require('crypto');
+-const { fetchAllTimeframes, fetchFastTimeframes, fetchBars, ptxFetch, rawPtxFetch, UNIT, EXTRA_FAST_TF } = require('./lib/bars');
++const { fetchAllTimeframes, fetchFastTimeframes, fetchBars, ptxFetch, rawPtxFetch, UNIT, EXTRA_FAST_TF, fetchFailureStats, setFetchLog } = require('./lib/bars');
++setFetchLog(m => log(m));   // edge r1.2: a failed fetch logs its path + cause code (no token, no body)
+ const { BrokerAuth } = require('./lib/brokerAuth');   // 10/18: the broker token renews itself (live finding 10/15: blind after 24 h)
+ const { ptInfo } = require('./lib/helpers');
+ const { evaluateMacTrap } = require('./lib/macTrap');
+@@ -2530,7 +2531,15 @@ async function main() {
+     lastLevelsMinute = minute;
+   }
+   let lastLoggedTriggerTf; // last value logged by the [levels-trigger] line below (log on change only)
+-  async function refreshAndEvaluate({ fast = false } = {}) {
++  // edge r1.2 (the "fetch failed" after every 15m close): the evaluation below is one long synchronous block. While it runs, Node cannot notice that the
++  // proxy closed the idle connections of the fetch burst, and the next request would go out on a dead one. One full event-loop turn after the evaluation
++  // (a 0 ms timer, then setImmediate) lets Node drop those connections first. No decision input changes; the result is returned untouched.
++  async function refreshAndEvaluate(o) {
++    const r = await refreshAndEvaluateCore(o);
++    await new Promise(res => setTimeout(res, 0)); await new Promise(res => setImmediate(res));
++    return r;
++  }
++  async function refreshAndEvaluateCore({ fast = false } = {}) {
+     entryControlBoard = null; // Fail closed throughout refresh, including failed fetch/evaluation.
+     const displayRequestedAt = Date.now(), displayStarted = displayPerformance.now();
+     let htf, alignPoll = null;
+@@ -2939,7 +2948,7 @@ async function main() {
+       } catch (_) { /* journal only */ }
+     };
+     // Receipts must not evict economic reconciliation history or enter a legacy read-side index.
+-    if (event && event.type === 'journal_receipt') { let ok = false; try { fs.appendFileSync(TRADE_JOURNAL_FILE, JSON.stringify(event) + '\n'); ok = true; } catch (_) { /* receipt write only */ } if (ok) writeTerminal(); return; }
++    if (event && event.type === 'journal_receipt') { try { phoneSnap.indexJournal(event); } catch (e) { /* edge r1.2: display only (entry fill) */ } let ok = false; try { fs.appendFileSync(TRADE_JOURNAL_FILE, JSON.stringify(event) + '\n'); ok = true; } catch (_) { /* receipt write only */ } if (ok) writeTerminal(); return; }
+     journalHistory.push(event);
+     if (journalHistory.length > 200) journalHistory.shift();
+     indexTradeEvent(event);
+@@ -4929,7 +4938,9 @@ async function main() {
+       const c = openJournalContext || pendingJournalContext, px = livePx && Number.isFinite(livePx.price) && Number.isFinite(livePx.t) ? livePx : null;   // r8: a resting order carries its plan's journalId
+       // r10 (MacDot 6456332727): a price goes in only with its own read time (no fallback stamped now); the contract and the open quantity as the bot holds them
+       const sm = LIVE ? stateMachine : null, l1 = (o, k) => (o && o[k] != null ? o[k] : 1);
+-      const openQty = sm ? (sm.phase === 'LEG1_OPEN' ? sm.contracts : sm.phase === 'LEG23_OPEN' ? sm.contracts - sm.leg1Size : ['LEG3_OPEN', 'FLATTENING'].includes(sm.phase) ? sm.contracts - sm.leg1Size - sm.leg2Size : null)
++      // edge r1.2: while FLATTENING the open size is the size the bot's exit order was sent for (the broker position it read at the send), kept until the flat is
++      // confirmed. Before, FLATTENING always showed contracts - leg1 - leg2 (1 of 3, or 0 on an all-at-TP1 trade, during a market exit before TP1). Display / journal only.
++      const openQty = sm ? phoneSnap.openQtyOf(sm)
+         : position ? position.contracts - (position.leg1Closed ? l1(position, 'leg1Size') : 0) - (position.leg2Closed ? l1(position, 'leg2Size') : 0) : null;
+       for (const r of levelPanel.trade(t, { phase, markers: getDisplayMarkers(), px: px ? px.price : null, pxT: px ? px.t : null, journalId: c ? c.journalId : null,
+         entryTime: c ? c.entryTime : null, contracts: c ? c.contracts : null, openQty: Number.isFinite(openQty) ? openQty : null, contractId: (sm && sm.contractId) || (typeof contractId !== 'undefined' ? contractId : null) || null,
+@@ -4973,9 +4984,10 @@ async function main() {
+     const jid = t && typeof t.whyJournalId === 'string' && !t.whyAmbiguous ? t.whyJournalId : null, closed = !!(t && t.closed === true);
+     const er = closed ? phoneSnap.exitReasonOf(jid, { manualFlatten: !!t.manualFlatten }) : { exitReason: null, exitCode: null };
+     const gross = closed && Number.isFinite(t.grossPnl) ? Math.round(t.grossPnl * 100) / 100 : null, net = closed && Number.isFinite(t.netPnl) ? Math.round(t.netPnl * 100) / 100 : null;
+-    return { exitReason: er.exitReason, exitCode: er.exitCode, grossUsd: gross, feesUsd: gross != null && net != null ? Math.round((gross - net) * 100) / 100 : null, netUsd: net,
++    let fill = null; try { fill = phoneSnap.fillOf(jid); } catch (e) { fill = null; }   // edge r1.2: the entry fill the bot observed (journal_receipt FILL_OBSERVED); null = none recorded
++    return { fill, exitReason: er.exitReason, exitCode: er.exitCode, grossUsd: gross, feesUsd: gross != null && net != null ? Math.round((gross - net) * 100) / 100 : null, netUsd: net,
+       ptsPerContract: gross != null && pointValue > 0 && t.maxSize > 0 ? Math.round(gross / (pointValue * t.maxSize) * 100) / 100 : null,
+-      rule: score ? score.ruleOf(jid, closed) : { runnerMode: null, atr15AtFill: null, tp2Price: null, earlyExit: null, earlyExitAt: null, earlyExitPts: null } };
++      rule: score ? score.ruleOf(jid, closed) : { runnerMode: null, atr15AtFill: null, tp2Price: null, earlyExit: null, earlyExitAt: null, earlyExitPts: null, session: null, stopPts: null, tp2AtrMult: null } };
+   }
+   function scoreTradeRows(list) { try { return list.map(t => { try { return { ...t, ...scoreTradeRow(t) }; } catch (e) { return t; } }); } catch (e) { return list; } }
+   function scoreMoneyStep() {   // the day's closed round trips the bot already read, to the scorecard (unique journal matches only)
+@@ -4998,7 +5010,7 @@ async function main() {
+       const drawdownFloor = computeDrawdownFloor();
+       phoneSnap.write(BIAS_SNAPSHOT_FILE, {   // botfix-B: atomic (tmp + rename) + additive phone fields (phoneSnapExtras)
+         dayKey: currentDayKey, updated: Date.now(),
+-        levels: (() => { try { return CONFIG.levelsOnlyEntries ? levelPanel.snapshot(Date.now(), lastKnownClose, lvj, livePx && livePx.price === lastKnownClose ? livePx.barT : null, { retest: CONFIG.levelRetest === true }) : null; } catch (e) { return null; } })(),   // lv1 r5/r6: the phone Levels tab + the journal writer state (display only); r12.6: + the price's 1m bar time
++        levels: (() => { try { return CONFIG.levelsOnlyEntries ? phoneSnap.withFills(levelPanel.snapshot(Date.now(), lastKnownClose, lvj, livePx && livePx.price === lastKnownClose ? livePx.barT : null, { retest: CONFIG.levelRetest === true })) : null; } catch (e) { return null; } })(),   // lv1 r5/r6: the phone Levels tab + the journal writer state (display only); r12.6: + the price's 1m bar time
+         ...(CONFIG.srAreas === 'show' ? { srAreas: srAreasView(lastKnownClose) } : {}),   // sr-areas r1 (lv1 r13.6.3): display only - the phone's bands and card
+         mode: LIVE ? 'LIVE' : 'PAPER',
+         accountName: LIVE && account && typeof account.name === 'string' && account.name ? account.name : null,   // lv1 r13.3.4 (display only; Mac's phone header - an exporter must strip it)
+@@ -5033,6 +5045,7 @@ async function main() {
+           v.crossCheck = (dayFillsKnownFor === currentDayKey && dayTracker.state.dayKey === currentDayKey) ? dayTracker.crossCheck(dayPnlAllFills, lastAccountBalance) : null; return v; })() : null,
+         equity,
+         remainingDrawdown: (equity != null && drawdownFloor != null) ? equity - drawdownFloor : null,
++        fetchFailures: (() => { try { return fetchFailureStats(); } catch (e) { return null; } })(),   // edge r1.2 (display only): failed proxy calls { lastHour, recoveredLastHour, lastAt, lastPath, lastCause, lastIdleMs }
+         recentTrades: LIVE ? scoreTradeRows(enrichTradesWithJournal(recentTrades)) : [],   // edge r1.1: + exitReason / money / rule per row (new keys only)
+         // Fast-read preview wins when present — it's always at least as
+         // fresh as the last real close (cleared on every real close, only
+@@ -5874,6 +5887,8 @@ async function main() {
+   }
+ 
+   let flattenReadFails = 0;   // profittrail4
++  // edge r1.2 (display only, never throws): the follow-up ack of a followed flatten request. Runs every pass, and again when a pass fails.
++  function flattenFollowCheck() { try { if (LIVE && stateMachine) phoneReq.followCheck({ halted: stateMachine.desynced === true, flat: stateMachine.phase === 'FLAT', why: stateMachine._so1HaltWhy || null }); } catch (e) { /* ack only */ } }
+   health.attachJournal(appendJournal);   // bf-alerts r1: alert rows from startup are written now
+   // bf-alerts r1: one health note per loop pass (not LIVE = desynced / halted, broker auth failing, a failed pass; data staleness is judged in the lib)
+   function healthPass(err) { try { const sm = LIVE ? stateMachine : null; health.pass({ ok: !err, barT: livePx && livePx.barT,
+@@ -5940,19 +5955,31 @@ async function main() {
+         if (LIVE) watchLiveLifecycle(previousPhase);
+       } catch (e) { log('Entry cancel receipt unavailable: ' + e.message); }
+       // ── Manual flatten request from mobile.html, checked every poll cycle ──
++      flattenFollowCheck();   // edge r1.2: a flatten acked APPLIED / PENDING whose bot has since halted gets a REJECTED HALTED ack (same id)
+       const flatRq = fs.existsSync(FLATTEN_REQUEST_FILE) ? phoneReq.take('flatten') : null;   // botfix-B: consumed (deleted) first, as before; malformed / older than 60 s / duplicate id are rejected and acked
+       if (flatRq) {
+         log('MANUAL FLATTEN requested via mobile — executing now.');
+         if (LIVE) {
+           try { require('./lib/journalReceipts').attemptClose(stateMachine, 'flatten_request_file', 'UNKNOWN', 'FLATTEN_REQUEST_FILE consumer; file does not authenticate human actor'); } catch (_) { /* receipt only */ }
+-          const flatPh0 = stateMachine.phase;
+-          try { const flatRes = await stateMachine.flattenNow(); flattenReadFails = 0; phoneReq.ack(flatRq, ...require('./lib/phoneRequests').flattenResult({ live: true, phaseBefore: flatPh0, phaseAfter: stateMachine.phase, result: flatRes })); }
++          const flatPh0 = stateMachine.phase, flatHalt0 = stateMachine.desynced === true;
++          try {
++            const flatRes = await stateMachine.flattenNow(); flattenReadFails = 0;
++            // edge r1.2 (terminal review D1): halted is answered before the phase; "already flat" only with a broker position read made now that also says flat
++            // (flattenNow's own read counts when it found size 0). An unreadable position throws e.positionUnreadable: the request is kept and retried (below).
++            const flatHalted = flatHalt0 || stateMachine.desynced === true;
++            let flatBroker;
++            if (!flatHalted && flatPh0 === 'FLAT') { const bp = await getOpenPosition(token, account.id, contractId); flatBroker = bp && bp.size ? { flat: false, size: bp.size, side: bp.type === 1 ? 'LONG' : bp.type === 2 ? 'SHORT' : null, avgPrice: Number.isFinite(bp.averagePrice) ? bp.averagePrice : null } : { flat: true }; }
++            else if (!flatHalted && flatRes === 'none') flatBroker = { flat: true };
++            const flattenResult = a => require('./lib/phoneRequests').flattenResult({ ...a, halted: flatHalted, broker: flatBroker });
++            const flatAck = phoneReq.ack(flatRq, ...flattenResult({ live: true, phaseBefore: flatPh0, phaseAfter: stateMachine.phase, result: flatRes }));
++            if (flatAck.result === 'APPLIED' && stateMachine.phase !== 'FLAT') phoneReq.follow(flatRq); else phoneReq.follow(null);   // still open: a later halt is told to the phone under the same id; a final answer ends any earlier follow
++          }
+           catch (e) {
+             if (!e.positionUnreadable) { try { phoneReq.ack(flatRq, 'REJECTED', 'ERROR: ' + e.message); } catch (e2) { /* ack only */ } throw e; }
+             // profittrail4: the position could not be read, so nothing was cancelled or sent and the bot did NOT reset: keep the request and retry on the next poll
+             flattenReadFails++;
+             log(`  [live] MANUAL FLATTEN could not read the broker position (${e.message}) - nothing cancelled, stops stay resting; retrying in one poll (attempt ${flattenReadFails}).`);
+-            try { phoneReq.requeue(flatRq); phoneReq.ack(flatRq, 'PENDING', `POSITION_UNREADABLE: kept and retried next poll (attempt ${flattenReadFails})`); } catch (e2) { /* best effort */ }
++            try { phoneReq.requeue(flatRq); phoneReq.ack(flatRq, 'PENDING', `POSITION_UNREADABLE: kept and retried next poll (attempt ${flattenReadFails})`); phoneReq.follow(flatRq); } catch (e2) { /* best effort */ }
+             if (flattenReadFails === 1 || flattenReadFails % 5 === 0) notifyPhone('Flatten: cannot read the position', `Your flatten request could not read the broker position (${e.message}). Nothing was cancelled; the bot retries every poll. If this continues, flatten in TopstepX.`, { priority: 'urgent', tags: 'rotating_light' });
+           }
+         } else if (!(position || pending)) phoneReq.ack(flatRq, ...require('./lib/phoneRequests').flattenResult({ live: false, paperHad: false }));
+@@ -6354,7 +6381,8 @@ async function main() {
+       runFlagJob();   // 10/17 round 3 (QA R2-3): the display-only flag MAC run, AFTER every entry decision of this pass
+     } catch (e) {
+       passErr = e;   // bf-alerts r1
+-      log('ERROR in loop (continuing): ' + (e.stack || e.message));
++      flattenFollowCheck();   // edge r1.2
++      log('ERROR in loop (continuing): ' + (e.stack || e.message) + (e && e.fetchPath ? ` [fetch ${e.fetchPath} cause ${e.fetchCause}]` : ''));   // edge r1.2: + which call and the cause code
+       // 10/18: a pass that died on a broker-auth failure still refreshes the phone snapshot, so "BROKER AUTH FAILED" shows instead of a stale screen.
+       if (token.failing) { try { writeSnapshotFile(); } catch (e2) { /* display only */ } }
+     }
+diff --git a/tmc-proxy.js b/tmc-proxy.js
+index 2c4b9f3..0687749 100644
+--- a/tmc-proxy.js
++++ b/tmc-proxy.js
+@@ -648,6 +648,13 @@ const server = http.createServer((req, res) => {
+   });
+ });
+ 
++// edge r1.2 (2026-11-11): keep idle connections open for 75 s instead of Node's default 5 s. The bot (Node fetch) reuses its
++// connections; while its 15m bar-close evaluation ran (one long synchronous block) the 5 s default closed them under it, and
++// the bot's next call failed at once with "fetch failed" (other side closed) - one skipped intrabar check per 15m close.
++// headersTimeout must stay above keepAliveTimeout (Node's own rule).
++server.keepAliveTimeout = 75000;
++server.headersTimeout = 80000;
++
+ server.listen(PORT, () => {
+   console.log(`TMC proxy listening on http://localhost:${PORT}`);
+   console.log(`Forwarding /api/* -> https://${UPSTREAM_HOST}/api/*`);

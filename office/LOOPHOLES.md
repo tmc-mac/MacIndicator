@@ -24,11 +24,13 @@ Seeded 11/11 from the 11/11 edge studies (149 levels trades, 10/28-11/10, live j
 
 | Id | Leak | Evidence | Status | Next step |
 |---|---|---|---|---|
-| B-01 | One skipped fast check (about 20 s blind) at each 15m close: "fetch failed" | Per-day counts 0,0,0,0,10,81,17 since the 11/09 restore. Cause: proxy closes idle connections after 5 s while the bar-close evaluation blocks the bot | Fixed in edge r1.2 (in review, not installed) | Ship through the gate; confirm with the new idle-time log line |
+| B-01 | One skipped fast check (about 20 s blind) at each 15m close: "fetch failed" | Per-day counts 0,0,0,0,10,81,17 since the 11/09 restore. Cause: proxy closes idle connections after 5 s while the bar-close evaluation blocks the bot | Fixed in edge r1.2 (reviewed: ship with notes; sent to Mac 11/11) | After the install, count 'ERROR in loop' per day; the new log line gives the idle time |
 | B-02 | Flatten answered "already flat" from the bot's own state | Terminal 2.1.1 review | Phone side fixed in 2.1.3; bot side in edge r1.2 | Install r1.2 |
 | B-03 | Entry price shows UNKNOWN on the phone until Review is opened | Mac's 11/10 screenshot | Phone side fixed in 2.1.1; bot side (fill on the trade row) in edge r1.2 | Install r1.2 |
 | B-04 | The full ship gate (Mac-box run, restart soak) has not been run on the edge builds | Mac's "stop running replays & tests" (11/10) | **open** | Run it once on r1.2 in the reviewer desk; ask Mac before any long replay loop |
 | B-05 | Indicator and bot read the forming candle seconds apart | 0.03 residual on 11/11 after the parity switch | **observed**, accepted | Only if it flips a gate for more than a minute |
+| B-06 | After a restart the bot shows different levels from an uninterrupted run and skipped a short it otherwise takes | r1.2 restart soak, 11/02 window: the 14:46Z short was not taken after a 14:40Z restart. edge r1.1 does the same, so it is not new. Not established whether it is the rig or the bot | **observed** | Find out which. If it is the bot, every restart mid-session can cost trades |
+| B-07 | Flatten tapped while the bot is already flat and the broker position cannot be read: repeated urgent pushes | r1.2 review F1 (code trace, not reproduced). Alerts only, no orders; could use up the day's push allowance | **observed**, new in edge r1.2 | Fix in edge r1.3 |
 
 ## Objective risks (Mac's decisions)
 

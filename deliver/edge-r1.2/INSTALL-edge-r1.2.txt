@@ -1,0 +1,50 @@
+MAC - INSTALL "EDGE r1.2" on edge r1.1 (executor dd2fdc4a -> d0413a7c)   repo copy: server address removed
+=======================================================================================================
+What it changes:
+  1. "fetch failed" at each 15m close: fixed three ways. The phone server keeps connections open 75 s (was 5 s),
+     the bot lets dead connections drop after each evaluation, and a failed READ (bars, position, order lookups)
+     is retried once. Placing, cancelling and modifying orders are never retried.
+  2. Flatten answers: a halted bot always answers "REJECTED HALTED: flatten in TopstepX"; "already flat" is sent
+     only after a broker read says flat.
+  3. Phone data: the entry fill is on each trade row (no more "entry UNKNOWN" until Review is opened); the real
+     size shows while a trade is closing; rule facts per trade.
+Trading rules are exactly edge r1.1. No new settings: your control-parity setting and all others are untouched.
+Checked: independent reviewer says SHIP WITH NOTES. No order can be sent twice (33 of 33 tests); boot on a
+1-core / 961 MB box: warm-up 2.8 s, peak memory 378 MB; one real replay session placed both entries, stops and
+TP1s and matched edge r1.1 order for order; 3 restarts all came back live, one mid-trade; install, refused second
+install and byte-for-byte rollback tested on this exact zip.
+Known, fixed in the next build: if you tap Flatten while the bot is ALREADY flat and it cannot read the broker
+position, it sends repeated urgent pushes (alerts only, no orders). If that ever happens, stop tapping Flatten.
+
+Be FLAT in TopstepX. Put MacBot-edge-r1.2.zip in Downloads, open PowerShell:
+
+1) Check the file:
+  cd $env:USERPROFILE\Downloads
+  Get-FileHash .\MacBot-edge-r1.2.zip
+     (must start with ABD9F0A8)
+
+2) Copy it up and unpack:
+  scp .\MacBot-edge-r1.2.zip root@<server>:/root/
+  ssh root@<server> "mkdir -p /root/edge12 && cd /root/edge12 && python3 -m zipfile -e /root/MacBot-edge-r1.2.zip . && ls MacBot-edge-r1.2"
+
+3) Install the bot (type YES when asked):
+  ssh -t root@<server> "cd /root/edge12/MacBot-edge-r1.2 && MACBOT_DIR=/opt/mac-bot bash install-edge.sh tree"
+     You want at the end: "session stamp ... (executor d0413a7c" and "DONE". Keep the rollback line it prints.
+     If it says STOP, nothing was changed - send me the lines.
+
+4) Restart the phone server (its file changed; this is what makes the 75 s fix active):
+  ssh root@<server> "systemctl restart mac-bot-proxy.service && sleep 3 && systemctl is-active mac-bot-proxy.service"
+     You want: active
+     The bot may log one failed read during this restart; that one is expected.
+
+5) Check (wait 2 min):
+  ssh root@<server> "journalctl -u mac-bot-live --since '-5 min' --no-pager | grep -E 'session stamp|control score|Entering live loop|FATAL|unusable' | tail -8"
+     You want: "executor d0413a7c", "control score: Pine parity", "Entering live loop". No FATAL lines.
+
+6) Tomorrow, count the failures (should be 0 or close to it; it was about one per 15m close):
+  ssh root@<server> "journalctl -u mac-bot-live --since today --no-pager | grep -c 'ERROR in loop'"
+     If any remain, send me:  journalctl -u mac-bot-live --since today --no-pager | grep '\[fetch\]' | tail -5
+
+ROLLBACK to edge r1.1 (flat first): run the rollback line step 3 printed, as
+  ssh -t root@<server> "bash <BACKUP-FOLDER>/rollback-edge.sh <BACKUP-FOLDER>"
+  then restart the phone server again (step 4) so it runs the old file.
