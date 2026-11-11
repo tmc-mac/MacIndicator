@@ -1,0 +1,18 @@
+page /tmp/claude-0/-home-user-MacIndicator/381b1833-c8be-58a5-b27d-e767976714fe/scratchpad/term213/mobile.html
+FAILURES:
+  flatten / success @1 s: SENT with the PT time: SENT Flatten sent 12:51:37 PM PT inferred No answer from the bot yet · broker position UNKNOWN Broker position UNKNOWN: this bot build sends no broker read. This bot build does not confirm requests yet: the result will be read from the snapshot’s effect. Clear
+  flatten / success @1 s: state: got "NOANSWER", want "SENT"
+  flatten / success @30 s: APPLIED from the snapshot: SENT Flatten sent 12:51:37 PM PT inferred No answer from the bot yet · broker position UNKNOWN Broker position UNKNOWN: this bot build sends no broker read. The bot’s own state shows no open position: that is not a confirmation. Clear
+  flatten / success @30 s: state: got "NOANSWER", want "APPLIED"
+  flatten / http-failure: the new send has its own receipt: SENT Flatten sent 12:52:07 PM PT inferred No answer from the bot yet · broker position UNKNOWN Broker position UNKNOWN: this bot build sends no broker read. This bot build does not confirm requests yet: the result will be read from the snapshot’s effect. Clear
+  flatten / no-answer: the new send has its own receipt: SENT Flatten sent 12:52:07 PM PT inferred No answer from the bot yet · broker position UNKNOWN Broker position UNKNOWN: this bot build sends no broker read. This bot build does not confirm requests yet: the result will be read from the snapshot’s effect. Clear
+  flatten / not-applied @1 s: SENT with the PT time: SENT Flatten sent 12:51:37 PM PT inferred No answer from the bot yet · broker position UNKNOWN Broker position UNKNOWN: this bot build sends no broker read. This bot build does not confirm requests yet: the result will be read from the snapshot’s effect. Clear
+  flatten / not-applied @1 s: state: got "NOANSWER", want "SENT"
+  flatten / not-applied @30 s: still SENT, not yet late: got "NOANSWER", want "SENT"
+  flatten / not-applied @55 s: a late effect still turns it APPLIED: got "NOANSWER", want "APPLIED"
+  model: a snapshot older than the send never counts as applied: got "NOANSWER", want "SENT"
+  model: flat on a newer snapshot = applied: got "NOANSWER", want "APPLIED"
+  model: still open = sent: got "NOANSWER", want "SENT"
+  model: position not sent = cannot tell, not applied: got "NOANSWER", want "SENT"
+
+control-receipts-210: 305 passed, 14 failed (4 controls x success / HTTP failure / no answer / not applied in 45 s, painted at 1 s and 30 s; hold prototype; restart hint)

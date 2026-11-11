@@ -1,0 +1,16 @@
+page /tmp/claude-0/-home-user-MacIndicator/381b1833-c8be-58a5-b27d-e767976714fe/scratchpad/term213/mobile.html
+15e5d96fb7195ee4d670ab3eb87b6ebb2768f7d7f8a3db36d7c5e66826c477dd  /tmp/claude-0/-home-user-MacIndicator/381b1833-c8be-58a5-b27d-e767976714fe/scratchpad/term213/mobile.html
+ca09398940186902140d1349ab5df01e40d5a269c24a76efbd733b601f856a67  /tmp/claude-0/-home-user-MacIndicator/381b1833-c8be-58a5-b27d-e767976714fe/scratchpad/m207/pin-20910-preview/mobile.html
+ff2e4b760deeeee7e2de4c0ead3b7714550ca8434ee17a7a572afc925bce1343  /tmp/claude-0/-home-user-MacIndicator/381b1833-c8be-58a5-b27d-e767976714fe/scratchpad/term212/mobile.html
+node v22.22.0
+fdea55dddf197ddd42208ad3c18c8b1f42d8dc82126efe7df76854d12d941619  replay-smooth-ab-211.test.cjs
+8408cc7b0df7917ed703bef88478c29823f29745ad1a85603d29d1210c8a404f  shots-213.cjs
+4a1e2b0ebcf74c0ae2200bab47b43af1780534e37924b7d02b121882bf806e5f  surfaces-213.test.cjs
+af91ddacf878b8da9a460c380a29a7b059e34c104e32811de5bcaed73d44429f  t211-common.cjs
+ce71c56892019ad9fef8ed748554ac531f1bd320e29ad1a57dd1d9711075b7e6  gate-213.sh
+81c0ebe7bba8aefdf7aadb10506e801fff10d248a68e452b9c739deda52db9f5  fixtures-211.py
+d54e85ce9ff8ed4c040a9b59ab7b45ac272ab66bcbcdcbe02e21665b81c80269  updated211/cascade-210.test.cjs
+281d00c2954d36db9d9ecd554ca3c17f40e54daea3600c17574773c3e3c497b7  updated211/control-receipts-210.test.cjs
+b8a6a4a409a62da4d2923a90430009f7f6011044076b6a22d02d5d4d30ce9eb6  updated211/fixes-qa-210.test.cjs
+ae298afd043083e6f9921b663c3c38f3b65159b471bef11e5a43b85aab9fd623  updated211/surfaces-210.test.cjs
+6724897b4a5c14fbcaffe1b406aac18b63d6b8710ddde688d150f05023fc81c0  updated211/t210-common.cjs

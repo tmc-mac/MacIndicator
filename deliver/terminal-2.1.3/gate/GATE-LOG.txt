@@ -1,0 +1,7 @@
+50-surfaces-213 05:43:45Z load 1.70  exit 0  | surfaces-213: 569 passed, 0 failed (stamps / broker truth / ack receipts / rule lines / market now / scorecard: present, absent, stale, mismatch; n = 0, small, normal; 36
+33v-control-receipts-210-spec211 05:47:04Z load 3.57  exit 1  | control-receipts-210: 305 passed, 14 failed (4 controls x success / HTTP failure / no answer / not applied in 45 s, painted at 1 s and 30 s; hold prototype; restart hint)
+31v-surfaces-210-spec211 05:48:56Z load 2.88  exit 0  | surfaces-210: 235 passed, 0 failed (six surfaces x fresh / stale / missing, painted output; browser time zone Asia/Tokyo)
+13d-requests-vs-212 05:49:50Z load 3.16  exit 0  | DROP1 REQUESTS: IDENTICAL
+12-control-identity-vs-20910 05:51:37Z load 0.74  exit 0  | control-identity-210: 92 passed, 0 failed (base sha256 ca0939894018, 4 states)
+11-budgets-210 05:52:03Z load 0.91  exit 0  | budgets-210: 912 passed, 0 failed (3 states x 360 / 390 / 428 x dark / light x 7 tabs; browser time zone Asia/Tokyo)
+GATE DONE 05:54:18Z

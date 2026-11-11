@@ -1,0 +1,31 @@
+A receipt @60 s :: NOT FLAT Flatten bot answered 12:51:40 PM PT NOT FLAT: broker shows SHORT 3 · flatten in TopstepX Broker read 12:52:35 PM PT: SHORT 3 @ 28,143.25 Bot answered: already flat: the bot was flat; no order sent. 56 s later its broker r
+A broker card @60 s :: Broker truthLIVESHORT 3 @ 28,143.25Opened 12:47 PM PT.stop BUY28,193.25qty 3set 12:47 PM PTTP1 BUY28,128.25qty 2set 12:4
+A ok :: receipt says BOT CONFIRMED Flatten / already flat while Broker truth shows SHORT 3; the receipt does not mention the open position
+B receipt @90 s, bot halted, position still SHORT 3 :: NOT FLAT Flatten bot answered 12:51:40 PM PT NOT FLAT: broker shows SHORT 3 · flatten in TopstepX Broker read 12:53:05 PM PT: SHORT 3 @ 28,143.25 Bot answered: exit under way on the safe-exit rule: no market order this poll (protection still resting, a retry b
+B ok :: headline stays BOT CONFIRMED 90 s after a flatten that sent no market order, with the position still open and the bot DESYNCED
+C same entry, new tap 1 s ago, only OLD acks (5 min old) in requests.recent :: {"staleMatched":false,"oldAppliedMatched":false,"state":"SENT","line":"waiting for the bot to confirm (it checks about every 3 s)"}
+C ok :: an older ack with the same cancel id is taken for the new tap (the match ignores requestedAt)
+D receipt after a reload + ack :: ""
+E :: POSTs 1 -> 2; ids differ true; ack for the first id only -> state NOANSWER
+F bot restarted, no ack, 50 s :: NOT FLAT Flatten sent 12:51:37 PM PT waiting for the bot NOT FLAT: broker shows SHORT 3 · flatten in TopstepX Broker read 12:52:25 PM PT: SHORT 3 @ 28,143.25 No answer from the bot 48 s after the tap.
+G halted refusal with -10 min bot clock :: BOT REFUSED Flatten bot answered 12:41:37 PM PT REFUSED: bot halted · flatten in TopstepX Bot: bot halted: the bot is halted by its exit-safety rule and sends no order - flatten in TopstepX (phase LEG1_OPEN) sent 12:51:37 PM PT bot received 12:41:37 PM PT refu
+G state :: REFUSED
+G2 no ack, appliedAt.flatten 5 min "after" the tap (bot clock ahead), position still open :: SENT Flatten sent 12:51:37 PM PT waiting for the bot No answer from the bot yet · broker shows SHORT 3 Broker read 12:51:28 PM PT: SHORT 3 @ 28,143.25 (read bef
+H openQty fixture 3 -> 1 (FLATTENING before TP1, broker still 3) :: Broker truth LIVE MISMATCH the bot’s own state and its broker read disagree on the qty. Check TopstepX. broker read SHORT 3 @ 28,143.25 bot’s own state SHORT 1 @ 28,143.25 SHORT 3 @ 28,143.25 Opened 1
+FINDING H :: false MISMATCH "Check TopstepX" during every market exit before TP1
+H2 openQty 0 (all-at-TP1 trade flattening) :: Broker truth LIVE MISMATCH the bot’s own state and its broker read disagree on the qty. Check TopstepX. broker read SHOR
+I position read 59 s old :: LIVE
+I position read 61 s old :: STALE
+J halted 2 min, last position read 130 s old :: Broker truth STALE · 2 min old The bot reports DESYNCED: check TopstepX. SHORT 3 @ 28,143.25 Opened 12:47 PM PT. stop BUY 28,193.25 qty 3 set 12:47 PM PT TP1 BUY 28,128.25 qty 2 set 12:47 PM PT TP2 BUY 27,979.25 qty 1 set 12:47 PM PT Source
+K early exit, fired 25, 3 resolved :: Early exit n = 3 with a known ending, of 25 fired · too few to judge fired 25 of 67 closed trades with the rule on saved estimate +$180.00 vs the original plan, on the 3 with a known ending; costs left out net of the fired trades -$1,612.80 broker net, n = 25 
+K ok :: a HELPED / HURT verdict is printed on 3 resolved shadows because the small-n test reads fired (25), not the resolved count
+K shadow $ labelled estimate :: true | "estimate" count 3
+K0 n = 0 :: NaN/Infinity false | too few 4 | Rule scorecard is each rule making or losing money LIVE since Mon Nov 2 12:41 PM PT Early exit n = 0 with a known ending, of 0 fired · too few to judge fired 0 of 0 closed trades with the rule on save
+L now row 0 :: ▼ SHORT 3x @ 28143.25 12:35 PM PT QL 28,232.25 swept, closed back; 5m trigger TP1 + runner rule NY runner · stop +2 · target +164 (2×ATR 82) · stopped +2 · early-exit check passed gross +$99.50 fees $3.66 net +$95.84 ▲ Win: +$95.8
+L now row 1 :: ▼ SHORT 3x @ 28267.75 12:15 PM PT 1H Open 28,322.00 swept, closed back; 5m trigger rule Early exit · never worked · −10.25 pts gross −$61.50 fees $3.66 net −$65.16 ▼ Loss: −$65.16 −10.25 pts/ct (bot) broker net Why?
+L now row 2 :: ▼ SHORT 3x @ 28311.00 12:10 PM PT 1H Open 28,322.00 swept, closed back; 5m trigger TP1 · all 3 out rule All out at TP1 · early-exit check passed gross +$80.00 fees $3.66 net +$76.34 ▲ Win: +$76.34 +13.33 pts/ct (bot) broker net Wh
+L now row 3 :: ▼ SHORT 3x @ 28555.50 10:23 AM PT CMO 28,587.00 swept, closed back; 5m trigger TP1 + runner rule No-progress exit · early-exit check passed gross +$77.50 fees $3.66 net +$73.84 ▲ Win: +$73.84 +12.92 pts/ct (bot) broker net Why?
+L levels row 0 :: {"t":"12:35 PM QL ▼ SHORT 28,143.25 broker avg chart not available: 1 price read closed 12:41 PM · +16.58 pts/ct (bot, broker gross ÷ contracts) · net +95.84 · best R UNKNOWN (no observed entry price) · 6 min from the broker entry fill · tap to chart / replay ▲ Win:","fx":"5","spark":"none"}
+L levels row 1 :: {"t":"12:15 PM 1H Open ▼ SHORT 28,267.75 broker avg chart not available: 1 price read closed 12:21 PM · −10.25 pts/ct (bot, broker gross ÷ contracts) · net -65.16 · best R UNKNOWN (no observed entry price) · 6 min from the broker entry fill · tap to chart / replay ▼","fx":"5","spark":"none"}
+L levels row 2 :: {"t":"12:10 PM 1H Open ▼ SHORT 28,311.00 broker avg too short to chart (41 s) closed 12:11 PM · +13.33 pts/ct (bot, broker gross ÷ contracts) · net +76.34 · best R UNKNOWN (no observed entry price) · 41 s from the broker entry fill · tap to chart / replay ▲ Win: +$7","fx":"6","spark":"none"}
+L levels row 3 :: {"t":"10:23 AM CMO ▼ SHORT 28,555.50 broker avg chart not available: 1 price read closed 10:27 AM · +12.92 pts/ct (bot, broker gross ÷ contracts) · net +73.84 · best R UNKNOWN (no observed entry price) · 4 min from the broker entry fill · tap to chart / replay ▲ Win","fx":"5","spark":"none"}

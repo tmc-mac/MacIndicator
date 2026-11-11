@@ -1,0 +1,51 @@
+R1a @3 s FLATTENING, broker read older than the ack :: ACCEPTED | BOT ANSWERED Flatten bot answered 12:51:40 PM PT Bot answered: market exit sent through the bot’s flatten path (phase now FLATTENING) · waiting for the broker to show FLAT Broker read 12:51:28 PM PT: SHORT 3 @ 28,143.25 (read before the bot answered) sent 12:51:37 PM PT bot received 12:51:39 PM PT bot answered 12:51:40 PM PT bro
+R1a card :: {"mm":null,"cl":"1","t":"Broker truth LIVE closing: bot is exiting, broker still shows 3 SHORT 3 @ 28,143.25 Opened 12:47 PM PT. stop BUY 28,193.25 qty 3 set 12:47 PM PT TP1 BUY 28,128.25 qty 2 set 12:47 PM PT TP2 BUY 27,979.25 qty 1 s"}
+R1a ok :: amber receipt, card closing without MISMATCH
+R1b @5 s broker read after the ack, still SHORT 3 :: ACCEPTED | BOT ANSWERED Flatten bot answered 12:51:40 PM PT Bot answered: market exit sent through the bot’s flatten path (phase now FLATTENING) · waiting for the broker to show FLAT Broker read 12:51:41 PM PT: 
+R1b ok :: still amber inside 20 s
+R1c @8 s bot FLAT, broker FLAT read after the ack :: CONFIRMED | BOT CONFIRMED Flatten confirmed 12:51:44 PM PT Market exit sent through the bot’s flatten path (phase now FLATTENING) · broker showed FLAT at 12:51:44 PM PT sent 12:51:37 PM PT bot received 12:51:39 PM PT bot answered 12:51:40 PM PT broker showed FLAT 12:51:44 PM PT Clear
+R1c card :: {"mm":null,"cl":null,"t":"Broker truth LIVE FLAT The broker holds no position. No working orders. Source: the bot’s own read of the broker. Orders read 12:51:44 PM PT. broker position read 12:51 PM PT · 1 s ago"}
+R1c ok :: green only now
+R8 @10 min, receipt not cleared, the bot holds its NEXT trade LONG 3 :: CONFIRMED | BOT CONFIRMED Flatten confirmed 12:51:44 PM PT Market exit sent through the bot’s flatten path (phase now FLATTENING) · broker showed FLAT at 12:51:44 PM PT sent 12:51:37 PM PT bot received 12:51:39 PM PT bot answered 12:51:40 PM PT broker showed FLAT 12:51:44 PM PT Clear
+R8 copy under the position card :: BOT CONFIRMED Flatten confirmed 12:51:44 PM PTMarket exit sent through the bot’s flatten path (phase now FLATTENING) · broker showed FLAT at 12:51:44 PM PTsent 12:51:37 PM PTbot received 12:51:39 PM P
+R8 ok :: a flatten that WAS confirmed flat turns red "NOT FLAT ... flatten in TopstepX" when the bot opens its next trade
+R2 @3 s halted across a restart (DESYNCED, phase FLAT), ALREADY_FLAT, broker SHORT 3 :: NOTFLAT | NOT FLAT Flatten bot answered 12:51:40 PM PT NOT FLAT: broker shows SHORT 3 · flatten in TopstepX Broker read 12:51:28 PM PT: SHORT 3 @ 28,143.25 (read before the bot answered) Bot answered: already flat: the bot was flat; no order sent. The bot is DESYNCED: its answer is not a confirmation. sent 12:51:37 PM PT bot received 12:5
+R2 ok :: red at once
+R2b @3 s SCANNING, ALREADY_FLAT, broker SHORT 3 (old read) :: ACCEPTED | BOT ANSWERED Flatten bot answered 12:51:40 PM PT Bot answered: already flat: the bot was flat; no order sent · waiting for the broker to show FLAT Broker read 1
+R2b @21 s read 17.5 s after the ack :: ACCEPTED
+R2b @25 s read 21.5 s after the ack :: NOTFLAT | NOT FLAT Flatten bot answered 12:51:40 PM PT NOT FLAT: broker shows SHORT 3 · flatten in TopstepX Broker read 12:52:01 PM PT: SHORT 3 @ 28,143.25 Bot answered: 
+R3 @20 s no ack, bot restarted halted (DESYNCED, bot state FLAT), broker SHORT 3 :: NOTFLAT | NOT FLAT Flatten sent 12:51:37 PM PT waiting for the bot NOT FLAT: broker shows SHORT 3 · flatten in TopstepX Broker read 12:51:55 PM PT: SHORT 3 @ 28,143.25 No answer from the bot, and the bot is DESYNCED. sent 12:51:37 PM PT bot received … result … Clear
+R3 @70 s :: NOTFLAT | NOT FLAT Flatten sent 12:51:37 PM PT waiting for the bot NOT FLAT: broker shows SHORT 3 · flatten in TopstepX Broker read 12:52:45 PM PT: SHORT 3 @ 28,143.25 No answer from the bot, and the bot is DES
+R3 ok :: with no ack the 2.1.0 inference still paints APPLIED from the bot's own state while the broker read shows SHORT 3 and the bot is DESYNCED
+R4a FLAT read 100 ms BEFORE the ack :: ACCEPTED | BOT ANSWERED Flatten bot answered 12:51:40 PM PT Bot answered: market exit sent through the bot’s flatten path (phase now FLATTENING) · waiting for the broker to show FLAT Broker read 12:51:40 PM PT: FLAT (read before th
+R4a2 FLAT read at the SAME ms as the ack :: ACCEPTED
+R4b FLAT read after the ack, bot DESYNCED :: NOTFLAT | NOT FLAT Flatten bot answered 12:51:40 PM PT NOT CONFIRMED: the bot is DESYNCED · check TopstepX Broker read 12:51:45 PM PT: FLAT Bot answered: market exit sent through the bot’s flatten path (phase n
+R4c newer read time but no position in the block :: ACCEPTED | BOT ANSWERED Flatten bot answered 12:51:40 PM PT Bot answered: market exit sent through the bot’s flatten path (phase now FLATTENING) · waiting for the broker to show FLAT Broker position UNKNOWN: the
+R4d no broker block :: ACCEPTED | BOT ANSWERED Flatten bot answered 12:51:40 PM PT Bot answered: market exit sent through the bot’s flatten path (phase now FLATTENING) · waiting for the broker to show FLAT Broker position UNKNOWN: thi
+R4e positionReadAt null, readAt (orders) newer, side FLAT (cannot be written by brokerView: position is null when there is no position read) :: CONFIRMED
+H live FLATTENING before TP1, openQty 0, broker 3 :: {"mm":null,"cl":"1"} Broker truth LIVE closing: bot is exiting, broker still shows 3 SHORT 3 @ 28,143.25 Opened 12:47 PM PT. stop BUY 28,193.25 qty 3 set 12:47 PM PT TP1 BUY 28,128.25 qty 2 set 12:47 PM PT TP2 B
+H-live ok :: no MISMATCH with the snapshot the live bot writes
+H live FLATTENING, openQty 1 :: {"mm":null,"cl":"1"} Broker truth LIVE closing: bot is exiting, broker still shows 3 SHORT 3 @ 28,143.25 Opened 12:47 PM PT. stop BUY 28,193.25 qty 3 set 12:47 PM PT TP1 BUY 28,128.25 qty 2 set 12:47 PM PT TP2 B
+H-live1 ok :: 
+H AUTH_FAILED masks the status; position.flattening + phase remain :: {"mm":null,"cl":"1"} Broker truth LIVE closing: bot is exiting, broker still shows 3 SHORT 3 @ 28,143.25 Opened 12:47 PM PT. stop BUY 28,193.25 qty 3 set 12:47 PM PT TP1 BUY 28,128.25 qty 2 set 12:47 PM PT TP2 B
+H-auth ok :: 
+H side differs while FLATTENING (broker LONG 3) :: {"mm":"side","cl":null} Broker truth LIVE MISMATCH the bot’s own state and its broker read disagree on the side. Check TopstepX. broker read LONG 3 @ 28,143.25 bot’s own state SHORT 0 @ 28,143.25 LONG 3 @ 28,143.25
+H-side ok :: side difference must still flag
+H broker FLAT while the bot is still FLATTENING (fill seen by the read first) :: {"mm":"position","cl":null} Broker truth LIVE MISMATCH the bot’s own state and its broker read disagree on the position. Check TopstepX. broker read FLAT bot’s own state SHORT 0 @ 28,143.25 FLAT The broker holds no pos
+H-flatfirst :: MISMATCH (position) shown
+H qty differs, NOT exiting (IN_POSITION, LEG1_OPEN) :: Broker truth LIVE MISMATCH the bot’s own state and its broker read disagree on the qty. Check TopstepX. broker read SHOR
+H-noexit ok :: a qty difference while not exiting must still flag
+H stuck: bot halted (DESYNCED) with phase FLATTENING for 5 min, broker still 3 :: Broker truth LIVE closing: bot is exiting, broker still shows 3 The bot reports DESYNCED: check TopstepX. SHORT 3 @ 28,143.25 Opened 12:47 PM PT. stop BUY 28,193.25 qty 3 set 12:47 PM PT TP1 BUY 28,128.25 qty 2 set 12:47 PM PT TP2
+C tap2_onlyOldStale :: SENT | waiting for the bot to confirm (it checks about every 3 s) [waiting for the bot]
+C tap2_ownAck :: CONFIRMED | cancelled: verified
+C tap2_ownAck_listedAfterOld :: CONFIRMED | cancelled: verified
+C tap1_stillShowsItsStale :: STALEREQ | NOT DONE: too old: written 70 s ago (limit 60 s); not acted on
+C noRequestedAt :: SENT | waiting for the bot to confirm (it checks about every 3 s) [waiting for the bot]
+C ackRequestedAtAsString :: SENT | waiting for the bot to confirm (it checks about every 3 s) [waiting for the bot]
+C ok :: second tap: never the first tap's answer; its own answer is taken
+K resolved 19, est 500 :: no verdict | Early exit n = 19 with a known ending, of 40 fired · too few to judge fired 40 of 106 closed trades with the rule on sav
+K resolved 20, est 500 :: HELPED | Early exit n = 20 with a known ending, of 40 fired fired 40 of 106 closed trades with the rule on saved estimate HELPED 
+K resolved 20, est -500 :: HURT | Early exit n = 20 with a known ending, of 40 fired fired 40 of 106 closed trades with the rule on saved estimate HURT -$
+K resolved 20, est 0 :: no verdict | Early exit n = 20 with a known ending, of 40 fired fired 40 of 106 closed trades with the rule on saved estimate $0.00 v
+K shadow rows / estimate tags :: ["estimate","recorded only, not traded","live (what the bot did) +$1,318.62 —","shadow estimate original stop +$2,140.10 9","estimate","shadow estimate stop to entry after +15 +$1,671.40 2","estimate"]
+K every $ shadow row tagged :: true

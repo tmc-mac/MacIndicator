@@ -1,0 +1,36 @@
+PHONE TERMINAL 2.1.3  (page only: no bot restart, the bot is not touched)   repo copy: server address removed
+=========================================================================================================
+Installs over 2.1.1 (fa931784) or 2.1.2 (ff2e4b76), whichever you have. Same Control buttons, same requests to the bot.
+It has everything in 2.1.2 (flatten receipt checked against the broker, "closing" instead of a false MISMATCH,
+cancel answers per tap, scorecard verdict only with 20+ trades) plus the two fixes from the 2.1.2 review:
+  - A flatten receipt that went green STAYS green ("broker showed FLAT at HH:MM:SS"). It no longer turns red when
+    the bot opens its next trade.
+  - No green without the bot's answer: with no answer it is amber "SENT - no answer from the bot yet - broker shows ...",
+    and red NOT FLAT if a position is still there 20 s after your tap.
+Rules that remain: green BOT CONFIRMED = done. Amber = not yet. Red NOT FLAT = close it in TopstepX.
+Reloading the page clears the receipt.
+
+Put mobile.html and set-terminal.sh (both from this folder) in Downloads, then in PowerShell:
+
+1) Check the files:
+   cd $env:USERPROFILE\Downloads
+   certutil -hashfile mobile.html SHA256
+      expect: 15e5d96fb7195ee4d670ab3eb87b6ebb2768f7d7f8a3db36d7c5e66826c477dd
+   certutil -hashfile set-terminal.sh SHA256
+      expect: d891ef9d830244f682110662f85f080dd23984cbb29ba1740cb3e34aca4fb815   (same tool as before)
+
+2) Upload and check on the server:
+   scp mobile.html set-terminal.sh root@<server>:/root/
+   ssh root@<server> "sha256sum /root/mobile.html /root/set-terminal.sh"
+      (the same two codes as above)
+
+3) Install (it asks "Is the bot FLAT?" - type YES):
+   ssh -t root@<server> "bash /root/set-terminal.sh install /root/mobile.html 15e5d96fb7195ee4d670ab3eb87b6ebb2768f7d7f8a3db36d7c5e66826c477dd"
+   Expect: DONE: mobile.html installed (sha256 verified): before fa931784 (or ff2e4b76) -> after 15e5d96f.
+
+4) On your phone: close the terminal page completely and open it again.
+   Tap Pause 5 min: SENT -> BOT CONFIRMED within a few seconds. Then Resume.
+
+If any step prints STOP, nothing changed - send me that output.
+UNDO (puts back the page you had before this install, no restart):   ssh -t root@<server> "bash /root/set-terminal.sh rollback"
+STATUS (changes nothing):                                            ssh root@<server> "bash /root/set-terminal.sh status"
