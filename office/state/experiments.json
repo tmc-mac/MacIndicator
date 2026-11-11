@@ -31,8 +31,21 @@
     "resolved": 0,
     "unresolved": 0,
     "verdict": "too early",
-    "note": "value = shadow (break-even after +15) net minus live net, summed over resolved NY cases; 0 resolve rows in all sessions, 0 of them unresolved",
-    "cases": []
+    "note": "value = shadow (break-even after +15) net minus live net, summed over resolved NY cases; 2 resolve rows in all sessions, 2 of them unresolved",
+    "cases": [
+     {
+      "id": "902e3426-5589-4b22-b62a-3947c3efd1dc",
+      "session": "asia",
+      "state": "unresolved",
+      "why": "no price for 461 s"
+     },
+     {
+      "id": "4380cced-8ba7-4d21-bed6-4ee6ab58ab3c",
+      "session": "asia",
+      "state": "unresolved",
+      "why": "another trade opened"
+     }
+    ]
    }
   },
   {

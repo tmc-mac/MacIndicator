@@ -13726,6 +13726,12 @@
      "pts": -5.25,
      "exited": false,
      "mode": null
+    },
+    "tp1AtrShadow": {
+     "shadowTp1Pts": 40.61,
+     "state": "unresolved",
+     "beAfter": "breakeven",
+     "beAfterNetUsd": null
     }
    },
    "stampId": "2f4313b42f61"
@@ -13774,6 +13780,12 @@
      "exited": true,
      "mode": "exit",
      "shadow": "unresolved"
+    },
+    "tp1AtrShadow": {
+     "shadowTp1Pts": 30.29,
+     "state": "unresolved",
+     "beAfter": null,
+     "beAfterNetUsd": null
     }
    },
    "stampId": "8e4194fac934"
