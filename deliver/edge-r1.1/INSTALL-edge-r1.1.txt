@@ -1,0 +1,48 @@
+MAC - INSTALL "EDGE r1.1" on edge r1 (executor 9f8bcb8c -> dd2fdc4a)   PRIVATE - server address inside
+=======================================================================================================
+What it changes:
+  FIXES (found by the independent review of the bot you run now):
+   1. If the bot halts with a NY runner open it cancels the far target and keeps the stop; a flat start-up clears
+      the bot's own leftover orders (two flat reads 1 s apart, else it clears nothing).
+   2. An early-exit decision that cannot be sent within 60 s is dropped: the trade goes back to its stop and TP1
+      (TP1 is put back if missing) and you get one push.
+   3. A commented-out line is restored (runner management after a restart of an adopted trade).
+   4. The start-up history push only fires under 1,200 bars (1,371 is normal).
+  RECORDING ONLY (no trading change): exit reason / fees / rule per trade to the phone, a scorecard per rule,
+   "would it have helped" tracking after each early exit, and the volatility-sized TP1 recorded on every trade.
+Trading rules are exactly edge r1: early exit ON, Asia/London all out at TP1, NY runner stop +2 / target 2 x ATR.
+Checked: 310+ tests pass; independent reviewer says SHIP; one real replay session (2 trades) ran clean; install,
+refused second install and byte-for-byte rollback tested on this exact zip.
+Seen in that replay, n = 1: the early exit closed a NY short at -24 pts that would have gone on to TP1. Watch the
+scorecard line "early exits that would have hit TP1"; the switch to LOG ONLY is on your edge r1 sheet.
+
+Be FLAT in TopstepX. Put MacBot-edge-r1.1.zip in Downloads, open PowerShell:
+
+1) Check the file:
+  cd $env:USERPROFILE\Downloads
+  Get-FileHash .\MacBot-edge-r1.1.zip
+     (must start with FC40197F)
+
+2) Copy it up and unpack:
+  scp .\MacBot-edge-r1.1.zip root@<server>:/root/
+  ssh root@<server> "mkdir -p /root/edge11 && cd /root/edge11 && python3 -m zipfile -e /root/MacBot-edge-r1.1.zip . && ls MacBot-edge-r1.1"
+
+3) Install (type YES when asked):
+  ssh -t root@<server> "cd /root/edge11/MacBot-edge-r1.1 && MACBOT_DIR=/opt/mac-bot bash install-edge.sh tree"
+     You want at the end: "session stamp ... (executor dd2fdc4a" and "DONE". Keep the rollback line it prints.
+     (No phone-server restart is needed.)
+
+4) Check (wait 2 min):
+  ssh root@<server> "journalctl -u mac-bot-live --since '-5 min' --no-pager | grep -E 'session stamp|\[eae\]|\[runner\]|\[score\]|\[health\] ALERT|Entering live loop|FATAL|ERROR' | tail -12"
+     You want: "executor dd2fdc4a", "[eae] early adverse exit: ON", "[runner] session runner ...",
+     "[score] scorecard since ... ; tp1 ATR shadow: LOG", "Entering live loop".
+     No "Warm-up cut short" alert this time, no FATAL / ERROR lines.
+
+SWITCHES (each restarts the bot - be flat). The early-exit and runner switches on the edge r1 sheet still work.
+ Volatility TP1 recording -> OFF:
+  ssh root@<server> "echo cHl0aG9uMyAtYyAiaW1wb3J0IGpzb24sb3M7cD1cIi9vcHQvbWFjLWJvdC9jb25maWctbG9jYWwuanNvblwiO2M9anNvbi5sb2FkKG9wZW4ocCkpO2NbXCJ0cDFBdHJTaGFkb3dcIl09e1wibW9kZVwiOlwib2ZmXCJ9O2pzb24uZHVtcChjLG9wZW4ocCtcIi50bXBcIixcIndcIiksaW5kZW50PTIpO29zLnJlcGxhY2UocCtcIi50bXBcIixwKSIgJiYgc3lzdGVtY3RsIHJlc3RhcnQgbWFjLWJvdC1saXZlICYmIGVjaG8gVFAxLVNIQURPVy1PRkY= | base64 -d | bash"
+ Volatility TP1 recording -> back to recording:
+  ssh root@<server> "echo cHl0aG9uMyAtYyAiaW1wb3J0IGpzb24sb3M7cD1cIi9vcHQvbWFjLWJvdC9jb25maWctbG9jYWwuanNvblwiO2M9anNvbi5sb2FkKG9wZW4ocCkpO2MucG9wKFwidHAxQXRyU2hhZG93XCIsTm9uZSk7anNvbi5kdW1wKGMsb3BlbihwK1wiLnRtcFwiLFwid1wiKSxpbmRlbnQ9Mik7b3MucmVwbGFjZShwK1wiLnRtcFwiLHApIiAmJiBzeXN0ZW1jdGwgcmVzdGFydCBtYWMtYm90LWxpdmUgJiYgZWNobyBUUDEtU0hBRE9XLUxPRw== | base64 -d | bash"
+
+ROLLBACK to edge r1 (flat first): run the rollback line step 3 printed, as
+  ssh -t root@<server> "bash <BACKUP-FOLDER>/rollback-edge.sh <BACKUP-FOLDER>"
