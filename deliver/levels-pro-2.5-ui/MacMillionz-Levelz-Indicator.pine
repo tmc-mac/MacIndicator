@@ -36,7 +36,7 @@
 //       so no evaluation order can ever read index -1 (the RE10045 class v2 already fixed once).
 //   [2] level lines never start before bar 0 (line.set_xy1 on a chart with < 150 bars of history).
 //   [3] ASCII only (box-drawing and em-dash characters replaced), LF line endings: nothing can be mangled by copy/paste.
-indicator("Daily Levels PRO v2.4-dev - Scalp Engine", shorttitle="LEVELS PRO v2.4-dev", overlay=true, max_lines_count=100, max_labels_count=100, max_boxes_count=50)
+indicator("MacMillionz Levelz Indicator", shorttitle="MacMillionz Levelz", overlay=true, max_lines_count=100, max_labels_count=100, max_boxes_count=50)
 
 // ===========================================================================
 // DAILY LEVELS PRO  -  v2.0  "Scalp Engine"
@@ -2209,7 +2209,7 @@ if show_dash and barstate.islast
     // ----------------------------- MOBILE -----------------------------
     if mobile
         f_blank(r, col_bgttl)
-        table.cell(T, 0, r, "LEVELS", text_color=color.white, text_size=cell_sz, bgcolor=col_bgttl, text_halign=text.align_left)
+        table.cell(T, 0, r, "LEVELZ", text_color=color.white, text_size=cell_sz, bgcolor=col_bgttl, text_halign=text.align_left)
         table.cell(T, 2, r, grade_str, text_color=grade_col, text_size=cell_sz, bgcolor=col_bgttl, text_halign=text.align_right)
         table.cell(T, 1, r, ui_status ? feed_txt : "", tooltip=feed_tip, text_color=feed_col, text_size=cell_sz, bgcolor=col_bgttl, text_halign=text.align_left)
         r += 1
@@ -2276,7 +2276,7 @@ if show_dash and barstate.islast
     else
         // Title: name | symbol + timeframe | feed status
         f_blank(r, col_bgttl)
-        table.cell(T, 0, r, "LEVELS PRO", text_color=color.white, text_size=tsz, bgcolor=col_bgttl, text_halign=text.align_left)
+        table.cell(T, 0, r, "MACMILLIONZ LEVELZ", text_color=color.white, text_size=tsz, bgcolor=col_bgttl, text_halign=text.align_left)
         table.cell(T, 1, r, syminfo.ticker + "  " + timeframe.period + "    v2.5", text_color=txt_mid, text_size=cell_sz, bgcolor=col_bgttl, text_halign=text.align_left)
         f_span(r, 1, 4)
         table.cell(T, 5, r, ui_status ? feed_txt : "", tooltip=feed_tip, text_color=feed_col, text_size=cell_sz, bgcolor=col_bgttl, text_halign=text.align_right)

@@ -1,4 +1,6 @@
-# Levels PRO v2.5-ui (dashboard display only)
+# MacMillionz Levelz Indicator (Levels PRO v2.5-ui, dashboard display only)
+
+Renamed 11/11 at Mac's request: indicator title, short title and the dashboard header. The PARITY `SCRIPT` row and the alert texts keep their old strings so outside readers and saved alerts are not affected.
 
 Base: the v2.4-dev script Mac pasted on 11/11 as the best-looking version (`BASELINE-v2.4-dev-as-pasted.pine`).
 

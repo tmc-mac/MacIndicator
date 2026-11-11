@@ -108,5 +108,12 @@ hdr = [
 assert body[0].startswith('//@version=5')
 body = [body[0]] + hdr + body[1:]
 text = '\n'.join(body) + '\n\n\n' + new + '\n'
+# ---- rename (Mac 11/11): MacMillionz Levelz Indicator. Display names only; the PARITY "SCRIPT" row and alert texts keep their old strings. ----
+def one(t, a, b):
+    assert t.count(a) == 1, (t.count(a), a)
+    return t.replace(a, b)
+text = one(text, 'indicator("Daily Levels PRO v2.4-dev - Scalp Engine", shorttitle="LEVELS PRO v2.4-dev"', 'indicator("MacMillionz Levelz Indicator", shorttitle="MacMillionz Levelz"')
+text = one(text, 'table.cell(T, 0, r, "LEVELS PRO", text_color=color.white', 'table.cell(T, 0, r, "MACMILLIONZ LEVELZ", text_color=color.white')
+text = one(text, 'table.cell(T, 0, r, "LEVELS", text_color=color.white', 'table.cell(T, 0, r, "LEVELZ", text_color=color.white')
 open(out, 'w', encoding='utf-8').write(text)
 print('lines', text.count('\n'), 'sha256', hashlib.sha256(text.encode()).hexdigest()[:16])
