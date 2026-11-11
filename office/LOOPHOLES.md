@@ -19,6 +19,8 @@ Seeded 11/11 from the 11/11 edge studies (149 levels trades, 10/28-11/10, live j
 | L-09 | Tightening the stop to 25 pts | 11/03-11/04: 12 full stops in 28 trades (tripled) | **killed** | Keep the accurate stop distance (standing order) |
 | L-10 | Protect-after-profit (move the stop up once in profit) | Loss study A: loses | **killed** | None |
 | L-11 | Entry filters (103 tested) | 0 survive the multiple-comparison correction | **killed** as a group | A new filter needs a reason first, then a test, not a search |
+| L-12 | Losing no-progress exits: trades closed by the no-progress rule at a loss | First daily card (11/10): 4 of the day's 6 losses, -$259.14 over 11/04-11/10 (n=4, small). Two had been +13.25 and +6.00 pts in profit first | **observed** (found by the daily tool 11/11) | Measure over 20 TradeDays by session: what did price do after the exit (would TP1 or the stop have come first)? |
+| L-13 | Near-miss then full stop: a trade comes within a few points of the first target, then goes to the full stop | 11/10 23:57 PT Asia short: best +11.75 pts (TP1 is +15), then -$296.16. One case; another 11/10 full stop shows +15.00 best, which may be a reading from just before the fill | **observed** | Count over 20 TradeDays: full stops whose best excursion was +10 or more. Feeds X-01 (volatility-sized TP1) and any break-even idea (L-10 was killed as a blanket rule; this is the narrow case) |
 
 ## Bot and data leaks
 

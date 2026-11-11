@@ -92,7 +92,7 @@ Builder desk → independent reviewer desk → ship gate (Mac-box run, restart s
 
 ## 10. Data contract: `office/state/office.json`
 
-Written by `loop_daily.py`, read by the phone. Public file: no account ids, addresses or names. A reader must tolerate missing keys and treat `null` as UNKNOWN.
+Written by `loop_daily.py`, read by the phone. Public file: no account ids, addresses or names. A reader must tolerate missing keys and treat `null` as UNKNOWN. `health.settingsChanges` lists code changes (new build) as well as settings changes. `blocked[].neither` counts signals where price reached neither the target nor the stop within 60 minutes. A blocked signal reaching +15 before -50 happens about 77% of the time by chance, so those counts alone do not show that a gate costs money.
 
 ```json
 {
@@ -112,7 +112,7 @@ Written by `loop_daily.py`, read by the phone. Public file: no account ids, addr
   "health": { "restarts": 0, "settingsChanges": [ { "t": "2026-11-11T05:14:32Z", "what": "levelsParity pine" } ], "build": "dd2fdc4a", "notes": [] },
   "leaks": [ { "id": "L-03", "title": "NY first target is small against NY candles", "status": "recording", "n": 18, "usd": null, "next": "verdict at 20 resolved" } ],
   "experiments": [ { "id": "X-01", "title": "TP1 sized by volatility", "mode": "recording", "n": 0, "minN": 20, "value": null, "unit": "usd", "verdict": "too early" } ],
-  "blocked": [ { "gate": "15m control", "count": 0, "wouldHaveWon": 0, "wouldHaveLost": 0, "unknown": 0 } ],
+  "blocked": [ { "gate": "15m control", "count": 0, "wouldHaveWon": 0, "wouldHaveLost": 0, "neither": 0, "unknown": 0 } ],
   "waitingOnMac": [ { "id": "D-01", "text": "...", "recommendation": "..." } ],
   "flags": [ { "t": "...", "trade": "...", "reason": "...", "answer": "..." } ]
 }
