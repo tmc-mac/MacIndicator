@@ -84,7 +84,11 @@ ladder += '\n        f_span(r, 1, 4)'
 
 new = open(sys.argv[3], encoding='utf-8').read().rstrip('\n')
 new = sub1(new, '@@PRELUDE@@', '\n'.join(prelude))
-new = sub1(new, '@@MOBILE@@', mobile)
+mb = mobile.split('\n')
+assert mb[0] == '    if mobile'
+mb = [(l[4:] if l.startswith('    ') else l) for l in mb[1:]]
+assert all(l == '' or l.startswith('    ') for l in mb)
+new = sub1(new, '@@MOBILE_BODY@@', '\n'.join(mb))
 new = sub1(new, '@@LADDER@@', ladder)
 
 stub = [
