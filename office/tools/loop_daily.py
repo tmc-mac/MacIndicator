@@ -607,21 +607,56 @@ def score(trades):
             "feesTrades": len(fees)}
 
 
-def classify_loss(t, prior):
-    """Leak class of a losing trade, from office/LOOPHOLES.md. Returns (id or 'unclassified', reason)."""
-    if t["exitReason"] in FULL_STOP_EXITS or t["exitReason"] == "early-adverse-exit":
-        for p in reversed(prior):
-            if p["fullStop"] and p["_dir"] == t["_dir"] and p["_tExit"] and 0 <= t["_tEntry"] - p["_tExit"] <= REENTRY_MIN * 60000:
-                return "L-07", "same-side entry %d min after a full stop" % round((t["_tEntry"] - p["_tExit"]) / 60000.0)
-        if t["exitReason"] == "early-adverse-exit":
-            return "L-01", "never worked: closed by the early exit (the live L-01 rule)"
-        return "L-01", "full stop"
+NEAR_MISS_PTS = 10.0                 # L-13: a full stop whose best excursion had been this many points or more
+
+
+def after_full_stop_min(t, prior):
+    """Minutes between the exit of an earlier same-side full stop and this entry, when that is 0..REENTRY_MIN; else None."""
     for p in reversed(prior):
         if p["fullStop"] and p["_dir"] == t["_dir"] and p["_tExit"] and 0 <= t["_tEntry"] - p["_tExit"] <= REENTRY_MIN * 60000:
-            return "L-07", "same-side entry %d min after a full stop" % round((t["_tEntry"] - p["_tExit"]) / 60000.0)
+            return round((t["_tEntry"] - p["_tExit"]) / 60000.0, 1)
+    return None
+
+
+def near_miss(t):
+    """L-13, a sub-class of the full stops: True / False, or None when the trade has no best-excursion reading."""
+    if not t["fullStop"]:
+        return None
+    return None if t.get("mfePts") is None else t["mfePts"] >= NEAR_MISS_PTS
+
+
+def classify_loss(t, prior):
+    """Leak class of a losing trade, from office/LOOPHOLES.md. Returns (id or 'unclassified', reason)."""
+    m = after_full_stop_min(t, prior)
+    if m is not None:
+        return "L-07", "same-side entry %d min after a full stop" % round(m)
+    if t["exitReason"] == "early-adverse-exit":
+        return "L-01", "never worked: closed by the early exit (the live L-01 rule)"
+    if t["exitReason"] in FULL_STOP_EXITS:
+        return "L-01", "full stop"
     if t["exitReason"] == "no-progress-exit":
         return "L-12", "no-progress exit that closed at a loss"
     return "unclassified", t["exitReason"]
+
+
+def near_miss_stats(trades):
+    """L-13 over a list of ledger rows: counts and dollars of the full stops that had been +NEAR_MISS_PTS or more."""
+    fs = [t for t in trades if t["fullStop"]]
+    hit = [t for t in fs if t.get("nearMiss")]
+    out = {"n": len(hit), "usd": round(sum(t["net"] or 0 for t in hit), 2), "fullStops": len(fs), "notAssessable": sum(1 for t in fs if t.get("nearMiss") is None),
+           "bySession": {}}
+    for sn in SESSIONS:
+        h = [t for t in hit if t["session"] == sn]
+        out["bySession"][sn] = {"n": len(h), "usd": round(sum(t["net"] or 0 for t in h), 2)}
+    return out
+
+
+def near_miss_line(st):
+    if not st["fullStops"]:
+        return "L-13 (near-miss then full stop): no full stops in the window."
+    return "Of the %d full stops in the window, L-13 (best excursion +%d pts or more before the stop): %d, %s%s. These dollars are inside the L-01 / L-07 rows above, not added to them.%s" % (
+        st["fullStops"], NEAR_MISS_PTS, st["n"], usd(st["usd"], True), " (small)" if st["n"] < SMALL_N else "",
+        (" %d full stops have no best-excursion reading and cannot be judged." % st["notAssessable"]) if st["notAssessable"] else "")
 
 
 def autopsy(trades):
@@ -803,6 +838,18 @@ def run_experiment(x, J, trades, day):
         r["note"] = "n = trades under the rule that reached TP1 (%d fills carried the rule); value = average net dollars of those trades. What the old runner rule would have paid on the same trades is not in the journal, so the kill rule cannot be judged by this tool" % len(rr)
         if len(got) >= x.get("minN", SMALL_N):
             r["verdict"] = "ready: needs the old-rule comparison"
+    elif calc == "reentryAfterFullStop":
+        sess = (x.get("feeds") or {}).get("sessions") or SESSIONS
+        allc = [t for t in trades if t.get("afterFullStopMin") is not None and t["_tEntry"] >= since and t["tradeDay"] <= day]
+        got = [t for t in allc if t["session"] in sess]
+        ctx = [t for t in allc if t["session"] not in sess]
+        r["n"], r["resolved"], r["unresolved"] = len(got), len(got), 0
+        r["value"] = _r2(sum(t["net"] or 0 for t in got)) if got else None
+        r["cases"] = [{"id": t["id"], "session": t["session"], "net": t["net"], "minAfterStop": t["afterFullStopMin"]} for t in got]
+        r["note"] = "n = trades entered on the same side within %d min after a full stop, in %s, since the start time; value = their summed net (what a stand-down would have skipped). Context only, the rule leaves it out: other sessions %d trade%s, %s" % (
+            REENTRY_MIN, " / ".join(sess), len(ctx), "" if len(ctx) == 1 else "s", usd(sum(t["net"] or 0 for t in ctx), True) if ctx else "$0.00")
+        if len(got) >= x.get("minN", SMALL_N):
+            r["verdict"] = "KILL: the cases net zero or better" if r["value"] >= 0 else "evidence holds: write the decision card"
     elif calc == "controlParity":
         post = [t for t in trades if t["_tEntry"] >= since and t["tradeDay"] <= day]
         r["n"] = None
@@ -910,9 +957,11 @@ def main(argv=None):
     ap_all_days = autopsy(trades)
     for x in ap_all_days:
         x["trade"]["leak"], x["trade"]["leakWhy"] = x["leak"], x["why"]
-    for t in trades:
+    for i, t in enumerate(trades):
         t.setdefault("leak", None)
         t.setdefault("leakWhy", None)
+        t["afterFullStopMin"] = after_full_stop_min(t, trades[:i])
+        t["nearMiss"] = near_miss(t)
     all_days = sorted(d for d in J["dayRows"] if datetime.date(*[int(x) for x in d.split("-")]).weekday() < 5 and (J["dayRows"][d] >= 50 or any(t["tradeDay"] == d for t in trades)))
     cov_all = {d: coverage(J["files"], d) for d in all_days}
     dump(os.path.join(office, "state", "ledger.json"), {
@@ -959,6 +1008,7 @@ def main(argv=None):
         g["n"] += 1
         g["usd"] += x["trade"]["net"]
     leak_rank = sorted(leak5.items(), key=lambda kv: (kv[1]["usd"], kv[0]))
+    nm5 = near_miss_stats([t for t in upto if t["tradeDay"] in last5])
 
     # ---- blocked signals
     blocks = [b for b in J["blocks"] if _num(b.get("t")) and start <= b["t"] < end]
@@ -1025,6 +1075,8 @@ def main(argv=None):
         if e["id"][0] == "R":
             continue
         g = leak5.get(e["id"])
+        if e["id"] == "L-13":
+            g = {"n": nm5["n"], "usd": nm5["usd"]}
         n, u = (g["n"], _r2(g["usd"])) if g else (None, None)
         if g is None and e["id"] in x_by_leak:
             n = x_by_leak[e["id"]]["running"]["n"]
@@ -1037,7 +1089,7 @@ def main(argv=None):
             waiting.append({"id": "D-%s-%02d" % (day, k), "text": "The virtual combine started %s %s on %s (profit %s)." % (c["startDay"], c["status"], day, usd(c["profit"], True)),
                             "recommendation": "Read the day's card before any change; no rule changes mid-session."})
     for x in xdoc.get("experiments", []):
-        if str(x["running"]["verdict"]).startswith("ready"):
+        if x["running"]["n"] is not None and x["running"]["n"] >= x.get("minN", SMALL_N):
             k += 1
             waiting.append({"id": "D-%s-%02d" % (day, k), "text": "%s (%s) has its %d cases: %s." % (x["id"], x.get("title"), x.get("minN", SMALL_N), x["running"]["verdict"]),
                             "recommendation": "Decide keep / kill on the weekly card against the kill rule written in office/EXPERIMENTS.md."})
@@ -1084,7 +1136,7 @@ def main(argv=None):
     with open(os.path.join(office, "reviews", "STATUS.md"), "w", encoding="utf8") as f:
         f.write(status)
     card = render_card(day, cov, data_note, sc, by_sess, todays, chain, cur, hist, hist_runs, sim_days, ap_day, leak_rank, last5, gates, block_rows,
-                       samples, lm_used, xdoc, changes, changes_all, stamps_day, build, notes, waiting, wdays, by_day, wsc, recon_ok, brk_n, led_real, rec_n, rec_sum, reg, need)
+                       samples, lm_used, xdoc, changes, changes_all, stamps_day, build, notes, waiting, wdays, by_day, wsc, recon_ok, brk_n, led_real, rec_n, rec_sum, reg, need, nm5)
     p = os.path.join(office, "reviews", "daily", day + ".md")
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with open(p, "w", encoding="utf8") as f:
@@ -1138,7 +1190,7 @@ def render_status(day, cov, data_note, last_complete, cur, need, wk, wsc, wdays,
 
 
 def render_card(day, cov, data_note, sc, by_sess, todays, chain, cur, hist, hist_runs, sim_days, ap_day, leak_rank, last5, gates, block_rows,
-                samples, lm_used, xdoc, changes, changes_all, stamps_day, build, notes, waiting, wdays, by_day, wsc, recon_ok, brk_n, led_real, rec_n, rec_sum, reg, need=None):
+                samples, lm_used, xdoc, changes, changes_all, stamps_day, build, notes, waiting, wdays, by_day, wsc, recon_ok, brk_n, led_real, rec_n, rec_sum, reg, need=None, nm5=None):
     L = []
     L.append("# Daily card: TradeDay %s" % day)
     L.append("")
@@ -1219,7 +1271,7 @@ def render_card(day, cov, data_note, sc, by_sess, todays, chain, cur, hist, hist
             L.append("- %s %s %s at %s: %s, %s; worst %s pts, best %s pts, %s min -> **%s** (%s)" % (
                 pt_hm(t["_tEntry"]), t["session"], (t["side"] or "?").upper(), t["level"] or "unknown level", t["exitReason"], usd(t["net"], True),
                 ("%.2f" % t["maePts"]) if t["maePts"] is not None else "unknown", ("+%.2f" % t["mfePts"]) if t["mfePts"] is not None else "unknown",
-                ("%.1f" % (t["durationSec"] / 60.0)) if t["durationSec"] is not None else "?", x["leak"], x["why"]))
+                ("%.1f" % (t["durationSec"] / 60.0)) if t["durationSec"] is not None else "?", x["leak"], x["why"] + ("; L-13 near miss" if t.get("nearMiss") else "")))
     else:
         L.append("No losing trades.")
     L.append("")
@@ -1230,6 +1282,9 @@ def render_card(day, cov, data_note, sc, by_sess, todays, chain, cur, hist, hist
     else:
         L.append("No losing trades in the window.")
     L.append("")
+    if nm5:
+        L.append(near_miss_line(nm5))
+        L.append("")
     L.append("Classes come from office/LOOPHOLES.md. L-01 = went to the full stop or was closed by the early exit; L-07 = same-side entry within %d min of a full stop; L-12 = a no-progress exit that closed at a loss; anything else is unclassified and named by its exit, a candidate for the register." % REENTRY_MIN)
     L.append("")
     # blocked

@@ -198,6 +198,42 @@
     "note": "not measurable from the journal: after the switch the old formula's score is not written, so the trades it would have blocked cannot be told apart (1 trade since the switch, net -$71.16)",
     "cases": []
    }
+  },
+  {
+   "id": "X-06",
+   "leak": "L-07",
+   "title": "Stand down 30 min after a full stop (Asia / London)",
+   "rule": "Same side, 30 minutes after a full stop, Asia and London only. NOT a bot rule: the trades are still taken and counted",
+   "switch": null,
+   "mode": "counting",
+   "started": "2026-11-11",
+   "startedAtUtc": "2026-11-11T06:55:00Z",
+   "minN": 20,
+   "unit": "usd, the trades a stand-down would have skipped",
+   "expectation": "The Asia / London same-side trades entered within 30 min of a full stop keep losing money as a group; the NY ones keep making money",
+   "verdictAt": "20 further Asia + London cases",
+   "killIf": "The next 20 Asia + London cases net zero or better",
+   "feeds": {
+    "rows": [
+     "ledger"
+    ],
+    "calc": "reentryAfterFullStop",
+    "sessions": [
+     "asia",
+     "london"
+    ],
+    "how": "ledger trades whose entry is 0-30 min after the exit of an earlier same-side full stop, session asia or london, entered at or after startedAtUtc; n = their count, value = their summed net; NY is reported beside it as context only"
+   },
+   "running": {
+    "asOfTradeDay": "2026-11-11",
+    "n": 0,
+    "value": null,
+    "resolved": 0,
+    "unresolved": 0,
+    "verdict": "too early",
+    "note": "n = trades entered on the same side within 30 min after a full stop, in asia / london, since the start time; value = their summed net (what a stand-down would have skipped). Context only, the rule leaves it out: other sessions 0 trades, $0.00",
+    "cases": []
+   }
   }
  ]
 }

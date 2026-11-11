@@ -161,7 +161,27 @@ class BlockedWalk(unittest.TestCase):
 
 class Autopsy(unittest.TestCase):
     def t(self, i, net, exit_reason, t0, t1, d=1):
-        return {"id": str(i), "net": net, "exitReason": exit_reason, "fullStop": exit_reason in ld.FULL_STOP_EXITS, "_tEntry": t0, "_tExit": t1, "_dir": d, "tradeDay": "x"}
+        return {"id": str(i), "net": net, "exitReason": exit_reason, "fullStop": exit_reason in ld.FULL_STOP_EXITS, "_tEntry": t0, "_tExit": t1, "_dir": d, "tradeDay": "x",
+                "session": "asia", "mfePts": None}
+
+    def test_reentry_window_counts_winners_too(self):
+        m = 60000
+        stop = self.t(1, -250, "full-stop", 0, 5 * m)
+        self.assertEqual(ld.after_full_stop_min(self.t(2, 80, "tp1-all-out", 35 * m, 36 * m), [stop]), 30.0)     # exactly 30 min: in
+        self.assertIsNone(ld.after_full_stop_min(self.t(3, 80, "tp1-all-out", 35 * m + 1000, 36 * m), [stop]))  # a second later: out
+        self.assertIsNone(ld.after_full_stop_min(self.t(4, 80, "tp1-all-out", 10 * m, 11 * m, d=-1), [stop]))   # other side
+        self.assertIsNone(ld.after_full_stop_min(self.t(5, 80, "tp1-all-out", 4 * m, 6 * m), [stop]))           # entered before the stop's exit
+
+    def test_near_miss_is_a_sub_class_of_full_stops(self):
+        a, b, c, d = (self.t(i, -250, "full-stop", 0, 1) for i in range(4))
+        a["mfePts"], b["mfePts"], c["mfePts"] = 11.75, 9.75, 10.0
+        e = self.t(9, -40, "no-progress-exit", 0, 1)
+        e["mfePts"] = 13.25
+        for x in (a, b, c, d, e):
+            x["nearMiss"] = ld.near_miss(x)
+        self.assertEqual([x["nearMiss"] for x in (a, b, c, d, e)], [True, False, True, None, None])
+        st = ld.near_miss_stats([a, b, c, d, e])
+        self.assertEqual((st["n"], st["usd"], st["fullStops"], st["notAssessable"], st["bySession"]["asia"]["n"]), (2, -500.0, 4, 1, 2))
 
     def test_classes(self):
         m = 60000

@@ -15,9 +15,9 @@ Arithmetic, not a forecast: $2,645.50 more is $188.96 per day over the 14 TradeD
 - L-01: -$621.48 on 3 losing trades (small)
 - L-12: -$273.30 on 5 losing trades (small)
 
-**Experiments (cases of the number needed):** X-01 0 of 20; X-02 1 of 20; X-03 1 of 20; X-04 0 of 20; X-05 unknown of 20.
+**Experiments (cases of the number needed):** X-01 0 of 20; X-02 1 of 20; X-03 1 of 20; X-04 0 of 20; X-05 unknown of 20; X-06 0 of 20.
 
 **Waiting on Mac:**
-- weekly card 2026-W46: 1 decision
+- nothing
 
 Open next: `office/reviews/daily/2026-11-11.md` (the day), `office/reviews/weekly/2026-W46.md` (the week), `office/LOOPHOLES.md` (the leaks), `office/EXPERIMENTS.md` (the rules on trial).

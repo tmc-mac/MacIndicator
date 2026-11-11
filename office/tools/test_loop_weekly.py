@@ -101,6 +101,25 @@ class HandEditedDecisions(unittest.TestCase):
         self.assertFalse(lw.merge_decisions("new", b1.replace("week.\n", "week.  \n"))[1])
 
 
+class QuietDecisions(unittest.TestCase):
+    LW = [("L-01", {"n": 15, "usd": -2850.9}), ("L-12", {"n": 12, "usd": -712.92}), ("L-07", {"n": 3, "usd": -483.48}), ("unclassified: manual-flatten", {"n": 1, "usd": -600.0})]
+    ST = {"L-01": "live", "L-12": "measured", "L-07": "measured"}
+    X = [{"id": "X-02", "title": "Early exit", "minN": 20, "value": 410.0, "state": "verdict", "line": "VERDICT: ready."},
+         {"id": "X-01", "title": "TP1", "minN": 20, "value": None, "state": "recording", "line": "recording, 3 of 20"}]
+
+    def test_live_leak_is_quiet_and_measured_leak_over_the_line_is_raised(self):
+        dec, quiet = lw.decision_items(self.X, self.LW, self.ST, partial=False)
+        self.assertEqual(quiet, ["L-01"])                                    # live rule: leaks table only
+        self.assertEqual(len(dec), 3)
+        self.assertTrue(dec[0].startswith("**X-02"))                         # experiments at a verdict come first
+        self.assertTrue(dec[1].startswith("**L-12** (measured)"))
+        self.assertTrue(dec[2].startswith("**unclassified: manual-flatten** (observed)"))   # no register row = observed
+        self.assertFalse(any("L-07" in d for d in dec))                      # under the $500 line
+
+    def test_partial_week_raises_nothing(self):
+        self.assertEqual(lw.decision_items(self.X, self.LW, self.ST, partial=True), ([], []))
+
+
 class LeakRank(unittest.TestCase):
     def test_rank_and_session_split(self):
         t = [tr("d", -100, leak="L-12"), tr("d", -50, leak="L-12", session="ny"), tr("d", -300, True, leak="L-01"), tr("d", 80), tr("d", -20)]

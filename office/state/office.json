@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "generatedAt": "2026-11-11T06:45:09Z",
+ "generatedAt": "2026-11-11T06:51:10Z",
  "tradeDay": "2026-11-11",
  "data": {
   "lastSlice": "2026-11-11/slice-2205",
@@ -172,11 +172,11 @@
   },
   {
    "id": "L-07",
-   "title": "Re-entry right after a full stop",
-   "status": "observed",
-   "n": null,
+   "title": "Same-side re-entry within 30 min of a full stop loses in Asia and London, and pays in NY",
+   "status": "measured",
+   "n": 0,
    "usd": null,
-   "next": "Measure: result of the next trade in the same direction within 30 min of a full stop"
+   "next": "Experiment X-06 (expectation written 11/11): count the next 20 such Asia / London trades from the journal, no bot change. A stand-down rule only if they stay negative"
   },
   {
    "id": "L-08",
@@ -213,18 +213,18 @@
   {
    "id": "L-12",
    "title": "Losing no-progress exits: trades closed by the no-progress rule at a loss",
-   "status": "observed",
+   "status": "measured",
    "n": 5,
    "usd": -273.3,
-   "next": "Measure over 20 TradeDays by session: what did price do after the exit (would TP1 or the stop have come first)?"
+   "next": "What did price do after each exit: would TP1 or the stop have come first? Needs the minute price path; the daily tool reports it from here on"
   },
   {
    "id": "L-13",
    "title": "Near-miss then full stop: a trade comes within a few points of the first target, then goes to the full stop",
-   "status": "observed",
-   "n": null,
-   "usd": null,
-   "next": "Count over 20 TradeDays: full stops whose best excursion was +10 or more. Feeds X-01 (volatility-sized TP1) and any break-even idea (L-10 was killed as a blanket rule; this is the narrow case)"
+   "status": "measured",
+   "n": 2,
+   "usd": -550.32,
+   "next": "Feeds X-01 (volatility-sized TP1). Candidate to measure next: what a break-even stop after +10 would have done on these AND on the winners (L-10 was killed as a blanket rule; this is the narrow case)"
   },
   {
    "id": "B-01",
@@ -288,7 +288,7 @@
    "status": "live",
    "n": null,
    "usd": null,
-   "next": "Next build: read the journal as a stream and keep only what each reader needs. Ship gate now boots with a server-size journal under the server's heap limit"
+   "next": "Measured 11/11: with a 98.7 MB journal both builds die at the 493 MB limit and survive at 560+; edge r1.2 needs no more memory than r1.1. The 1,024 MB limit lasts until the journal is about 180-205 MB (16-21 trading days, extrapolated); start-up already peaks at 860-985 MB of RAM on a 961 MB server. Cure in edge r1.3: one streaming read, parse only the rows the readers use"
   },
   {
    "id": "B-09",
@@ -349,6 +349,16 @@
    "value": null,
    "unit": "usd per trade",
    "verdict": "not measurable yet"
+  },
+  {
+   "id": "X-06",
+   "title": "Stand down 30 min after a full stop (Asia / London)",
+   "mode": "counting",
+   "n": 0,
+   "minN": 20,
+   "value": null,
+   "unit": "usd, the trades a stand-down would have skipped",
+   "verdict": "too early"
   }
  ],
  "blocked": [
@@ -493,9 +503,13 @@
     "usd": -273.3
    }
   ],
-  "decisions": [
-   "**L-01** lost $621.48 on 3 trades this week (n=3, small), over the $500 line. Decide whether its next step in office/LOOPHOLES.md goes ahead now."
-  ],
+  "nearMiss": {
+   "id": "L-13",
+   "n": 2,
+   "usd": -550.32,
+   "note": "of which: inside the L-01 / L-07 dollars"
+  },
+  "decisions": [],
   "decisionsEditedByHand": false,
   "card": "office/reviews/weekly/2026-W46.md"
  }

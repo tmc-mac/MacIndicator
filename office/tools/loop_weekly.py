@@ -141,6 +141,30 @@ def week_stats(trades, days):
     return sc
 
 
+QUIET_STATUSES = ("live", "recording", "kept", "killed")   # a leak with a rule already live or recording raises no item by dollars alone
+
+
+def decision_items(xs, leaks_week, statuses, partial):
+    """The generated decision list (before the cap). xs: experiments with state / line; leaks_week: leak_rank() output;
+    statuses: {leak id: register status}. A partial week raises nothing. Returns (items, quiet leak ids over the line)."""
+    if partial:
+        return [], []
+    dec, quiet = [], []
+    for x in xs:
+        if x["state"] == "verdict":
+            dec.append("**%s %s** has its %d cases (value %s). %s Decide: keep, or switch it off." % (
+                x["id"], x["title"], x["minN"], "unknown" if x["value"] is None else ld.usd(x["value"], True), x["line"]))
+    for k, v in leaks_week:
+        if -v["usd"] > LEAK_DECISION_USD:
+            st = statuses.get(k, "observed")            # a class with no register row is a new, observed leak
+            if st in QUIET_STATUSES:
+                quiet.append(k)
+                continue
+            dec.append("**%s** (%s) lost %s on %d trade%s this week (n=%d%s), over the $%d line. Decide whether its next step in office/LOOPHOLES.md goes ahead now." % (
+                k, st, ld.usd(-v["usd"]), v["n"], "" if v["n"] == 1 else "s", v["n"], small(v["n"]), LEAK_DECISION_USD))
+    return dec, quiet
+
+
 def kill_rules(path):
     out = {}
     try:
@@ -236,18 +260,13 @@ def main(argv=None):
                    "state": state, "line": line, "asOf": r.get("asOfTradeDay"), "note": r.get("note"), "kill": kill})
 
     # ---- decisions (at most 3): experiments at a verdict first, then leak classes over the weekly threshold
-    dec = []
-    for x in xs:
-        if x["state"] == "verdict":
-            dec.append("**%s %s** has its %d cases (value %s). %s Decide: keep, or switch it off." % (
-                x["id"], x["title"], x["minN"], "unknown" if x["value"] is None else ld.usd(x["value"], True), x["line"]))
-    for k, v in lw:
-        if -v["usd"] > LEAK_DECISION_USD:
-            dec.append("**%s** lost %s on %d trade%s this week (n=%d%s), over the $%d line. Decide whether its next step in office/LOOPHOLES.md goes ahead now." % (
-                k, ld.usd(-v["usd"]), v["n"], "" if v["n"] == 1 else "s", v["n"], small(v["n"]), LEAK_DECISION_USD))
+    statuses = {e["id"]: e["status"] for e in ld.read_register(os.path.join(office, "LOOPHOLES.md"))}
+    partial = (not week_over) or bool(missing)
+    dec, quiet = decision_items(xs, lw, statuses, partial)
     dropped = max(0, len(dec) - MAX_DECISIONS)
     dec = dec[:MAX_DECISIONS]
-    gen = "\n".join("%d. %s" % (i + 1, d) for i, d in enumerate(dec)) if dec else "Nothing to decide this week."
+    gen = "\n".join("%d. %s" % (i + 1, d) for i, d in enumerate(dec)) if dec else (
+        "Nothing to decide this week. (Partial week: no decision items are raised until the week is complete.)" if partial else "Nothing to decide this week.")
     path = os.path.join(office, "reviews", "weekly", week + ".md")
     try:
         existing = open(path, encoding="utf8").read()
@@ -312,6 +331,10 @@ def main(argv=None):
                           [[k, "n=%d%s" % (v["n"], small(v["n"])), ld.usd(v["usd"], True)] + [("%s (n=%d)" % (ld.usd(v["bySession"][s]["usd"], True), v["bySession"][s]["n"])) if v["bySession"][s]["n"] else "-" for s in ld.SESSIONS] for k, v in l20]))
     else:
         L.append("No losing trades.")
+    nmw = ld.near_miss_stats([t for t in upto if t["tradeDay"] in wdays])
+    nm20 = ld.near_miss_stats([t for t in upto if t["tradeDay"] in d20])
+    L += ["", "This week: " + ld.near_miss_line(nmw), "", "Last %d TradeDays: %s By session: %s." % (len(d20), ld.near_miss_line(nm20), "; ".join(
+        "%s %s (n=%d)" % (sn, ld.usd(nm20["bySession"][sn]["usd"], True), nm20["bySession"][sn]["n"]) for sn in ld.SESSIONS if nm20["bySession"][sn]["n"]) or "none")]
     L += ["", "Classes are the ones in office/LOOPHOLES.md; a loss that fits none is unclassified and named by its exit.", "", "## Experiments", ""]
     L.append(ld.table(["id", "rule", "mode", "cases", "value", "state"],
                       [[x["id"], x["title"], x["mode"], "-" if x["state"] == "not started" else "n unknown of %d" % x["minN"] if x["n"] is None else "%d of %d%s" % (x["n"], x["minN"], small(x["n"])),
@@ -319,7 +342,9 @@ def main(argv=None):
     asof = sorted(set(x["asOf"] for x in xs if x["asOf"]))
     L += ["", "Counts are as of the last daily run (TradeDay %s). A verdict is written only when the cases reach the number needed; until then the rule is recording." % (", ".join(asof) or "unknown"), ""]
     L += ["## Decisions for Mac", ""]
-    L.append("At most %d. Sources: an experiment that reached its verdict, or a leak class that lost more than $%d in the week." % (MAX_DECISIONS, LEAK_DECISION_USD))
+    L.append("At most %d. Sources: an experiment that reached its verdict, or a leak with status observed or measured that lost more than $%d in a complete week. A leak whose rule is already live or recording is not raised here on dollars alone." % (MAX_DECISIONS, LEAK_DECISION_USD))
+    if quiet:
+        L.append("Over the line but already under a live or recording rule (leaks table only): %s." % ", ".join(quiet))
     if dropped and not by_hand:
         L.append("%d more item%s met the line and did not fit; see the leak table." % (dropped, "" if dropped == 1 else "s"))
     L += ["", block, ""]
@@ -345,6 +370,7 @@ def main(argv=None):
             "previous": ({"week": pw, "net": ps["net"], "trades": ps["trades"], "netPerDay": ps["netPerDay"], "fullStopsPer10": ps["stopsPer10"], "lossToWin": ps["lossToWin"]} if ps else None),
             "readiness": {"need": ready["need"], "avgPerDay": ready["avgPerDay"], "avgDays": ready["n"], "daysAtAverage": ready["days"], "text": readiness_line(ready)},
             "leaks": [{"id": k, "n": v["n"], "usd": round(v["usd"], 2)} for k, v in lw],
+            "nearMiss": {"id": "L-13", "n": nmw["n"], "usd": nmw["usd"], "note": "of which: inside the L-01 / L-07 dollars"},
             "decisions": ([] if by_hand else dec), "decisionsEditedByHand": by_hand, "card": "office/reviews/weekly/%s.md" % week,
         }
         ld.dump(opath, o)
