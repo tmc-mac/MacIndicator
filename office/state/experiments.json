@@ -26,12 +26,12 @@
    },
    "running": {
     "asOfTradeDay": "2026-11-11",
-    "n": 0,
-    "value": null,
-    "resolved": 0,
+    "n": 1,
+    "value": 296.0,
+    "resolved": 1,
     "unresolved": 0,
     "verdict": "too early",
-    "note": "value = shadow (break-even after +15) net minus live net, summed over resolved NY cases; 2 resolve rows in all sessions, 2 of them unresolved",
+    "note": "value = shadow (break-even after +15) net minus live net, summed over resolved NY cases; 13 resolve rows in all sessions, 7 of them unresolved",
     "cases": [
      {
       "id": "902e3426-5589-4b22-b62a-3947c3efd1dc",
@@ -44,6 +44,72 @@
       "session": "asia",
       "state": "unresolved",
       "why": "another trade opened"
+     },
+     {
+      "id": "265ad54c-089b-48db-a22e-9b530a37b0d1",
+      "session": "asia",
+      "state": "unresolved",
+      "why": "no price for 606 s"
+     },
+     {
+      "id": "2976540b-3b98-4ca1-9ad2-dd21aa3c40b4",
+      "session": "asia",
+      "state": "resolved",
+      "why": null
+     },
+     {
+      "id": "cdcdfc02-55c1-4698-8d00-76f4c16772c1",
+      "session": "london",
+      "state": "unresolved",
+      "why": "another trade opened"
+     },
+     {
+      "id": "26579d37-3f00-4f50-838e-f61ba2d4c47e",
+      "session": "london",
+      "state": "resolved",
+      "why": null
+     },
+     {
+      "id": "1985ab7f-8634-43e1-ba5e-9da52f0f829b",
+      "session": "london",
+      "state": "unresolved",
+      "why": "another trade opened"
+     },
+     {
+      "id": "2fa5f009-56c9-47ac-bf2c-c9a2039e68de",
+      "session": "london",
+      "state": "unresolved",
+      "why": "another trade opened"
+     },
+     {
+      "id": "9b51e1cf-bdc0-49b7-afee-76a2135fa22c",
+      "session": "london",
+      "state": "resolved",
+      "why": null
+     },
+     {
+      "id": "532c0f25-f7b3-440f-88d0-c816d6e4ee71",
+      "session": "london",
+      "state": "unresolved",
+      "why": "another trade opened"
+     },
+     {
+      "id": "a0db6e95-a858-4db7-b9b9-1b3fb27df3b5",
+      "session": "london",
+      "state": "resolved",
+      "why": null
+     },
+     {
+      "id": "447173e3-81d5-4be4-b8da-0b3fdbfbe82c",
+      "session": "london",
+      "state": "resolved",
+      "why": null
+     },
+     {
+      "id": "4dbb2608-b3d0-46ba-ad42-2c6243c1cadb",
+      "session": "ny",
+      "state": "resolved",
+      "why": null
      }
     ]
    }
@@ -72,18 +138,25 @@
    },
    "running": {
     "asOfTradeDay": "2026-11-11",
-    "n": 1,
-    "value": null,
-    "resolved": 0,
+    "n": 2,
+    "value": 229.5,
+    "resolved": 1,
     "unresolved": 1,
     "verdict": "too early",
-    "note": "n = live early exits; value = dollars saved (+) or given up (-) against the stop / TP1 the trade had, from the 0 exits whose shadow resolved (0 would have hit TP1)",
+    "note": "n = live early exits; value = dollars saved (+) or given up (-) against the stop / TP1 the trade had, from the 1 exits whose shadow resolved (0 would have hit TP1)",
     "cases": [
      {
       "id": "4380cced-8ba7-4d21-bed6-4ee6ab58ab3c",
       "exitPts": -10.25,
       "shadow": "unresolved",
       "why": "another trade opened"
+     },
+     {
+      "id": "26579d37-3f00-4f50-838e-f61ba2d4c47e",
+      "exitPts": -11.75,
+      "shadow": "wouldHaveHitStop",
+      "why": null,
+      "usd": 229.5
      }
     ]
    }
@@ -115,16 +188,52 @@
    },
    "running": {
     "asOfTradeDay": "2026-11-11",
-    "n": 1,
+    "n": 7,
     "value": 86.34,
-    "resolved": 1,
-    "unresolved": 3,
+    "resolved": 7,
+    "unresolved": 6,
     "verdict": "too early",
-    "note": "n = trades under the rule that reached TP1 (4 fills carried the rule); value = average net dollars of those trades. What the old runner rule would have paid on the same trades is not in the journal, so the kill rule cannot be judged by this tool",
+    "note": "n = trades under the rule that reached TP1 (13 fills carried the rule); value = average net dollars of those trades. What the old runner rule would have paid on the same trades is not in the journal, so the kill rule cannot be judged by this tool",
     "cases": [
      {
       "id": "90e77c32-767e-4733-b46b-bdc672faf0dd",
       "session": "asia",
+      "net": 86.34,
+      "exitReason": "tp1-all-out"
+     },
+     {
+      "id": "cdcdfc02-55c1-4698-8d00-76f4c16772c1",
+      "session": "london",
+      "net": 86.34,
+      "exitReason": "tp1-all-out"
+     },
+     {
+      "id": "1985ab7f-8634-43e1-ba5e-9da52f0f829b",
+      "session": "london",
+      "net": 86.34,
+      "exitReason": "tp1-all-out"
+     },
+     {
+      "id": "2fa5f009-56c9-47ac-bf2c-c9a2039e68de",
+      "session": "london",
+      "net": 86.34,
+      "exitReason": "tp1-all-out"
+     },
+     {
+      "id": "9b51e1cf-bdc0-49b7-afee-76a2135fa22c",
+      "session": "london",
+      "net": 86.34,
+      "exitReason": "tp1-all-out"
+     },
+     {
+      "id": "532c0f25-f7b3-440f-88d0-c816d6e4ee71",
+      "session": "london",
+      "net": 86.34,
+      "exitReason": "tp1-all-out"
+     },
+     {
+      "id": "a0db6e95-a858-4db7-b9b9-1b3fb27df3b5",
+      "session": "london",
       "net": 86.34,
       "exitReason": "tp1-all-out"
      }
@@ -157,13 +266,26 @@
    },
    "running": {
     "asOfTradeDay": "2026-11-11",
-    "n": 0,
-    "value": null,
-    "resolved": 0,
+    "n": 2,
+    "value": 138.84,
+    "resolved": 2,
     "unresolved": 0,
     "verdict": "too early",
-    "note": "n = trades under the rule that reached TP1 (0 fills carried the rule); value = average net dollars of those trades. What the old runner rule would have paid on the same trades is not in the journal, so the kill rule cannot be judged by this tool",
-    "cases": []
+    "note": "n = trades under the rule that reached TP1 (2 fills carried the rule); value = average net dollars of those trades. What the old runner rule would have paid on the same trades is not in the journal, so the kill rule cannot be judged by this tool",
+    "cases": [
+     {
+      "id": "27ea4bd2-b5f5-4d7f-9b0b-31ab59f11cb5",
+      "session": "ny",
+      "net": 217.34,
+      "exitReason": "tp1-then-runner"
+     },
+     {
+      "id": "4dbb2608-b3d0-46ba-ad42-2c6243c1cadb",
+      "session": "ny",
+      "net": 60.34,
+      "exitReason": "tp1-then-runner"
+     }
+    ]
    }
   },
   {
@@ -263,7 +385,7 @@
     "resolved": 0,
     "unresolved": 0,
     "verdict": "too early",
-    "note": "shadow counter, nothing is skipped: n = NY trades entered at or after 09:00 PT since the start time; value = their summed net. Context: NY entered 06:30-09:00 PT since then: 0 trades, $0.00",
+    "note": "shadow counter, nothing is skipped: n = NY trades entered at or after 09:00 PT since the start time; value = their summed net. Context: NY entered 06:30-09:00 PT since then: 2 trades, +$277.68",
     "cases": []
    }
   },
