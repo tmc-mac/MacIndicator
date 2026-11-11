@@ -1,0 +1,7 @@
+page <scratchpad>/term22/mobile.html
+t210-inpos: control DOM sha 0cf703e8b82c3d3b (46742 chars), 8 inline handlers, 16 handler functions compared: cancelFetch, ctlDangerTap, ctlDisarm, ctlPauseTap, ctlResumeTap, ctlSay, ctlTap, cycleTheme, flattenNow, pollEntryCancel, refresh, renderControl, sendEntryCancel, sendFlatten, sendPause, showEntryCancel
+r133trade: control DOM sha 51da6c1e66de8354 (47598 chars), 8 inline handlers, 16 handler functions compared: cancelFetch, ctlDangerTap, ctlDisarm, ctlPauseTap, ctlResumeTap, ctlSay, ctlTap, cycleTheme, flattenNow, pollEntryCancel, refresh, renderControl, sendEntryCancel, sendFlatten, sendPause, showEntryCancel
+r133paused: control DOM sha aa28292935d80de0 (46752 chars), 8 inline handlers, 16 handler functions compared: cancelFetch, ctlDangerTap, ctlDisarm, ctlPauseTap, ctlResumeTap, ctlSay, ctlTap, cycleTheme, flattenNow, pollEntryCancel, refresh, renderControl, sendEntryCancel, sendFlatten, sendPause, showEntryCancel
+r133pending: control DOM sha c96d3700af2d4925 (46668 chars), 8 inline handlers, 16 handler functions compared: cancelFetch, ctlDangerTap, ctlDisarm, ctlPauseTap, ctlResumeTap, ctlSay, ctlTap, cycleTheme, flattenNow, pollEntryCancel, refresh, renderControl, sendEntryCancel, sendFlatten, sendPause, showEntryCancel
+
+control-identity-210: 92 passed, 0 failed (base sha256 ca0939894018, 4 states)

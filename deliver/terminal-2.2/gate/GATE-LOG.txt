@@ -1,0 +1,9 @@
+51-office-22 06:42:56Z load 2.3951-office-22 06:48:52Z load 1.86  exit 0  | office-22: 361 passed, 0 failed (HTF cascade 30m node; Office section: good, partial day, stale amber, stale red, weekend, fetch fail first load / after a good load / no 
+50-surfaces-213 06:50:59Z load 2.48  exit 0  | surfaces-213: 569 passed, 0 failed (stamps / broker truth / ack receipts / rule lines / market now / scorecard: present, absent, stale, mismatch; n = 0, small, normal; 36
+33v-control-receipts-210-spec211 06:54:21Z load 3.70  exit 1  | control-receipts-210: 305 passed, 14 failed (4 controls x success / HTTP failure / no answer / not applied in 45 s, painted at 1 s and 30 s; hold prototype; restart hint)
+31v-surfaces-210-spec211 06:56:13Z load 3.74  exit 0  | surfaces-210: 235 passed, 0 failed (six surfaces x fresh / stale / missing, painted output; browser time zone Asia/Tokyo)
+32v-cascade-210-spec211 06:57:08Z load 3.50  exit 1  | cascade-210: 934 passed, 96 failed (node states x depths x 4-node / 5-node x LONG / SHORT, painted output)
+13e-requests-vs-213 06:57:46Z load 4.18  exit 1  | DROP1 REQUESTS: DIFFERENCES FOUND
+12-control-identity-vs-20910 06:59:34Z load 1.64  exit 0  | control-identity-210: 92 passed, 0 failed (base sha256 ca0939894018, 4 states)
+11-budgets-210 07:00:01Z load 1.69  exit 0  | budgets-210: 912 passed, 0 failed (3 states x 360 / 390 / 428 x dark / light x 7 tabs; browser time zone Asia/Tokyo)
+GATE DONE 07:02:18Z

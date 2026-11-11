@@ -1,0 +1,3 @@
+page <scratchpad>/term22/mobile.html
+
+surfaces-210: 235 passed, 0 failed (six surfaces x fresh / stale / missing, painted output; browser time zone Asia/Tokyo)

@@ -1,0 +1,43 @@
+PHONE TERMINAL 2.2  (page only: no bot restart, the bot is not touched)   repo copy: server address removed
+=========================================================================================================
+Installs over 2.1.3 (15e5d96f). Same Control buttons, same requests to the bot.
+New:
+  - Review > Office: the office's daily review on your phone. The virtual combine track (how close to passing,
+    how close to breaching), today and the week by session, what is waiting on you, the leaks with their status and
+    dollars, each experiment with its sample size, and the blocked-signal audit. It reads one public file the daily
+    review publishes; a label always says how old it is, and "partial day" when the TradeDay is not finished.
+  - HTF cascade: the 30m row is now lit and informed like the others, tagged "info". It does not count in the
+    headline and never stops the flow, because the bot's gate does not use 30m. No more "NOT READ".
+  - Now tab: one line "Office: updated ... - combine ...".
+Checked: independent reviewer says SEND. The Control buttons and their requests are unchanged from 2.1.3; a bad or
+hostile Office file cannot run anything or touch the rest of the page; every number on the Office card matched the
+real file; the 30m row behaves as you ruled.
+Known, for the next page (2.2.1): the 30m row drops out for one read (about 20 s) right after each 30m candle closes;
+a file dated in the future would read "fresh"; replay pacing was not re-tested.
+
+Put mobile.html and set-terminal.sh (both from this folder) in Downloads, then in PowerShell:
+
+1) Check the files:
+   cd $env:USERPROFILE\Downloads
+   certutil -hashfile mobile.html SHA256
+      expect: 768134e8a089f5901487d7dfbfc0dc7caa56c2a368b790cd766062300c1ab403
+   certutil -hashfile set-terminal.sh SHA256
+      expect: d891ef9d830244f682110662f85f080dd23984cbb29ba1740cb3e34aca4fb815   (same tool as before)
+
+2) Upload and check on the server:
+   scp mobile.html set-terminal.sh root@<server>:/root/
+   ssh root@<server> "sha256sum /root/mobile.html /root/set-terminal.sh"
+      (the same two codes as above)
+
+3) Install (it asks "Is the bot FLAT?" - type YES):
+   ssh -t root@<server> "bash /root/set-terminal.sh install /root/mobile.html 768134e8a089f5901487d7dfbfc0dc7caa56c2a368b790cd766062300c1ab403"
+   Expect: DONE: mobile.html installed (sha256 verified): before 15e5d96f -> after 768134e8.
+
+4) On your phone: close the terminal page completely and open it again.
+   Now tab: the HTF cascade shows a lit 30m row with an "info" tag.
+   Review tab: scroll to "Office". You should see "TradeDay Wed Nov 11 ... partial day" and the Virtual combine track.
+   If it says "Office board unavailable", send me a screenshot: your phone could not reach the file.
+
+If any step prints STOP, nothing changed - send me that output.
+UNDO (puts back 2.1.3, no restart):   ssh -t root@<server> "bash /root/set-terminal.sh rollback"
+STATUS (changes nothing):             ssh root@<server> "bash /root/set-terminal.sh status"

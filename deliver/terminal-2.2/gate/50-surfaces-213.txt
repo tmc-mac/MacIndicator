@@ -1,0 +1,4 @@
+page <scratchpad>/term22/mobile.html
+Review cards on screen 14, with a rule line 13: rule ATR runner · target +164 (2×ATR 82) · stopped · early-exit check passed gross +$99.50
+
+surfaces-213: 569 passed, 0 failed (stamps / broker truth / ack receipts / rule lines / market now / scorecard: present, absent, stale, mismatch; n = 0, small, normal; 360 / 390 / 428 x dark / light)
