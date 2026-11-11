@@ -22,6 +22,14 @@ Every bot package passes all of these BEFORE it reaches Mac, run by the reviewer
 - Full stops are the main loss driver (NY 11/02 study: 41 of 131 NY trades = -$13.1k). Keep the accurate stop distance (the 25-pt stop of 11/03-11/04 tripled full stops); never stop the bot mid-session as a rule (testing stage: Mac watches every trade live).
 - Mac, 11/11: "Disregard my tightening message, we are doing what's best for the bot's profitability." Early exits of trades that never work are allowed when the live evidence supports them; every such rule ships with an on/off switch and a journal row.
 
+## The Loop: the office improves the bot every TradeDay (Mac, 11/11: "make sure our bot continues to improve over the next few weeks")
+- The process is `office/LOOP.md`. The objective is fixed: pass the $50K combine, get funded, first payout. Rank work by measured effect on that.
+- **Daily (every TradeDay after the 14:05 PT journal slice):** fetch `agent-line` of the team line, run `office/tools/loop_daily.py --day latest`, check the card against the journal, update `office/LOOPHOLES.md` and `office/EXPERIMENTS.md` where the evidence changed, commit and push `office/` (the phone reads `office/state/office.json` from this branch), post at most 10 lines on team line #5, and tell Mac only what needs him.
+- **Weekly (Saturday):** roll the week up in `office/reviews/weekly/`, decide each experiment against its pre-written rule, and give Mac ONE decision card with at most 3 decisions.
+- **Every leak goes in the register** (`office/LOOPHOLES.md`): losses that fit no class, blocked signals that keep costing winners, Mac's flags and screenshots, reviewer findings. Nothing is deleted; killed ideas keep their reason.
+- **The evidence ladder is not skipped:** expectation written first → measured offline with n → recorded live (no orders) for 20 cases → live behind a switch on Mac's go → keep or kill at 20 live cases. An offline estimate is never reported as a result.
+- Missing or stale journal data is reported as missing. No partial day is presented as a full one.
+
 ## Keep the board current
 - Desk board: `$S/hft/ops/CURRENT.md` in the session scratchpad (desk, task, status, ETA, blocker). Update it when a desk starts, finishes or is blocked. The task list mirrors it.
 - Tell Mac in a few words what each desk is doing whenever he asks or a deadline moves.

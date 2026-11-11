@@ -1,0 +1,40 @@
+# Loophole register
+
+Everything known to cost money or block the objective (pass the $50K combine, then a payout). Rules for this file are in `office/LOOP.md` section 5. Statuses: `observed` → `measured` → `recording` → `live` → `kept` / `killed`. Entries are never deleted.
+
+Seeded 11/11 from the 11/11 edge studies (149 levels trades, 10/28-11/10, live journal), the 11/02 NY study, the combine plan and tonight's live session. Dollar figures are from those studies and are first-order: they are estimates until the daily cycle measures them live.
+
+## Strategy leaks
+
+| Id | Leak | Evidence | Status | Next step |
+|---|---|---|---|---|
+| L-01 | Full stops never work: the trades that go to the full stop were almost never in profit | Median best excursion +0.75 pts, 3.7 min in. Early exit estimated +$663 on 9 trades | **live** since 11/11 (early exit, switchable) | Keep / kill at 20 live cases. Watch "early exits that would have hit TP1" (rig witness: 1 of 1) |
+| L-02 | The runner is dead weight in Asia and London | Runner study B | **live** since 11/11 (all out at TP1 in Asia / London) | First live trade +$86.34 against +$75.84 under the old rule. Keep / kill at 20 |
+| L-03 | NY: the first target is small against NY candles | TP1 +15 is 0.25x an NY 5m candle. NY reaches +15 before -50 in 67% of trades; break-even needs 77% | **recording** (TP1 = 0.75 x ATR, record-only) | Offline it showed +$4,009 but nearly doubled full stops. Verdict at 20 resolved |
+| L-04 | NY runner: fixed runner leaves money in trends | NY ATR runner +$1,240 on n=18 | **live** since 11/11 | Small sample. Keep / kill at 20 |
+| L-05 | Control gate reads "flat" while the indicator shows a side | 10/28 study: 56 of 57 disagreements, 15% of 15m bars. 11/11 live: 0.158 vs 0.22, blocked | **live** since 11/11 05:14Z (bot uses the indicator's formula) | P&L effect not measured. Compare gate passes and their results before / after the switch |
+| L-06 | Trades skipped when the planned stop is wider than the 50-pt cap | Mac, 11/10: "I don't want to continue to skip these trades". Capped sizing on the rig, 5 days: -$21 to -$434 with 7-8 full stops against -$53 with 3 | **measured**, held OFF (switch exists) | Count skipped signals per day and what they did next; revisit with that data |
+| L-07 | Re-entry right after a full stop | Idea from the loss study; not measured | **observed** | Measure: result of the next trade in the same direction within 30 min of a full stop |
+| L-08 | High-volatility days: same size and stop as quiet days | NY candles 1.5-1.7x Asia's; "moves have been way bigger than they were historically" (Mac) | **observed** | Measure by ATR tercile: stops, wins, net. Candidate: a volatility gauge, record-only |
+| L-09 | Tightening the stop to 25 pts | 11/03-11/04: 12 full stops in 28 trades (tripled) | **killed** | Keep the accurate stop distance (standing order) |
+| L-10 | Protect-after-profit (move the stop up once in profit) | Loss study A: loses | **killed** | None |
+| L-11 | Entry filters (103 tested) | 0 survive the multiple-comparison correction | **killed** as a group | A new filter needs a reason first, then a test, not a search |
+
+## Bot and data leaks
+
+| Id | Leak | Evidence | Status | Next step |
+|---|---|---|---|---|
+| B-01 | One skipped fast check (about 20 s blind) at each 15m close: "fetch failed" | Per-day counts 0,0,0,0,10,81,17 since the 11/09 restore. Cause: proxy closes idle connections after 5 s while the bar-close evaluation blocks the bot | Fixed in edge r1.2 (in review, not installed) | Ship through the gate; confirm with the new idle-time log line |
+| B-02 | Flatten answered "already flat" from the bot's own state | Terminal 2.1.1 review | Phone side fixed in 2.1.3; bot side in edge r1.2 | Install r1.2 |
+| B-03 | Entry price shows UNKNOWN on the phone until Review is opened | Mac's 11/10 screenshot | Phone side fixed in 2.1.1; bot side (fill on the trade row) in edge r1.2 | Install r1.2 |
+| B-04 | The full ship gate (Mac-box run, restart soak) has not been run on the edge builds | Mac's "stop running replays & tests" (11/10) | **open** | Run it once on r1.2 in the reviewer desk; ask Mac before any long replay loop |
+| B-05 | Indicator and bot read the forming candle seconds apart | 0.03 residual on 11/11 after the parity switch | **observed**, accepted | Only if it flips a gate for more than a minute |
+
+## Objective risks (Mac's decisions)
+
+| Id | Risk | Evidence | Status |
+|---|---|---|---|
+| R-01 | Topstep's terms prohibit trading from a VPS or remote server | Combine plan, source dated 2026-09-17: a pass can be voided whatever the P&L | **open, Mac's decision** |
+| R-02 | No daily loss limit: 7 full stops in one day breaches the combine the same day | Combine plan section 3 | **open**. Standing order: never stop the bot mid-session as a rule. The daily cycle reports the worst stop streak so the risk is visible |
+| R-03 | Consistency: one day over $1,650 raises the target | Combine plan section 4 | Tracked daily (`bestDayPct`) |
+| R-04 | The bot is on a practice account; no combine is running | 11/11 phone header | **open, Mac's decision**: when to start. The virtual combine gives the readiness evidence |
