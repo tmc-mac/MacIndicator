@@ -1,0 +1,57 @@
+MAC - INSTALL "EDGE r1.4" on edge r1.3 (executor 4168e4bb -> 871d53ca)   (server address omitted)
+=======================================================================================================
+What it changes (no trading rule changes; everything new only RECORDS):
+  1. PHONE SERVER MEMORY: opening Trades / Review / the journal download no longer loads the whole journal into
+     memory. One request now peaks near 135 MB (before: 430-650 MB). Answers are byte-for-byte the same.
+  2. The office's new counters, so the experiments can be scored with real numbers:
+     - control score by BOTH formulas (only when it is near the line), so we can see which entries the old formula
+       would have blocked;
+     - what the OLD runner rule would have paid on each trade;
+     - whether price TOUCHED the first target without the order filling (the near-miss leak);
+     - NY trades entered after 9:00 AM PT; the day's running low in the snapshot.
+  3. Cost: each evaluation takes about 20% longer (it runs the second control score only near the line);
+     start-up takes about 1 s longer. Memory stays near 325 MB at start.
+Checked (independent desks, on the frozen build 79b3c3b): code review SHIP WITH NOTES; boot on one core / 961 MB / the
+server's heap limit / a 98.7 MB journal, no memory error; 4 hard-kill chains (4+ kills each, incl. between fill and
+stop, and around the new record rows), every start LIVE, no duplicate orders; same broker orders as r1.3 on the 11/02
+replay window (36 events each); real-clock run on one core, 13 min x 4: no missed 20 s poll (longest gap 30.8 s),
+TIDE LIVE every time; install, second run, rollback, refusal when not flat, undo after a failed step all pass.
+Known, none touch trading: a hard kill more than ~3 min after the last state save can leave one new record
+"unresolved" (never invented); a restart that adopts a position after the first target filled while the bot was down
+is not counted by the new TP1 counters; the first start after install may block for 3-4 s once at warm-up.
+
+Be FLAT in TopstepX. Put MacBot-edge-r1.4.zip in Downloads, open PowerShell:
+
+1) Check the file:
+  cd $env:USERPROFILE\Downloads
+  Get-FileHash .\MacBot-edge-r1.4.zip
+     (must start with 80D048F1)
+
+2) Copy it up and unpack:
+  scp .\MacBot-edge-r1.4.zip root@<server>:/root/
+  ssh root@<server> "mkdir -p /root/edge14 && cd /root/edge14 && python3 -m zipfile -e /root/MacBot-edge-r1.4.zip . && ls MacBot-edge-r1.4"
+
+3) Install the bot (type YES when asked):
+  ssh -t root@<server> "cd /root/edge14/MacBot-edge-r1.4 && MACBOT_DIR=/opt/mac-bot bash install-edge.sh tree"
+     It takes up to about 2 minutes after YES while it waits for the new stamp.
+     You want at the end: "session stamp ... (executor 871d53ca" and "DONE". Keep the rollback line it prints.
+     If it says STOP before it asks YES, nothing was changed - send me the lines. (If STOP lists the four files
+     live-executor / scorecard / journalLines / tmc-proxy as FAILED, you are already on r1.4: do nothing.)
+     If a step fails halfway it undoes itself and prints UNDO then DONE on the old build: send me the lines.
+     If the window closes or the connection drops DURING step 3, do NOT run the install again. Run
+       ssh root@<server> "ls -d /opt/.edge14-backup-*"
+     and send me the output (the rollback line goes with that folder).
+
+4) Restart the phone server (its file changed). THIS RESTARTS THE BOT TOO (the bot's service requires it), so you
+   will see two starts; the memory settings you added stay in place:
+  ssh root@<server> "systemctl restart mac-bot-proxy.service && sleep 3 && systemctl is-active mac-bot-proxy.service"
+     You want: active
+
+5) Check (wait 2 min):
+  ssh root@<server> "journalctl -u mac-bot-live --since '-5 min' --no-pager | grep -E 'session stamp|control score|Entering live loop|FATAL|unusable' | tail -8"
+     You want: "executor 871d53ca", "control score:" (Pine parity if that setting is on), "Entering live loop". No FATAL lines.
+  Then open Trades and Review on the phone a few times: the phone server should stay up.
+
+ROLLBACK to edge r1.3 (flat first): run the rollback line step 3 printed, as
+  ssh -t root@<server> "bash <BACKUP-FOLDER>/rollback-edge.sh <BACKUP-FOLDER>"
+  then run step 4 again so the phone server restarts on the old file.
