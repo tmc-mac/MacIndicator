@@ -1,0 +1,32 @@
+/* terminal 2.1.0 stage 2: receipts at the pause and danger-zone buttons */
+.t2r-slot:empty { display: none; }
+.t2r-slot { margin: 8px 0; }
+.t2r { display: flex; gap: 8px; align-items: flex-start; padding: 10px 10px 10px 12px; border-radius: var(--r-md); border: 1px solid var(--rc); border-left-width: 4px; background: color-mix(in srgb, var(--rc) 10%, var(--s1)); color: var(--t1); font-size: var(--fs-14); line-height: 1.4; --rc: var(--accent); }
+.t2r[data-state="APPLIED"] { --rc: var(--status-good); } .t2r[data-state="FILLED"] { --rc: var(--status-warning); box-shadow: 0 0 20px -8px var(--status-warning); } .t2r[data-state="FAILED"] { --rc: var(--status-critical); box-shadow: 0 0 20px -8px var(--status-critical); } .t2r[data-state="LATE"] { --rc: var(--status-warning); }
+.t2r-t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.t2r-w { color: var(--rc); font-weight: 800; letter-spacing: 0.04em; } .t2r-k { font-weight: 700; } .t2r-at { color: var(--t2); font-size: var(--fs-12); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.t2r-l { font-weight: 600; margin-top: 2px; } .t2r[data-state="FAILED"] .t2r-l { color: var(--status-critical); font-weight: 800; } .t2r[data-state="LATE"] .t2r-l, .t2r[data-state="FILLED"] .t2r-l { color: var(--status-warning); font-weight: 800; }
+.t2r-n { color: var(--t2); font-size: var(--fs-12); margin-top: 2px; }
+.t2r-b { display: flex; flex-direction: column; gap: 6px; flex: none; }
+.t2r-b button { min-height: var(--tap); min-width: 72px; padding: 0 10px; border-radius: var(--r-md); border: 1px solid var(--border-strong); background: var(--s2); color: var(--t1); font-weight: 700; font-size: var(--fs-12); touch-action: manipulation; cursor: pointer; }
+.t2r-b button[data-t2r="retry"] { border-color: var(--rc); color: var(--rc); }
+.t2r-b button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.t2r-b button { transition: transform 80ms ease-out; }
+@media (hover: hover) and (pointer: fine) { .t2r-b button:hover { border-color: var(--rc); background: color-mix(in srgb, var(--rc) 14%, var(--s2)); } }
+.t2r-b button:active { transform: scale(0.96); border-color: var(--rc); background: color-mix(in srgb, var(--rc) 24%, var(--s2)); }
+
+/* terminal 2.1.1: the bot's own answer. The chain sent -> bot received -> result is the receipt's proof line. */
+.t2r[data-state="CONFIRMED"] { --rc: var(--status-good); box-shadow: 0 0 22px -8px var(--status-good); }
+.t2r[data-state="REFUSED"], .t2r[data-state="REJECTED"] { --rc: var(--status-critical); box-shadow: 0 0 20px -8px var(--status-critical); }
+.t2r[data-state="STALEREQ"], .t2r[data-state="DUPLICATE"], .t2r[data-state="PENDING"] { --rc: var(--status-warning); }
+.t2r[data-state="REFUSED"] .t2r-l, .t2r[data-state="REJECTED"] .t2r-l { color: var(--status-critical); font-weight: 800; }
+.t2r[data-state="STALEREQ"] .t2r-l, .t2r[data-state="DUPLICATE"] .t2r-l, .t2r[data-state="PENDING"] .t2r-l { color: var(--status-warning); font-weight: 800; }
+.t2r-tag { display: inline-block; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--t2); font-size: var(--fs-12); font-weight: 700; white-space: nowrap; }
+.t2r-chain { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 0; }
+.t2r-chain li { position: relative; display: flex; align-items: baseline; gap: 8px; padding: 2px 0 2px 18px; font-size: var(--fs-12); color: var(--t2); }
+.t2r-chain li > i { position: absolute; left: 2px; top: 7px; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--t2); box-sizing: border-box; }
+.t2r-chain li + li::before { content: ''; position: absolute; left: 5.25px; top: -8px; height: 14px; border-left: 1.5px solid var(--border-strong); }
+.t2r-chain li[data-on="1"] { color: var(--t1); } .t2r-chain li[data-on="1"] > i { background: var(--rc); border-color: var(--rc); } .t2r-chain li[data-on="1"] + li[data-on="1"]::before { border-left-color: var(--rc); }
+.t2r-cl { font-weight: 700; min-width: 86px; } .t2r-ct { font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: no-preference) { .t2r-chain li[data-on="1"] > i { animation: t2r-pop 260ms ease-out both; } }
+@keyframes t2r-pop { from { transform: scale(0.4); opacity: 0.4; } to { transform: scale(1); opacity: 1; } }

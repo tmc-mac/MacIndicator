@@ -1,0 +1,33 @@
+/* terminal 2.1.1: Market now, the rule line on trade rows, the rule scorecard (Review). Text uses the text tokens; status colours only on status words. */
+.t2-mk-line { font-size: var(--fs-16); font-weight: 700; color: var(--t1); line-height: 1.45; overflow-wrap: anywhere; }
+.t2-mk-line b { font-weight: 800; letter-spacing: 0.02em; } .t2-mk-line .t2-note { font-weight: 600; }
+.t2-mk-dot { color: var(--t2); }
+.t2-mk-on { color: var(--status-good); } .t2-mk-off { color: var(--t1); }
+.t2-mk-open { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); font-size: var(--fs-14); color: var(--t1); line-height: 1.45; overflow-wrap: anywhere; }
+.t2-mk-open small, .t2-rule small { color: var(--t2); font-weight: 600; font-size: var(--fs-12); }
+.t2-rule .t2-v { font-weight: 700; }
+.t2-rule-pg { margin-top: 4px; font-size: var(--fs-12); line-height: 1.45; color: var(--t1); overflow-wrap: anywhere; white-space: normal; }
+.t2-rule-rv { grid-column: 1 / -1; min-width: 0; padding-top: 2px; font-family: var(--sans); }   /* its own row of the card's summary grid: the page's columns keep their widths */
+.t2-rule-m { display: block; color: var(--t2); } .t2-rule-m .t2-v { font-family: var(--mono); font-weight: 600; color: var(--t1); }
+.t2-score { margin-bottom: 12px; }
+.t2-sc-since { font-size: var(--fs-14); color: var(--t2); line-height: 1.45; } .t2-sc-since .t2-v { color: var(--t1); font-weight: 700; }
+.t2-sc-b { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); min-width: 0; }
+.t2-sc-h { margin: 0 0 4px; font-size: var(--fs-14); font-weight: 800; color: var(--t1); letter-spacing: 0.01em; }
+.t2-sc-est { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--t2); font-size: var(--fs-12); font-weight: 700; letter-spacing: 0; text-transform: none; vertical-align: 1px; }
+.t2-sc-n { display: block; font-size: var(--fs-12); color: var(--t2); font-variant-numeric: tabular-nums; } .t2-sc-sh .t2-sc-n { display: inline; margin-left: 6px; font-weight: 600; }
+.t2-sc-few { color: var(--status-warning); font-weight: 800; }
+.t2-sc-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 8px; margin-top: 8px; }
+.t2-sc-tile { min-width: 0; padding: 10px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--s2); }
+.t2-sc-v { font-size: var(--fs-20, 20px); line-height: 1.2; font-weight: 800; color: var(--t1); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; margin-top: 2px; }
+.t2-sc-v .t2-unk { font-size: var(--fs-12); font-weight: 600; } .t2-sc-v small { font-size: var(--fs-12); color: var(--t2); font-weight: 600; }
+.t2-sc-s { font-size: var(--fs-12); color: var(--t2); line-height: 1.45; margin-top: 4px; overflow-wrap: anywhere; } .t2-sc-s .t2-v { color: var(--t1); font-weight: 700; }
+.t2-sc-verd { font-size: var(--fs-12); letter-spacing: 0.04em; vertical-align: 2px; } .t2-sc-verd[data-v="good"] { color: var(--status-good); } .t2-sc-verd[data-v="bad"] { color: var(--status-critical); }
+.t2-sc-t { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: var(--fs-12); color: var(--t1); font-variant-numeric: tabular-nums; table-layout: auto; }
+.t2-sc-t caption { text-align: left; color: var(--t2); font-weight: 600; padding-bottom: 2px; }
+.t2-sc-t th, .t2-sc-t td { padding: 6px 4px; border-bottom: 1px solid var(--border); text-align: right; vertical-align: baseline; overflow-wrap: anywhere; }
+.t2-sc-t th { color: var(--t2); font-weight: 600; } .t2-sc-t th:first-child, .t2-sc-t td.t2-sc-l { text-align: left; } .t2-sc-t tbody th { color: var(--t1); font-weight: 700; }
+.t2-sc-t td .t2-v { font-weight: 700; } .t2-sc-all th, .t2-sc-all td { border-top: 1px solid var(--border-strong); border-bottom: 0; font-weight: 800; }
+.t2-sc-sub { margin-top: 12px; } .t2-sc-sh { font-size: var(--fs-12); font-weight: 800; color: var(--t1); }
+@media (max-width: 374px) { .t2-sc-t th, .t2-sc-t td { padding: 6px 2px; } }
+.t2-lvsrc { color: var(--t1); font-size: var(--fs-12); font-weight: 700; white-space: normal; } .t2-lvsrc i { font-style: normal; font-weight: 600; color: var(--t2); }
+.t2-nospark { display: inline-block; max-width: 96px; color: var(--t2); font-size: var(--fs-12); line-height: 1.25; text-align: right; }

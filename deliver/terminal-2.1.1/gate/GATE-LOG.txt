@@ -1,0 +1,22 @@
+15-replay-smooth-ab-vs-20910 04:20:03Z load 0.43  exit 1  | replay-smooth-2099: 27 passed, 1 failed
+GATE PART ab DONE 04:31:05Z
+50-surfaces-211 04:31:15Z load 1.58  exit 0  | surfaces-211: 499 passed, 0 failed (stamps / broker truth / ack receipts / rule lines / market now / scorecard: present, absent, stale, mismatch; n = 0, small, normal; 36
+GATE PART new DONE 04:33:51Z
+31u-surfaces-210-updated 04:34:01Z load 3.26  exit 1  | surfaces-210: 229 passed, 6 failed (six surfaces x fresh / stale / missing, painted output; browser time zone Asia/Tokyo)
+33u-control-receipts-210-updated 04:35:00Z load 3.11  exit 1  | control-receipts-210: 303 passed, 16 failed (4 controls x success / HTTP failure / no answer / not applied in 45 s, painted at 1 s and 30 s; hold prototype; restart hint)
+30-fixes-qa-210 04:36:57Z load 2.71  exit 1  | fixes-qa-210: 63 passed, 3 failed (QA 11/10 findings 1-9, painted)
+31v-surfaces-210-spec211 04:38:12Z load 3.56  exit 0  | surfaces-210: 235 passed, 0 failed (six surfaces x fresh / stale / missing, painted output; browser time zone Asia/Tokyo)
+33v-control-receipts-210-spec211 04:39:11Z load 3.31  exit 0  | control-receipts-210: 319 passed, 0 failed (4 controls x success / HTTP failure / no answer / not applied in 45 s, painted at 1 s and 30 s; hold prototype; restart hint)
+30v-fixes-qa-210-spec211 04:41:08Z load 2.80  exit 0  | fixes-qa-210: 66 passed, 0 failed (QA 11/10 findings 1-9, painted)
+32v-cascade-210-spec211 04:42:23Z load 2.31  exit 0  | cascade-210: 1030 passed, 0 failed (node states x depths x 4-node / 5-node x LONG / SHORT, painted output)
+32u-cascade-210-updated 04:43:06Z load 2.88  exit 1  | cascade-210: 1029 passed, 1 failed (node states x depths x 4-node / 5-node x LONG / SHORT, painted output)
+12-control-identity-vs-20910 04:43:50Z load 3.02  exit 0  | control-identity-210: 92 passed, 0 failed (base sha256 ca0939894018, 4 states)
+12b-control-identity-vs-210 04:44:21Z load 2.90  exit 1  | control-identity-210: 88 passed, 4 failed (base sha256 c56ce29de1d2, 4 states)
+13-requests-vs-20910 04:44:53Z load 2.74  exit 0  | DROP1 REQUESTS: IDENTICAL
+13b-requests-vs-210 04:46:45Z load 0.61  exit 0  | DROP1 REQUESTS: IDENTICAL
+21-cascade-perf-210 04:48:37Z load 0.22  exit 0  | cascade-perf-210: 13 passed, 0 failed (transform / opacity only; layouts and frame pace, animation running vs paused)
+11-budgets-210 04:49:08Z load 0.57  exit 0  | budgets-210: 912 passed, 0 failed (3 states x 360 / 390 / 428 x dark / light x 7 tabs; browser time zone Asia/Tokyo)
+GATE PART func DONE 04:51:24Z
+42-qa-rcpt-fixqa-scenarios 04:51:34Z load 3.26  exit 0  |  
+43-qa-adv-fixqa-scenarios 04:52:24Z load 2.37  exit 0  | done 7
+GATE PART qa DONE 04:53:21Z

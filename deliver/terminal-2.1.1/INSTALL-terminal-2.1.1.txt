@@ -1,0 +1,39 @@
+PHONE TERMINAL 2.1.1  (page only: no bot restart, the bot is not touched)   PRIVATE - server address inside
+=========================================================================================================
+Replaces your page 2.1.0 (c56ce29d). Same Control buttons, same requests to the bot.
+New:
+  - Header: build / bot version / settings / start time straight from the bot (no more crossed-out build).
+  - Broker card: your real position and working orders from the bot's broker reads; STALE and MISMATCH shown.
+  - Danger-zone buttons: sent -> bot received -> result, "BOT CONFIRMED" with real times; refusals show the bot's reason.
+  - Trade rows: which rule managed the trade ("TP1 - all 3 out", "Early exit", "NY runner ..."), exit reason, fees.
+  - Entry price without opening Review: the bot's broker average, labelled "broker avg"; points labelled "(bot)".
+  - Short trades: the small chart is drawn from the prices around the trade, or says "too short to chart".
+  - "Market now" strip on Now; Scorecard section under Review (each figure shows how many trades it rests on).
+Open item: replay frame pacing on a 4x slowed test CPU is at the limit (see the note I sent with this sheet).
+Independent review is running after this send. Undo is one command (below).
+
+Put mobile.html and set-terminal.sh (both from this folder) in Downloads, then in PowerShell:
+
+1) Check the files:
+   cd $env:USERPROFILE\Downloads
+   certutil -hashfile mobile.html SHA256
+      expect: fa931784d1892996ec7b7641778fa1fb2216e1fbb3241fb286d41f99f3158411
+   certutil -hashfile set-terminal.sh SHA256
+      expect: d891ef9d830244f682110662f85f080dd23984cbb29ba1740cb3e34aca4fb815   (same tool as before)
+
+2) Upload and check on the server:
+   scp mobile.html set-terminal.sh root@<server>:/root/
+   ssh root@<server> "sha256sum /root/mobile.html /root/set-terminal.sh"
+      (the same two codes as above)
+
+3) Install (it asks "Is the bot FLAT?" - type YES):
+   ssh -t root@<server> "bash /root/set-terminal.sh install /root/mobile.html fa931784d1892996ec7b7641778fa1fb2216e1fbb3241fb286d41f99f3158411"
+   Expect: DONE: mobile.html installed (sha256 verified): before c56ce29d -> after fa931784.
+
+4) On your phone: close the terminal page completely and open it again.
+   The header shows the build with "from the bot". Open Levels: the 7:06 PM trade shows its entry and a chart or
+   "too short to chart". Tap Pause 5 min: SENT -> BOT CONFIRMED within a few seconds. Then Resume.
+
+If any step prints STOP, nothing changed - send me that output.
+UNDO (puts back 2.1.0, no restart):   ssh -t root@<server> "bash /root/set-terminal.sh rollback"
+STATUS (changes nothing):             ssh root@<server> "bash /root/set-terminal.sh status"
