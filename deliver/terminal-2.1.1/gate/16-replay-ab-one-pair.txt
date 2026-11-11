@@ -1,0 +1,31 @@
+shapes per run reel 1x: ref 3 (p95 33.4) | page 3 (p95 50.0)
+CASE DONE reel 1x at 04:54:45Z | ref p95 33.4 max 100 lt 386 shapes 3 | page p95 50.0 max 117 lt 393 shapes 3 brain 0/0 errors 0
+Wr6 reel 1x: page 3 vs reference range 3..3 over 1 runs (floor 3; page runs 3)
+shapes per run reel 4x: ref 3 (p95 83.3) | page 3 (p95 50.1)
+CASE DONE reel 4x at 04:56:11Z | ref p95 83.3 max 383 lt 1923 shapes 3 | page p95 50.1 max 400 lt 2020 shapes 3 brain 0/0 errors 0
+Wr6 reel 4x: page 3 vs reference range 3..3 over 1 runs (floor 3; page runs 3)
+shapes per run chart 1x: ref 20 (p95 33.4) | page 20 (p95 33.4)
+CASE DONE chart 1x at 04:56:58Z | ref p95 33.4 max 83 lt 304 shapes 20 | page p95 33.4 max 83 lt 288 shapes 20 brain 0/0 errors 0
+Wr6 chart 1x: page 20 vs reference range 20..20 over 1 runs (floor 20; page runs 20)
+shapes per run chart 4x: ref 17 (p95 33.5) | page 17 (p95 33.4)
+CASE DONE chart 4x at 04:57:42Z | ref p95 33.5 max 483 lt 1702 shapes 17 | page p95 33.4 max 450 lt 1639 shapes 17 brain 0/0 errors 0
+Wr6 chart 4x: page 17 vs reference range 17..17 over 1 runs (floor 17; page runs 17)
+case | page | frames | p95 gap ms | max gap ms | max step % | progress moves | long tasks ms | bar shapes | brain frames / flashes
+reel 1x | 07c95367 (ref) | 372 | 33.4 | 100 | 0.42 | 176 | 386 | 3 | 0 / 0
+reel 1x | page | 349 | 50.0 | 117 | 0.42 | 152 | 393 | 3 | 0 / 0
+reel 4x | 07c95367 (ref) | 217 | 83.3 | 383 | 0.42 | 122 | 1923 | 3 | 0 / 0
+reel 4x | page | 248 | 50.1 | 400 | 0.42 | 151 | 2020 | 3 | 0 / 0
+chart 1x | 07c95367 (ref) | 360 | 33.4 | 83 | 1.19 | 300 | 304 | 20 | 0 / 0
+chart 1x | page | 398 | 33.4 | 83 | 1.19 | 338 | 288 | 20 | 0 / 0
+chart 4x | 07c95367 (ref) | 275 | 33.5 | 483 | 6.90 | 215 | 1702 | 17 | 0 / 0
+chart 4x | page | 297 | 33.4 | 450 | 6.43 | 239 | 1639 | 17 | 0 / 0
+load at the start of each run (limit 3):
+  reel 1x ref0: load 2.99 after waiting 5 s
+  reel 1x new0: load 2.62 after waiting 5 s
+  reel 4x ref0: load 2.96 after waiting 5 s
+  reel 4x new0: load 2.88 after waiting 25 s
+  chart 1x ref0: load 2.95 after waiting 10 s
+  chart 1x new0: load 2.91 after waiting 5 s
+  chart 4x ref0: load 2.65 after waiting 5 s
+  chart 4x new0: load 2.4 after waiting 5 s
+replay-smooth-2099: 28 passed, 0 failed
