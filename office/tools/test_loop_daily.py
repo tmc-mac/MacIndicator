@@ -100,6 +100,15 @@ class VirtualCombine(unittest.TestCase):
         r = ld.simulate_combine([day("d1", 500), day("d2", (-100, -2600.0), complete=False)])
         self.assertEqual(r["status"], "breached")    # a breach inside an unfinished day still counts
 
+    def test_need_per_day_is_plain_arithmetic(self):
+        cur = {"status": "open", "target": 3000.0, "profit": 600.0}
+        # Tuesday 11/10 complete: 11/11 .. 11/30 has 14 weekdays
+        self.assertEqual(ld.trade_days_left("2026-11-10", True, "2026-11-30"), 14)
+        self.assertEqual(ld.trade_days_left("2026-11-10", False, "2026-11-30"), 15)      # an unfinished day still counts
+        self.assertEqual(ld.need_per_day(cur, "2026-11-10", True, "2026-11-30")["perDay"], round(2400 / 14, 2))
+        self.assertIsNone(ld.need_per_day(cur, "2026-11-30", True, "2026-11-30")["perDay"])   # no day left: unknown, not a guess
+        self.assertIsNone(ld.need_per_day(dict(cur, status="breached"), "2026-11-10", True, "2026-11-30")["perDay"])
+
     def test_chain_and_history(self):
         days = [day("d1", -2100), day("d2", 100), day("d3", -2500), day("d4", 50)]
         ch = ld.combine_chain(days, "d1")
@@ -159,7 +168,7 @@ class Autopsy(unittest.TestCase):
         tr = [self.t(1, -250, "full-stop", 0, 5 * m), self.t(2, -260, "full-stop", 20 * m, 25 * m), self.t(3, -40, "no-progress-exit", 200 * m, 210 * m),
               self.t(4, -70, "early-adverse-exit", 300 * m, 303 * m), self.t(5, 80, "tp1-all-out", 400 * m, 401 * m), self.t(6, -250, "full-stop", 10 * m, 12 * m, d=-1)]
         got = {x["trade"]["id"]: x["leak"] for x in ld.autopsy(sorted(tr, key=lambda t: t["_tEntry"]))}
-        self.assertEqual(got, {"1": "L-01", "6": "L-01", "2": "L-07", "3": "unclassified", "4": "L-01"})
+        self.assertEqual(got, {"1": "L-01", "6": "L-01", "2": "L-07", "3": "L-12", "4": "L-01"})
 
 
 if __name__ == "__main__":

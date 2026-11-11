@@ -6,7 +6,226 @@
   "rows": 106319,
   "lastRow": "2026-11-11T06:05:00Z"
  },
- "note": "one row per closed trade, keyed by journal id; money from the broker's realized P&L row unless moneySource is 'estimate'; MFE / MAE are lower bounds from the named journal source",
+ "note": "one row per closed trade, keyed by journal id; money from the broker's realized P&L row unless moneySource is 'estimate'; MFE / MAE are lower bounds from the named journal source; leak = the loss class from office/LOOPHOLES.md",
+ "tradeDays": [
+  {
+   "day": "2026-09-24",
+   "rows": 81,
+   "complete": true,
+   "trades": 0,
+   "net": 0.0
+  },
+  {
+   "day": "2026-09-25",
+   "rows": 95,
+   "complete": true,
+   "trades": 8,
+   "net": -1654.3
+  },
+  {
+   "day": "2026-09-29",
+   "rows": 25,
+   "complete": true,
+   "trades": 3,
+   "net": -960.8
+  },
+  {
+   "day": "2026-09-30",
+   "rows": 80,
+   "complete": true,
+   "trades": 5,
+   "net": -301.5
+  },
+  {
+   "day": "2026-10-05",
+   "rows": 71,
+   "complete": true,
+   "trades": 3,
+   "net": 990.7
+  },
+  {
+   "day": "2026-10-07",
+   "rows": 61,
+   "complete": true,
+   "trades": 2,
+   "net": 395.3
+  },
+  {
+   "day": "2026-10-08",
+   "rows": 102,
+   "complete": true,
+   "trades": 4,
+   "net": -283.9
+  },
+  {
+   "day": "2026-10-09",
+   "rows": 3289,
+   "complete": true,
+   "trades": 2,
+   "net": -929.7
+  },
+  {
+   "day": "2026-10-12",
+   "rows": 2755,
+   "complete": true,
+   "trades": 13,
+   "net": -544.3
+  },
+  {
+   "day": "2026-10-13",
+   "rows": 2742,
+   "complete": true,
+   "trades": 11,
+   "net": 2309.9
+  },
+  {
+   "day": "2026-10-14",
+   "rows": 3224,
+   "complete": true,
+   "trades": 19,
+   "net": -888.4
+  },
+  {
+   "day": "2026-10-15",
+   "rows": 3453,
+   "complete": true,
+   "trades": 10,
+   "net": -819.74
+  },
+  {
+   "day": "2026-10-16",
+   "rows": 3277,
+   "complete": true,
+   "trades": 14,
+   "net": -478.64
+  },
+  {
+   "day": "2026-10-19",
+   "rows": 3275,
+   "complete": true,
+   "trades": 25,
+   "net": -1627.74
+  },
+  {
+   "day": "2026-10-20",
+   "rows": 4209,
+   "complete": true,
+   "trades": 19,
+   "net": -565.54
+  },
+  {
+   "day": "2026-10-21",
+   "rows": 4456,
+   "complete": true,
+   "trades": 12,
+   "net": 84.34
+  },
+  {
+   "day": "2026-10-22",
+   "rows": 4925,
+   "complete": true,
+   "trades": 33,
+   "net": -691.26
+  },
+  {
+   "day": "2026-10-23",
+   "rows": 4042,
+   "complete": true,
+   "trades": 14,
+   "net": -371.9
+  },
+  {
+   "day": "2026-10-26",
+   "rows": 4658,
+   "complete": true,
+   "trades": 25,
+   "net": 416.66
+  },
+  {
+   "day": "2026-10-27",
+   "rows": 5122,
+   "complete": true,
+   "trades": 26,
+   "net": -1010.66
+  },
+  {
+   "day": "2026-10-28",
+   "rows": 4174,
+   "complete": true,
+   "trades": 17,
+   "net": -5.18
+  },
+  {
+   "day": "2026-10-29",
+   "rows": 4141,
+   "complete": true,
+   "trades": 23,
+   "net": -470.86
+  },
+  {
+   "day": "2026-10-30",
+   "rows": 4439,
+   "complete": true,
+   "trades": 23,
+   "net": 1122.14
+  },
+  {
+   "day": "2026-11-02",
+   "rows": 4762,
+   "complete": true,
+   "trades": 30,
+   "net": 806.7
+  },
+  {
+   "day": "2026-11-03",
+   "rows": 4688,
+   "complete": true,
+   "trades": 31,
+   "net": -1532.46
+  },
+  {
+   "day": "2026-11-04",
+   "rows": 4064,
+   "complete": true,
+   "trades": 7,
+   "net": -400.62
+  },
+  {
+   "day": "2026-11-05",
+   "rows": 3684,
+   "complete": true,
+   "trades": 0,
+   "net": 0.0
+  },
+  {
+   "day": "2026-11-06",
+   "rows": 3480,
+   "complete": true,
+   "trades": 0,
+   "net": 0.0
+  },
+  {
+   "day": "2026-11-09",
+   "rows": 3658,
+   "complete": true,
+   "trades": 0,
+   "net": 0.0
+  },
+  {
+   "day": "2026-11-10",
+   "rows": 4304,
+   "complete": true,
+   "trades": 16,
+   "net": -108.06
+  },
+  {
+   "day": "2026-11-11",
+   "rows": 1537,
+   "complete": false,
+   "trades": 9,
+   "net": 462.56
+  }
+ ],
  "trades": [
   {
    "id": "e598d350-6e24-4ddd-9d9b-0e389f50a513",
@@ -40,7 +259,9 @@
    "maePts": -6.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "unclassified",
+   "leakWhy": "unknown"
   },
   {
    "id": "9880cadb-7963-4aad-ad46-2f3bfe7f409f",
@@ -74,7 +295,9 @@
    "maePts": -15.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "26a2a4e4-81f0-4378-9eb9-987f280e4dd7",
@@ -108,7 +331,9 @@
    "maePts": -10.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "unclassified",
+   "leakWhy": "unknown"
   },
   {
    "id": "8ac992cf-52ce-491d-9a84-3fb4107f7ce4",
@@ -142,7 +367,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "fe553000-1b2a-406d-96b0-2c2ff0abaff0",
@@ -176,7 +403,9 @@
    "maePts": -38.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "d4678d8b-0652-4846-9d5e-dc796871ce9c",
@@ -210,7 +439,9 @@
    "maePts": -37.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 13 min after a full stop"
   },
   {
    "id": "c7010f70-b280-4d70-a916-f9c409c6d9c2",
@@ -244,7 +475,9 @@
    "maePts": -37.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 11 min after a full stop"
   },
   {
    "id": "d5f844bf-c35b-4b0e-99ca-1c911f551586",
@@ -278,7 +511,9 @@
    "maePts": -37.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "758bf3f1-ecb8-42de-9ef2-60bbb2c08187",
@@ -312,7 +547,9 @@
    "maePts": -50.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "d6b8729c-82c8-4aab-a662-711d98f11615",
@@ -346,7 +583,9 @@
    "maePts": -46.75,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "54485d8d-b65e-4935-a378-7b00f776724c",
@@ -380,7 +619,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "9967ab5b-21ab-4553-a83c-6c113ae3484c",
@@ -414,7 +655,9 @@
    "maePts": -15.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "9b178cf2-e43a-4c9d-8d61-83f257da00bb",
@@ -448,7 +691,9 @@
    "maePts": -15.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "d5058d28-881f-4c83-afca-0e26b91d0cc5",
@@ -482,7 +727,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "fa6a7dea-c921-4d30-a53f-06610b1ffac9",
@@ -516,7 +763,9 @@
    "maePts": -37.75,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "1326a9d8-1726-4939-8ced-3d4d6bed41b9",
@@ -550,7 +799,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "6fc3c531-19d5-40c9-8fc5-fa37d4b0d9aa",
@@ -584,7 +835,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "eed81650-14c5-49c9-95a9-419d079afd79",
@@ -618,7 +871,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "9bc3b386-a39f-494d-b5cb-41f186c2786e",
@@ -652,7 +907,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "a5f2648f-4b7f-48ab-a600-687d4ede02bd",
@@ -686,7 +943,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "d1f55d49-0d6c-443e-8cee-ec5ed67f5b6e",
@@ -720,7 +979,9 @@
    "maePts": -5.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "unclassified",
+   "leakWhy": "unknown"
   },
   {
    "id": "20a7a687-c16e-4bda-b26c-b64a0d497df8",
@@ -754,7 +1015,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "3bd172f8-3a0e-417b-9ab0-51a857c47545",
@@ -788,7 +1051,9 @@
    "maePts": -15.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "0a1126f8-1369-44d1-8007-31717a49804c",
@@ -822,7 +1087,9 @@
    "maePts": -15.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "d73c6bf2-a5f2-4854-b305-5e9971db4952",
@@ -856,7 +1123,9 @@
    "maePts": -16.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "fc72463a-d158-4f68-97ea-eaec6aac5c2a",
@@ -890,7 +1159,9 @@
    "maePts": -52.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "2b88d263-81e3-4b4a-a9ca-8e68aee76688",
@@ -924,7 +1195,9 @@
    "maePts": -39.75,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "c1ff0d1b-3349-4eaa-80f3-fe566ed23959",
@@ -958,7 +1231,9 @@
    "maePts": -29.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "63f67355-5fa1-4ef8-b501-fb534c467a0a",
@@ -992,7 +1267,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "63b91095-06e8-41c8-a666-07565fb5f463",
@@ -1026,7 +1303,9 @@
    "maePts": -15.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "47261c51-7390-4d15-b1d3-a6f538a5415b",
@@ -1060,7 +1339,9 @@
    "maePts": -15.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 30 min after a full stop"
   },
   {
    "id": "13050aa6-6040-4d6d-836f-0b3996c61626",
@@ -1094,7 +1375,9 @@
    "maePts": -15.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "fab59d2c-2e62-4c48-88ce-69b3a315f426",
@@ -1128,7 +1411,9 @@
    "maePts": -16.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 4 min after a full stop"
   },
   {
    "id": "39ef9b7b-55c1-4f48-ab59-87b155b44c2a",
@@ -1162,7 +1447,9 @@
    "maePts": -15.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 1 min after a full stop"
   },
   {
    "id": "78c5a0d7-1de9-44ae-9078-d69a43645fce",
@@ -1196,7 +1483,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "da778e4a-6882-4adf-80d3-886e895c6962",
@@ -1230,7 +1519,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "d9a907f9-3f41-477a-97ef-63af6c725650",
@@ -1264,7 +1555,9 @@
    "maePts": -39.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "39d2d6d2-e422-46d6-ba3a-2e3066471b2a",
@@ -1298,7 +1591,9 @@
    "maePts": -37.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "bae6d778-e7a4-4910-acb6-910d0c00c81b",
@@ -1332,7 +1627,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "76947d6f-fb1d-4284-81aa-1078389ec724",
@@ -1366,7 +1663,9 @@
    "maePts": -19.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "unclassified",
+   "leakWhy": "unknown"
   },
   {
    "id": "ee8539f2-3ba3-4204-8060-f0712dcf3352",
@@ -1400,7 +1699,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "f834983b-1ddc-4284-8b23-d11f4558374e",
@@ -1434,7 +1735,9 @@
    "maePts": -12.75,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "778a2505-1e65-49e3-8c96-0f45bd757dc7",
@@ -1468,7 +1771,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "23ec01a0-d540-4294-a4db-e5add2862ef0",
@@ -1502,7 +1807,9 @@
    "maePts": -14.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "unclassified",
+   "leakWhy": "unknown"
   },
   {
    "id": "18203958-9ed0-4602-b183-c4e71005f0c6",
@@ -1536,7 +1843,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "1fe18fba-ebc6-4f8f-8fc7-2bb338852b6d",
@@ -1570,7 +1879,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "db58ee41-a3c8-4ac9-a2b0-8cb914c40c97",
@@ -1604,7 +1915,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "b8e29b95-ed14-4b74-8458-28c4135ce069",
@@ -1638,7 +1951,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "6559bc84-432e-4fd6-9a96-e7efef2b77d4",
@@ -1672,7 +1987,9 @@
    "maePts": -22.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "ddac711f-0aef-4eb0-a677-7954cfd9522d",
@@ -1706,7 +2023,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "ab33ec32-42dc-4a61-b3b9-d43465ca8b95",
@@ -1740,7 +2059,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "b422375f-a9a9-4ee2-939e-457fd8e9f438",
@@ -1774,7 +2095,9 @@
    "maePts": -15.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "5c092729-f9e0-4ca1-afea-e002c5c5cd27",
@@ -1808,7 +2131,9 @@
    "maePts": -31.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "b3497f0c-e5ae-4e91-9b66-bd7c1d696bb8",
@@ -1842,7 +2167,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "74f11ab9-0b91-4e82-89ec-2e10fcb10ed1",
@@ -1876,7 +2203,9 @@
    "maePts": -37.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "926651b9-9705-4927-a483-d7464c41a079",
@@ -1910,7 +2239,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "491f0257-5a1c-49cf-a71f-f64adc8fe7f6",
@@ -1944,7 +2275,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "3468bd23-b2db-49f9-80fa-dba1f989ceda",
@@ -1978,7 +2311,9 @@
    "maePts": -48.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "43b88c9a-3d7c-413c-9ea1-b812988da75d",
@@ -2012,7 +2347,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "d6c201c0-ddcd-48ba-b105-fb3db97408b6",
@@ -2046,7 +2383,9 @@
    "maePts": -49.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 27 min after a full stop"
   },
   {
    "id": "503a9141-5640-426c-8357-42638f4aa972",
@@ -2080,7 +2419,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "978d6584-e534-44fa-889c-53d8eb3d5254",
@@ -2114,7 +2455,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "573da2c7-cd82-47b2-ac2b-2ff5ed1a222b",
@@ -2148,7 +2491,9 @@
    "maePts": -14.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "unclassified",
+   "leakWhy": "manual-flatten"
   },
   {
    "id": "4ab99ee0-6070-4e80-a4bf-2dc4324ae4a1",
@@ -2182,7 +2527,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "3bba65fe-81ee-418d-ac39-48bb785969aa",
@@ -2216,7 +2563,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "585d7bf0-50cc-4078-affa-ba68212ad47d",
@@ -2250,7 +2599,9 @@
    "maePts": -47.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "91357458-7532-40f0-a018-2ca145189f4f",
@@ -2284,7 +2635,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "ec5edaaf-a299-4de0-bb19-fc8e5dccf439",
@@ -2318,7 +2671,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "1dfd2b84-dcb5-4023-b0e1-297f45b96b44",
@@ -2352,7 +2707,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "49a2e342-92c8-4aa4-ad31-d2ba8e52711a",
@@ -2386,7 +2743,9 @@
    "maePts": -53.75,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "e91a85c6-a719-460b-b65c-0f8142f4059c",
@@ -2420,7 +2779,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "cd156869-4f6d-4123-85b1-a007f28e76d3",
@@ -2454,7 +2815,9 @@
    "maePts": -61.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "33cb8707-a095-42eb-b0f5-d924c8702192",
@@ -2488,7 +2851,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "7781e719-2fd9-401d-a600-8f1c22c4da2b",
@@ -2522,7 +2887,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "6a5e0bf2-2e28-4423-a278-cd22d4a82ce1",
@@ -2556,7 +2923,9 @@
    "maePts": -59.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 21 min after a full stop"
   },
   {
    "id": "aeb5d3aa-725b-4944-a6fd-8d92de405c78",
@@ -2590,7 +2959,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "0468569a-19c2-416b-aecd-67f7a490ef36",
@@ -2624,7 +2995,9 @@
    "maePts": -36.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "be71999b-286e-4b20-899b-da05e14eb392",
@@ -2658,7 +3031,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "87632cc9-8fa8-4eeb-8894-d650fd684f24",
@@ -2692,7 +3067,9 @@
    "maePts": -43.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 14 min after a full stop"
   },
   {
    "id": "b6f4c781-f033-4603-b70c-fa402bab2fd2",
@@ -2726,7 +3103,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "850885ed-29f4-4e57-8a11-6fc5d3f52d2f",
@@ -2760,7 +3139,9 @@
    "maePts": -53.75,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "91713489-59c6-4999-8ab5-9695b33c121c",
@@ -2794,7 +3175,9 @@
    "maePts": -15.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "3898d290-5ec6-4f33-bdff-e25b43082474",
@@ -2828,7 +3211,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "db3afa5f-b994-4683-8b7f-381b0862cdd0",
@@ -2862,7 +3247,9 @@
    "maePts": -15.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "18106676-6561-4e58-9408-88ca46ff7f4c",
@@ -2896,7 +3283,9 @@
    "maePts": -59.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "73641d70-7ab2-4868-9fb1-001a98401788",
@@ -2930,7 +3319,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "6d78d8b5-b736-4ad0-b031-3ef5b5b5cefe",
@@ -2964,7 +3355,9 @@
    "maePts": -15.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "f5b5f8ce-a860-4805-9097-c97af4b22271",
@@ -2998,7 +3391,9 @@
    "maePts": -37.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "700270b4-9be5-4deb-a504-08349823a86c",
@@ -3032,7 +3427,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "82536622-96c8-4ddc-959a-65cb300eba2f",
@@ -3066,7 +3463,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "837cf291-92f8-4799-b9cb-4c480d6c91c5",
@@ -3100,7 +3499,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "d7acf7cc-aa7d-414c-ab6b-72100869129c",
@@ -3134,7 +3535,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "17b98c4b-0dd5-4da4-b31c-1e06af3df61e",
@@ -3168,7 +3571,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "93d43b94-03dd-49ea-ad19-eccb6a446400",
@@ -3202,7 +3607,9 @@
    "maePts": 0.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "unclassified",
+   "leakWhy": "trail-stop"
   },
   {
    "id": "8a228ae7-1b36-41f4-a0f8-82ed65841f66",
@@ -3236,7 +3643,9 @@
    "maePts": -3.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "6980a062-aa75-49a5-8a5b-0e0db57ab312",
@@ -3270,7 +3679,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "f9ace894-68be-4240-ac4b-28d2ea8c4411",
@@ -3304,7 +3715,9 @@
    "maePts": -15.75,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 1 min after a full stop"
   },
   {
    "id": "d64d4fec-5641-428d-a2ea-c0f69901f7ce",
@@ -3338,7 +3751,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "7b75f721-db5b-462e-b8d0-46a4ad7af335",
@@ -3372,7 +3787,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "01a904ee-3614-4f7b-8019-3ef74a4d5156",
@@ -3406,7 +3823,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "7deba053-5a94-475f-8814-cd72ad6f9185",
@@ -3440,7 +3859,9 @@
    "maePts": -36.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "4920f6e9-f4ac-4581-bf9a-811091bc15ad",
@@ -3474,7 +3895,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "ddb23a72-62c6-47ca-83c6-c39595dee581",
@@ -3508,7 +3931,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "ffa41de3-e15b-4f3f-8ded-61236faa93af",
@@ -3542,7 +3967,9 @@
    "maePts": -47.75,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "2f0b481d-fe7a-4241-a6fa-a12fec22ea4b",
@@ -3576,7 +4003,9 @@
    "maePts": -15.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 14 min after a full stop"
   },
   {
    "id": "2d4fdc33-f138-44b0-a3eb-c5f488d5ae11",
@@ -3610,7 +4039,9 @@
    "maePts": -15.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 11 min after a full stop"
   },
   {
    "id": "a0d2da69-07e6-4bf9-bee5-bb2aca1e671d",
@@ -3644,7 +4075,9 @@
    "maePts": -40.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 19 min after a full stop"
   },
   {
    "id": "453209bf-2974-4474-80fc-e4cb5bea387e",
@@ -3678,7 +4111,9 @@
    "maePts": -16.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 7 min after a full stop"
   },
   {
    "id": "571c1685-8e10-495b-bd5d-18e1ef9cca37",
@@ -3712,7 +4147,9 @@
    "maePts": -9.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 15 min after a full stop"
   },
   {
    "id": "f7cf8385-9f3b-4f40-af2b-5095d40aa36b",
@@ -3746,7 +4183,9 @@
    "maePts": -15.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 1 min after a full stop"
   },
   {
    "id": "fb6340e8-fc65-405a-8093-a4ec0410abab",
@@ -3780,7 +4219,9 @@
    "maePts": -25.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "566c5367-b5d1-43a0-94f6-e8b4f42fc170",
@@ -3814,7 +4255,9 @@
    "maePts": -37.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "e199c327-322a-463e-b582-09d1d972a843",
@@ -3848,7 +4291,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "d4c4087f-54f9-4710-a244-9fbb1faced2b",
@@ -3882,7 +4327,9 @@
    "maePts": -37.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "a60cacdf-7aa2-45db-b7f9-a311bf50abc8",
@@ -3916,7 +4363,9 @@
    "maePts": -14.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "unclassified",
+   "leakWhy": "manual-flatten"
   },
   {
    "id": "9afc8f42-52e1-4bdd-8c31-cee290cc6bfa",
@@ -3950,7 +4399,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "67b1a7b8-7e60-472a-af2e-6ff89eec982c",
@@ -3984,7 +4435,9 @@
    "maePts": -37.75,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "1bace6ba-2a97-45d6-a675-9442b5104da7",
@@ -4018,7 +4471,9 @@
    "maePts": -6.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 29 min after a full stop"
   },
   {
    "id": "b4e99470-f01f-47fd-8934-c2d73ebedb82",
@@ -4052,7 +4507,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "b0265313-d822-40d5-9841-2418d22525bc",
@@ -4086,7 +4543,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "e9eefa44-c489-4bdd-8ac6-88d5bfad0915",
@@ -4120,7 +4579,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "39fcbb59-3063-4926-818d-837488911294",
@@ -4154,7 +4615,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "660db728-205b-4170-804f-3fde94613e28",
@@ -4188,7 +4651,9 @@
    "maePts": -15.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "ca496e21-a5a7-460f-9951-2ec8bbc905f7",
@@ -4222,7 +4687,9 @@
    "maePts": -83.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 14 min after a full stop"
   },
   {
    "id": "b352be43-569e-4595-a09c-839125194468",
@@ -4256,7 +4723,9 @@
    "maePts": -15.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "62b0656a-c792-42e6-a816-19b4f1db257b",
@@ -4290,7 +4759,9 @@
    "maePts": -15.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "7f927024-345c-42ad-a709-4f1d2c36a303",
@@ -4324,7 +4795,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "0db79370-7a0a-45a3-8fbb-2b3e73240f41",
@@ -4358,7 +4831,9 @@
    "maePts": -15.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "37fbebbe-190a-4faa-899b-9858a3fdb81c",
@@ -4392,7 +4867,9 @@
    "maePts": -15.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "cf1ffea5-786b-43bc-800b-24300c46b5df",
@@ -4426,7 +4903,9 @@
    "maePts": -21.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "bb1a9bc2-6fd2-4fb6-b68a-87458db573c8",
@@ -4460,7 +4939,9 @@
    "maePts": -9.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "c7a83f58-9612-4368-a73c-311ebe00fe58",
@@ -4494,7 +4975,9 @@
    "maePts": -36.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 14 min after a full stop"
   },
   {
    "id": "98f25aba-5f3c-4bfd-bb34-7eb8157a5ce3",
@@ -4528,7 +5011,9 @@
    "maePts": -16.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "0cfd46fa-ac27-4620-85c2-8023a776f1ee",
@@ -4562,7 +5047,9 @@
    "maePts": -37.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "5e2e12f6-3fb0-40a3-8f9e-329fa945d8ae",
@@ -4596,7 +5083,9 @@
    "maePts": -6.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "84c36f65-9b16-4a62-9777-d5796d15eb0d",
@@ -4630,7 +5119,9 @@
    "maePts": -37.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "3dfd71a7-cb1b-4182-81a9-8ee018246dd9",
@@ -4664,7 +5155,9 @@
    "maePts": -16.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "62dee8fb-dc75-4745-8a5d-4fa7afab0c48",
@@ -4698,7 +5191,9 @@
    "maePts": -37.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "c53034ce-2f18-49d0-8c7d-000196565cdf",
@@ -4732,7 +5227,9 @@
    "maePts": -16.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "7d95af43-6acc-45ec-8318-53b62c95ce2c",
@@ -4766,7 +5263,9 @@
    "maePts": -15.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "5c10b58a-dc64-419e-86bc-e5f3957834c5",
@@ -4800,7 +5299,9 @@
    "maePts": -12.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "febe1746-ff0b-422c-bd0f-c10fe8bf0960",
@@ -4834,7 +5335,9 @@
    "maePts": -15.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "0097cd0d-9231-4066-a22b-ac500cd6ce2b",
@@ -4868,7 +5371,9 @@
    "maePts": -39.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-07",
+   "leakWhy": "same-side entry 26 min after a full stop"
   },
   {
    "id": "01a803eb-4e12-4545-8994-0513d5ba556b",
@@ -4902,7 +5407,9 @@
    "maePts": -1.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "7fabbc44-f777-492d-9ee4-1802fa975dcd",
@@ -4936,7 +5443,9 @@
    "maePts": -8.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "19b4e0d2-b9a2-4108-aafa-52cef055e90d",
@@ -4970,7 +5479,9 @@
    "maePts": -1.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "795891e0-953f-423f-896c-531bafa1edb5",
@@ -5004,7 +5515,9 @@
    "maePts": -37.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "40b3ec7c-a9a6-41d9-b1b1-2e54d54215e8",
@@ -5038,7 +5551,9 @@
    "maePts": -3.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "db1c1cbc-9682-4216-ae8d-d9e8433e9cf4",
@@ -5072,7 +5587,9 @@
    "maePts": -6.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "fc2dbd92-ce61-44e5-82f8-61b9f1511ca4",
@@ -5106,7 +5623,9 @@
    "maePts": -49.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "a414aabc-6f68-4783-8f04-4e9f6e5f2e2b",
@@ -5140,7 +5659,9 @@
    "maePts": -15.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": null
+   "stampId": null,
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "43ff2959-7408-44ba-8b36-6a1217ab9112",
@@ -5174,7 +5695,9 @@
    "maePts": -20.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "6a6d0c44-7a1c-43e8-a937-867c5599a3f2",
@@ -5208,7 +5731,9 @@
    "maePts": -30.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "14fdd664-b915-4167-b5c9-987e8ce5c663",
@@ -5242,7 +5767,9 @@
    "maePts": -10.75,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "8b42a312-f684-4b19-a46a-45f3073aac1c",
@@ -5276,7 +5803,9 @@
    "maePts": -17.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "f93a2edb-93ca-48b4-82e2-9ccbefd55c29",
@@ -5310,7 +5839,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "5c5cf158-e477-4609-a2dd-a363f9353127",
@@ -5344,7 +5875,9 @@
    "maePts": -30.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "443016c1-6ca0-4e5c-bafc-19f1f89a6090",
@@ -5378,7 +5911,9 @@
    "maePts": -51.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-07",
+   "leakWhy": "same-side entry 14 min after a full stop"
   },
   {
    "id": "483ffaa1-7c16-4a43-9db9-c5f7ba3a19bb",
@@ -5412,7 +5947,9 @@
    "maePts": -30.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-07",
+   "leakWhy": "same-side entry 17 min after a full stop"
   },
   {
    "id": "969a75af-c95a-485e-88f8-499e081e4de2",
@@ -5446,7 +5983,9 @@
    "maePts": -30.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-07",
+   "leakWhy": "same-side entry 20 min after a full stop"
   },
   {
    "id": "3aee8af4-8cac-4d92-a568-b10c18192bcc",
@@ -5480,7 +6019,9 @@
    "maePts": -13.75,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "dd496ad5-bb4a-44ae-8c7d-2aca6eb9a884",
@@ -5514,7 +6055,9 @@
    "maePts": -30.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "62a5ed98-3edc-4273-9211-a4285b450a0c",
@@ -5548,7 +6091,9 @@
    "maePts": -12.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "271a360d-3e97-4a41-958c-7c8ce8f9c131",
@@ -5582,7 +6127,9 @@
    "maePts": -28.75,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "fb21fed5-be65-4f12-a49f-ccd7dddb0bc7",
@@ -5616,7 +6163,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "c89a81cc-58c5-434a-8446-1a46a25b5207",
@@ -5650,7 +6199,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "5b4b20c9-d102-4c88-97b2-57db4fc8f4f0",
@@ -5684,7 +6235,9 @@
    "maePts": -23.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "5e52ebd5-3717-4f2b-b8cd-1634707cc4a9",
@@ -5718,7 +6271,9 @@
    "maePts": -50.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "05c43a61-bfb7-4ee5-9244-a465be8cc6d4",
@@ -5752,7 +6307,9 @@
    "maePts": -0.75,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "9a179c9a-9e44-4275-ba29-826b8b8d8de6",
@@ -5786,7 +6343,9 @@
    "maePts": -50.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-07",
+   "leakWhy": "same-side entry 13 min after a full stop"
   },
   {
    "id": "1c6924fc-4f93-4795-a913-a2d5a276b031",
@@ -5820,7 +6379,9 @@
    "maePts": -18.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "7df16094-c45a-4c26-ac3f-0b02c50386d0",
@@ -5854,7 +6415,9 @@
    "maePts": -50.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "8ae0830f-9e4d-4399-8308-f266269183d8",
@@ -5888,7 +6451,9 @@
    "maePts": -11.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "be2037f3-a363-4ac0-be5e-0d0882dae3fc",
@@ -5922,7 +6487,9 @@
    "maePts": -50.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "cf111127-c46d-463c-925c-279c6c0d5219",
@@ -5956,7 +6523,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "9dcfb787-6a0b-437f-b2d2-c7ff7372cba4",
@@ -5990,7 +6559,9 @@
    "maePts": -50.75,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-07",
+   "leakWhy": "same-side entry 11 min after a full stop"
   },
   {
    "id": "df8389f4-966e-494f-bcbd-845b9272693a",
@@ -6024,7 +6595,9 @@
    "maePts": -17.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "89871349-213d-4bba-afda-4c46cebc4c67",
@@ -6058,7 +6631,9 @@
    "maePts": -1.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "01986128-57e2-47cb-ab7d-0bff8be357c4",
@@ -6092,7 +6667,9 @@
    "maePts": -60.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "d4f79d72-5878-4cc7-8936-a88d41e41630",
@@ -6126,7 +6703,9 @@
    "maePts": -12.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "3d509d65-5136-4930-98ab-1b1a659877a7",
@@ -6160,7 +6739,9 @@
    "maePts": -50.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "87503747-e312-408c-97d0-6cbff73892f9",
@@ -6194,7 +6775,9 @@
    "maePts": -1.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "4291cf4b-bdf9-4139-ba9d-18307befe49c",
@@ -6228,7 +6811,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "5de8d723-1d26-482b-877f-4c4d4c120f0c",
@@ -6262,7 +6847,9 @@
    "maePts": -30.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "da683327-81eb-4f5b-98a9-bf74169b00b0",
@@ -6296,7 +6883,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "d003036b-9f04-4ed7-890a-de3022cecf44",
@@ -6330,7 +6919,9 @@
    "maePts": -1.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "4de30690-6872-43f2-bacd-5fb21f26471c",
@@ -6364,7 +6955,9 @@
    "maePts": -30.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "535e7a63-89a3-4908-8177-5735dcc6adce",
@@ -6398,7 +6991,9 @@
    "maePts": -3.75,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "12956d64-a9fb-4444-9b28-9e2df86c7c2d",
@@ -6432,7 +7027,9 @@
    "maePts": -30.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "145d27b4-de09-4c79-a209-8249814c9984",
@@ -6466,7 +7063,9 @@
    "maePts": -31.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-07",
+   "leakWhy": "same-side entry 10 min after a full stop"
   },
   {
    "id": "c05b0dd4-19ec-46b8-8082-27fcfb050a14",
@@ -6500,7 +7099,9 @@
    "maePts": -4.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "1aa5bb61-d916-4a16-85b1-104a6eec756b",
@@ -6534,7 +7135,9 @@
    "maePts": -0.75,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "97fc3064-8d89-49c2-817f-648ac20f4db7",
@@ -6568,7 +7171,9 @@
    "maePts": -50.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "8c6b9d3c-7a27-49e4-9e1e-67a6ec5a718d",
@@ -6602,7 +7207,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "606bbf07-94cd-4349-914e-cb9772338b6f",
@@ -6636,7 +7243,9 @@
    "maePts": -60.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "d572b587-d63b-4ddb-9cd3-8e60c179a18c",
@@ -6670,7 +7279,9 @@
    "maePts": -50.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "036b47cb-ef5a-48eb-b3ba-5ca237496e4e",
@@ -6704,7 +7315,9 @@
    "maePts": -11.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "9a3647d89766"
+   "stampId": "9a3647d89766",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "59c8ac17-cef8-4dfd-9d2c-b7af7e9ef88d",
@@ -6738,7 +7351,9 @@
    "maePts": -17.75,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "b3d16c0f7eed"
+   "stampId": "b3d16c0f7eed",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "ca0f36b0-b1d7-44c6-a0f0-bc4543527375",
@@ -6772,7 +7387,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "b3d16c0f7eed"
+   "stampId": "b3d16c0f7eed",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "f39cb932-8211-4f0f-b80a-0b2c09c47573",
@@ -6806,7 +7423,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "b3d16c0f7eed"
+   "stampId": "b3d16c0f7eed",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "f18b669f-caaa-41c8-8ba8-a7bc40ac4a6a",
@@ -6840,7 +7459,9 @@
    "maePts": -31.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "b3d16c0f7eed"
+   "stampId": "b3d16c0f7eed",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "b76923ce-3a8d-4b9a-bc2f-ed861850bc9c",
@@ -6874,7 +7495,9 @@
    "maePts": -30.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "b3d16c0f7eed"
+   "stampId": "b3d16c0f7eed",
+   "leak": "L-07",
+   "leakWhy": "same-side entry 15 min after a full stop"
   },
   {
    "id": "15ce0956-33b9-401b-976f-6406baef3978",
@@ -6908,7 +7531,9 @@
    "maePts": -30.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "b3d16c0f7eed"
+   "stampId": "b3d16c0f7eed",
+   "leak": "L-07",
+   "leakWhy": "same-side entry 7 min after a full stop"
   },
   {
    "id": "1da138a8-68d7-4bca-bd41-2bce951ddb94",
@@ -6942,7 +7567,9 @@
    "maePts": -5.75,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "57049861-7c6e-4fb4-adf3-8480cda835fd",
@@ -6976,7 +7603,9 @@
    "maePts": -15.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "59452fd3-7c0c-45a4-a1d7-5e6a7d825e41",
@@ -7010,7 +7639,9 @@
    "maePts": -13.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "7e7da124-af04-444a-8c4d-1331a99562a6",
@@ -7044,7 +7675,9 @@
    "maePts": -15.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "025d367a-a51c-48d6-8b7b-650f2f62fa6f",
@@ -7078,7 +7711,9 @@
    "maePts": -3.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "89a73291-53d0-4830-af4d-00cc8b45d96a",
@@ -7112,7 +7747,9 @@
    "maePts": -13.75,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "2d0ba19b-5e8b-42de-9325-f427f6df13b2",
@@ -7146,7 +7783,9 @@
    "maePts": -4.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "ff321016-ac0e-455f-8796-bf213dc87aa8",
@@ -7180,7 +7819,9 @@
    "maePts": -2.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "e4f3b3e5-2a82-4ef0-b28e-9a5f4bab2973",
@@ -7214,7 +7855,9 @@
    "maePts": -4.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "b7d23ab5-6923-4a57-9bfb-35b9677a4a22",
@@ -7248,7 +7891,9 @@
    "maePts": -1.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "c9b7687c-2933-4789-a127-3849af9e8fd0",
@@ -7282,7 +7927,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "5d99de7c-3b1d-47b7-b116-44a9512769a1",
@@ -7316,7 +7963,9 @@
    "maePts": -5.75,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "e19a32fe-eed3-427e-a6cd-18de5fe5945d",
@@ -7350,7 +7999,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "dff15992-f84d-47cb-8e81-4b87a5f5a0f8",
@@ -7384,7 +8035,9 @@
    "maePts": -7.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "0083882f-47e0-4b82-89c6-fc8fbeca120e",
@@ -7418,7 +8071,9 @@
    "maePts": -63.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "eb00a8d6-6b67-4293-9d4d-1434d74a21fe",
@@ -7452,7 +8107,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "1769d367-ef3f-4df0-ba5c-53213ce453c3",
@@ -7486,7 +8143,9 @@
    "maePts": -27.75,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "4e3e6e51-264f-4b00-babb-4143fe7964d4",
@@ -7520,7 +8179,9 @@
    "maePts": -67.75,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "af928e98-4465-411e-9f76-5566b647647f",
@@ -7554,7 +8215,9 @@
    "maePts": -17.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": "L-07",
+   "leakWhy": "same-side entry 16 min after a full stop"
   },
   {
    "id": "c6d85650-b6e7-4588-bedd-30c7065a653e",
@@ -7588,7 +8251,9 @@
    "maePts": -19.75,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "67d8cbf33e83"
+   "stampId": "67d8cbf33e83",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "d2bd3aef-07bd-4075-b6af-2688ecb2bd2c",
@@ -7622,7 +8287,9 @@
    "maePts": -21.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "fa5f8d39-654e-42be-aca8-43c5599a467a",
@@ -7656,7 +8323,9 @@
    "maePts": -30.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "994e072c-6b1b-49ea-9db2-24d0a324b833",
@@ -7690,7 +8359,9 @@
    "maePts": -31.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "256b2ebc-01a3-4166-9d4d-d03b60a8a1e8",
@@ -7724,7 +8395,9 @@
    "maePts": -18.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "6e04f0ec-6059-46ef-ba71-03813e9591fe",
@@ -7758,7 +8431,9 @@
    "maePts": -4.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "629e4c92-c0f1-4d61-8b01-4b489106b7f7",
@@ -7792,7 +8467,9 @@
    "maePts": -7.75,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "e502fca9-9d91-4240-9d08-ffd0443adad2",
@@ -7826,7 +8503,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "4c741e93-6f22-4290-8e29-40f2141aa387",
@@ -7860,7 +8539,9 @@
    "maePts": -3.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "536a0d72-dfa9-4c5d-a070-f8ef3fa76877",
@@ -7894,7 +8575,9 @@
    "maePts": -8.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "6a5d3ac9-8b62-47ca-bc98-142ee25dd42d",
@@ -7928,7 +8611,9 @@
    "maePts": -18.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "da1b2bde-4f74-44c6-a770-d9e4d3653bbb",
@@ -7962,7 +8647,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "3c1cf24b-65fc-408d-b2cb-edef9449ca76",
@@ -7996,7 +8683,9 @@
    "maePts": -30.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "361abc85-48c0-4d1e-aeb1-06f6f1e1b718",
@@ -8030,7 +8719,9 @@
    "maePts": -1.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "4c862b78-577e-4e97-844c-c1204db8fd71",
@@ -8064,7 +8755,9 @@
    "maePts": -16.75,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": "L-07",
+   "leakWhy": "same-side entry 19 min after a full stop"
   },
   {
    "id": "4fa5d5ab-1ae4-4b43-a7e1-1bf8ab2fd745",
@@ -8098,7 +8791,9 @@
    "maePts": -51.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "7a5792e7-2f91-41dc-ab76-5f7ff36592f5",
@@ -8132,7 +8827,9 @@
    "maePts": -2.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "68477e9a-2c52-4c99-9511-2909ef512669",
@@ -8166,7 +8863,9 @@
    "maePts": -13.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "46b25c38-84dc-4f43-bfe0-197e1ae5600a",
@@ -8200,7 +8899,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "fbe520a5-960d-4b1c-9e08-67a19265c810",
@@ -8234,7 +8935,9 @@
    "maePts": -51.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "e8d3df7c-911e-4401-be5c-19c6d228bed7",
@@ -8268,7 +8971,9 @@
    "maePts": -5.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "4b1298e5-d667-42a0-bb63-629db2f197ff",
@@ -8302,7 +9007,9 @@
    "maePts": -11.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "e1520e2d-b524-4c81-bebb-599c39523cc2",
@@ -8336,7 +9043,9 @@
    "maePts": -30.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "a886adae-830f-455f-b654-507722ae7d85",
@@ -8370,7 +9079,9 @@
    "maePts": -16.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "4a2e9437-2fdd-4522-8302-0a0ff460275f",
@@ -8404,7 +9115,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "0685ad92-7379-444f-bc25-61472a13146d",
@@ -8438,7 +9151,9 @@
    "maePts": -19.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "241b6fda-33b6-4543-b145-9615dbaa58dc",
@@ -8472,7 +9187,9 @@
    "maePts": -30.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "8fa53f46170f"
+   "stampId": "8fa53f46170f",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "84897e50-0b7e-4e6f-8b77-0751087308db",
@@ -8506,7 +9223,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "84a1a7bc1086"
+   "stampId": "84a1a7bc1086",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "35a68757-e741-44ac-bf96-555547389796",
@@ -8540,7 +9259,9 @@
    "maePts": -10.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "3b181a5ec484"
+   "stampId": "3b181a5ec484",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "c3afa1aa-d5e4-48f9-b3e9-d9d58405ee52",
@@ -8574,7 +9295,9 @@
    "maePts": -24.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "3b181a5ec484"
+   "stampId": "3b181a5ec484",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "3eb5855e-c05a-4b8e-b7a2-b07a5bdec135",
@@ -8608,7 +9331,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "3b181a5ec484"
+   "stampId": "3b181a5ec484",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "f8199194-5944-4b37-8d3d-be17ac25e465",
@@ -8642,7 +9367,9 @@
    "maePts": -3.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "3b181a5ec484"
+   "stampId": "3b181a5ec484",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "ae8638f9-1452-4936-802c-db3b224080b1",
@@ -8676,7 +9403,9 @@
    "maePts": -6.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "3b181a5ec484"
+   "stampId": "3b181a5ec484",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "f4bbd525-7bc0-4ea2-b9dc-62d6ca7dce02",
@@ -8710,7 +9439,9 @@
    "maePts": -15.75,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "3b181a5ec484"
+   "stampId": "3b181a5ec484",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "b0c5686c-027b-46b7-a8af-acc502d6ce1e",
@@ -8744,7 +9475,9 @@
    "maePts": -10.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "b56bbfed81f7"
+   "stampId": "b56bbfed81f7",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "1c4f1d9a-6609-4395-b217-4b1913aa0012",
@@ -8778,7 +9511,9 @@
    "maePts": -8.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "b56bbfed81f7"
+   "stampId": "b56bbfed81f7",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "8e26d88d-3e74-4232-98a3-2b9256db0808",
@@ -8812,7 +9547,9 @@
    "maePts": -3.75,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d11c7410a020"
+   "stampId": "d11c7410a020",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "268d92d1-26d2-4b60-8f36-6e1c19c773d2",
@@ -8846,7 +9583,9 @@
    "maePts": -12.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d11c7410a020"
+   "stampId": "d11c7410a020",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "14580dbb-db25-401e-b6a2-c70afc9cbff8",
@@ -8880,7 +9619,9 @@
    "maePts": -19.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "629263952a77"
+   "stampId": "629263952a77",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "b39019d9-5121-473a-a5be-54a81a904977",
@@ -8914,7 +9655,9 @@
    "maePts": -36.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "629263952a77"
+   "stampId": "629263952a77",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "74dc1f21-13a2-41dd-b59e-b54babe20895",
@@ -8948,7 +9691,9 @@
    "maePts": -8.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "629263952a77"
+   "stampId": "629263952a77",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "04b0dd4a-6ee8-4c61-9cc5-ae35bcf388c3",
@@ -8982,7 +9727,9 @@
    "maePts": -100.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "629263952a77"
+   "stampId": "629263952a77",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "85c9fe79-c405-4e36-959a-b78e34a04789",
@@ -9016,7 +9763,9 @@
    "maePts": -13.75,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "629263952a77"
+   "stampId": "629263952a77",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "dc2d4750-25f6-407d-9ace-3cb118d47903",
@@ -9050,7 +9799,9 @@
    "maePts": -22.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "629263952a77"
+   "stampId": "629263952a77",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "dcb834d8-e0e6-48f3-a142-6be97d359850",
@@ -9084,7 +9835,9 @@
    "maePts": -43.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "629263952a77"
+   "stampId": "629263952a77",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "a8dda497-293b-4229-a4f8-509786335e7c",
@@ -9118,7 +9871,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "629263952a77"
+   "stampId": "629263952a77",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "9562a2bb-0f54-4a65-989b-4ef9447209fd",
@@ -9152,7 +9907,9 @@
    "maePts": -5.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "629263952a77"
+   "stampId": "629263952a77",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "9ea2fae5-6220-4e0c-afd7-1c9d5c355541",
@@ -9186,7 +9943,9 @@
    "maePts": -31.75,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "629263952a77"
+   "stampId": "629263952a77",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "d434521a-a7e5-4188-82ee-52908f1ec553",
@@ -9220,7 +9979,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "629263952a77"
+   "stampId": "629263952a77",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "06e5e919-4a2b-4647-accb-e2ba8aab5bfa",
@@ -9254,7 +10015,9 @@
    "maePts": -8.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "629263952a77"
+   "stampId": "629263952a77",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "bf58bc3e-734e-4ba3-9652-9d4e5236dd49",
@@ -9288,7 +10051,9 @@
    "maePts": -10.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "b5d4509e-f510-42e1-b85e-f45fa3bd7dcb",
@@ -9322,7 +10087,9 @@
    "maePts": -20.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "eea1c19d-dc3e-42ce-9a1b-5586f39d1d93",
@@ -9356,7 +10123,9 @@
    "maePts": -5.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "d9b59096-a8cc-4023-85d7-465252dad6fd",
@@ -9390,7 +10159,9 @@
    "maePts": -30.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "393973fe-a6f4-46bf-ab74-e6b1c3d36d12",
@@ -9424,7 +10195,9 @@
    "maePts": -44.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "3028b704-48ab-43de-9747-140ce734edc7",
@@ -9458,7 +10231,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "2bddf2eb-6a53-4a03-810c-3677f8c14d08",
@@ -9492,7 +10267,9 @@
    "maePts": -41.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": "L-07",
+   "leakWhy": "same-side entry 15 min after a full stop"
   },
   {
    "id": "4db6fa78-a4f3-4bc3-9435-3c16cf2cf6cd",
@@ -9526,7 +10303,9 @@
    "maePts": -3.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "f5f7b628-5386-452e-a98f-c71ec30eb1bc",
@@ -9560,7 +10339,9 @@
    "maePts": -56.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "a8d8fdea-f828-4018-a4f3-c8e97a1131e1",
@@ -9594,7 +10375,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "4745cb95-37e1-4bbe-9b6e-09e7c342bfbd",
@@ -9628,7 +10411,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "45b0bd5f-798c-467d-8219-dfa59cc36b20",
@@ -9662,7 +10447,9 @@
    "maePts": -3.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "cd5ef8e5-acb6-4efc-ae76-f8eb6503c219",
@@ -9696,7 +10483,9 @@
    "maePts": -0.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "d7b1799e-ac06-4a53-a710-d050a2db056e",
@@ -9730,7 +10519,9 @@
    "maePts": -75.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "7e5dedf2a11a"
+   "stampId": "7e5dedf2a11a",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "2252a6a9-5735-432f-b560-74a50c542922",
@@ -9764,7 +10555,9 @@
    "maePts": -36.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "6a7d4e31-d460-4538-82d0-d37df2b60a50",
@@ -9798,7 +10591,9 @@
    "maePts": -56.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "da8e2acd-4bfc-478f-b61f-b722bf5aeff1",
@@ -9832,7 +10627,9 @@
    "maePts": -14.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "27e943ba-26a2-4f4f-8e51-c474f73c9994",
@@ -9866,7 +10663,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "641b99f5-9d3e-4c31-8f4c-739f4dbf7a95",
@@ -9900,7 +10699,9 @@
    "maePts": -28.75,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "c7019258-7544-4f73-bc00-1e6a7f8ec20b",
@@ -9934,7 +10735,9 @@
    "maePts": -6.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "2d88786c-48e7-4038-81fc-9fbbd7d4f440",
@@ -9968,7 +10771,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": "d8f6027c982e"
+   "stampId": "d8f6027c982e",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "09ae48f0-2931-416b-885e-8a3f9840733e",
@@ -10002,7 +10807,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "a951d00c176a"
+   "stampId": "a951d00c176a",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "c1aa0cc8-1a6a-44a3-9df9-0cbdece6d223",
@@ -10036,7 +10843,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "a951d00c176a"
+   "stampId": "a951d00c176a",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "31ab74a7-36c1-4ab1-8a0a-d264715922f8",
@@ -10070,7 +10879,9 @@
    "maePts": -10.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "a951d00c176a"
+   "stampId": "a951d00c176a",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "d759971b-7592-4b11-8075-bf4b4ddb4313",
@@ -10104,7 +10915,9 @@
    "maePts": -37.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "3dc6ef15796b"
+   "stampId": "3dc6ef15796b",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "6dab60fa-7505-467a-87c8-547a7cdf2d3a",
@@ -10138,7 +10951,9 @@
    "maePts": -11.5,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "3dc6ef15796b"
+   "stampId": "3dc6ef15796b",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "f113db6f-2cbc-4ecc-b1f9-29dc236a7eee",
@@ -10172,7 +10987,9 @@
    "maePts": -10.25,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "3dc6ef15796b"
+   "stampId": "3dc6ef15796b",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "b6f54fc0-30f4-449d-b674-8ce6f63be56d",
@@ -10206,7 +11023,9 @@
    "maePts": -6.5,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "3dc6ef15796b"
+   "stampId": "3dc6ef15796b",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "50a4977e-d3a5-451a-97f6-8ba3a07f482e",
@@ -10240,7 +11059,9 @@
    "maePts": -15.0,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "3dc6ef15796b"
+   "stampId": "3dc6ef15796b",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "1476419a-4300-4dbb-9c85-266cd9b6695d",
@@ -10274,7 +11095,9 @@
    "maePts": -2.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "3dc6ef15796b"
+   "stampId": "3dc6ef15796b",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "48fbdfbf-f10c-4312-b851-39885607254d",
@@ -10308,7 +11131,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "3dc6ef15796b"
+   "stampId": "3dc6ef15796b",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "ce77f590-ae8d-4cd0-8c07-4ec13d79cc00",
@@ -10342,7 +11167,9 @@
    "maePts": -8.75,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "3dc6ef15796b"
+   "stampId": "3dc6ef15796b",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "724423b8-ff7b-45c1-b913-f17b3259b9e5",
@@ -10376,7 +11203,9 @@
    "maePts": -16.75,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "3dc6ef15796b"
+   "stampId": "3dc6ef15796b",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "62148a83-4c71-4b43-8bc9-303b882ff3b8",
@@ -10410,7 +11239,9 @@
    "maePts": -30.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "3dc6ef15796b"
+   "stampId": "3dc6ef15796b",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "90afb7d5-5713-4ad6-b463-84a777f09e43",
@@ -10444,7 +11275,9 @@
    "maePts": -2.5,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "3dc6ef15796b"
+   "stampId": "3dc6ef15796b",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "c3ee1846-a583-49d0-b452-5660ccf440cc",
@@ -10478,7 +11311,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "3dc6ef15796b"
+   "stampId": "3dc6ef15796b",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "6d6ef074-c686-4978-8b37-802179eb54cb",
@@ -10512,7 +11347,9 @@
    "maePts": -21.0,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "3dc6ef15796b"
+   "stampId": "3dc6ef15796b",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "9fe8355b-f842-4bc2-a22e-4557bb37dc8a",
@@ -10546,7 +11383,9 @@
    "maePts": -12.5,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "3dc6ef15796b"
+   "stampId": "3dc6ef15796b",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "ec01250a-f76c-4147-8733-dd5f34a636e7",
@@ -10580,7 +11419,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "3dc6ef15796b"
+   "stampId": "3dc6ef15796b",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "4877384f-1018-430b-bfbf-ecf280f18276",
@@ -10614,7 +11455,9 @@
    "maePts": -2.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "c26dfb94-f57c-4816-aa95-191602055c4a",
@@ -10648,7 +11491,9 @@
    "maePts": -1.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "75cadac3-362f-4866-8bd6-0888692eb48f",
@@ -10682,7 +11527,9 @@
    "maePts": -3.0,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "089ed03b-6107-45eb-9350-448f3f3d065c",
@@ -10716,7 +11563,9 @@
    "maePts": -12.0,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "b850fd33-11cf-47b0-aa91-467334f4dcd8",
@@ -10750,7 +11599,9 @@
    "maePts": -7.75,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "ecfe9e3f-2a5e-4aec-9dfc-4ba9c4c2ddd0",
@@ -10784,7 +11635,9 @@
    "maePts": -7.75,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "98c4a37a-b068-4855-a4da-0413c87c8d37",
@@ -10818,7 +11671,9 @@
    "maePts": -2.75,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "8999937b-4974-4ee3-a8c3-89c4541726b5",
@@ -10852,7 +11707,9 @@
    "maePts": -3.25,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "bf88ffd1-c965-40d9-9bef-2769d69547bc",
@@ -10886,7 +11743,9 @@
    "maePts": -6.5,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "2f209d4c-203b-4c0a-9a2e-9adc6953983e",
@@ -10920,7 +11779,9 @@
    "maePts": -18.5,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "7dc41c3f-d25f-472b-84c3-2cd22c54b3f6",
@@ -10954,7 +11815,9 @@
    "maePts": -6.25,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "8461989e-261e-44c4-a969-52c8dae4fc3c",
@@ -10988,7 +11851,9 @@
    "maePts": -4.25,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "16a26975-ea1c-40e1-adce-246d3f0bba67",
@@ -11022,7 +11887,9 @@
    "maePts": -12.75,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "46c59637-bf8a-4285-8318-99c9043a002e",
@@ -11056,7 +11923,9 @@
    "maePts": -24.75,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "7f7aebf0-d187-41c7-8ba5-720cc88c34de",
@@ -11090,7 +11959,9 @@
    "maePts": -7.25,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "077bc4c0-9cb4-4f99-8f8e-ab2d5dcc1819",
@@ -11124,7 +11995,9 @@
    "maePts": -1.75,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "08c96346-3a33-49d2-bd66-6772a78f5529",
@@ -11158,7 +12031,9 @@
    "maePts": -14.75,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "56923a3d-f257-439e-b82d-159fbff1b4c3",
@@ -11192,7 +12067,9 @@
    "maePts": -11.75,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "0079cda3-8371-4159-acdb-ef95feb4c0fb",
@@ -11226,7 +12103,9 @@
    "maePts": -9.25,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "ad86bbab-7578-4fb9-b56f-d66013f9afca",
@@ -11260,7 +12139,9 @@
    "maePts": -15.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "e4005f39-a488-4aa3-9c02-9162dd922542",
@@ -11294,7 +12175,9 @@
    "maePts": -18.0,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "817ee843-35cf-4bec-a968-088c9484ae34",
@@ -11328,7 +12211,9 @@
    "maePts": -34.75,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "9edbd209-6339-492a-8264-795933d7181a",
@@ -11362,7 +12247,9 @@
    "maePts": -14.25,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "85c5179b-da57-4fdd-9c3a-0a5d5dff2ffb",
@@ -11396,7 +12283,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "e99f7fa7-dd2b-4d65-ab5b-8464642da950",
@@ -11430,7 +12319,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "89eb9a91-e478-4b95-a8f6-53bb3642be5f",
@@ -11464,7 +12355,9 @@
    "maePts": -50.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "2378f5e8-55f2-4eb6-af62-523c3d057647",
@@ -11498,7 +12391,9 @@
    "maePts": -13.75,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "3e276135-2664-406a-adbb-2222db0aaaac",
@@ -11532,7 +12427,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "059fa8dfc392"
+   "stampId": "059fa8dfc392",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "8ae0c3f8-4506-4a73-bc71-55bf7282c03a",
@@ -11566,7 +12463,9 @@
    "maePts": -50.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "059fa8dfc392"
+   "stampId": "059fa8dfc392",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "e9c4a4e3-dcfa-4dcf-9f1c-1cd15ce835dd",
@@ -11600,7 +12499,9 @@
    "maePts": -44.75,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "059fa8dfc392"
+   "stampId": "059fa8dfc392",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "61c36e37-8eba-43aa-8584-5ab00f3e5807",
@@ -11634,7 +12535,9 @@
    "maePts": -49.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "a93c206cdb5d"
+   "stampId": "a93c206cdb5d",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "b60cdc45-bf32-430c-a3a0-6bb5d7e8f0d1",
@@ -11668,7 +12571,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "e3911f1f6879"
+   "stampId": "e3911f1f6879",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "bc235c1e-4880-4b81-a0c6-cf6bf6d28c6a",
@@ -11702,7 +12607,9 @@
    "maePts": -31.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "e3911f1f6879"
+   "stampId": "e3911f1f6879",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "10bfdc2c-a853-4ba0-877e-56f24143342d",
@@ -11736,7 +12643,9 @@
    "maePts": -4.0,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "d544abfdd316"
+   "stampId": "d544abfdd316",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "554cad3a-507d-48f9-bcac-77c192111828",
@@ -11770,7 +12679,9 @@
    "maePts": -30.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "d544abfdd316"
+   "stampId": "d544abfdd316",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "29c34556-7e49-4306-af2d-c4f898473857",
@@ -11804,7 +12715,9 @@
    "maePts": -49.75,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "d544abfdd316"
+   "stampId": "d544abfdd316",
+   "leak": "L-07",
+   "leakWhy": "same-side entry 17 min after a full stop"
   },
   {
    "id": "bfc6544d-3f90-4f62-9f1e-94638f924b5a",
@@ -11838,7 +12751,9 @@
    "maePts": -7.0,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "d544abfdd316"
+   "stampId": "d544abfdd316",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "12c7c0f9-251f-4f59-8a1b-b4d35bcc2d00",
@@ -11872,7 +12787,9 @@
    "maePts": -40.0,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "d544abfdd316"
+   "stampId": "d544abfdd316",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "6d09098f-0ce9-4aed-8583-48923f2fcea8",
@@ -11906,7 +12823,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "d544abfdd316"
+   "stampId": "d544abfdd316",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "47f43479-412d-46e1-b76d-ade9cd48c0f6",
@@ -11940,7 +12859,9 @@
    "maePts": -14.5,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "d544abfdd316"
+   "stampId": "d544abfdd316",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "80cc9425-b837-4c12-86b7-64a760183834",
@@ -11974,7 +12895,9 @@
    "maePts": -22.0,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "27338e251ddf"
+   "stampId": "27338e251ddf",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "d6fe4d77-e618-4189-b163-dc5b91c40e06",
@@ -12008,7 +12931,9 @@
    "maePts": -4.5,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "27338e251ddf"
+   "stampId": "27338e251ddf",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "ed9f533e-dd75-4215-84b3-cfbe57d7dd7c",
@@ -12042,7 +12967,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "27338e251ddf"
+   "stampId": "27338e251ddf",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "fb032a93-d4b5-4044-bfb3-b447b62681e4",
@@ -12076,7 +13003,9 @@
    "maePts": -19.0,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "27338e251ddf"
+   "stampId": "27338e251ddf",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "ae8608ee-d96e-4fb9-83c2-3b9aee9d042f",
@@ -12110,7 +13039,9 @@
    "maePts": -11.25,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "27338e251ddf"
+   "stampId": "27338e251ddf",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "14ec278b-5f72-4603-9ff8-f0cead0ba80d",
@@ -12144,7 +13075,9 @@
    "maePts": -10.5,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "27338e251ddf"
+   "stampId": "27338e251ddf",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "ddb8736e-91ef-479e-b358-613b2d8f96c0",
@@ -12178,7 +13111,9 @@
    "maePts": -10.5,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "27338e251ddf"
+   "stampId": "27338e251ddf",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "a9d8245c-00a6-4568-a0d3-ae429608029e",
@@ -12212,7 +13147,9 @@
    "maePts": -3.75,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "27338e251ddf"
+   "stampId": "27338e251ddf",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "3e605105-988b-4bc2-ae8b-33b7d37aacc5",
@@ -12246,7 +13183,9 @@
    "maePts": -11.0,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "27338e251ddf"
+   "stampId": "27338e251ddf",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "f133e94a-3ebd-436c-80e4-6bdba0746778",
@@ -12280,7 +13219,9 @@
    "maePts": -25.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "27338e251ddf"
+   "stampId": "27338e251ddf",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "8201ce64-7ee8-48f6-be47-568baa0accfb",
@@ -12314,7 +13255,9 @@
    "maePts": -25.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "27338e251ddf"
+   "stampId": "27338e251ddf",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "d0f0fcaf-94fe-4a23-8122-f4143a03753e",
@@ -12348,7 +13291,9 @@
    "maePts": -5.25,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "27338e251ddf"
+   "stampId": "27338e251ddf",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "729c816d-c44e-4a67-8ad9-b1a148a29f76",
@@ -12382,7 +13327,9 @@
    "maePts": -25.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "27338e251ddf"
+   "stampId": "27338e251ddf",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "2bbda67b-5e55-4ac6-8b07-d6acb640387c",
@@ -12416,7 +13363,9 @@
    "maePts": -26.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "27338e251ddf"
+   "stampId": "27338e251ddf",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "6295c684-844e-4554-aa4c-2d72a374ecc0",
@@ -12450,7 +13399,9 @@
    "maePts": -5.5,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "b2d99dd96e13"
+   "stampId": "b2d99dd96e13",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "5d29ec38-cbf1-46a3-b674-6b8386f1d64b",
@@ -12484,7 +13435,9 @@
    "maePts": -25.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "b2d99dd96e13"
+   "stampId": "b2d99dd96e13",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "d5aadd45-3186-4e89-94fa-44f6024e2701",
@@ -12518,7 +13471,9 @@
    "maePts": -25.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "b2d99dd96e13"
+   "stampId": "b2d99dd96e13",
+   "leak": "L-07",
+   "leakWhy": "same-side entry 13 min after a full stop"
   },
   {
    "id": "02e21251-a241-4344-8a42-b3b8e85cefca",
@@ -12552,7 +13507,9 @@
    "maePts": -15.0,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "b2d99dd96e13"
+   "stampId": "b2d99dd96e13",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "f7137e5c-8673-4ad0-b1c1-46fc0545833c",
@@ -12586,7 +13543,9 @@
    "maePts": -19.0,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "b2d99dd96e13"
+   "stampId": "b2d99dd96e13",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "23a7ae50-5fce-41c2-81ad-22cb3109686c",
@@ -12620,7 +13579,9 @@
    "maePts": -25.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "b2d99dd96e13"
+   "stampId": "b2d99dd96e13",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "e892ac84-6c51-4946-b88a-1faacf9ade48",
@@ -12654,7 +13615,9 @@
    "maePts": -25.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "b2d99dd96e13"
+   "stampId": "b2d99dd96e13",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "d1b5ce18-16c9-4c72-8928-f39348adb9a1",
@@ -12688,7 +13651,9 @@
    "maePts": -25.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "b2d99dd96e13"
+   "stampId": "b2d99dd96e13",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "57125424-f4d6-4485-96da-bc3b43ddb5f0",
@@ -12722,7 +13687,9 @@
    "maePts": -25.25,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "b2d99dd96e13"
+   "stampId": "b2d99dd96e13",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "4d98b760-a80e-4bbf-a588-dfcb8a3253ce",
@@ -12756,7 +13723,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "b2d99dd96e13"
+   "stampId": "b2d99dd96e13",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "d14c4f88-d76e-4e47-a418-e789365408a4",
@@ -12790,7 +13759,9 @@
    "maePts": -26.5,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "b2d99dd96e13"
+   "stampId": "b2d99dd96e13",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "ab4fbcac-f79d-469f-9536-e13040d70093",
@@ -12824,7 +13795,9 @@
    "maePts": -25.0,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "b2d99dd96e13"
+   "stampId": "b2d99dd96e13",
+   "leak": "L-07",
+   "leakWhy": "same-side entry 15 min after a full stop"
   },
   {
    "id": "aafe8cb5-8029-45a9-8226-2ec3043899c3",
@@ -12858,7 +13831,9 @@
    "maePts": -20.75,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "b2d99dd96e13"
+   "stampId": "b2d99dd96e13",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "62f288f7-ba03-4b6c-8b09-ffaf56e71c7e",
@@ -12892,7 +13867,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "b2d99dd96e13"
+   "stampId": "b2d99dd96e13",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "5fac7ea1-4a88-4ed5-b6b8-ad7af458544b",
@@ -12926,7 +13903,9 @@
    "maePts": -21.75,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "44382b7fcf62"
+   "stampId": "44382b7fcf62",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "d524694b-b8e3-439c-aa74-a378e09102d6",
@@ -12960,7 +13939,9 @@
    "maePts": -11.5,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "3d83a9f5-e67b-4f18-a96b-5e0983435beb",
@@ -12994,7 +13975,9 @@
    "maePts": -12.5,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "2e73fbb3-7dce-4909-99a7-a6955bba9d7a",
@@ -13028,7 +14011,9 @@
    "maePts": -14.5,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "1e06f125-cd3e-43d3-b09d-5a39d1f2b44f",
@@ -13062,7 +14047,9 @@
    "maePts": -8.25,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "26e07b5b-0101-42e8-9a41-8d66f7fd8e3d",
@@ -13096,7 +14083,9 @@
    "maePts": -41.75,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "fe54d461-4e4f-42e7-9e6a-cfc2988beab0",
@@ -13130,7 +14119,9 @@
    "maePts": -7.75,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "102d2378-8df3-487e-b2f1-683d1d3f2002",
@@ -13164,7 +14155,9 @@
    "maePts": -21.5,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "667680f7-05ce-466a-9e3d-304a1b883427",
@@ -13198,7 +14191,9 @@
    "maePts": -48.75,
    "maeSource": "exit fill",
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": "L-01",
+   "leakWhy": "full stop"
   },
   {
    "id": "cdc45791-3c8e-4754-b252-40252b48eff4",
@@ -13232,7 +14227,9 @@
    "maePts": -11.25,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "815f460f-c158-4a63-a8f1-d577a8c5fb26",
@@ -13266,7 +14263,9 @@
    "maePts": -31.5,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "d6bf112f-277b-4400-a4b6-d527a395a3a6",
@@ -13300,7 +14299,9 @@
    "maePts": -4.75,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "8ab3c817-9fff-4773-9810-c9ec7b4bde08",
@@ -13334,7 +14335,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "b822abf8-ec99-46ec-845f-acc873b461f1",
@@ -13368,7 +14371,9 @@
    "maePts": -41.0,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "dfa73729-a734-4181-9d0b-d4e534b7dccc",
@@ -13402,7 +14407,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "ee64d082-6e71-4692-8787-ad3427e5eb23",
@@ -13436,7 +14443,9 @@
    "maePts": -3.5,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "0539d4a5-e389-4b62-aaae-2a833c0a514f",
@@ -13470,7 +14479,9 @@
    "maePts": null,
    "maeSource": null,
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "3c11d969-2695-4ab9-b6dd-ef027b4112a3",
@@ -13504,7 +14515,9 @@
    "maePts": -17.0,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "9824dd89-c414-4a42-9080-d174471b3c12",
@@ -13538,7 +14551,9 @@
    "maePts": -4.5,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "ccb3d1e0-7836-46da-a1f2-477677227438",
@@ -13572,7 +14587,9 @@
    "maePts": 0.0,
    "maeSource": "trade_time price polls",
    "rules": {},
-   "stampId": "e8d6f7cc80a8"
+   "stampId": "e8d6f7cc80a8",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "2d193e67-935f-4e10-93c5-f48f36e8f673",
@@ -13606,7 +14623,9 @@
    "maePts": -11.0,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "8ce446bbb45f"
+   "stampId": "8ce446bbb45f",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "f699cbab-a4a6-4450-b993-2f42c1f9b90d",
@@ -13640,7 +14659,9 @@
    "maePts": -2.25,
    "maeSource": "trade_state 1m bars",
    "rules": {},
-   "stampId": "8ce446bbb45f"
+   "stampId": "8ce446bbb45f",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "90e77c32-767e-4733-b46b-bdc672faf0dd",
@@ -13681,7 +14702,9 @@
      "tp2": null
     }
    },
-   "stampId": "55feac4eb001"
+   "stampId": "55feac4eb001",
+   "leak": null,
+   "leakWhy": null
   },
   {
    "id": "902e3426-5589-4b22-b62a-3947c3efd1dc",
@@ -13734,7 +14757,9 @@
      "beAfterNetUsd": null
     }
    },
-   "stampId": "2f4313b42f61"
+   "stampId": "2f4313b42f61",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss"
   },
   {
    "id": "4380cced-8ba7-4d21-bed6-4ee6ab58ab3c",
@@ -13788,7 +14813,9 @@
      "beAfterNetUsd": null
     }
    },
-   "stampId": "8e4194fac934"
+   "stampId": "8e4194fac934",
+   "leak": "L-01",
+   "leakWhy": "never worked: closed by the early exit (the live L-01 rule)"
   }
  ]
 }

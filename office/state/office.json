@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "generatedAt": "2026-11-11T06:30:51Z",
+ "generatedAt": "2026-11-11T06:41:41Z",
  "tradeDay": "2026-11-11",
  "data": {
   "lastSlice": "2026-11-11/slice-2205",
@@ -25,7 +25,7 @@
    "bestDayPct": null,
    "days": 3,
    "status": "open",
-   "needPerDay": null
+   "needPerDay": 188.96
   },
   "history": {
    "started": 20,
@@ -211,12 +211,28 @@
    "next": "A new filter needs a reason first, then a test, not a search"
   },
   {
+   "id": "L-12",
+   "title": "Losing no-progress exits: trades closed by the no-progress rule at a loss",
+   "status": "observed",
+   "n": 5,
+   "usd": -273.3,
+   "next": "Measure over 20 TradeDays by session: what did price do after the exit (would TP1 or the stop have come first)?"
+  },
+  {
+   "id": "L-13",
+   "title": "Near-miss then full stop: a trade comes within a few points of the first target, then goes to the full stop",
+   "status": "observed",
+   "n": null,
+   "usd": null,
+   "next": "Count over 20 TradeDays: full stops whose best excursion was +10 or more. Feeds X-01 (volatility-sized TP1) and any break-even idea (L-10 was killed as a blanket rule; this is the narrow case)"
+  },
+  {
    "id": "B-01",
    "title": "One skipped fast check (about 20 s blind) at each 15m close: \"fetch failed\"",
    "status": "fixed",
    "n": null,
    "usd": null,
-   "next": "After the install, count 'ERROR in loop' per day; the new log line gives the idle time"
+   "next": "Reinstall once B-08 is mitigated and the r1.2 boot is re-measured with a server-size journal"
   },
   {
    "id": "B-02",
@@ -265,6 +281,22 @@
    "n": null,
    "usd": null,
    "next": "Fix in edge r1.3"
+  },
+  {
+   "id": "B-08",
+   "title": "The bot loads its whole trade journal into memory at every start and runs out of memory",
+   "status": "live",
+   "n": null,
+   "usd": null,
+   "next": "Next build: read the journal as a stream and keep only what each reader needs. Ship gate now boots with a server-size journal under the server's heap limit"
+  },
+  {
+   "id": "B-09",
+   "title": "No trade taken while the bot crash-loops; restarts add rows to the journal",
+   "status": "closed",
+   "n": null,
+   "usd": null,
+   "next": "Mac confirmed 11/11 that the restart push arrived. The bot was flat throughout"
   }
  ],
  "experiments": [

@@ -23,6 +23,7 @@ POINT_USD = 2.0                      # MNQ: $2 per point per contract
 OBJECTIVE = {"name": "Topstep $50K Combine", "target": 3000, "maxLoss": 2000, "bestDayCap": 1650, "account": "practice"}
 BEST_DAY_FRAC = 0.55
 COMBINE_CHAIN_START = "2026-11-09"   # first virtual combine of the chain (the 11/09 restore); --combine-start overrides
+TARGET_DATE = "2026-11-30"           # needPerDay: (target - profit) / TradeDays left to this date; --target-date overrides
 HISTORY_DAYS = 20
 LEAK_DAYS = 5
 SMALL_N = 20
@@ -198,6 +199,26 @@ def combine_history(days, n=HISTORY_DAYS):
     for r in runs:
         c[r["status"]] += 1
     return c, runs
+
+
+def trade_days_left(day, day_complete, target_date):
+    """Weekdays after `day` up to target_date (the day itself too when it is not over)."""
+    d, n = (day if day_complete else day_add(day, -1)), 0
+    while True:
+        d = day_add(d, 1)
+        if d > target_date:
+            return n
+        if datetime.date(*[int(x) for x in d.split("-")]).weekday() < 5:
+            n += 1
+
+
+def need_per_day(cur, day, day_complete, target_date):
+    """Arithmetic only: (target now - profit) / TradeDays left to target_date. None when the chain is not open or no day is left."""
+    left = trade_days_left(day, day_complete, target_date)
+    if cur["status"] != "open" or left <= 0:
+        return {"perDay": None, "daysLeft": left, "targetDate": target_date, "gap": None}
+    gap = round(cur["target"] - cur["profit"], 2)
+    return {"perDay": round(gap / left, 2), "daysLeft": left, "targetDate": target_date, "gap": gap}
 
 
 # ----------------------------------------------------------------------------- blocked-signal walk (pure, unit tested)
@@ -598,6 +619,8 @@ def classify_loss(t, prior):
     for p in reversed(prior):
         if p["fullStop"] and p["_dir"] == t["_dir"] and p["_tExit"] and 0 <= t["_tEntry"] - p["_tExit"] <= REENTRY_MIN * 60000:
             return "L-07", "same-side entry %d min after a full stop" % round((t["_tEntry"] - p["_tExit"]) / 60000.0)
+    if t["exitReason"] == "no-progress-exit":
+        return "L-12", "no-progress exit that closed at a loss"
     return "unclassified", t["exitReason"]
 
 
@@ -862,6 +885,7 @@ def main(argv=None):
     ap.add_argument("--day", required=True, help="TradeDay YYYY-MM-DD, or 'latest'")
     ap.add_argument("--out", default=None, help="office directory to write into (default: the one this tool lives in)")
     ap.add_argument("--combine-start", default=COMBINE_CHAIN_START, help="first TradeDay of the virtual combine chain")
+    ap.add_argument("--target-date", default=TARGET_DATE, help="date the needPerDay arithmetic counts TradeDays to")
     ap.add_argument("--row-types", action="store_true", help="print the journal row types and counts, write nothing")
     a = ap.parse_args(argv)
     office = os.path.abspath(a.out) if a.out else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -882,26 +906,37 @@ def main(argv=None):
     start, flat, end = day_window(day)
     cov = coverage(J["files"], day)
 
-    # ---- ledger (all days, keyed by journal id)
+    # ---- ledger (all days, keyed by journal id): every loss carries its leak class, every TradeDay its completeness
+    ap_all_days = autopsy(trades)
+    for x in ap_all_days:
+        x["trade"]["leak"], x["trade"]["leakWhy"] = x["leak"], x["why"]
+    for t in trades:
+        t.setdefault("leak", None)
+        t.setdefault("leakWhy", None)
+    all_days = sorted(d for d in J["dayRows"] if datetime.date(*[int(x) for x in d.split("-")]).weekday() < 5 and (J["dayRows"][d] >= 50 or any(t["tradeDay"] == d for t in trades)))
+    cov_all = {d: coverage(J["files"], d) for d in all_days}
     dump(os.path.join(office, "state", "ledger.json"), {
         "schema": SCHEMA, "source": {"ref": a.ref, "files": len(J["files"]), "rows": J["rows"], "lastRow": iso_utc(J["tmax"])},
-        "note": "one row per closed trade, keyed by journal id; money from the broker's realized P&L row unless moneySource is 'estimate'; MFE / MAE are lower bounds from the named journal source",
+        "note": "one row per closed trade, keyed by journal id; money from the broker's realized P&L row unless moneySource is 'estimate'; MFE / MAE are lower bounds from the named journal source; leak = the loss class from office/LOOPHOLES.md",
+        "tradeDays": [{"day": d, "rows": J["dayRows"][d], "complete": cov_all[d]["complete"], "trades": sum(1 for t in trades if t["tradeDay"] == d),
+                       "net": _r2(sum(t["net"] or 0 for t in trades if t["tradeDay"] == d))} for d in all_days],
         "trades": [public_trade(t) for t in trades]})
 
     # ---- days up to the requested one
     upto = [t for t in trades if t["tradeDay"] <= day]
     todays = [t for t in upto if t["tradeDay"] == day]
-    tdays = sorted(d for d in J["dayRows"] if d <= day and datetime.date(*[int(x) for x in d.split("-")]).weekday() < 5 and (J["dayRows"][d] >= 50 or any(t["tradeDay"] == d for t in upto)))
+    tdays = [d for d in all_days if d <= day]
     if day not in tdays:
         tdays.append(day)
     by_day = {d: [t for t in upto if t["tradeDay"] == d] for d in tdays}
-    holes_past = [d for d in tdays[-HISTORY_DAYS:] if d != day and not coverage(J["files"], d)["complete"]]
+    holes_past = [d for d in tdays[-HISTORY_DAYS:] if d != day and not cov_all[d]["complete"]]
     sim_days = [{"day": d, "complete": (d != day or cov["complete"]),
                  "trades": [{"net": t["net"] or 0.0, "worstOpen": (t["maePts"] * (t["contracts"] or 3) * POINT_USD) if t["maePts"] is not None else None} for t in by_day[d]]}
                 for d in tdays]
     chain = combine_chain(sim_days, a.combine_start)
     cur = chain[-1] if chain else None
     hist, hist_runs = combine_history(sim_days)
+    need = need_per_day(cur, day, cov["complete"], a.target_date) if cur else None
     hist["window"] = "last %d TradeDays" % HISTORY_DAYS
 
     # ---- score
@@ -913,7 +948,7 @@ def main(argv=None):
     wsc = score(wtr)
 
     # ---- autopsy
-    ap_all = autopsy(upto)
+    ap_all = [x for x in ap_all_days if x["trade"]["tradeDay"] <= day]
     ap_day = [x for x in ap_all if x["trade"]["tradeDay"] == day]
     last5 = tdays[-LEAK_DAYS:]
     ap5 = [x for x in ap_all if x["trade"]["tradeDay"] in last5]
@@ -1019,7 +1054,7 @@ def main(argv=None):
         "objective": dict(OBJECTIVE),
         "combine": {"mode": "virtual",
                     "current": ({"startDay": cur["startDay"], "profit": cur["profit"], "floorRoom": cur["floorRoom"], "bestDay": cur["bestDay"],
-                                 "bestDayPct": cur["bestDayPct"], "days": cur["days"], "status": cur["status"], "needPerDay": None} if cur else None),
+                                 "bestDayPct": cur["bestDayPct"], "days": cur["days"], "status": cur["status"], "needPerDay": need["perDay"] if need else None} if cur else None),
                     "history": hist},
         "day": {"net": sc["net"], "trades": sc["trades"], "wins": sc["wins"], "losses": sc["losses"], "fullStops": sc["fullStops"],
                 "avgWin": sc["avgWin"], "avgLoss": sc["avgLoss"], "fees": sc["fees"],
@@ -1035,11 +1070,21 @@ def main(argv=None):
         "flags": [{"t": iso_utc(f.get("t")), "trade": f.get("journalId") or f.get("trade"), "reason": f.get("reason"), "answer": None}
                   for f in sorted([f for f in J["flags"] if _num(f.get("t")) and start <= f["t"] < end], key=lambda f: f["t"])],
     }
+    try:
+        wk_block = json.load(open(os.path.join(office, "state", "office.json"), encoding="utf8")).get("weekly")
+    except (OSError, ValueError):
+        wk_block = None
+    if wk_block is not None:
+        office_json["weekly"] = wk_block        # written by loop_weekly.py; the daily run carries it over untouched
     dump(os.path.join(office, "state", "office.json"), office_json)
 
     # ---- the card
+    last_complete = ([d for d in tdays if cov_all[d]["complete"]] or [None])[-1]
+    status = render_status(day, cov, data_note, last_complete, cur, need, wk, wsc, wdays, leak_rank, last5, xdoc, waiting, wk_block)
+    with open(os.path.join(office, "reviews", "STATUS.md"), "w", encoding="utf8") as f:
+        f.write(status)
     card = render_card(day, cov, data_note, sc, by_sess, todays, chain, cur, hist, hist_runs, sim_days, ap_day, leak_rank, last5, gates, block_rows,
-                       samples, lm_used, xdoc, changes, changes_all, stamps_day, build, notes, waiting, wdays, by_day, wsc, recon_ok, brk_n, led_real, rec_n, rec_sum, reg)
+                       samples, lm_used, xdoc, changes, changes_all, stamps_day, build, notes, waiting, wdays, by_day, wsc, recon_ok, brk_n, led_real, rec_n, rec_sum, reg, need)
     p = os.path.join(office, "reviews", "daily", day + ".md")
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with open(p, "w", encoding="utf8") as f:
@@ -1049,8 +1094,51 @@ def main(argv=None):
     return 0
 
 
+def render_status(day, cov, data_note, last_complete, cur, need, wk, wsc, wdays, leak_rank, last5, xdoc, waiting, wk_block):
+    """office/reviews/STATUS.md: the one screen to open first. Rewritten by every daily run."""
+    L = ["# Office status", "", "Rewritten by every daily run (`office/tools/loop_daily.py`). Money is the broker's net; times are PT.", ""]
+    L.append("**Objective:** pass the %s: +$%s before the $%s trailing floor, best day under 55%% of profit. Practice account; the combine below is virtual." % (
+        OBJECTIVE["name"], "{:,}".format(OBJECTIVE["target"]), "{:,}".format(OBJECTIVE["maxLoss"])))
+    L.append("")
+    L.append("**Data:** last complete TradeDay %s. This run: TradeDay %s, %s." % (last_complete or "none", day, "complete" if cov["complete"] else "NOT complete (%s)" % (data_note or "data missing")))
+    L.append("")
+    if cur:
+        L.append("**Combine:** started %s, %s, profit %s, %s above the floor, best day %s, target now %s." % (
+            cur["startDay"], cur["status"] + (" (day not over)" if cur["provisionalDay"] else ""), usd(cur["profit"], True), usd(cur["floorRoom"]), usd(cur["bestDay"]), usd(cur["target"])))
+        if need and need["perDay"] is not None:
+            L.append("Arithmetic, not a forecast: %s more is %s per day over the %d TradeDays left to %s." % (usd(need["gap"]), usd(need["perDay"]), need["daysLeft"], need["targetDate"]))
+    else:
+        L.append("**Combine:** none started yet.")
+    L.append("")
+    L.append("**Week %s so far:** %s on %d trades over %d TradeDay%s, %d full stop%s, loss / win %s." % (
+        wk, usd(wsc["net"], True), wsc["trades"], len(wdays), "" if len(wdays) == 1 else "s", wsc["fullStops"], "" if wsc["fullStops"] == 1 else "s",
+        ("%.2f (n=%d wins, %d losses%s)" % (wsc["lossToWin"], wsc["wins"], wsc["losses"], ", small" if min(wsc["wins"], wsc["losses"]) < SMALL_N else "")) if wsc["lossToWin"] is not None else "n/a"))
+    L.append("")
+    L.append("**Top leaks by dollars, last %d TradeDays (%s to %s):**" % (len(last5), last5[0], last5[-1]))
+    if leak_rank:
+        for k, v in leak_rank[:3]:
+            L.append("- %s: %s on %d losing trade%s%s" % (k, usd(v["usd"], True), v["n"], "" if v["n"] == 1 else "s", " (small)" if v["n"] < SMALL_N else ""))
+    else:
+        L.append("- no losing trades")
+    L.append("")
+    L.append("**Experiments (cases of the number needed):** " + "; ".join(
+        "%s %s of %d" % (x["id"], "unknown" if x["running"]["n"] is None else x["running"]["n"], x.get("minN", SMALL_N)) for x in xdoc.get("experiments", [])) + ".")
+    L.append("")
+    L.append("**Waiting on Mac:**")
+    items = ["%s %s" % (w["id"], w["text"]) for w in waiting]
+    if wk_block and wk_block.get("decisions"):
+        items.append("weekly card %s: %d decision%s" % (wk_block.get("week"), len(wk_block["decisions"]), "" if len(wk_block["decisions"]) == 1 else "s"))
+    for it in items or ["nothing"]:
+        L.append("- " + it)
+    L.append("")
+    L.append("Open next: `office/reviews/daily/%s.md` (the day)%s, `office/LOOPHOLES.md` (the leaks), `office/EXPERIMENTS.md` (the rules on trial)." % (
+        day, (", `office/reviews/weekly/%s.md` (the week)" % wk_block["week"]) if wk_block and wk_block.get("week") else ""))
+    L.append("")
+    return "\n".join(L)
+
+
 def render_card(day, cov, data_note, sc, by_sess, todays, chain, cur, hist, hist_runs, sim_days, ap_day, leak_rank, last5, gates, block_rows,
-                samples, lm_used, xdoc, changes, changes_all, stamps_day, build, notes, waiting, wdays, by_day, wsc, recon_ok, brk_n, led_real, rec_n, rec_sum, reg):
+                samples, lm_used, xdoc, changes, changes_all, stamps_day, build, notes, waiting, wdays, by_day, wsc, recon_ok, brk_n, led_real, rec_n, rec_sum, reg, need=None):
     L = []
     L.append("# Daily card: TradeDay %s" % day)
     L.append("")
@@ -1112,6 +1200,10 @@ def render_card(day, cov, data_note, sc, by_sess, todays, chain, cur, hist, hist
         tot = sum(c["trades"] for c in chain)
         L.append("Open P&L test: %d of %d trades in these runs carry a worst-excursion reading from the journal%s. The reading is a lower bound (1-minute bars and about 20 s price polls), so a real combine could have been closer to the floor than shown." % (
             tot - miss, tot, "" if not miss else "; the other %d are tested on closed P&L only" % miss))
+        if need and need["perDay"] is not None:
+            L.append("")
+            L.append("Arithmetic, not a forecast: the open run needs %s more to reach its target; over the %d TradeDays left to %s that is %s per day." % (
+                usd(need["gap"]), need["daysLeft"], need["targetDate"], usd(need["perDay"])))
     else:
         L.append("No virtual combine has started yet.")
     L.append("")
@@ -1138,7 +1230,7 @@ def render_card(day, cov, data_note, sc, by_sess, todays, chain, cur, hist, hist
     else:
         L.append("No losing trades in the window.")
     L.append("")
-    L.append("Classes come from office/LOOPHOLES.md. L-01 = went to the full stop or was closed by the early exit; L-07 = same-side entry within %d min of a full stop; anything else is unclassified and named by its exit, a candidate for the register." % REENTRY_MIN)
+    L.append("Classes come from office/LOOPHOLES.md. L-01 = went to the full stop or was closed by the early exit; L-07 = same-side entry within %d min of a full stop; L-12 = a no-progress exit that closed at a loss; anything else is unclassified and named by its exit, a candidate for the register." % REENTRY_MIN)
     L.append("")
     # blocked
     L.append("## Blocked-signal audit")
