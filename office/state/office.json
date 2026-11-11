@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "generatedAt": "2026-11-11T06:41:41Z",
+ "generatedAt": "2026-11-11T06:45:09Z",
  "tradeDay": "2026-11-11",
  "data": {
   "lastSlice": "2026-11-11/slice-2205",
@@ -418,5 +418,85 @@
   }
  ],
  "waitingOnMac": [],
- "flags": []
+ "flags": [],
+ "weekly": {
+  "week": "2026-W46",
+  "days": [
+   "2026-11-09",
+   "2026-11-10",
+   "2026-11-11"
+  ],
+  "complete": false,
+  "net": 354.5,
+  "trades": 25,
+  "netPerDay": 118.17,
+  "fullStops": 2,
+  "fullStopsPer10": 0.8,
+  "lossToWin": 1.52,
+  "fees": 91.5,
+  "bestDay": {
+   "day": "2026-11-11",
+   "net": 462.56
+  },
+  "worstDay": {
+   "day": "2026-11-10",
+   "net": -108.06
+  },
+  "worstStopStreak": 1,
+  "mostStopsInDay": 2,
+  "bySession": {
+   "asia": {
+    "net": 9.12,
+    "trades": 18,
+    "fullStops": 2
+   },
+   "london": {
+    "net": 192.7,
+    "trades": 5,
+    "fullStops": 0
+   },
+   "ny": {
+    "net": 152.68,
+    "trades": 2,
+    "fullStops": 0
+   },
+   "late": {
+    "net": 0.0,
+    "trades": 0,
+    "fullStops": 0
+   }
+  },
+  "previous": {
+   "week": "2026-W45",
+   "net": -1126.38,
+   "trades": 68,
+   "netPerDay": -225.28,
+   "fullStopsPer10": 2.5,
+   "lossToWin": 1.76
+  },
+  "readiness": {
+   "need": 2645.5,
+   "avgPerDay": -58.83,
+   "avgDays": 10,
+   "daysAtAverage": null,
+   "text": "To pass, the current chain needs $2,645.50; the last 10 days' average is -$58.83 per day (n=10 days, small), and at that average it does not get there."
+  },
+  "leaks": [
+   {
+    "id": "L-01",
+    "n": 3,
+    "usd": -621.48
+   },
+   {
+    "id": "L-12",
+    "n": 5,
+    "usd": -273.3
+   }
+  ],
+  "decisions": [
+   "**L-01** lost $621.48 on 3 trades this week (n=3, small), over the $500 line. Decide whether its next step in office/LOOPHOLES.md goes ahead now."
+  ],
+  "decisionsEditedByHand": false,
+  "card": "office/reviews/weekly/2026-W46.md"
+ }
 }

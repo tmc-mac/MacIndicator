@@ -81,8 +81,10 @@ def readiness(cur, day_nets):
 
 
 def readiness_line(r):
+    if r["status"] is None:
+        return "No virtual combine of the chain had started by the end of this week."
     if r["status"] != "open":
-        return "The current chain is %s: nothing left to reach on it." % (r["status"] or "not started")
+        return "The current chain is %s: nothing left to reach on it." % r["status"]
     small = ", small" if r["n"] < ld.SMALL_N else ""
     if r["avgPerDay"] is None:
         return "To pass, the current chain needs %s; there is no complete TradeDay yet to take an average from." % ld.usd(r["need"])
@@ -261,7 +263,7 @@ def main(argv=None):
             why.append("the week is not over: %d of 5 TradeDays so far" % len(wdays))
         if missing:
             why.append("journal hours missing on " + ", ".join(missing))
-        L += ["> **PARTIAL WEEK.** %s. Do not judge the week on these numbers." % "; ".join(why).capitalize(), ""]
+        L += ["> **PARTIAL WEEK.** %s. Do not judge the week on these numbers." % ((lambda w: w[0].upper() + w[1:])("; ".join(why))), ""]
     L.append("**%s on %d trades over %d TradeDay%s; %d full stop%s. %s**" % (
         ld.usd(ws["net"], True), ws["trades"], ws["days"], "" if ws["days"] == 1 else "s", ws["fullStops"], "" if ws["fullStops"] == 1 else "s", readiness_line(ready)))
     L += ["", "Practice account, 3 MNQ contracts. Money is the broker's net per trade. n is printed beside every figure; under %d it is marked small." % ld.SMALL_N, ""]
@@ -312,8 +314,8 @@ def main(argv=None):
         L.append("No losing trades.")
     L += ["", "Classes are the ones in office/LOOPHOLES.md; a loss that fits none is unclassified and named by its exit.", "", "## Experiments", ""]
     L.append(ld.table(["id", "rule", "mode", "cases", "value", "state"],
-                      [[x["id"], x["title"], x["mode"], "n unknown of %d" % x["minN"] if x["n"] is None else "%d of %d%s" % (x["n"], x["minN"], small(x["n"])),
-                        "unknown" if x["value"] is None else "%s (%s)" % (ld.usd(x["value"], True), x["unit"]), x["line"]] for x in xs]))
+                      [[x["id"], x["title"], x["mode"], "-" if x["state"] == "not started" else "n unknown of %d" % x["minN"] if x["n"] is None else "%d of %d%s" % (x["n"], x["minN"], small(x["n"])),
+                        "-" if x["state"] == "not started" else "unknown" if x["value"] is None else "%s (%s)" % (ld.usd(x["value"], True), x["unit"]), x["line"]] for x in xs]))
     asof = sorted(set(x["asOf"] for x in xs if x["asOf"]))
     L += ["", "Counts are as of the last daily run (TradeDay %s). A verdict is written only when the cases reach the number needed; until then the rule is recording." % (", ".join(asof) or "unknown"), ""]
     L += ["## Decisions for Mac", ""]

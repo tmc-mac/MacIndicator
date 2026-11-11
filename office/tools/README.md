@@ -22,6 +22,8 @@ The tool only reads the data repository (`git ls-tree`, `git show`); it never ch
 | `office/state/office.json` | The phone's state file, contract in `office/LOOP.md` section 10 (schema 1). Holds the day of the last run. |
 | `office/state/experiments.json` | Machine copy of `office/EXPERIMENTS.md`. The tool reads `feeds` (which journal rows count) and rewrites `running` (n, value, cases, verdict). Everything except `running` is edited by hand together with EXPERIMENTS.md. |
 
+The daily run also rewrites `office/reviews/STATUS.md`, the one screen to open first (objective, the chain, the week, top 3 leaks, experiments, what waits on Mac, when the data was last complete), and it carries the `weekly` block of office.json over untouched. ledger.json also lists every TradeDay (`tradeDays`: rows, complete, trades, net), which is what the weekly tool reads.
+
 Running twice gives byte-identical files except `generatedAt` in office.json. Everything in the card and in office.json uses only TradeDays up to the requested one, so an old day can be re-run.
 
 Two additions to the office.json contract, both because the honest answer needed them: each `blocked` entry has a `neither` count (60 minutes passed, neither +15 nor the stop was reached; `count = wouldHaveWon + wouldHaveLost + neither + unknown`), and `health.settingsChanges` lists code changes too. A leak's `n` is the number of losing trades in that class over the last 5 TradeDays (with `usd`), or, when the leak has an experiment and no loss class, the experiment's n.
@@ -38,9 +40,9 @@ Two additions to the office.json contract, both because the honest answer needed
 
 **MFE / MAE.** The largest reading among the journal's sources, with the source named per trade: `trade_state` 1-minute bars, `trade_time` price polls (about 20 s), the no-progress and early-exit rows, the TP1 fill, the exit fill. These are lower bounds of the real excursion (one exception: a `trade_state` bar can include a moment just before the fill). 61 of 404 trades, all older ones, have no MAE source and 69 no MFE source: `null`.
 
-**Virtual combine.** `simulate_combine` (unit tested): target $3,000; floor at -$2,000 from the start; inside each trade the floor is tested against balance + the trade's worst open excursion (MAE points x contracts x $2), then against the closed balance; at the end of each day the floor moves up to end-of-day balance - $2,000, never down, and locks at the start balance; pass = end-of-day profit at or above max($3,000, best day / 0.55). A breach is at or below the floor. A day that is not over is applied trade by trade but gets no end-of-day step. Trades without an excursion reading are tested on closed P&L only and counted in the card. `current` is the last of a chain of back-to-back combines from `--combine-start`; `history` starts one combine on each of the last 20 TradeDays. `needPerDay` is `null`: the combine has no deadline, so any figure would be a guess.
+**Virtual combine.** `simulate_combine` (unit tested): target $3,000; floor at -$2,000 from the start; inside each trade the floor is tested against balance + the trade's worst open excursion (MAE points x contracts x $2), then against the closed balance; at the end of each day the floor moves up to end-of-day balance - $2,000, never down, and locks at the start balance; pass = end-of-day profit at or above max($3,000, best day / 0.55). A breach is at or below the floor. A day that is not over is applied trade by trade but gets no end-of-day step. Trades without an excursion reading are tested on closed P&L only and counted in the card. `current` is the last of a chain of back-to-back combines from `--combine-start`; `history` starts one combine on each of the last 20 TradeDays. `needPerDay` = (target now - profit) / TradeDays left to `--target-date` (default 2026-11-30; weekdays, the requested day included when it is not over). It is arithmetic, labelled so in the card, and `null` when the chain is not open or no day is left.
 
-**Loss autopsy.** Each losing trade gets a class from `office/LOOPHOLES.md`: L-07 if it was entered on the same side within 30 minutes of a full stop; else L-01 if it went to the full stop or was closed by the early exit; else `unclassified`, named by its exit reason. L-08 (volatility) has no written threshold yet, so the tool does not assign it.
+**Loss autopsy.** Each losing trade gets a class from `office/LOOPHOLES.md`: L-07 if it was entered on the same side within 30 minutes of a full stop; else L-01 if it went to the full stop or was closed by the early exit; else L-12 if it was a no-progress exit that closed at a loss; else `unclassified`, named by its exit reason. The class is stored on the trade in ledger.json (`leak`, `leakWhy`). L-08 (volatility) has no written threshold yet, so the tool does not assign it.
 
 **Blocked-signal audit.** Every `trade_block` row of the TradeDay with a direction. Reference price: the row's own `entry` when it has one, else the price sample nearest the block (within 90 s). Stop distance: the row's own (`stopPts`, or entry - stop) or 50 points when it has none. The tool walks the price samples for 60 minutes: +15 first = won, the stop first = lost, neither = neither, a hole over 180 s in the samples or samples ending early = unknown. Price source: the `levels-minute-MNQ-<date>` files, one row about every 52-80 s, last price only.
 
@@ -49,6 +51,21 @@ Two additions to the office.json contract, both because the honest answer needed
 **Experiments.** X-01: `tp1_atr_shadow` resolve rows, NY, state resolved; value = shadow net - live net. X-02: `early_adverse_exit` rows that sent the order; value from each `early_adverse_shadow` result. X-03 / X-04: `runner_rule` rows joined to the ledger; n = trades under the rule that reached TP1; value = their average net. X-05: not measurable (see limits).
 
 **Check built in.** Each run compares the day's ledger with a second row family, the `journal_receipt` rows of status `ECONOMICS_MATCH_OBSERVED`; a difference is printed in the card and in `health.notes`.
+
+## Weekly roll-up: `loop_weekly.py`
+
+```
+python3 -I office/tools/loop_weekly.py --week 2026-W46      (or --week latest)
+```
+
+Reads only `office/state/ledger.json`, `office/state/experiments.json` and the kill-rule column of `office/EXPERIMENTS.md`; it reads no journal and reruns nothing, so run the daily tool first. Writes `office/reviews/weekly/<ISO week>.md` and the `weekly` block of office.json (no other key is touched). No timestamp is written: two runs give identical bytes.
+
+- **Week** = the ISO week of the TradeDay, so a Sunday-evening trade belongs to Monday's week. The card uses TradeDays up to the end of that week only; a week that is not over, or has a day with journal hours missing, is headed PARTIAL WEEK.
+- **Scoreboard** against the week before, n beside every figure: net, net per TradeDay, by session, full stops per 10 trades, average loss / average win, fees, best and worst day, the worst run of full stops in a row inside one TradeDay and the most full stops in one day.
+- **Virtual combine**: the chain, one combine started on each of the last 20 TradeDays, and the readiness line: what the open chain still needs, and how many days that is at the average net of the last 10 complete TradeDays. When that average is not positive the line says so and gives no number of days. Nothing is forecast beyond that division.
+- **Leaks** by dollars for the week and for the last 20 TradeDays (with the split by session), from the `leak` field of the ledger.
+- **Experiments**: n of the number needed and the value as the last daily run left them; a VERDICT, quoted against the kill rule, only when n has reached it; otherwise "recording, n of 20".
+- **Decisions for Mac**: at most 3, from experiments at a verdict (first) and leak classes that lost more than $500 in the week (`LEAK_DECISION_USD`; $500 is a quarter of the combine's $2,000 floor). With none: "Nothing to decide this week." The block sits between `<!-- decisions:start hash=... -->` and `<!-- decisions:end -->`. The hash is of the text the tool wrote; if the text between the markers no longer matches it, somebody edited it by hand and the tool writes that text back unchanged on every later run (office.json then says `decisionsEditedByHand: true`). To hand the block back to the tool, delete it together with its markers.
 
 ## Journal row types found (all files at 2026-11-11, 71 files, 106,319 rows after de-duplication, 0 unreadable)
 

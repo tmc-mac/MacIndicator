@@ -18,6 +18,6 @@ Arithmetic, not a forecast: $2,645.50 more is $188.96 per day over the 14 TradeD
 **Experiments (cases of the number needed):** X-01 0 of 20; X-02 1 of 20; X-03 1 of 20; X-04 0 of 20; X-05 unknown of 20.
 
 **Waiting on Mac:**
-- nothing
+- weekly card 2026-W46: 1 decision
 
-Open next: `office/reviews/daily/2026-11-11.md` (the day), `office/LOOPHOLES.md` (the leaks), `office/EXPERIMENTS.md` (the rules on trial).
+Open next: `office/reviews/daily/2026-11-11.md` (the day), `office/reviews/weekly/2026-W46.md` (the week), `office/LOOPHOLES.md` (the leaks), `office/EXPERIMENTS.md` (the rules on trial).
