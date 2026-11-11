@@ -1,0 +1,652 @@
+diff --git a/lib/edgeExits.js b/lib/edgeExits.js
+new file mode 100644
+index 0000000..b3f633d
+--- /dev/null
++++ b/lib/edgeExits.js
+@@ -0,0 +1,85 @@
++'use strict';
++// edge r1 (Mac 11/11): two measured exit rules, each behind a switch. Pure helpers: no I/O, no requires. The decisions and the orders are the order machine's
++// (lib/liveStateMachine.js earlyAdverseStep / _decideRunnerPlan); the executor validates the config at startup (fail closed) and prints the two startup lines.
++//
++// A. EARLY ADVERSE EXIT (CONFIG.earlyAdverseExit { mode: 'exit' | 'log' | 'off', afterSec, lossPts, minSeenPts }). Once per trade, before TP1: at the first completed
++//    1m close that is afterSec (120 s) or more after the fill observation, a close at or beyond lossPts (10) against the position AND a best favourable excursion
++//    (np1's tracker: complete 1m bars after the fill minute) below minSeenPts (3) = closed at market through the safe-exit path (sessionFlatten, kind
++//    'early-adverse'). The close used must be within afterSec + 60 s of the fill; the decision must be made within EAE_DECIDE_GRACE_MS of that close.
++// B. SESSION RUNNER RULE (CONFIG.sessionRunner { asia, london, ny, late }: 'live' | 'allAtTp1' | 'atrTarget'; CONFIG.sessionRunnerNy { stopPts, tp2AtrMult }).
++//    The session is the fill's session (lib/stopFloor.js sessionOf, the same helper as the entry stop floor).
++const EAE_MODES = ['exit', 'log', 'off'];
++const RUNNER_MODES = ['live', 'allAtTp1', 'atrTarget'];
++const SESSIONS = ['asia', 'london', 'ny', 'late'];
++const EAE_WINDOW_EXTRA_MS = 60000;    // the close used is at most afterSec + 60 s after the fill (120 s -> 180 s)
++const EAE_DECIDE_GRACE_MS = 45000;    // the decision is made at most this long after that close (two 20 s polls + latency); later = unassessed, never a late exit
++const M1 = 60000, M15 = 900000, ATR_N = 14;
++const fin = x => typeof x === 'number' && Number.isFinite(x);
++
++function validateEae(cfg) {
++  if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) return ['earlyAdverseExit must be an object { mode, afterSec, lossPts, minSeenPts }'];
++  const e = [];
++  if (!EAE_MODES.includes(cfg.mode)) e.push(`earlyAdverseExit.mode must be one of ${EAE_MODES.map(x => JSON.stringify(x)).join(' or ')}, got ${JSON.stringify(cfg.mode)}`);
++  if (!(fin(cfg.afterSec) && cfg.afterSec >= 60 && cfg.afterSec <= 240)) e.push(`earlyAdverseExit.afterSec must be 60 to 240 seconds, got ${JSON.stringify(cfg.afterSec)}`);
++  if (!(fin(cfg.lossPts) && cfg.lossPts > 0 && cfg.lossPts <= 100)) e.push(`earlyAdverseExit.lossPts must be above 0 and at most 100 points, got ${JSON.stringify(cfg.lossPts)}`);
++  if (!(fin(cfg.minSeenPts) && cfg.minSeenPts > 0 && cfg.minSeenPts <= 50)) e.push(`earlyAdverseExit.minSeenPts must be above 0 and at most 50 points, got ${JSON.stringify(cfg.minSeenPts)}`);
++  return e;
++}
++function eaeLine(cfg) {
++  const rule = `first 1m close ${cfg.afterSec} s+ after the fill, before TP1: at -${cfg.lossPts} pts or worse and never seen at +${cfg.minSeenPts}`;
++  return '[eae] early adverse exit: ' + (cfg.mode === 'exit' ? `ON (${rule} = closed at market on the safe-exit rule; close used within ${cfg.afterSec + EAE_WINDOW_EXTRA_MS / 1000} s of the fill, decided within ${EAE_DECIDE_GRACE_MS / 1000} s of it, else unassessed)`
++    : cfg.mode === 'log' ? `LOG (${rule} = journaled with wouldExit, NO order sent)` : 'off');
++}
++// The 1m close the rule reads. Returns { wait: true } (not there yet), { bar, closeAt, lateMs } or { missed: true, why }.
++function eaeCloseBar(m1, fillAt, now, cfg) {
++  const firstCloseAt = Math.ceil((fillAt + cfg.afterSec * 1000) / M1) * M1, windowEnd = fillAt + cfg.afterSec * 1000 + EAE_WINDOW_EXTRA_MS;
++  if (now < firstCloseAt) return { wait: true, firstCloseAt };
++  const done = (Array.isArray(m1) ? m1 : []).filter(b => b && fin(b.t) && fin(b.c) && b.t % M1 === 0 && b.t + M1 <= now && b.t + M1 >= firstCloseAt && b.t + M1 <= windowEnd).sort((a, b) => a.t - b.t);
++  const fresh = done.find(b => now - (b.t + M1) <= EAE_DECIDE_GRACE_MS);
++  if (fresh) return { bar: fresh, closeAt: fresh.t + M1, lateMs: now - (fresh.t + M1), firstCloseAt };
++  const lastClose = Math.floor(windowEnd / M1) * M1;
++  if (now > lastClose + EAE_DECIDE_GRACE_MS) return { missed: true, firstCloseAt, why: done.length ? `the 1m close was seen ${Math.round((now - (done[0].t + M1)) / 1000)} s late (limit ${EAE_DECIDE_GRACE_MS / 1000} s)` : `no 1m close between ${cfg.afterSec} and ${cfg.afterSec + EAE_WINDOW_EXTRA_MS / 1000} s after the fill was seen in time (poll gap)` };
++  return { wait: true, firstCloseAt };
++}
++
++function validateRunner(cfg, ny) {
++  const e = [];
++  if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) e.push('sessionRunner must be an object { asia, london, ny, late }');
++  else for (const s of SESSIONS) if (!RUNNER_MODES.includes(cfg[s])) e.push(`sessionRunner.${s} must be one of ${RUNNER_MODES.map(x => JSON.stringify(x)).join(' or ')}, got ${JSON.stringify(cfg[s])}`);
++  if (!ny || typeof ny !== 'object' || Array.isArray(ny)) e.push('sessionRunnerNy must be an object { stopPts, tp2AtrMult }');
++  else {
++    if (!(fin(ny.stopPts) && ny.stopPts >= 0 && ny.stopPts <= 50)) e.push(`sessionRunnerNy.stopPts must be 0 to 50 points (the runner's stop, from the entry in the profit direction), got ${JSON.stringify(ny.stopPts)}`);
++    if (!(fin(ny.tp2AtrMult) && ny.tp2AtrMult >= 0.25 && ny.tp2AtrMult <= 10)) e.push(`sessionRunnerNy.tp2AtrMult must be 0.25 to 10 (x ATR15), got ${JSON.stringify(ny.tp2AtrMult)}`);
++  }
++  return e;
++}
++function runnerAllLive(cfg) { return !!cfg && SESSIONS.every(s => cfg[s] === 'live'); }
++function runnerLine(cfg, ny, scaleOutOn) {
++  const txt = m => m === 'allAtTp1' ? 'all contracts out at TP1 (no runner)' : m === 'atrTarget' ? `runner stop entry +${ny.stopPts}, TP2 ${ny.tp2AtrMult} x ATR15 from the fill, no trail, flat at the session close` : 'live (unchanged)';
++  return `[runner] session runner: asia ${txt(cfg.asia)}; london ${txt(cfg.london)}; ny ${txt(cfg.ny)}; late ${txt(cfg.late)}`
++    + (runnerAllLive(cfg) ? '' : scaleOutOn ? ' (by the fill\'s session; ATR15 missing at the fill = live for that trade)' : ' - INACTIVE: scaleOutRunner is off, every trade is live');
++}
++// ATR15 for the runner target: the MEAN true range of the 14 completed 15m bars before ts (bars: { t (bar start, ms), h, l, c }; the forming bar is dropped by time).
++// Needs 15 consecutive completed bars (the 15th gives the first previous close) and the newest of them must be the bar that closed last before ts or the one before it.
++function atr15At(bars, ts) {
++  if (!Array.isArray(bars) || !fin(ts)) return { atr: null, why: 'no 15m bars' };
++  const done = bars.filter(b => b && fin(b.t) && fin(b.h) && fin(b.l) && fin(b.c) && b.t + M15 <= ts).sort((a, b) => a.t - b.t).slice(-(ATR_N + 1));
++  if (done.length < ATR_N + 1) return { atr: null, why: `only ${done.length} completed 15m bars (needs ${ATR_N + 1})` };
++  const newestEnd = done[done.length - 1].t + M15, lastBoundary = Math.floor(ts / M15) * M15;
++  if (newestEnd < lastBoundary - M15) return { atr: null, why: `the 15m bars are stale (newest closed ${Math.round((ts - newestEnd) / 60000)} min before the fill)` };
++  let sum = 0;
++  for (let i = 1; i < done.length; i++) {
++    const b = done[i], pc = done[i - 1].c, tr = Math.max(b.h - b.l, Math.abs(b.h - pc), Math.abs(b.l - pc));
++    if (!(fin(tr) && tr >= 0)) return { atr: null, why: 'a 15m bar is malformed' };
++    sum += tr;
++  }
++  const atr = sum / ATR_N;
++  return atr > 0 ? { atr: Math.round(atr * 100) / 100, bars: ATR_N, newestEnd } : { atr: null, why: 'the 15m true range is zero' };
++}
++// The plan for one fill: { session, mode, stopPts, tp2AtrMult, atr15, why }. The order machine applies its own shape checks (scale-out trade with one runner).
++function runnerPlanFor({ session, cfg, ny, bars15, ts }) {
++  const mode = cfg && SESSIONS.includes(session) && RUNNER_MODES.includes(cfg[session]) ? cfg[session] : 'live';
++  const a = atr15At(bars15, ts);
++  return { session: session || null, mode, stopPts: ny ? ny.stopPts : null, tp2AtrMult: ny ? ny.tp2AtrMult : null, atr15: a.atr, why: mode === 'atrTarget' && a.atr == null ? `ATR15 unavailable at the fill: ${a.why}` : null };
++}
++module.exports = { EAE_MODES, RUNNER_MODES, SESSIONS, EAE_WINDOW_EXTRA_MS, EAE_DECIDE_GRACE_MS, validateEae, eaeLine, eaeCloseBar, validateRunner, runnerAllLive, runnerLine, atr15At, runnerPlanFor };
+diff --git a/lib/liveStateMachine.js b/lib/liveStateMachine.js
+index 8df576e..e990e71 100644
+--- a/lib/liveStateMachine.js
++++ b/lib/liveStateMachine.js
+@@ -33,10 +33,11 @@ const { profitLockPoints } = require('./riskRules');   // 10/18 RULE 3 (pure)
+ const { ptxFetch } = require('./bars');
+ const exits5m = require('./exits5m');   // exits5m r1 (pure)
+ const safeExit = require('./safeExit');   // bf-exitsafe: one outcome rule for every market exit
++const edgeExits = require('./edgeExits');   // edge r1 (pure): early adverse exit + session runner rule
+ const fs = require('fs');
+ // FIX1015 (restart after TP1): the trade state is saved to a small JSON file (stateFile, next to the journal) after every public call that can change it, and
+ // restored at startup when the broker position matches it. Methods whose end state is saved:
+-const PERSIST_AFTER_ASYNC = ['openEntry', 'tick', 'recoverSavedPendingEntry', 'orphanEntryStep', 'cancelPendingForStartup', 'auditStopLadder', 'maybeRatchetTrail', 'maybeProfitLock', 'maybeSmartHoldExit', 'flattenNow', 'cancelEntryRequest', 'adoptExistingPosition', 'restoreFromState', 'sweepStaleStops', 'cancelPendingForBlackout', 'cancelPendingForStopTouch', 'cancelPendingForTargetTouch', 'cancelPendingForNews', 'cancelPendingForPause', 'handleReversedPosition', 'sessionFlatten', 'noProgressStep', 'levelLossStep'];   // np1; exits5m r1
++const PERSIST_AFTER_ASYNC = ['openEntry', 'tick', 'recoverSavedPendingEntry', 'orphanEntryStep', 'cancelPendingForStartup', 'auditStopLadder', 'maybeRatchetTrail', 'maybeProfitLock', 'maybeSmartHoldExit', 'flattenNow', 'cancelEntryRequest', 'adoptExistingPosition', 'restoreFromState', 'sweepStaleStops', 'cancelPendingForBlackout', 'cancelPendingForStopTouch', 'cancelPendingForTargetTouch', 'cancelPendingForNews', 'cancelPendingForPause', 'handleReversedPosition', 'sessionFlatten', 'noProgressStep', 'levelLossStep', 'earlyAdverseStep'];   // np1; exits5m r1
+ const PERSIST_AFTER_SYNC = ['updateProfitTrail', 'reset', 'noteNoProgressPrices'];   // np1
+ const RESTORE_ENTRY_TOLERANCE_PTS = 1;   // broker averagePrice vs the saved entry fill: further apart than this = not the same trade
+ const OPEN_PHASES = ['LEG1_OPEN', 'LEG23_OPEN', 'LEG3_OPEN'];
+@@ -67,6 +68,20 @@ function lossLevelRestore(o) {
+   if (!o || typeof o !== 'object' || !fin(o.price) || (o.exitAt != null && !fin(o.exitAt))) return null;
+   return { price: o.price, name: typeof o.name === 'string' ? o.name : null, jid: o.jid ?? null, ...(fin(o.exitAt) ? { exitAt: o.exitAt, close5m: fin(o.close5m) ? o.close5m : null, barT: fin(o.barT) ? o.barT : null } : {}) };
+ }
++// edge r1: restored records are used only when wholly well formed (else null: the early exit leaves the trade alone / the runner is today's)
++const EAE_DECISIONS = ['exit', 'log', 'keep', 'unassessed', 'abandoned'];
++function eaeRestore(o) {
++  const fin = x => typeof x === 'number' && Number.isFinite(x);
++  if (!o || typeof o !== 'object' || !EAE_DECISIONS.includes(o.decided) || !fin(o.at)) return null;
++  if (o.decided === 'exit' && !(fin(o.pts) && fin(o.close) && typeof o.reason === 'string')) return { decided: 'unassessed', at: o.at, why: 'the saved early-exit decision was not usable after a restart' };
++  return { ...o };
++}
++function runnerPlanRestore(o) {
++  const fin = x => typeof x === 'number' && Number.isFinite(x);
++  if (!o || typeof o !== 'object' || !edgeExits.RUNNER_MODES.includes(o.mode)) return null;
++  if (o.mode === 'atrTarget' && !(fin(o.stopPts) && o.stopPts >= 0 && fin(o.tp2) && fin(o.atr15) && o.atr15 > 0)) return null;
++  return { ...o };
++}
+ function tradeStateProblem(st) {
+   if (!st || typeof st !== 'object' || Array.isArray(st)) return 'not an object';
+   if (st.v !== 1) return 'not a v1 trade state';
+@@ -138,7 +153,7 @@ function aggressiveLimitPrice(side, refPrice, buffer, tickSize) {
+ 
+ class LiveStateMachine {
+   alignmentFreshness() { try { return typeof this.alignmentFreshnessFn === 'function' ? this.alignmentFreshnessFn() : null; } catch (_) { return null; } }   // a throw = no state = refused
+-  constructor({ token, accountId, contractId, pointValue, tickSize = 0.25, log, notify, journal, profitLockDollars = null, profitLockPct = 0.5, marketableLimitBufferPoints = 0, pendingExpireMs = null, trailStepPoints = null, profitTrail = null, runnerTrailRule = null, journalIdFn = null, blackoutFn = null, stateFile = null, pendingCancelOnStopTouch = false, fillSlipGuard = null, entryStopFloorFn = null, entryStopFloorPlanFn = null, newsRestingFn = null, entryControlCheck = null, entryQuantityCheck = null, alignmentFreshnessFn = null, blockFn = null, restingBlockHorizonMs = 0, tp1FromFill = false }) {
++  constructor({ token, accountId, contractId, pointValue, tickSize = 0.25, log, notify, journal, profitLockDollars = null, profitLockPct = 0.5, marketableLimitBufferPoints = 0, pendingExpireMs = null, trailStepPoints = null, profitTrail = null, runnerTrailRule = null, journalIdFn = null, blackoutFn = null, stateFile = null, pendingCancelOnStopTouch = false, fillSlipGuard = null, entryStopFloorFn = null, entryStopFloorPlanFn = null, newsRestingFn = null, entryControlCheck = null, entryQuantityCheck = null, alignmentFreshnessFn = null, blockFn = null, restingBlockHorizonMs = 0, tp1FromFill = false, sessionRunnerFn = null }) {
+     this.entryControlCheck = entryControlCheck;
+     this.alignmentFreshnessFn = alignmentFreshnessFn;   // r8.1: live read-age state for the alignment checks below (null = none, as before)
+     this.entryQuantityCheck = entryQuantityCheck;
+@@ -175,6 +190,9 @@ class LiveStateMachine {
+     // its own resting (not yet reached, or already closed).
+     this.leg3StopOrderId = null;
+     this.trailPeakPts = 0;
++    // edge r1: (ts) => { session, mode, stopPts, tp2AtrMult, atr15, why } for a fill at ts; null = today's runner on every trade (nothing read, nothing journaled)
++    this.sessionRunnerFn = typeof sessionRunnerFn === 'function' ? sessionRunnerFn : null;
++    this.runnerPlan = null; this.eaeState = null; this.tp2RetryAt = 0;   // edge r1 per-trade records (saved with the trade)
+     this.runnerArmed = false;   // so1 r1.1: true only once TP1 really filled (or the journal shows it banked); the runner rule acts only while armed
+     this.source = null; this.grade = null;
+     this.entrySignalTime = null;
+@@ -258,6 +276,7 @@ class LiveStateMachine {
+         fillPlan: this._fillPlanBase || this._cancelFillPlan || null, fillFloorRead: this._fillFloor !== undefined, fillFloor: this._fillFloor ?? null, planFloor: this._planFloor ?? null } } : {}),   // TIME BLOCKS r2/r3/r4; combined build: the stop floor's plan base + floor read
+       ...(this._orphanEntry ? { orphanEntry: { ...this._orphanEntry } } : {}),   // TIME BLOCKS r3: an unresolved old entry id survives ordinary ticks and a second restart
+       ...(this.lossLevel ? { lossLevel: { ...this.lossLevel } } : {}),   // exits5m r1: only while exitOnLevelLoss set it (absent when off = the file as before)
++      ...(this.eaeState ? { eaeState: { ...this.eaeState } } : {}), ...(this.runnerPlan ? { runnerPlan: { ...this.runnerPlan } } : {}),   // edge r1: absent when the rules are off / live = the file as before
+       ...(this.exitInFlight ? { exitInFlight: { ...this.exitInFlight } } : {}), ...(this.exitAttempts > 0 ? { exitAttempts: this.exitAttempts } : {}),   // bf-exitsafe: written BEFORE the market exit goes out
+     };
+   }
+@@ -321,7 +340,7 @@ class LiveStateMachine {
+   // anything else (other size, opposite side, never settles, unreadable) = a latched HALT with an urgent alert. Returns { done, result } or { done: false, st }.
+   async _startupExitInFlight(st) {
+     const x = st.exitInFlight, dir = x.dir === 1 || x.dir === -1 ? x.dir : st.dir, size = Number.isInteger(x.size) && x.size > 0 ? x.size : null;
+-    const T = { 'no-progress': 'no-progress exit', 'level-loss': 'level-loss exit', 'morning-hold': 'morning-hold close', 'session-close': 'session close', manual: 'manual flatten', 'through-stop': 'filled-through-stop exit' }[x.kind] || 'market exit';   // r1.1: + manual, through-stop
++    const T = { 'no-progress': 'no-progress exit', 'level-loss': 'level-loss exit', 'early-adverse': 'early adverse exit', 'morning-hold': 'morning-hold close', 'session-close': 'session close', manual: 'manual flatten', 'through-stop': 'filled-through-stop exit' }[x.kind] || 'market exit';   // r1.1: + manual, through-stop
+     const write = obj => { try { const tmp = this.stateFile + '.tmp'; fs.writeFileSync(tmp, JSON.stringify({ ...obj, savedAt: Date.now() })); fs.renameSync(tmp, this.stateFile); return true; } catch (e) { this.log(`  [state] could not write the trade state (${e.message}).`); return false; } };
+     const halt = why => {
+       this.desynced = true; this._so1HaltWhy = why; this._haltLatched = write({ ...st, so1Halt: why });
+@@ -390,7 +409,7 @@ class LiveStateMachine {
+     this.stopOrderId = st.stopOrderId; this.targetOrderId = st.targetOrderId; this.leg3StopOrderId = st.leg3StopOrderId; this.entryOrderId = null;
+     this.source = st.source; this.grade = st.grade; this.sessionExit = st.sessionExit; this.peakUnrealized = st.peakUnrealized || 0;
+     this.profitLocked = !!st.profitLocked; this.profitLocked2 = !!st.profitLocked2; this.tightStopPrice = null; this.smartHoldChecked = true;
+-    Object.assign(this, npRestore(st)); this.flattenKind = st.flattenKind === 'no-progress' ? 'no-progress' : st.flattenKind === 'level-loss' ? 'level-loss' : st.flattenKind === 'manual' ? 'manual' : null;   // r1.1: an unfinished manual flatten survives a restart this.pxBoundaryAt = Date.now();   // r1.5: without a valid restored fill time, prices from after the restore only   // np1 r1.1: the whole record validated (npRestore)
++    Object.assign(this, npRestore(st)); this.flattenKind = st.flattenKind === 'no-progress' ? 'no-progress' : st.flattenKind === 'level-loss' ? 'level-loss' : st.flattenKind === 'manual' ? 'manual' : st.flattenKind === 'early-adverse' ? 'early-adverse' : null; this.eaeState = eaeRestore(st.eaeState); this.runnerPlan = runnerPlanRestore(st.runnerPlan);   // r1.1: an unfinished manual flatten survives a restart; edge r1: + the early exit and the runner plan this.pxBoundaryAt = Date.now();   // r1.5: without a valid restored fill time, prices from after the restore only   // np1 r1.1: the whole record validated (npRestore)
+     this.lossLevel = lossLevelRestore(st.lossLevel);   // exits5m r1 (null when absent or malformed)
+     this.exitAttempts = Number.isInteger(st.exitAttempts) && st.exitAttempts > 0 ? st.exitAttempts : 0;   // bf-exitsafe: the K cap spans restarts
+     this.phase = st.phase;
+@@ -402,6 +421,7 @@ class LiveStateMachine {
+     else if (st.phase === 'LEG23_OPEN') {
+       if (st.stopOrderId != null) tracked.push(['stopOrderId', st.leg2Size, 'be'], ['targetOrderId', st.leg2Size, 'tp2']);
+       if (st.leg3StopOrderId != null) tracked.push(['leg3StopOrderId', leg3Size, 'runner']);
++      if (st.stopOrderId == null && st.leg3StopOrderId != null && this._atrRunner()) tracked.push(['targetOrderId', leg3Size, 'tp2r']);   // edge r1: the ATR runner's TP2 limit is this trade's order
+     } else tracked.push(['stopOrderId', leg3Size, 'runner']);
+     const keep = new Set(tracked.map(([f]) => this[f]).filter(has).map(String));
+     for (const o of orders) {
+@@ -421,6 +441,7 @@ class LiveStateMachine {
+         if (kind === 'stop') { this[field] = await this.placeProtectiveStop(size, lock(roundToTick(this.stopPriceIntended, this.tickSize))); replaced.push(`stop ${size}x`); }
+         else if (kind === 'tp1') { this[field] = await this.placeTargetLimit(size, this.target1); replaced.push(`TP1 ${size}x`); }
+         else if (kind === 'tp2') { this[field] = await this.placeTargetLimit(size, this.target2); replaced.push(`TP2 ${size}x`); }
++        else if (kind === 'tp2r') { this[field] = null; this.tp2RetryAt = 0; replaced.push(`runner TP2 ${size}x (re-placed by the next poll, after an order-list check)`); }   // edge r1: never placed blind here
+         else {
+           // after TP1: break-even or better, never the widen-from-entry fallback; a market already through the level exits those contracts (what the stop would do)
+           if (refPrice == null) refPrice = await this.trailRefPrice(this.entryPrice);
+@@ -1153,6 +1174,7 @@ class LiveStateMachine {
+       return this.sessionFlatten(`no progress: not seen at +${cfg.mfePts} pts by ${npHm(st.checkAt)}`, 'no-progress');
+     }
+     if (st || this.phase !== 'LEG1_OPEN' || this.entryPrice == null) return null;
++    if (this.eaeState && this.eaeState.decided === 'exit') return null;   // edge r1: the early adverse exit owns this trade's exit (one decision owner; np1's own rule is unchanged)
+     const mark = (decided, why, extra = {}) => {
+       this.npState = { decided, why, at: now, ...extra };
+       try { this._manage(decided === 'pass' ? 'NO_PROGRESS_PASS' : 'NO_PROGRESS_UNASSESSED', `No-progress check: ${why}.`, { mfePts: cfg.mfePts, ...extra }); } catch (e2) { /* journal only */ }
+@@ -1173,6 +1195,163 @@ class LiveStateMachine {
+     this.journal({ type: 'no_progress_exit', t: now, dir: this.dir, entryPrice: this.entryPrice, contracts: this.contracts, mfePts: cfg.mfePts, ...ex });
+     return this.sessionFlatten(`no progress: not seen at +${cfg.mfePts} pts by ${npHm(checkAt)}`, 'no-progress');
+   }
++  // edge r1 A. EARLY ADVERSE EXIT (Mac 11/11: "I can agree with this"; study edge/A-LOSS-ANATOMY.md). Called by the executor every poll BEFORE np1 and the level-loss
++  // step, with this poll's 1m bars. Once per trade (eaeState), before TP1 only (LEG1_OPEN): at the first completed 1m close cfg.afterSec (120 s) or more after the
++  // fill observation - close at or beyond -cfg.lossPts (10) AND the best favourable excursion since the fill (np1's tracker, npBestPts) below +cfg.minSeenPts (3)
++  // = the whole position is closed at market through sessionFlatten('early-adverse') (the safe-exit rule: verified cancels, intent on disk, lost reply = settle,
++  // K sends, then HALT). The close must be within afterSec + 60 s of the fill and the decision within EAE_DECIDE_GRACE_MS of that close; otherwise 'unassessed'
++  // (journaled, the trade is left alone). mode 'log' = the same row with wouldExit: true and NO order. ONE decision owner per trade: nothing is decided while another
++  // exit is under way or decided (session close, morning hold, manual, np1, level-loss); once this exit is decided np1 and level-loss stand down.
++  // Returns null | 'keep' | 'log' | 'unassessed' | 'abandoned' | 'other-exit' | 'retry' | sessionFlatten's result.
++  async earlyAdverseStep(cfg, m1, now = Date.now()) {
++    if (!cfg || (cfg.mode !== 'exit' && cfg.mode !== 'log') || this.desynced) return null;
++    const st = this.eaeState && typeof this.eaeState === 'object' ? this.eaeState : null, d = this.dir === 1 ? 'LONG' : 'SHORT';
++    if (st && st.decided === 'exit') {
++      if (this.phase === 'FLAT') return 'flat';
++      if (this.phase !== 'LEG1_OPEN' && this.phase !== 'FLATTENING' && !this.sessionMarketSent) {   // TP1 filled before the exit went out: the trade worked, leave it
++        this.eaeState = { ...st, decided: 'abandoned', abandonedAt: now, why: 'scaled-out-before-send', phase: this.phase };
++        try { this._manage('EARLY_ADVERSE_ABANDONED', `Early exit not sent: the ${d} scaled out first (phase ${this.phase}); the runner is managed as normal.`, { phase: this.phase }); } catch (e2) { /* journal only */ }
++        return 'abandoned';
++      }
++      if (this.sessionFlattenStarted && this.flattenKind !== 'early-adverse') return 'other-exit';   // another exit took the trade over (session close, manual): it drives itself
++      return this.sessionFlatten(st.reason, 'early-adverse');
++    }
++    if (st || this.phase !== 'LEG1_OPEN' || this.entryPrice == null) return null;
++    if (this.sessionFlattenStarted || (this.npState && this.npState.decided === 'exit') || (this.lossLevel && Number.isFinite(this.lossLevel.exitAt))) return null;   // another exit owns the trade
++    const base = { t: now, journalId: this._edgeJid(), dir: this.dir, fill: this.entryPrice, fillSeenAt: this.npFillAt ?? null, contracts: this.contracts, mode: cfg.mode, afterSec: cfg.afterSec, lossPts: cfg.lossPts, minSeenPts: cfg.minSeenPts };
++    const unassessed = (why, extra = {}) => {
++      this.eaeState = { decided: 'unassessed', why, at: now };
++      try { this.journal({ type: 'early_adverse_check', ...base, decision: 'unassessed', why, ...extra }); } catch (e2) { /* journal only */ }
++      try { this._manage('EARLY_ADVERSE_UNASSESSED', `Early-exit check not made: ${why}. The trade is left alone.`, { ...extra }); } catch (e2) { /* journal only */ }
++      return 'unassessed';
++    };
++    if (!Number.isFinite(this.npFillAt)) return unassessed('the fill time is not known (adopted or restored position)');
++    const cb = edgeExits.eaeCloseBar(m1, this.npFillAt, now, cfg);
++    if (cb.wait) return null;
++    if (cb.missed) return unassessed(cb.why, { firstCloseAt: cb.firstCloseAt });
++    const r2 = x => Math.round(x * 100) / 100, close = cb.bar.c, pts = r2(this.dir * (close - this.entryPrice));
++    const ex = { close, closeAt: cb.closeAt, secAfterFill: Math.round((cb.closeAt - this.npFillAt) / 1000), decidedLateMs: cb.lateMs, pts };
++    if (this.npGap) return unassessed('a 1m bar after the fill was not seen (poll gap), so the best price is not known', ex);
++    if (!Number.isFinite(this.npCoveredTo) || this.npCoveredTo < cb.closeAt) {   // the tracker has not counted this bar yet (it runs first in the same poll): wait inside the grace
++      if (now - cb.closeAt > edgeExits.EAE_DECIDE_GRACE_MS - 1) return unassessed('the best price since the fill was not tracked up to the 1m close', ex);
++      return null;
++    }
++    const mfe = r2(Number.isFinite(this.npBestPts) ? this.npBestPts : 0);
++    const pollPeakPts = Number.isFinite(this.peakUnrealized) && this.contracts > 0 && this.pointValue > 0 ? r2(this.peakUnrealized / (this.pointValue * this.contracts)) : null;   // information only (a poll price is not evidence, np1 r1.5)
++    const adverse = pts <= -cfg.lossPts, neverWorked = mfe < cfg.minSeenPts;
++    const shadow = { stop: this.stopPriceIntended ?? null, tp1: this.target1 ?? null, stopPts: Number.isFinite(this.stopPriceIntended) ? r2(Math.abs(this.entryPrice - this.stopPriceIntended)) : null, tp1Pts: Number.isFinite(this.target1) ? r2(Math.abs(this.target1 - this.entryPrice)) : null };
++    const row = { ...base, ...ex, mfe, pollPeakPts, ...shadow };
++    if (!(adverse && neverWorked)) {
++      const why = !adverse ? `the 1m close was at ${pts >= 0 ? '+' : ''}${pts.toFixed(2)} pts (the rule needs -${cfg.lossPts} or worse)` : `the trade had been seen at +${mfe.toFixed(2)} pts (the rule needs below +${cfg.minSeenPts})`;
++      this.eaeState = { decided: 'keep', at: now, pts, mfe, close, closeAt: cb.closeAt, why };
++      try { this.journal({ type: 'early_adverse_check', ...row, decision: 'keep', why }); } catch (e2) { /* journal only */ }
++      return 'keep';
++    }
++    const reason = `early exit: never worked, ${pts.toFixed(2)} pts at the 1m close ${ex.secAfterFill} s after the fill, best seen +${mfe.toFixed(2)}`;
++    if (cfg.mode === 'log') {
++      this.eaeState = { decided: 'log', at: now, pts, mfe, close, closeAt: cb.closeAt, reason, mode: 'log', shadow };
++      this.log(`  [eae] LOG ONLY: the ${d} from ${this.entryPrice.toFixed(2)} closed the 1m bar at ${close} (${pts.toFixed(2)} pts) with best seen +${mfe.toFixed(2)} - the early exit WOULD close it; no order sent (mode log).`);
++      try { this.journal({ type: 'early_adverse_exit', ...row, decision: 'log', wouldExit: true, orderSent: false }); } catch (e2) { /* journal only */ }
++      try { this._manage('EARLY_ADVERSE_WOULD_EXIT', `Early-exit rule (log only): ${pts.toFixed(2)} pts at the 1m close ${ex.secAfterFill} s after the fill and never seen at +${cfg.minSeenPts} (best +${mfe.toFixed(2)}). It would have closed the ${d} here; nothing was sent.`, { pts, mfe, close }); } catch (e2) { /* journal only */ }
++      return 'log';
++    }
++    const before = this.eaeState;
++    this.eaeState = { decided: 'exit', at: now, pts, mfe, close, closeAt: cb.closeAt, reason, mode: 'exit', shadow };
++    if (this.stateFile && this.saveState() !== true) { this.eaeState = before; this.log('  [eae] the early-exit decision could not be saved - not sending the exit this poll (retried next poll, inside the decision window).'); return 'retry'; }
++    this.log(`  [eae] the ${d} from ${this.entryPrice.toFixed(2)} closed the 1m bar at ${close} (${pts.toFixed(2)} pts, ${ex.secAfterFill} s after the fill) and was never seen at +${cfg.minSeenPts} (best +${mfe.toFixed(2)}) - closing ${this.contracts}x at market.`);
++    try { this.journal({ type: 'early_adverse_exit', ...row, decision: 'exit', wouldExit: true, orderSent: true }); } catch (e2) { /* journal only */ }
++    return this.sessionFlatten(reason, 'early-adverse');
++  }
++  // edge r1 B. SESSION RUNNER RULE: decided ONCE at the first observation of the fill (the same moment and clock as the stop floor), saved with the trade.
++  //   'live'      today's plan, untouched.
++  //   'allAtTp1'  the TP1 limit closes ALL contracts at the scale-out price; no runner (the whole-position TP1 path of a 1-lot, _closeWholeLeg1).
++  //   'atrTarget' TP1 as today; then the runner's stop goes to entry + stopPts (profit side, rounded INTO profit), a TP2 limit rests at fill +/- tp2AtrMult x ATR15,
++  //               no trail; the session close flattens it. ATR15 missing, or a TP2 that is not beyond TP1 = 'live' for this trade (journaled with the reason).
++  // Only a scale-out trade with exactly one runner (so1, leg2 0, 2+ contracts) takes a non-live mode. Journal: one runner_rule row per fill while the rule is in use.
++  _decideRunnerPlan(now = Date.now()) {
++    this.runnerPlan = null; this.tp2RetryAt = 0;
++    if (!this.sessionRunnerFn) return null;
++    let r = null, err = null; try { r = this.sessionRunnerFn(now); } catch (e) { err = e; r = null; }
++    const n = this.contracts, fin = x => typeof x === 'number' && Number.isFinite(x);
++    const requested = r && edgeExits.RUNNER_MODES.includes(r.mode) ? r.mode : 'live';
++    let mode = requested, why = !r ? `the session runner rule could not be read (${err ? err.message : 'no answer'})` : (r.why || null), tp2 = null;
++    const shape = !!this.runnerTrailRule && this.leg2Size === 0 && n > 1 && this.leg1Size === n - 1;
++    if (mode !== 'live' && !shape) { mode = 'live'; why = `not a scale-out trade with one runner (${n} contract${n === 1 ? '' : 's'}, TP1 ${this.leg1Size}x, leg 2 ${this.leg2Size}x)`; }
++    if (mode === 'atrTarget') {
++      if (!(fin(r.atr15) && r.atr15 > 0 && fin(r.stopPts) && r.stopPts >= 0 && fin(r.tp2AtrMult) && r.tp2AtrMult > 0)) { mode = 'live'; why = why || 'ATR15 unavailable at the fill'; }
++      else {
++        tp2 = roundToTick(this.entryPrice + this.dir * r.tp2AtrMult * r.atr15, this.tickSize);
++        if (!(fin(this.target1) && this.dir * (tp2 - this.target1) >= 4 * this.tickSize)) { mode = 'live'; why = `the ATR target ${tp2.toFixed(2)} (${r.tp2AtrMult} x ATR15 ${r.atr15}) is not beyond TP1 ${fin(this.target1) ? this.target1.toFixed(2) : '?'}`; tp2 = null; }
++      }
++    }
++    if (mode === 'allAtTp1') { this.leg1Size = n; this.leg2Size = 0; }
++    this.runnerPlan = { session: r && r.session ? r.session : null, mode, requested, atr15: r && fin(r.atr15) ? r.atr15 : null, stopPts: r && fin(r.stopPts) ? r.stopPts : null, tp2AtrMult: r && fin(r.tp2AtrMult) ? r.tp2AtrMult : null, tp2, why: mode !== requested ? why : null, at: now };
++    const p = this.runnerPlan, D = this.dir === 1 ? 'LONG' : 'SHORT';
++    const text = mode === 'allAtTp1' ? `all ${n} contracts exit at TP1 ${fin(this.target1) ? this.target1.toFixed(2) : '?'} (no runner)` : mode === 'atrTarget' ? `after TP1 the runner's stop goes to entry ${this.dir === 1 ? '+' : '-'}${p.stopPts} (${this._atrStopLevel().toFixed(2)}) and a TP2 limit rests at ${tp2.toFixed(2)} (${p.tp2AtrMult} x ATR15 ${p.atr15}); no trail` : `today's runner${mode !== requested ? ` (fell back from ${requested}: ${why})` : ''}`;
++    this.log(`  [runner] ${p.session || '?'} session, ${D} ${n}x: ${text}.`);
++    try { this.journal({ type: 'runner_rule', t: now, journalId: this._edgeJid(), dir: this.dir, fill: this.entryPrice, contracts: n, session: p.session, mode, requested, atr15: p.atr15, stopPts: mode === 'atrTarget' ? p.stopPts : null, tp2AtrMult: mode === 'atrTarget' ? p.tp2AtrMult : null, tp2, tp1: this.target1 ?? null, leg1Size: this.leg1Size, ...(mode !== requested ? { fallback: true, why } : {}) }); } catch (e2) { /* journal only */ }
++    return p;
++  }
++  _edgeJid() { try { const j = this.journalIdFn ? this.journalIdFn() : null; return j != null ? j : (this.signalContext && this.signalContext.journalId != null ? this.signalContext.journalId : null); } catch (e) { return null; } }
++  _atrRunner() { return !!(this.runnerPlan && this.runnerPlan.mode === 'atrTarget' && Number.isFinite(this.runnerPlan.tp2) && Number.isFinite(this.runnerPlan.stopPts)); }
++  // The ATR runner's stop: entry + stopPts in the profit direction, rounded to the tick INTO profit (never worse than entry + stopPts, the profit-securing invariant).
++  _atrStopLevel() {
++    const raw = this.entryPrice + this.dir * this.runnerPlan.stopPts, t = this.tickSize;
++    return Math.round((this.dir === 1 ? Math.ceil(raw / t - 1e-9) : Math.floor(raw / t + 1e-9)) * t * 100) / 100;
++  }
++  // The ATR runner's TP2 limit. Never stacked: before every send the working orders are read and a resting closing LIMIT at the TP2 price is adopted; an unreadable
++  // list or an unknown send outcome waits (30 s) before the next check; a proven rejection retries after 15 s. Returns true when a TP2 limit is tracked.
++  async _atrPlaceTp2(size, { fresh = false } = {}) {
++    if (!this._atrRunner() || this.desynced || this._so1HaltWhy || !(size > 0)) return false;
++    if (this.targetOrderId != null) return true;
++    const px = roundToTick(this.runnerPlan.tp2, this.tickSize), side = this.sideFor(this.dir, true);
++    if (!fresh) {
++      let open = null; try { open = await getOpenOrders(this.token, this.accountId, this.contractId); } catch (e) { open = null; }
++      if (!open) { this.tp2RetryAt = Date.now() + 30000; return false; }
++      const mine = open.find(o => o && o.type === OrderType.LIMIT && (o.side === undefined || o.side === side) && Number.isFinite(o.limitPrice) && Math.abs(o.limitPrice - px) < this.tickSize / 2);
++      if (mine) { this.targetOrderId = mine.id; this.target2 = px; this.log(`  [runner] the runner's TP2 limit ${mine.size ?? '?'}x @ ${px.toFixed(2)} is already resting (order ${mine.id}) - tracked, not placed again.`); return true; }
++    }
++    try {
++      const id = await this.placeTargetLimit(size, px);
++      if (!id) throw new Error('no order id in the reply');
++      this.targetOrderId = id; this.target2 = px; this.tp2RetryAt = 0;
++      this.log(`  [runner] ATR target: TP2 limit ${size}x @ ${px.toFixed(2)} (${this.runnerPlan.tp2AtrMult} x ATR15 ${this.runnerPlan.atr15} from the fill).`);
++      try { this._manage('RUNNER_TP2_PLACED', `Runner target: a TP2 limit for the ${size}x runner rests at ${px.toFixed(2)} (${this.runnerPlan.tp2AtrMult} x the 15m ATR ${this.runnerPlan.atr15} from the fill). No trail.`, { tp2: px, atr15: this.runnerPlan.atr15 }); } catch (e2) { /* journal only */ }
++      return true;
++    } catch (e) {
++      const rejected = e && e.orderRejected === true;
++      this.tp2RetryAt = Date.now() + (rejected ? 15000 : 30000);
++      this.log(`  [runner] the TP2 limit ${size}x @ ${px.toFixed(2)} was ${rejected ? 'REJECTED' : 'not confirmed'} (${e.message}) - the runner keeps its stop; checked again in ${rejected ? 15 : 30} s (the order list is read first, nothing is stacked).`);
++      if (!this._tp2FailReported) { this._tp2FailReported = true; try { this._manage('RUNNER_TP2_NOT_PLACED', `The runner's TP2 limit at ${px.toFixed(2)} was ${rejected ? 'rejected' : 'not confirmed'} (${e.message}). The runner keeps its stop; the bot checks the order list and tries again.`, { tp2: px, rejected }); } catch (e2) { /* journal only */ } }
++      return false;
++    }
++  }
++  // The ATR runner went to 0: the TP2 limit or the +stopPts stop (or a manual close). The broker's working orders say which; both gone / both listed / unreadable =
++  // decided by the last poll price, labelled unsure. Every leftover order is cancelled and the machine resets (flat is flat).
++  async _atrRunnerClosed(leg3Size) {
++    let orders = null; try { orders = await getOpenOrders(this.token, this.accountId, this.contractId); } catch (e) { orders = null; }
++    const has = id => !!(orders && id != null && orders.some(o => String(o.id) === String(id)));
++    const tpLive = has(this.targetOrderId), stopLive = has(this.leg3StopOrderId), tp2 = this.runnerPlan.tp2, stopPx = this.trailStop;
++    let kind, sure = true;
++    if (orders && this.targetOrderId != null && !tpLive && stopLive) kind = 'tp2';
++    else if (orders && !stopLive && (tpLive || this.targetOrderId == null)) kind = 'stop';
++    else { sure = false; const px = Number.isFinite(this.lastPrice) ? this.lastPrice : null; kind = px != null && Number.isFinite(stopPx) && Math.abs(px - tp2) < Math.abs(px - stopPx) ? 'tp2' : 'stop'; }
++    const note = sure ? '' : ' (unsure: the order list could not tell which order filled; decided by the last price)';
++    if (kind === 'tp2') {
++      this.target2 = roundToTick(tp2, this.tickSize);   // the executor's close estimate reads the runner's TP2 price from here
++      this.log(`  [LIVE FILL] runner TP2 filled: ${leg3Size}x closed at the ATR target ${tp2.toFixed(2)}${note}.`);
++      this.notify('Runner target hit', `Runner closed ${leg3Size}x @ ${tp2.toFixed(2)} (TP2 = ${this.runnerPlan.tp2AtrMult} x ATR15).`, { tags: 'chart_with_upwards_trend' });
++      try { this._manage('TP2_OR_BE', `The runner (${leg3Size}x) closed at its TP2 target ${tp2.toFixed(2)} (${this.runnerPlan.tp2AtrMult} x ATR15 from the fill).${note}`, { viaTarget: true, runnerRule: 'atrTarget', sure }); } catch (e2) { /* journal only */ }
++    } else {
++      this.log(`  [LIVE FILL] runner stopped at ${stopPx != null ? stopPx.toFixed(2) : '?'} (entry ${this.dir === 1 ? '+' : '-'}${this.runnerPlan.stopPts}), ${leg3Size}x${note}.`);
++      this.notify('Runner stopped', `Runner closed ${leg3Size}x @ ${stopPx != null ? stopPx.toFixed(2) : '?'} (stop at entry ${this.dir === 1 ? '+' : '-'}${this.runnerPlan.stopPts}; TP2 ${tp2.toFixed(2)} not reached).`, { tags: 'chart_with_upwards_trend' });
++      try { this._manage('RUNNER_STOPPED', `The runner (${leg3Size}x) was stopped out at ${stopPx != null ? stopPx.toFixed(2) : '?'} - its stop at entry ${this.dir === 1 ? '+' : '-'}${this.runnerPlan.stopPts} (the ATR target ${tp2.toFixed(2)} was not reached).${note}`, { stop: stopPx, runnerRule: 'atrTarget', sure }); } catch (e2) { /* journal only */ }
++    }
++    try { this.journal({ type: 'runner_exit', t: Date.now(), journalId: this._edgeJid(), dir: this.dir, fill: this.entryPrice, mode: 'atrTarget', kind, sure, price: kind === 'tp2' ? tp2 : stopPx ?? null, tp2, stop: stopPx ?? null, atr15: this.runnerPlan.atr15 }); } catch (e2) { /* journal only */ }
++    // no POSITION_CLOSED row here: the executor's close estimate books the runner from the row above (TP2_OR_BE at TP2 / RUNNER_STOPPED at its stop), once
++    await this.cancelAllOrdersForContract();
++    this.reset();
++  }
+   // exits5m r1 CHANGE 5 LEVEL-LOSS EXIT (Mac-approved 11/09). Called by the executor every poll while exitOnLevelLoss is on and lossLevel is set (the trade's trigger
+   // level, saved with the trade). bars5 = this poll's 5m read. Before TP1 only (LEG1_OPEN): the LAST completed 5m bar that closes after the fill (or after the
+   // restore / adoption when the fill time is not known) closing 1+ tick back through the level against the position = decided ONCE (lossLevel.exitAt, saved
+@@ -1192,7 +1371,7 @@ class LiveStateMachine {
+       if (this.phase === 'FLATTENING' && this.flattenKind !== 'level-loss') return 'other-exit';
+       return this.sessionFlatten(`level lost: a 5m close at ${L.close5m} back through ${lvTxt}`, 'level-loss');
+     }
+-    if (this.phase !== 'LEG1_OPEN' || this.sessionFlattenStarted || (this.npState && this.npState.decided === 'exit') || this.entryPrice == null) return null;
++    if (this.phase !== 'LEG1_OPEN' || this.sessionFlattenStarted || (this.npState && this.npState.decided === 'exit') || (this.eaeState && this.eaeState.decided === 'exit') || this.entryPrice == null) return null;   // edge r1: + the early adverse exit
+     const since = Number.isFinite(this.npFillAt) ? this.npFillAt : this.pxBoundaryAt;
+     if (!Number.isFinite(since)) return null;
+     const done = exits5m.completedBars(bars5, now).filter(b => b.t + exits5m.M5 > since), last = done[done.length - 1];
+@@ -1308,6 +1487,14 @@ class LiveStateMachine {
+       try { this._manage('LEVEL_LOSS_EXIT', `Level lost: the ${d} position (${size}x) is closed at market (${reason}). The stop was never moved.`, { size, reason }); } catch (e2) { /* journal only */ }
+       this.notify('Level lost - exiting', `Closing ${d} ${size}x at market: ${reason}. Confirming shortly.`, { priority: 'high', tags: 'door' });
+     }
++    if (!this.sessionFlattenStarted && kind === 'early-adverse') {   // edge r1: the same verified exit, labelled as the early adverse exit
++      this.sessionFlattenStarted = true; this.flattenKind = 'early-adverse';
++      const e = this.eaeState || {}, lossTxt = Number.isFinite(e.pts) ? `${e.pts <= 0 ? '\u2212' : '+'}${Math.abs(e.pts).toFixed(2)} pts` : 'adverse';
++      this.log(`  [eae] closing the ${d} ${size}x at market now (${reason}).`);
++      try { this._manage('EARLY_ADVERSE_EXIT', `Early exit: never worked, ${lossTxt}. The ${d} position (${size}x) is closed at market (${reason}). The stop was never moved.`, { size, reason, pts: e.pts ?? null, mfe: e.mfe ?? null }); } catch (e2) { /* journal only */ }
++      this.journal({ type: 'early_adverse_flatten', t: Date.now(), dir: this.dir, entryPrice: this.entryPrice, contractsAtFlatten: size, reason });
++      this.notify(`Early exit: never worked, ${lossTxt}`, `Closing ${d} ${size}x at market: ${Number.isFinite(e.pts) ? e.pts.toFixed(2) : '?'} pts at the 1m close after the fill and never seen in profit (best +${Number.isFinite(e.mfe) ? e.mfe.toFixed(2) : '?'}). Confirming shortly.`, { priority: 'high', tags: 'door' });
++    }
+     if (!this.sessionFlattenStarted && kind === 'manual') {   // r1.1: the phone / daily-floor / time-stop flatten on the safe-exit rule (same wording as before)
+       this.sessionFlattenStarted = true; this.flattenKind = 'manual';
+       this.log(`  [live] MANUAL FLATTEN requested — closing ${size}x at MARKET now (${reason}; safe-exit rule).`);
+@@ -1333,7 +1520,7 @@ class LiveStateMachine {
+       if (!size) return 'retry';
+     }
+     if (pos && this.dir != null) { const posDir = pos.type === 1 ? 1 : pos.type === 2 ? -1 : this.dir; if (posDir !== this.dir) { await this.handleReversedPosition(pos); return 'retry'; } }
+-    if (this.flattenKind !== 'manual') jr.requestClose(this, this.flattenKind === 'no-progress' ? 'no_progress' : this.flattenKind === 'level-loss' ? 'level_loss' : 'session_close', 'AUTOMATIC', 'sessionFlatten after existing guards and position read; before protection cancellation');   // r1.1: flattenNow already recorded the manual request
++    if (this.flattenKind !== 'manual') jr.requestClose(this, this.flattenKind === 'no-progress' ? 'no_progress' : this.flattenKind === 'level-loss' ? 'level_loss' : this.flattenKind === 'early-adverse' ? 'early_adverse' : 'session_close', 'AUTOMATIC', 'sessionFlatten after existing guards and position read; before protection cancellation');   // r1.1: flattenNow already recorded the manual request
+     // 1. protective orders first, verified (their prices/sizes are remembered so they can be put back if the exit is rejected)
+     let open = [];
+     try { open = await getOpenOrders(this.token, this.accountId, this.contractId); } catch (e) { this.log(`  [session] flatten: order list unreadable (${e.message}) - retrying next poll.`); return 'retry'; }
+@@ -1427,8 +1614,8 @@ class LiveStateMachine {
+     return 'sent';
+   }
+   // bf-exitsafe: names for the four exits that share sessionFlatten (S3: every alert and journal text says which exit it is)
+-  _exitTag() { return this.flattenKind === 'no-progress' ? 'no-progress' : this.flattenKind === 'level-loss' ? 'level-loss' : this.flattenKind === 'manual' ? 'manual' : (this.exitReason === 'through-stop' || (this.throughStop && this.phase === 'PENDING_ENTRY')) ? 'through-stop' : this.exitWhat === 'morning-hold' ? 'morning-hold' : 'session-close'; }   // r1.1: + manual, through-stop
+-  _exitTitle() { const t = this._exitTag(); if (t === 'manual') return { 'daily-floor': 'Daily-floor flatten', 'time-stop': 'Time-stop flatten' }[this.exitWhat] || 'Manual flatten'; return { 'no-progress': 'No-progress exit', 'level-loss': 'Level-loss exit', 'morning-hold': 'Morning-hold close', 'session-close': 'Session close', 'through-stop': 'Through-stop exit' }[t]; }
++  _exitTag() { return this.flattenKind === 'no-progress' ? 'no-progress' : this.flattenKind === 'level-loss' ? 'level-loss' : this.flattenKind === 'early-adverse' ? 'early-adverse' : this.flattenKind === 'manual' ? 'manual' : (this.exitReason === 'through-stop' || (this.throughStop && this.phase === 'PENDING_ENTRY')) ? 'through-stop' : this.exitWhat === 'morning-hold' ? 'morning-hold' : 'session-close'; }   // r1.1: + manual, through-stop
++  _exitTitle() { const t = this._exitTag(); if (t === 'manual') return { 'daily-floor': 'Daily-floor flatten', 'time-stop': 'Time-stop flatten' }[this.exitWhat] || 'Manual flatten'; return { 'no-progress': 'No-progress exit', 'level-loss': 'Level-loss exit', 'early-adverse': 'Early adverse exit', 'morning-hold': 'Morning-hold close', 'session-close': 'Session close', 'through-stop': 'Through-stop exit' }[t]; }
+   // bf-exitsafe: HALT (no new entries, no further automatic order; latched across restarts until the account is flat with no orders) + one loud alert + journal.
+   _exitHalt(why, title, body) {
+     if (this.desynced && this._so1HaltWhy) return 'desynced';
+@@ -1710,7 +1897,7 @@ class LiveStateMachine {
+           }
+         }
+         this.entryPrice = realFillPrice;
+-        if (!this.fillHandled) { const t = Date.now(); this.npFillAt = t; this.npBestPts = 0; this.npCoveredTo = Math.floor(t / 60000) * 60000 + 60000; this.npGap = false; this.npState = null; }   // np1: first observation of the fill (the venue time is not known)
++        if (!this.fillHandled) { const t = Date.now(); this.npFillAt = t; this.npBestPts = 0; this.npCoveredTo = Math.floor(t / 60000) * 60000 + 60000; this.npGap = false; this.npState = null; this.eaeState = null; this._decideRunnerPlan(t); }   // np1: first observation of the fill (the venue time is not known); edge r1: the session runner plan, once
+         this.fillHandled = true;
+         jr.note(this, 'FILL_OBSERVED', { observationSource: 'broker-position', quantity: n, averagePrice: Number.isFinite(pos.averagePrice) && pos.averagePrice > 0 ? pos.averagePrice : jr.UNKNOWN, managementReferencePrice: this.entryPrice, entryOrderId: this.entryOrderId, actualFillIds: jr.UNKNOWN, statement: 'Entry exposure observed in broker position; individual execution IDs remain UNKNOWN.' });
+         this.log(`  [LIVE FILL] entry filled: ${this.dir === 1 ? 'LONG' : 'SHORT'} ${n}x @ ${this.entryPrice.toFixed(2)}`);
+@@ -1871,6 +2058,7 @@ class LiveStateMachine {
+       // otherwise the machine sits in LEG23_OPEN forever and an orphan TP2 sell could open a naked short later.
+       if (size === 0 && expectedBefore === 0) { this.log('  [LIVE FILL] every leg already exited at market - cleaning up and resetting.'); await this.cancelAllOrdersForContract(); this.reset(); return; }
+       if (size === expectedBefore) return; // nothing new this tick
++      if (size === 0 && this._atrRunner() && !leg2OpenBefore && leg3OpenBefore) { await this._atrRunnerClosed(leg3Size); return; }   // edge r1: TP2 limit or the +stopPts stop
+       if (size === 0) {
+         this.log('  [LIVE FILL] leg2 and leg3 both closed.');
+         this.notify('Position closed', 'Leg2 and leg3 both closed.', { tags: 'checkered_flag' });
+@@ -1961,6 +2149,10 @@ class LiveStateMachine {
+           this.log('  [level-loss] flat confirmed - sweeping every working order.');
+           this.notify('Level-loss exit: flat', 'The trade whose level was lost is closed and its orders are cancelled.', { tags: 'door' });
+           try { this._manage('LEVEL_LOSS_FLAT_CONFIRMED', 'Level-loss exit: flat confirmed; every working order on the contract is being cancelled.', {}); } catch (e2) { /* journal only */ }
++        } else if (this.exitReason === 'session-close' && this.flattenKind === 'early-adverse') {   // edge r1
++          this.log('  [eae] flat confirmed - sweeping every working order.');
++          this.notify('Early exit: flat', 'The trade that never worked is closed and its orders are cancelled.', { tags: 'door' });
++          try { this._manage('EARLY_ADVERSE_FLAT_CONFIRMED', 'Early exit: flat confirmed; every working order on the contract is being cancelled.', {}); } catch (e2) { /* journal only */ }
+         } else if (this.exitReason === 'session-close') {
+           this.log('  [session] SESSION CLOSE: flat confirmed - sweeping every working order.');
+           this.notify('Session close: flat', 'The position is closed and every working order is cancelled (Topstep: flat by 13:10 PT).', { tags: 'checkered_flag' });
+@@ -2128,7 +2320,7 @@ class LiveStateMachine {
+     }
+     this.staleStops.set(String(orderId), { size: sizeHint ?? null, price: priceHint ?? null, label, since: Date.now(), tries: 0 });
+     this.log(`  [live] CRITICAL: could not cancel the old ${label} (order ${orderId}) after the new one was placed - two stops may be resting. It is remembered and re-cancelled every poll until the broker confirms it is gone.`);
+-    this.notify('Old stop could not be cancelled - check the account', /^session-close/.test(label) ? `The ${label} (order ${orderId}) would not cancel during the session-close flatten, so the market exit is held back (the position stays protected). If it is still resting near 13:09 PT, flatten in TopstepX.` : /^(morning-hold|no-progress|level-loss) /.test(label) ? `The ${label} (order ${orderId}) would not cancel during the ${label.split(' ')[0]} exit, so the market exit is held back (the position stays protected). If it keeps failing, flatten in TopstepX.` : label === 'backup stop' ? `The backup stop order ${orderId} (placed while the exit after a fill through the stop was retrying) would not cancel, so it may still be resting.` : `The trail moved the runner's stop but the old stop order ${orderId} would not cancel, so two stops may be resting. The bot keeps retrying; if this alert is still active in a minute, open TopstepX and cancel the OLDER stop by hand.`, { priority: 'urgent', tags: 'rotating_light' });
++    this.notify('Old stop could not be cancelled - check the account', /^session-close/.test(label) ? `The ${label} (order ${orderId}) would not cancel during the session-close flatten, so the market exit is held back (the position stays protected). If it is still resting near 13:09 PT, flatten in TopstepX.` : /^(morning-hold|no-progress|level-loss|early-adverse) /.test(label) ? `The ${label} (order ${orderId}) would not cancel during the ${label.split(' ')[0]} exit, so the market exit is held back (the position stays protected). If it keeps failing, flatten in TopstepX.` : label === 'backup stop' ? `The backup stop order ${orderId} (placed while the exit after a fill through the stop was retrying) would not cancel, so it may still be resting.` : `The trail moved the runner's stop but the old stop order ${orderId} would not cancel, so two stops may be resting. The bot keeps retrying; if this alert is still active in a minute, open TopstepX and cancel the OLDER stop by hand.`, { priority: 'urgent', tags: 'rotating_light' });
+     try { this._manage('STALE_STOP', `The old stop (order ${orderId}) would not cancel after the new one was placed. The bot remembers it and retries every poll until the broker confirms it is gone.`, { orderId }); } catch (e2) { /* journal only */ }
+     return false;
+   }
+@@ -2305,8 +2497,10 @@ class LiveStateMachine {
+     const oldId = this.stopOrderId, oldLvl = Number.isFinite(this.stopPriceIntended) ? roundToTick(this.stopPriceIntended, this.tickSize) : null;
+     this.leg3StopOrderId = oldId; this.stopOrderId = null; this.targetOrderId = null;
+     this.trailStop = oldLvl; this.trailPeakPts = Math.abs(this.target1 - this.entryPrice); this.runnerArmed = true; this.phase = 'LEG23_OPEN';
+-    const want = roundTrailStopConservative(this.entryPrice + this.dir * runnerTrailOffset(this.trailPeakPts, this.runnerTrailRule), this.dir, this.tickSize);
++    const atr = this._atrRunner();   // edge r1: the session runner rule's ATR-target runner (stop at entry + stopPts, TP2 limit, no trail)
++    const want = atr ? this._atrStopLevel() : roundTrailStopConservative(this.entryPrice + this.dir * runnerTrailOffset(this.trailPeakPts, this.runnerTrailRule), this.dir, this.tickSize);
+     const r = await this.replaceStopSafely('leg3StopOrderId', leg3, want, this.target1, oldLvl, 'runner stop after the scale-out');
++    if (r.ok && atr) { this.trailStop = r.lvl; this.log(`  [runner] scale-out done - the ${leg3}x runner's stop now rests at ${r.lvl.toFixed(2)} (entry ${this.dir === 1 ? '+' : '-'}${this.runnerPlan.stopPts}); the ${this.contracts}x stop was replaced, not cancelled first.`); await this._atrPlaceTp2(leg3, { fresh: true }); return; }
+     if (r.ok) { this.trailStop = r.lvl; this.log(`  [live] so1: scale-out done - the ${leg3}x runner's stop now rests at ${r.lvl.toFixed(2)} (+${this.runnerTrailRule.lockPts}); the ${this.contracts}x stop was replaced, not cancelled first.`); return; }
+     if (r.exited) { this.trailStop = null; return; }   // the market was through +lock: the runner was closed at market; the next tick sees the flat position
+     // so1 r1.5 (MacDot 6356835501):
+@@ -2316,6 +2510,7 @@ class LiveStateMachine {
+     //    safe side) through the same safe replace - new 1x first, verified cancel - so no oversized stop is left. If even that is not accepted: HALT.
+     if (r.exitUnknown) return this._so1Halt(`a market exit for the runner was sent but its outcome is unknown`, oldId, oldLvl);
+     const rz = await this.replaceStopSafely('leg3StopOrderId', leg3, oldLvl, this.target1, null, 'runner stop (resized to the runner)');
++    if (rz.ok && atr) { this.trailStop = rz.lvl; this.log(`  [runner] the stop at entry ${this.dir === 1 ? '+' : '-'}${this.runnerPlan.stopPts} was refused - the stop was resized to the ${leg3}x runner at ${rz.lvl.toFixed(2)}; it is moved to ${want.toFixed(2)} after the back-off.`); await this._atrPlaceTp2(leg3, { fresh: true }); return; }
+     if (rz.ok) { this.trailStop = rz.lvl; this.log(`  [live] so1: +${this.runnerTrailRule.lockPts} refused - the stop was resized to the ${leg3}x runner at ${rz.lvl.toFixed(2)}; the ratchet retries +${this.runnerTrailRule.lockPts} after the back-off.`); return; }
+     if (rz.exited) { this.trailStop = null; return; }
+     return this._so1Halt(rz.exitUnknown ? 'a market exit for the runner was sent but its outcome is unknown' : `neither the +${this.runnerTrailRule.lockPts} stop nor a ${leg3}x stop at ${oldLvl != null ? oldLvl.toFixed(2) : '?'} was accepted`, this.leg3StopOrderId ?? oldId, oldLvl);
+@@ -2411,7 +2606,9 @@ class LiveStateMachine {
+       const leg3Size = this.contracts - this.leg1Size - this.leg2Size;
+       expectedOpen = (this.stopOrderId != null ? this.leg2Size : 0) + (this.leg3StopOrderId != null ? leg3Size : 0);
+       if (this.stopOrderId != null) ladder.push({ field: 'stopOrderId', size: this.leg2Size, intended: fl(entry), label: ptStop != null && fl(entry) !== entry ? 'leg2 profit-lock stop' : 'leg2 break-even stop', trail: false });
+-      if (this.leg3StopOrderId != null) ladder.push({ field: 'leg3StopOrderId', size: leg3Size, intended: fl(roundToTick(long ? Math.max(this.trailStop ?? entry, entry) : Math.min(this.trailStop ?? entry, entry), tick)), label: 'runner stop', trail: true });
++      const atrLvl = this._atrRunner() && this.runnerArmed ? this._atrStopLevel() : null, rs0 = this.trailStop ?? entry;   // edge r1: the ATR runner's stop is never intended below entry + stopPts
++      const rs = atrLvl == null ? rs0 : long ? Math.max(rs0, atrLvl) : Math.min(rs0, atrLvl);
++      if (this.leg3StopOrderId != null) ladder.push({ field: 'leg3StopOrderId', size: leg3Size, intended: fl(roundToTick(long ? Math.max(rs, entry) : Math.min(rs, entry), tick)), label: 'runner stop', trail: true });
+     } else {
+       expectedOpen = this.contracts - this.leg1Size - this.leg2Size;
+       ladder.push({ field: 'stopOrderId', size: expectedOpen, intended: fl(roundToTick(long ? Math.max(this.trailStop ?? entry, entry) : Math.min(this.trailStop ?? entry, entry), tick)), label: 'runner stop', trail: true });
+@@ -2490,6 +2687,18 @@ class LiveStateMachine {
+     const leg3Size = this.contracts - this.leg1Size - this.leg2Size;
+     if (leg3Size <= 0) return;
+     if (this.runnerTrailRule && !this.runnerArmed) return;   // so1 r1.1 (MacDot #3): no proof the scale-out happened -> no runner trail
++    if (this.runnerTrailRule && this._atrRunner()) {
++      // edge r1 'atrTarget': NO trail. The stop is brought to entry + stopPts when it is not there yet (refused at the scale-out, or re-placed lower), never moved
++      // beyond it; a missing TP2 limit is put back (order list read first). Same safe replace path as the trail.
++      if (this.targetOrderId == null && !(this.tp2RetryAt && Date.now() < this.tp2RetryAt)) await this._atrPlaceTp2(leg3Size);
++      const want = this._atrStopLevel();
++      if (this.trailStop != null && !(this.dir === 1 ? want > this.trailStop : want < this.trailStop)) return;
++      if (this.trailRetryAt && Date.now() < this.trailRetryAt) return;
++      this.log(`  [runner] ATR runner: stop ${this.trailStop != null ? this.trailStop.toFixed(2) : '(unread)'} -> ${want.toFixed(2)} (entry ${this.dir === 1 ? '+' : '-'}${this.runnerPlan.stopPts}), replacing the runner's resting stop (new stop first).`);
++      this._ratchetWhy = null;
++      await this.replaceTrailStop(orderIdField, leg3Size, want, latestClose);
++      return;
++    }
+     if (this.runnerTrailRule) {
+       // so1 (Mac 10/22): stop lockPts behind the best price in stepPts steps, never below +lockPts, never loosening (same safe replace path as below).
+       const excursionPts = this.dir === 1 ? latestClose - this.entryPrice : this.entryPrice - latestClose;
+@@ -2749,7 +2958,7 @@ class LiveStateMachine {
+     jr.requestClose(this, receiptAttempt.cause, receiptAttempt.actor, receiptAttempt.provenance);
+     // an exit that is already running (session close, morning hold, no-progress, level-loss) keeps its own kind and owner: this call just drives it now
+     if (!this.sessionFlattenStarted) { this.flattenKind = 'manual'; this.exitWhat = opts.what || 'manual'; }
+-    const kind = this.flattenKind === 'manual' ? 'manual' : this.flattenKind === 'no-progress' ? 'no-progress' : this.flattenKind === 'level-loss' ? 'level-loss' : 'session';
++    const kind = this.flattenKind === 'manual' ? 'manual' : this.flattenKind === 'no-progress' ? 'no-progress' : this.flattenKind === 'level-loss' ? 'level-loss' : this.flattenKind === 'early-adverse' ? 'early-adverse' : 'session';
+     return this.sessionFlatten(opts.reason || 'manual flatten', kind);
+   }
+ 
+@@ -2766,6 +2975,14 @@ class LiveStateMachine {
+       const dd = this.npState && this.npState.decided, cat = dd === 'exit' ? 'exited' : dd ? dd : this.npDisabled ? 'disabled' : !Number.isFinite(this.npFillAt) ? 'unknown-fill' : this.npLeftLeg1At != null ? 'scaled-out-before-assessment' : 'closed-before-assessment';   // r1.2: "before assessment" (timing is not proven)
+       try { this.journal({ type: 'no_progress_outcome', t: Date.now(), dir: this.dir, entryPrice: this.entryPrice, contracts: this.contracts, category: cat, fillSeenAt: this.npFillAt ?? null, checkAt: Number.isFinite(this.npFillAt) ? npCheckAt(this.npFillAt) : null, bestPtsSeen: this.npBestPts ?? null, decision: this.npState || null, note: 'observed from the first sight of the fill; an outcome record, not a causal estimate; written at reset (a trade completed during downtime or an unresolved halt has no row)' }); } catch (e2) { /* journal only */ }
+     }
++    if (this.entryPrice != null && this.phase !== 'PENDING_ENTRY' && this.phase !== 'FLAT' && this.eaeState) {   // edge r1: how the trade ended against the early-exit decision (both modes; none while the rule is off)
++      const e = this.eaeState, le = this.lastExit && this.lastExit.entry === this.entryPrice && this.lastExit.dir === this.dir ? this.lastExit.kind : null;
++      const tp1Reached = this.phase === 'LEG23_OPEN' || this.phase === 'LEG3_OPEN' || this.npLeftLeg1At != null || le === 'tp1';
++      const endedBy = this.phase === 'FLATTENING' ? (this.exitReason === 'session-close' ? (this.flattenKind || this.exitWhat || 'session-close') : (this.exitReason || 'market-exit')) : tp1Reached ? 'after-tp1' : le === 'stop' || this.phase === 'LEG1_OPEN' ? 'full-stop' : 'unknown';
++      try { this.journal({ type: 'early_adverse_outcome', t: Date.now(), journalId: this._edgeJid(), dir: this.dir, fill: this.entryPrice, contracts: this.contracts, mode: e.mode || null, decision: e.decided, wouldExit: e.decided === 'exit' || e.decided === 'log', exited: this.phase === 'FLATTENING' && this.flattenKind === 'early-adverse',
++        pts: e.pts ?? null, mfe: e.mfe ?? null, close: e.close ?? null, closeAt: e.closeAt ?? null, why: e.why ?? null, endedBy, tp1Reached, phaseAtEnd: this.phase, bestPtsSeen: this.npBestPts ?? null,
++        shadow: e.shadow ? { ...e.shadow, note: e.decided === 'exit' ? 'where the original stop and TP1 rested when the early exit was sent: walk the bars after closeAt to see which would have come first' : 'log mode: the trade ran on; endedBy / tp1Reached say what happened to it' } : null }); } catch (e2) { /* journal only */ }
++    }
+     if (this.entryPrice != null) {
+       this.journal({ type: 'peak_unrealized', t: Date.now(), dir: this.dir, entryPrice: this.entryPrice, peakUnrealized: this.peakUnrealized });
+     }
+@@ -2779,6 +2996,7 @@ class LiveStateMachine {
+     this.signalContext = null; this.sessionExit = null; this.peakUnrealized = 0;
+     this.npFillAt = null; this.npBestPts = null; this.npCoveredTo = null; this.npGap = false; this.npState = null; this.flattenKind = null; this.npLeftLeg1At = null; this.npDisabled = false; this.pxBoundaryAt = null;   // np1
+     this.lossLevel = null;   // exits5m r1
++    this.eaeState = null; this.runnerPlan = null; this.tp2RetryAt = 0; this._tp2FailReported = false;   // edge r1
+     this.trailRetryAt = 0; this.auditRetryAt = 0; // hotfix 4
+     this.ptPeakPts = 0; this.profitTrailStop = null; this.profitTrailMoved = false; // profit trail
+     this.pendingStopTouched = null; this.pendingTargetTouched = null; this.exitReason = null; this.entryType = null; this.fillHandled = false; this.throughStop = false; this._restoredPending = false; this._floorSaveReported = false; this._ordersUnreadableReported = false; this._fillPlanBase = null; this._fillFloor = undefined; this._planFloor = null; // 10/16; entry stop floor per-trade fields
+diff --git a/lib/phoneSnapshot.js b/lib/phoneSnapshot.js
+index 1d103e6..a246c6f 100644
+--- a/lib/phoneSnapshot.js
++++ b/lib/phoneSnapshot.js
+@@ -36,7 +36,7 @@ function buildView() { return build ? { ...build } : null; }
+ 
+ // ---- exit reasons: from the trade_manage rows (and manual_flatten rows) each journalId already writes ----
+ const EXIT_ROW_CODES = new Set(['TP1_FILLED', 'TP2_OR_BE', 'RUNNER_STOPPED', 'STOP_FILLED', 'POSITION_CLOSED', 'PROFIT_LOCK_CASH', 'MARKET_EXIT', 'SMART_HOLD_EXIT', 'TIME_STOP',
+-  'NO_PROGRESS_EXIT', 'NO_PROGRESS_ABANDONED', 'LEVEL_LOSS_EXIT', 'LEVEL_LOSS_ABANDONED', 'SESSION_FLATTEN', 'MORNING_FLATTEN', 'MANUAL_FLATTEN', 'FLATTEN_CONFIRMED']);
++  'NO_PROGRESS_EXIT', 'NO_PROGRESS_ABANDONED', 'LEVEL_LOSS_EXIT', 'LEVEL_LOSS_ABANDONED', 'EARLY_ADVERSE_EXIT', 'EARLY_ADVERSE_ABANDONED', 'SESSION_FLATTEN', 'MORNING_FLATTEN', 'MANUAL_FLATTEN', 'FLATTEN_CONFIRMED']);
+ const byJid = new Map();
+ function indexJournal(e) {
+   if (!e || typeof e !== 'object' || typeof e.journalId !== 'string' || !e.journalId || !fin(e.t)) return;
+@@ -54,7 +54,7 @@ function indexJournal(e) {
+   if (r.some(y => y.k === k)) return;   // the same row from the file seed and the live feed counts once
+   x.k = k; let i = r.length; while (i > 0 && r[i - 1].t > x.t) i--; r.splice(i, 0, x); if (r.length > 60) r.shift();
+ }
+-// exitReason: TP1 | TP2 | RUNNER_STOP | STOP | NO_PROGRESS | SESSION_CLOSE | MORNING_HOLD | LEVEL_LOSS | MANUAL_FLATTEN | UNKNOWN; exitCode = the deciding journal code.
++// exitReason: TP1 | TP2 | RUNNER_STOP | STOP | NO_PROGRESS | EARLY_EXIT (edge r1) | SESSION_CLOSE | MORNING_HOLD | LEVEL_LOSS | MANUAL_FLATTEN | UNKNOWN; exitCode = the deciding journal code.
+ // RUNNER_STOP = any stop that closed contracts after TP1 (break-even or trailing). A forced exit (no-progress, level loss, session, morning, manual) wins
+ // over the legs, unless its own ABANDONED row follows. TIME_STOP / SMART_HOLD_EXIT / PROFIT_LOCK_CASH before TP1 have no name in the list: UNKNOWN + exitCode.
+ function exitReasonOf(journalId, opts = {}) {
+@@ -72,6 +72,8 @@ function exitReasonOf(journalId, opts = {}) {
+       case 'SMART_HOLD_EXIT': case 'TIME_STOP': forced = { exitReason: 'UNKNOWN', exitCode: x.code }; break;
+       case 'NO_PROGRESS_EXIT': forced = { exitReason: 'NO_PROGRESS', exitCode: x.code }; break;
+       case 'LEVEL_LOSS_EXIT': forced = { exitReason: 'LEVEL_LOSS', exitCode: x.code }; break;
++      case 'EARLY_ADVERSE_EXIT': forced = { exitReason: 'EARLY_EXIT', exitCode: x.code }; break;   // edge r1
++      case 'EARLY_ADVERSE_ABANDONED': if (forced && forced.exitReason === 'EARLY_EXIT') forced = null; break;
+       case 'NO_PROGRESS_ABANDONED': if (forced && forced.exitReason === 'NO_PROGRESS') forced = null; break;
+       case 'LEVEL_LOSS_ABANDONED': if (forced && forced.exitReason === 'LEVEL_LOSS') forced = null; break;
+       case 'MORNING_FLATTEN': forced = { exitReason: 'MORNING_HOLD', exitCode: x.code }; break;
+diff --git a/lib/safeExit.js b/lib/safeExit.js
+index b779f83..9449dc4 100644
+--- a/lib/safeExit.js
++++ b/lib/safeExit.js
+@@ -1,6 +1,7 @@
+ 'use strict';
+ // bf-exitsafe: the ONE rule every market exit follows when its outcome is not proven (lib/liveStateMachine.js sessionFlatten: the 13:05 PT session close,
+ // the morning-hold close, the no-progress exit (np1), the level-loss exit (exit 5); and the filled-through-stop exit).
++// edge r1: + the early adverse exit (kind 'early-adverse'), on the same path with no rule of its own.
+ //
+ //   * a broker reply that says success:false (err.orderRejected === true) is a REJECTION: nothing was done at the broker;
+ //   * anything else (timeout, lost reply, transport error, malformed body) is UNKNOWN: the order may have been accepted and filled.
+@@ -78,7 +79,7 @@ function exitOrderSeen(rows, { side, size, since }) {
+ 
+ // r1.1: the one-line rule the executor prints at startup ([exits] ...), from the constants above (so the log can never disagree with the code).
+ function rulesText() {
+-  return `safe-exit rule ON for every market exit (session close, morning hold, no-progress, level-loss, filled-through-stop, phone/manual flatten, daily floor, time stop): `
++  return `safe-exit rule ON for every market exit (session close, morning hold, no-progress, level-loss, early adverse, filled-through-stop, phone/manual flatten, daily floor, time stop): `
+     + `a broker success:false = REJECTED, anything else (timeout, lost reply) = UNKNOWN -> no second order, no stop put back until the position and orders settle `
+     + `(N = ${SETTLE_MAX_MS / 1000} s of reads ${SETTLE_READ_MS / 1000} s apart; flat = ${FLAT_MIN_READS} agreeing reads; "still open" = ${SAME_MIN_READS} agreeing reads with nothing working AND the order history showing no live/filled exit); `
+     + `K = ${EXIT_MAX_ATTEMPTS} market sends per exit (backoff ${REJECT_BACKOFF_MS.map(x => x / 1000 + ' s').join(', ')}; the count survives restarts). `
+diff --git a/live-executor.js b/live-executor.js
+index 6898423..c5efdee 100644
+--- a/live-executor.js
++++ b/live-executor.js
+@@ -60,6 +60,7 @@ const { NewsCalendar } = require('./lib/newsCalendar');   // 10/16 news awarenes
+ const { noChaseDecision, noChaseText, atr14 } = require('./lib/noChase');   // 10/16 no-chase filter
+ const { stretchFeatures } = require('./lib/stretchCheck');   // np1 stretch check
+ const exits5m = require('./lib/exits5m');   // exits5m r1: change 5 (exitOnLevelLoss)
++const edgeExits = require('./lib/edgeExits');   // edge r1: early adverse exit + session runner rule (pure)
+ const HA = require('./lib/healthAlerts');   // bf-alerts r1: health pushes (NOTIFICATION / JOURNAL ONLY; nothing in trading reads it)
+ const { srAreas: srAreasCompute, selectAreas: srAreasSelect, VERSION: SR_AREAS_VERSION } = require('./lib/srAreas');   // sr-areas r1 (lv1 r13.6.3): DISPLAY ONLY (own file + the phone); nothing in trading reads it
+ const { po3Compute, VERSION: PO3_VERSION } = require('./lib/po3');   // po3 r1.3: OBSERVE-ONLY (own file); nothing in trading reads it
+@@ -470,6 +471,7 @@ function exitFillOf(code, sm, row) {
+   }
+   if (code === 'TP1_FILLED') return [{ c: r.whole ? n : l1, px: fin(sm.target1), src: 'TP1 limit', fin: !!r.whole }];
+   if (code === 'TP1_PARTIAL') return [{ c: r.filled, px: fin(sm.target1), src: 'TP1 limit', fin: false }];
++  if (code === 'TP2_OR_BE' && r.runnerRule === 'atrTarget' && r.viaTarget) return [{ c: n - l1 - l2, px: fin(sm.target2), src: 'runner TP2 limit (ATR target)', fin: true }];   // edge r1: the ATR runner's TP2
+   if (code === 'TP2_OR_BE') return [r.viaTarget ? { c: l2, px: fin(sm.target2), src: 'TP2 limit', fin: false } : { c: l2, px: fin(sm.entryPrice), src: 'break-even stop', fin: false }];
+   if (code === 'RUNNER_STOPPED') return [{ c: n - l1 - l2, px: fin(r.stop), src: 'runner trail stop', fin: false }];
+   if (code === 'POSITION_CLOSED' && r.phase === 'LEG3_OPEN') return [{ c: n - l1 - l2, px: fin(sm.trailStop), src: 'runner trail stop', fin: true }];
+@@ -1463,6 +1465,17 @@ const CONFIG = {
+   //   session-close exit path (verified cancels of the stop and TP, stops put back if the exit is rejected). The stop order itself is never moved. A wick through
+   //   the level is not enough. No level known (an adopted position, an entry without a level proof) = never evaluated. After TP1 it does nothing. false = off.
+   exitOnLevelLoss: true,
++  // edge r1 A (Mac 11/11, study edge/A-LOSS-ANATOMY.md) EARLY ADVERSE EXIT: once per trade, before TP1, at the first completed 1m close afterSec (120) or more after
++  //   the fill: a close at -lossPts (10) or worse AND never seen at +minSeenPts (3) since the fill (np1's tracker) = the whole position is closed at market on the
++  //   safe-exit rule (the same path as np1 / level-loss). The entry, the size and the stop distance are untouched. mode 'exit' (shipped) | 'log' (journal the same
++  //   row with wouldExit, send nothing) | 'off' (r1.1 exactly). A close not seen in time (poll gap) = unassessed, journaled, the trade is left alone.
++  earlyAdverseExit: { mode: 'exit', afterSec: 120, lossPts: 10, minSeenPts: 3 },
++  // edge r1 B (Mac 11/11, study edge/B-RUNNER.md) SESSION RUNNER RULE, by the FILL's session (the stop floor's sessions: london 00:00-06:30, ny 06:30-13:00,
++  //   late 13:00-15:00, asia 15:00-24:00 PT). 'live' = today's runner (+runnerLockPts, trail) | 'allAtTp1' = the TP1 limit closes ALL contracts, no runner |
++  //   'atrTarget' = TP1 as today, then the runner's stop at entry + sessionRunnerNy.stopPts and a TP2 limit at the fill +/- tp2AtrMult x ATR15 (mean true range of
++  //   the 14 completed 15m bars before the fill), no trail, flat at the session close; ATR15 missing = 'live' for that trade. All four 'live' = r1.1 exactly.
++  sessionRunner: { asia: 'allAtTp1', london: 'allAtTp1', ny: 'atrTarget', late: 'live' },
++  sessionRunnerNy: { stopPts: 2, tp2AtrMult: 2.0 },
+   // lv1 r13.3.3 REVERSAL EXIT (MacTradeState's plan, Mac signed 10/29 17:08 PT), shipped as the SHADOW LOG: 'log' = journal rows only (trade_state at every
+   //   1m close before TP1, reversal_signal when R4 or R2 first holds); the bot trades exactly as without it. 'off' = nothing at all. 'on' is not in this build.
+   //   R4: momentumBars falling 1m closes, momentumPts+ in total against the trade, the last past the entry. R2: a 5m close levelPts+ back through the trade's level.
+@@ -1635,7 +1648,7 @@ const CONFIG = {
+ // Strict on purpose: an unknown key (typo), a wrong type, invalid JSON or a non-object file REFUSES to start with a clear message (every problem listed at once). Keys starting with "_" are comments and ignored.
+ // Rules: object -> merged key by key; number/boolean/string -> same type required; a default of null (feature off) accepts a number, string, boolean or null; array -> replaced (same element type).
+ const CONFIG_LOCAL_FILE = path.join(__dirname, 'config-local.json');
+-const CONFIG_ENUMS = { levelStopCapSizing: ['structural', 'capped'], vwapBuildTf: ['5m', 'chart'], pullbackBasis: ['body', 'range'], waveMode: ['confirm', 'trigger', 'off'], profitLockUnit: ['points', 'dollars'], controlAcceptTf: ['3m', '5m', '15m'], 'controlLineBySession.asia': ['1H', '4H'], 'controlLineBySession.london': ['1H', '4H'], 'controlLineBySession.ny': ['1H', '4H'], 'tfMode.m15': ['ema', 'open'], 'tfMode.m30': ['ema', 'open'], 'tfMode.h1': ['ema', 'open'], 'tfMode.h4': ['ema', 'open'], sessionAnchor: ['legacy', 'cme'], reentryCooldownScope: ['same', 'both'], noChaseMode: ['skip', 'pullback'], stretchCheck: ['off', 'log', 'block'], po3Observe: ['off', 'log'], srAreas: ['show', 'off'], levelEventControl: ['require', 'exempt'] };   // text settings that only accept these values
++const CONFIG_ENUMS = { levelStopCapSizing: ['structural', 'capped'], vwapBuildTf: ['5m', 'chart'], pullbackBasis: ['body', 'range'], waveMode: ['confirm', 'trigger', 'off'], profitLockUnit: ['points', 'dollars'], controlAcceptTf: ['3m', '5m', '15m'], 'controlLineBySession.asia': ['1H', '4H'], 'controlLineBySession.london': ['1H', '4H'], 'controlLineBySession.ny': ['1H', '4H'], 'tfMode.m15': ['ema', 'open'], 'tfMode.m30': ['ema', 'open'], 'tfMode.h1': ['ema', 'open'], 'tfMode.h4': ['ema', 'open'], sessionAnchor: ['legacy', 'cme'], reentryCooldownScope: ['same', 'both'], noChaseMode: ['skip', 'pullback'], stretchCheck: ['off', 'log', 'block'], po3Observe: ['off', 'log'], srAreas: ['show', 'off'], levelEventControl: ['require', 'exempt'], 'earlyAdverseExit.mode': edgeExits.EAE_MODES.slice(), 'sessionRunner.asia': edgeExits.RUNNER_MODES.slice(), 'sessionRunner.london': edgeExits.RUNNER_MODES.slice(), 'sessionRunner.ny': edgeExits.RUNNER_MODES.slice(), 'sessionRunner.late': edgeExits.RUNNER_MODES.slice() };   // text settings that only accept these values
+ const CONFIG_NULLABLE = new Set(['levelStopMaxFromFillPts', 'capInsideLevelGuard']);   // sc2 (= r13.3.5g): + capInsideLevelGuard (null = off)
+ //   // lv1 r13.3.1 (r13.5.2's mechanism, the stop-cap key only): number settings that also accept null (= off)
+ // lv1 r13.6.2 STOP CAP FROM THE FILL (pure). The largest configured session floor (used when the fill's own floor is not known, e.g. after a restart: never inside ANY floor).
+@@ -2044,6 +2057,10 @@ async function main() {
+   log(`[tp1] TP1 from the fill: ${CONFIG.tp1FromFill ? (scaleOutRunnerOn(CONFIG) ? 'ON (TP1 = the actual fill +/- the planned TP1 distance on every fill, a fill the slip guard keeps included; the stop handling unchanged)' : 'ON, inactive (the scale-out runner is off: TP1 as planned)') : 'off (tp1FromFill false - a fill the slip guard keeps leaves TP1 at its planned price, as in r13.3.4)'}.`);   // lv1 r13.3.5
+   log(`[lv1] plan ends at its target: ${CONFIG.planEndsAtTarget ? 'ON (a live level event ends for good once a price seen after its birth trades at or through its target, a projected one included, before an entry)' : 'off (planEndsAtTarget false - an event ends on a close back across, a VWAP reset or 30 min, as in r13.3.4)'}.`);   // lv1 r13.3.5
+   log(`[np1] no-progress exit: ${CONFIG.noProgressExit.enabled ? `ON (not seen at +${CONFIG.noProgressExit.mfePts} pts by the first full 5m close after the fill = closed at market)` : 'off'}. Stretch check: ${CONFIG.stretchCheck}${CONFIG.stretchCheck === 'log' ? ' (journal only, trades unchanged)' : ''}. Size: ${CONFIG.flatSizeContracts ? `flat ${CONFIG.flatSizeContracts} contracts at every grade (the $${CONFIG.maxRiskPerTradeUsd} risk cap can size it down)` : 'grade ceilings'}.`);
++  { const ee = edgeExits.validateEae(CONFIG.earlyAdverseExit); if (ee.length) throw new Error(`earlyAdverseExit is unusable: ${ee.join('; ')}`); }   // edge r1: fail closed at startup
++  { const re = edgeExits.validateRunner(CONFIG.sessionRunner, CONFIG.sessionRunnerNy); if (re.length) throw new Error(`sessionRunner is unusable: ${re.join('; ')}`); }
++  log(edgeExits.eaeLine(CONFIG.earlyAdverseExit));
++  log(edgeExits.runnerLine(CONFIG.sessionRunner, CONFIG.sessionRunnerNy, scaleOutRunnerOn(CONFIG)));
+   log(`[exits] ${require('./lib/safeExit').rulesText()}`);   // r1.1: the safe-exit rule, printed from lib/safeExit.js's own constants
+   log(`[sr-areas] ${SR_AREAS_VERSION}: ${CONFIG.srAreas === 'show' ? `DISPLAY ONLY - Support & Resistance Areas once per completed 1H bar from the bars already fetched (no provider call); the phone (snapshot srAreas) and ${path.basename(SRA_JOURNAL_PREFIX)}<TradeDay>.jsonl; nothing in trading reads it` : 'off'}.`);   // lv1 r13.6.3
+   log(`[po3] ${PO3_VERSION}: ${CONFIG.po3Observe === 'log' ? `OBSERVE-ONLY - writes po3_state / cluster_map to ${path.basename(PO3_JOURNAL_PREFIX)}<TradeDay>.jsonl (run ${PO3_RUN_ID}), trades unchanged` : 'off'}.`);
+@@ -3013,7 +3030,7 @@ async function main() {
+     if (recovered.length) log(`[journal] ${recovered.length} plan outcome row(s) recovered from durable evidence at startup`);
+     if (planTerminals.lastRestoreOutOfScope) log(`[journal] ${planTerminals.lastRestoreOutOfScope} evidence row(s) of plans outside the retained outcome cache left unresolved at startup (no version issued)`);   // r1.5
+   } catch (e) { const r = journalMetaErrors.row('plan_terminal_restore', e); if (r) persistJournalMeta(r); }
+-  const stateMachine = LIVE ? new LiveStateMachine({ token, accountId: account.id, contractId, pointValue, tickSize, log, notify: notifyPhone, journal: sfJournal, profitLockDollars: CONFIG.profitLockDollars, profitLockPct: CONFIG.profitLockPct, marketableLimitBufferPoints: CONFIG.marketableLimitBufferPoints, pendingExpireMs: CONFIG.pendingExpireMs, trailStepPoints: CONFIG.trailStepPoints, profitTrail: CONFIG.profitTrail, runnerTrailRule: scaleOutRunnerOn(CONFIG) ? { lockPts: CONFIG.scaleOutRunner.runnerLockPts, stepPts: CONFIG.scaleOutRunner.runnerStepPts } : null, blackoutFn: entryWindowReason, blockFn: blackoutReason, restingBlockHorizonMs: CONFIG.noRestingAcrossBlock === false ? 0 : (Number.isFinite(CONFIG.pendingExpireMs) && CONFIG.pendingExpireMs > 0 ? CONFIG.pendingExpireMs : 30 * 60000) + 60000, pendingCancelOnStopTouch: CONFIG.pendingCancelOnStopTouch, fillSlipGuard: CONFIG.fillSlipGuard, tp1FromFill: CONFIG.tp1FromFill === true, entryStopFloorFn: ts => entryFloorAt(ts), entryStopFloorPlanFn: (resting, ts) => entryFloorWindow(resting, ts).pts, newsRestingFn: ts => newsRestingBlock(ts), journalIdFn: () => { const c = openJournalContext || pendingJournalContext; return c ? c.journalId : null; }, stateFile: TRADE_STATE_FILE, entryQuantityCheck: entryQuantityAllowed, alignmentFreshnessFn: alignFreshnessState, entryControlCheck: (dir, source, context) => { const result = entryControlAllowed(dir, source, context?.reclaimOf ? 'reclaim' : context?.wave ? 'wave' : context?.reversal ? 'reversal' : 'entry', 'transport-submit'); try { const jr = require('./lib/journalReceipts'); jr.emit(appendJournal, () => jr.receipt(context?.journalId, 'CONTROL_ADMISSION', { result, seam: 'transport-submit', producer: 'entryControlAllowed/createControlJournal', policy: 'week1-decided-m15-v2', direction: dir, source, exception: 'NONE', measurement: { score: entryControlBoard?.controlBiasScore, valid: entryControlBoard?.controlValid, observedAt: entryControlBoard?.controlObservedAt, evaluatedAt: entryControlBoard?.controlEvaluatedAt }, marketStage: jr.UNKNOWN })); } catch (_) { /* receipt only */ } return result; } }) : null;
++  const stateMachine = LIVE ? new LiveStateMachine({ token, accountId: account.id, contractId, pointValue, tickSize, log, notify: notifyPhone, journal: sfJournal, profitLockDollars: CONFIG.profitLockDollars, profitLockPct: CONFIG.profitLockPct, marketableLimitBufferPoints: CONFIG.marketableLimitBufferPoints, pendingExpireMs: CONFIG.pendingExpireMs, trailStepPoints: CONFIG.trailStepPoints, profitTrail: CONFIG.profitTrail, runnerTrailRule: scaleOutRunnerOn(CONFIG) ? { lockPts: CONFIG.scaleOutRunner.runnerLockPts, stepPts: CONFIG.scaleOutRunner.runnerStepPts } : null, blackoutFn: entryWindowReason, blockFn: blackoutReason, restingBlockHorizonMs: CONFIG.noRestingAcrossBlock === false ? 0 : (Number.isFinite(CONFIG.pendingExpireMs) && CONFIG.pendingExpireMs > 0 ? CONFIG.pendingExpireMs : 30 * 60000) + 60000, pendingCancelOnStopTouch: CONFIG.pendingCancelOnStopTouch, fillSlipGuard: CONFIG.fillSlipGuard, tp1FromFill: CONFIG.tp1FromFill === true, sessionRunnerFn: scaleOutRunnerOn(CONFIG) && !edgeExits.runnerAllLive(CONFIG.sessionRunner) ? ts => edgeExits.runnerPlanFor({ session: stopFloor.sessionOf(ptInfo(ts).minutesOfDay), cfg: CONFIG.sessionRunner, ny: CONFIG.sessionRunnerNy, bars15: noChaseBars, ts }) : null, entryStopFloorFn: ts => entryFloorAt(ts), entryStopFloorPlanFn: (resting, ts) => entryFloorWindow(resting, ts).pts, newsRestingFn: ts => newsRestingBlock(ts), journalIdFn: () => { const c = openJournalContext || pendingJournalContext; return c ? c.journalId : null; }, stateFile: TRADE_STATE_FILE, entryQuantityCheck: entryQuantityAllowed, alignmentFreshnessFn: alignFreshnessState, entryControlCheck: (dir, source, context) => { const result = entryControlAllowed(dir, source, context?.reclaimOf ? 'reclaim' : context?.wave ? 'wave' : context?.reversal ? 'reversal' : 'entry', 'transport-submit'); try { const jr = require('./lib/journalReceipts'); jr.emit(appendJournal, () => jr.receipt(context?.journalId, 'CONTROL_ADMISSION', { result, seam: 'transport-submit', producer: 'entryControlAllowed/createControlJournal', policy: 'week1-decided-m15-v2', direction: dir, source, exception: 'NONE', measurement: { score: entryControlBoard?.controlBiasScore, valid: entryControlBoard?.controlValid, observedAt: entryControlBoard?.controlObservedAt, evaluatedAt: entryControlBoard?.controlEvaluatedAt }, marketStage: jr.UNKNOWN })); } catch (_) { /* receipt only */ } return result; } }) : null;
+   if (stateMachine && health) stateMachine.fullStopPushOwner = 'health';   // r1.1: ONE push per full stop - the "Full stop" push below (health.fullStop) replaces the machine's "Stopped out"
+ 
+   // HOTFIX 1 (2026-10-13) same-direction re-entry cooldown state (see ENTRY-GUARD HELPERS and CONFIG.reentryCooldown). In-memory only: a restart
+@@ -6052,6 +6069,7 @@ async function main() {
+           stateMachine.trackPeakUnrealized(liveBar.c);
+           try { stateMachine.noteNoProgressPrices(m1, liveBar.c, Date.now()); } catch (e) { /* tracking only */ }   // np1
+           try { reversalExitStep(m1, Date.now()); } catch (e) { /* lv1 r13.3.3: shadow log only, never blocks the poll */ }   // before np1's step: the np1-check close is labelled too
++          if (CONFIG.earlyAdverseExit.mode !== 'off') { try { await stateMachine.earlyAdverseStep(CONFIG.earlyAdverseExit, m1, Date.now()); } catch (e) { log('  [eae] step failed (non-fatal, retried next poll): ' + e.message); } }   // edge r1: BEFORE np1 and level-loss (it is due first: 2-3 min after the fill); once it decides, they stand down (one owner per trade)
+           if (!(stateMachine.lossLevel && Number.isFinite(stateMachine.lossLevel.exitAt))) { try { await stateMachine.noProgressStep(CONFIG.noProgressExit, Date.now()); } catch (e) { log('  [no-progress] step failed (non-fatal, retried next poll): ' + e.message); } }   // bf-exitsafe (S2): np1 FIRST - on the poll where both would act, np1's decision and label win; level-loss then stays out (np1 decided / flatten started). np1 (off = records 'disabled' only); exits5m: not while a level-loss exit is under way
+           if (CONFIG.exitOnLevelLoss === true) { try { await levelLossStep(Date.now()); } catch (e) { log('  [level-loss] step failed (non-fatal, retried next poll): ' + e.message); } }   // exits5m r1 change 5
+           const pxOk = typeof stateMachine.priceEvidenceOk === 'function' && stateMachine.priceEvidenceOk(liveBar.t, Date.now());   // np1 r1.5/r1.6: the CURRENT 1m bar, started after the position existed

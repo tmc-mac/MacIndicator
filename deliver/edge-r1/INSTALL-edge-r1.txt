@@ -1,0 +1,45 @@
+MAC - INSTALL "EDGE r1" on botfix r1.1 (executor 725b19ff -> 9f8bcb8c)   PRIVATE - server address inside
+=========================================================================================================
+What it changes (each has its own switch below):
+  1. EARLY EXIT - about 2 minutes after the fill, if the trade is 10+ pts against you and was never +3, it is closed
+     at market (about -$60) instead of waiting for the full stop. The 30 / 50-pt stops do not move.
+  2. RUNNER BY SESSION - Asia and London: all 3 contracts out at TP1 (+15). NY: 2 out at TP1, the runner's stop goes
+     to entry +2 and its target is 2 x the 15-minute ATR; flat by the session close. A TP1 win can never become a loss.
+Unchanged: entries, size 3, stop distances, TP1 +15, the no-progress exit, morning hold, news pause, safe exits, alerts.
+Evidence: about 4-6 days of your live trades (early exit +$663 on 9 trades; NY runner +$1,240 on 18 trades, 3 big ones
+carry most of it). 292 tests pass, boots to LIVE, install + rollback dry-run clean. No replays were run.
+MacDot / MacMillionz review is pending.
+
+Be FLAT in TopstepX. Put MacBot-edge-r1.zip in Downloads, open PowerShell:
+
+1) Check the file:
+  cd $env:USERPROFILE\Downloads
+  Get-FileHash .\MacBot-edge-r1.zip
+     (must start with 67DFED7E)
+
+2) Copy it up and unpack:
+  scp .\MacBot-edge-r1.zip root@<server>:/root/
+  ssh root@<server> "mkdir -p /root/edge1 && cd /root/edge1 && python3 -m zipfile -e /root/MacBot-edge-r1.zip . && ls MacBot-edge-r1"
+
+3) Install (type YES when asked):
+  ssh -t root@<server> "cd /root/edge1/MacBot-edge-r1 && MACBOT_DIR=/opt/mac-bot bash install-edge.sh tree"
+     You want at the end: "session stamp ... (executor 9f8bcb8c" and "DONE". Keep the rollback line it prints.
+     (No phone-server restart is needed this time.)
+
+4) Check (wait 2 min):
+  ssh root@<server> "journalctl -u mac-bot-live --since '-5 min' --no-pager | grep -E 'session stamp|\[eae\]|\[runner\]|\[exits\]|\[health\]|Entering live loop|FATAL|ERROR' | tail -12"
+     You want: "executor 9f8bcb8c", "[eae] early adverse exit: ON", "[runner] session runner: asia all contracts out at TP1 ...
+     ny runner stop entry +2, TP2 2 x ATR15", "Entering live loop". No FATAL / ERROR lines.
+
+SWITCHES (each restarts the bot - be flat):
+ Early exit -> LOG ONLY (records what it would do, changes no trade):
+  ssh root@<server> "echo cHl0aG9uMyAtYyAiaW1wb3J0IGpzb24sb3M7cD1cIi9vcHQvbWFjLWJvdC9jb25maWctbG9jYWwuanNvblwiO2M9anNvbi5sb2FkKG9wZW4ocCkpO2NbXCJlYXJseUFkdmVyc2VFeGl0XCJdPXtcIm1vZGVcIjpcImxvZ1wifTtqc29uLmR1bXAoYyxvcGVuKHArXCIudG1wXCIsXCJ3XCIpLGluZGVudD0yKTtvcy5yZXBsYWNlKHArXCIudG1wXCIscCkiICYmIHN5c3RlbWN0bCByZXN0YXJ0IG1hYy1ib3QtbGl2ZSAmJiBlY2hvIEVBUkxZLUVYSVQtTE9HLU9OTFk= | base64 -d | bash"
+ Early exit -> ON again:
+  ssh root@<server> "echo cHl0aG9uMyAtYyAiaW1wb3J0IGpzb24sb3M7cD1cIi9vcHQvbWFjLWJvdC9jb25maWctbG9jYWwuanNvblwiO2M9anNvbi5sb2FkKG9wZW4ocCkpO2MucG9wKFwiZWFybHlBZHZlcnNlRXhpdFwiLE5vbmUpO2pzb24uZHVtcChjLG9wZW4ocCtcIi50bXBcIixcIndcIiksaW5kZW50PTIpO29zLnJlcGxhY2UocCtcIi50bXBcIixwKSIgJiYgc3lzdGVtY3RsIHJlc3RhcnQgbWFjLWJvdC1saXZlICYmIGVjaG8gRUFSTFktRVhJVC1PTg== | base64 -d | bash"
+ Runner -> the OLD rule in every session (2 off at TP1, runner stop +10, trail 10):
+  ssh root@<server> "echo cHl0aG9uMyAtYyAiaW1wb3J0IGpzb24sb3M7cD1cIi9vcHQvbWFjLWJvdC9jb25maWctbG9jYWwuanNvblwiO2M9anNvbi5sb2FkKG9wZW4ocCkpO2NbXCJzZXNzaW9uUnVubmVyXCJdPXtcImFzaWFcIjpcImxpdmVcIixcImxvbmRvblwiOlwibGl2ZVwiLFwibnlcIjpcImxpdmVcIn07anNvbi5kdW1wKGMsb3BlbihwK1wiLnRtcFwiLFwid1wiKSxpbmRlbnQ9Mik7b3MucmVwbGFjZShwK1wiLnRtcFwiLHApIiAmJiBzeXN0ZW1jdGwgcmVzdGFydCBtYWMtYm90LWxpdmUgJiYgZWNobyBSVU5ORVItT0xELVJVTEU= | base64 -d | bash"
+ Runner -> the NEW session rule again:
+  ssh root@<server> "echo cHl0aG9uMyAtYyAiaW1wb3J0IGpzb24sb3M7cD1cIi9vcHQvbWFjLWJvdC9jb25maWctbG9jYWwuanNvblwiO2M9anNvbi5sb2FkKG9wZW4ocCkpO2MucG9wKFwic2Vzc2lvblJ1bm5lclwiLE5vbmUpO2pzb24uZHVtcChjLG9wZW4ocCtcIi50bXBcIixcIndcIiksaW5kZW50PTIpO29zLnJlcGxhY2UocCtcIi50bXBcIixwKSIgJiYgc3lzdGVtY3RsIHJlc3RhcnQgbWFjLWJvdC1saXZlICYmIGVjaG8gUlVOTkVSLU5FVy1SVUxF | base64 -d | bash"
+
+ROLLBACK to botfix r1.1 (flat first): run the "bash .../rollback-edge.sh ..." line step 3 printed, as
+  ssh -t root@<server> "bash <BACKUP-FOLDER>/rollback-edge.sh <BACKUP-FOLDER>"
