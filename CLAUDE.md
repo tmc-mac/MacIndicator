@@ -19,7 +19,8 @@ Every bot package passes all of these BEFORE it reaches Mac, run by the reviewer
 
 ## Focus on what the evidence says pays (Mac, 11/02)
 - "We need to focus on what's actually showing profitability for our bot and the moves we are trying to catch intraday." Rank work by measured effect on live/replay P&L and full stops, not by elegance.
-- Full stops are the main loss driver (NY 11/02 study: 41 of 131 NY trades = -$13.1k). Keep the accurate stop, never tighten; never stop the bot mid-session as a rule (testing stage: Mac watches every trade live).
+- Full stops are the main loss driver (NY 11/02 study: 41 of 131 NY trades = -$13.1k). Keep the accurate stop distance (the 25-pt stop of 11/03-11/04 tripled full stops); never stop the bot mid-session as a rule (testing stage: Mac watches every trade live).
+- Mac, 11/11: "Disregard my tightening message, we are doing what's best for the bot's profitability." Early exits of trades that never work are allowed when the live evidence supports them; every such rule ships with an on/off switch and a journal row.
 
 ## Keep the board current
 - Desk board: `$S/hft/ops/CURRENT.md` in the session scratchpad (desk, task, status, ETA, blocker). Update it when a desk starts, finishes or is blocked. The task list mirrors it.
