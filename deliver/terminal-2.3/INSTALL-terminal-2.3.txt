@@ -1,0 +1,58 @@
+PHONE TERMINAL 2.3  (page only: no bot restart, the bot is not touched)   
+=========================================================================================================
+Installs over 2.2.2 (99ec1630). Same Control buttons, same requests to the bot; one new read: when you tap
+"Show the full stops" in Review > Office the page fetches one small data file (autopsy.json) from the office branch.
+Reviewed by an independent desk: SEND WITH RULES. Nothing on your phone or server has been tried by anyone yet.
+
+What you get:
+  - Review opens on the Office section; the Download Trade Log card is now the last card.
+  - Office > Full stops (new): the last 20 TradeDays' losing full stops, in five bands by the best the trade reached
+    (under +3, +3 to +10, +10 to +15, +15 or more, no reading), each marked with how many were read from 1-minute bars and how
+    many from 20-second price checks only ("at least" where only price checks exist); how many reached their OWN TP1 distance;
+    three "what would it have changed" rules, each an ESTIMATE with its coverage; then one card per stop with its price path.
+    A stop that closed in profit is left out and named on screen.
+  - Office > Experiments is a scoreboard: time to verdict (estimate), the pre-written kill rule, whether it can be judged yet.
+  - Three counters the bot already sends: runner rule against the old rule, TP1 touched-not-filled, NY by entry time. They read
+    "no cases yet" until the bot writes them.
+  - Trades: one line under the day figures ties the trade list, commissions and net to the broker's day, to the cent or says why not.
+  - Header: the refresh button sits beside the bot's name; the reason line is wider, tap it to read all of it.
+  - Flight recorder: route times no longer print over the event text. "This bot" shows the bot's code hash and its last restart
+    (the version reads UNKNOWN; the typed-in "r13.3.7" is gone).
+
+READ THIS BEFORE YOU INSTALL (the reviewer's rules):
+  1. The new Full stops and scoreboard sections read their data from the office files on the repo branch. Those files were
+     published to the branch just before this sheet. If a section says "UNKNOWN: not published yet", the page works and the
+     data is missing: tell me, do not worry. The data is refreshed by the office's daily run, so numbers move once a day.
+  2. The window today covers 20 TradeDays ending on a PARTIAL day (11/12 is still in progress and the journal has a gap). The page
+     prints the TradeDay, the age and a warning; do not judge the numbers as a finished day.
+  3. Every what-if is a small-n estimate: only 21 of the 99 stops have 1-minute bar rows. The page says so on each one.
+  4. The page does not yet check that the class rows add up to the header or that the header count matches the cards. The data
+     tool is consistent; if a number ever looks off, send me a screenshot. Do not edit the file.
+  5. Not in this build (planned for 2.3.1): the Trade Rail at the top of Now, the runner ladder ledger, the short-reason text,
+     the Control reorder. Known small things: the old "30 rows do not add up" ledger line can sit next to the new tie line; on
+     a slow phone the Review tab has one long task of about 120 ms (2.2.2 has about 110 ms).
+
+Put mobile.html and set-terminal.sh (both from this folder) in Downloads, then in PowerShell:
+
+1) Check the files:
+   cd $env:USERPROFILE\Downloads
+   certutil -hashfile mobile.html SHA256
+      expect: 042bbb6b3f82c2d16e2038d1e52c0cf5def2db9974e2af0f1eebd30a67218268
+   certutil -hashfile set-terminal.sh SHA256
+      expect: d891ef9d830244f682110662f85f080dd23984cbb29ba1740cb3e34aca4fb815   (same tool as 2.2.2)
+
+2) Upload and check on the server:
+   scp mobile.html set-terminal.sh root@<server>:/root/
+   ssh root@<server> "sha256sum /root/mobile.html /root/set-terminal.sh"
+      (the same two codes as above)
+
+3) Install (it asks "Is the bot FLAT?" - type YES):
+   ssh -t root@<server> "bash /root/set-terminal.sh install /root/mobile.html 042bbb6b3f82c2d16e2038d1e52c0cf5def2db9974e2af0f1eebd30a67218268"
+   Expect: DONE: mobile.html installed (sha256 verified): before 99ec1630 -> after 042bbb6b.
+
+4) On your phone: close the terminal page completely and open it again. Open Review: it should open on Office. Tap
+   "Show the full stops": you should see a total, five bands and cards, with the TradeDay and age printed at the top.
+
+If any step prints STOP, nothing changed - send me that output.
+UNDO (puts back 2.2.2, no restart):   ssh -t root@<server> "bash /root/set-terminal.sh rollback"
+STATUS (changes nothing):             ssh root@<server> "bash /root/set-terminal.sh status"
