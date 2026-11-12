@@ -1,0 +1,64 @@
+MAC - INSTALL "OUTSIDE WATCHDOG" (timer for health-watchdog.js)   DRAFT - <server> = your server address
+=======================================================================================================
+What it is: a small check that runs on the server every minute, outside the bot. If the bot's process is dead or
+completely hung for 10+ minutes in trading hours, your phone gets "Bot NOT RUNNING (no heartbeat)". Today nothing sends that.
+
+What it changes: it adds two small systemd files (mac-bot-watchdog.service and mac-bot-watchdog.timer). Nothing else.
+  It does NOT need you to be flat. It does NOT start, stop or restart the bot or the phone server.
+  It changes no bot file and no setting. The watchdog file itself is already on the server (it came with edge r1.6).
+  Do it in trading hours with the bot running (Sunday 15:00 to Friday 13:10 PT, not 13:10-15:00 PT): step 4 sends a
+  test push and the watchdog is silent outside those hours.
+
+Put install-watchdog.sh in Downloads, open PowerShell:
+
+1) Check the file:
+  cd $env:USERPROFILE\Downloads
+  Get-FileHash .\install-watchdog.sh
+     (must start with 4BACAA5F)
+
+2) Copy it up:
+  scp .\install-watchdog.sh root@<server>:/root/
+
+3) Run it (it asks nothing):
+  ssh -t root@<server> "bash /root/install-watchdog.sh"
+     You want these lines (the times and seconds will differ):
+       checks passed: node v18.19.1, watchdog file is the edge r1.6 one, push settings present, heartbeat 14 s old
+       unit edits waiting for a reload (bot/phone server): no/no
+       unit files written: mac-bot-watchdog.service, mac-bot-watchdog.timer
+       watchdog says: [2026-...Z] health-watchdog MNQ: ok: heartbeat 15 s old
+       The timer runs it every minute from now on (not Sunday 15:00-15:02 PT, while the bot starts). The bot was not started, stopped or restarted.
+       To remove it: bash /root/install-watchdog.sh undo
+       DONE
+     If it says STOP, nothing was changed - send me the lines.
+     If it says PROBLEM then UNDO, it removed its two files again by itself - send me the lines.
+     Running it a second time is fine: it says "unit files already in place, unchanged" and DONE. If a second run
+     ever says PROBLEM then KEPT, the watchdog you already had is still in place as it was - send me the lines.
+
+4) REQUIRED: prove the push reaches your phone (does not touch the bot or its folder):
+  ssh -t root@<server> "bash /root/install-watchdog.sh proof"
+     You want: "PROOF OK", and within a few seconds ONE push on your phone titled
+       MacMillionz PROOF: Bot NOT RUNNING (no heartbeat)
+     That push is only this test (a throw-away folder with a pretend 11-minute-old heartbeat named PROOF);
+     the real one says MNQ instead of PROOF.
+     "PROOF OK" but NO push on the phone within a minute = the watchdog cannot reach you: tell me, it is not done.
+     "PROOF FAILED" = send me the line above it.
+     "PROOF NOT RUN" = it is outside trading hours; run this step again after 15:00 PT. Not done until PROOF OK.
+     There is no safe way to prove the real thing (a dead bot) without stopping the bot, so we do not do that.
+
+5) See it tick (wait 2 minutes; this only reads):
+  ssh root@<server> "systemctl list-timers mac-bot-watchdog.timer --no-pager; journalctl -u mac-bot-watchdog.service --since '-3 min' -o cat --no-pager | grep health-watchdog"
+     You want: one timer line with a "LEFT" under a minute, and two or three "ok: heartbeat ... s old" lines,
+     one per minute.
+
+What you will get from now on:
+  - bot process dead or completely hung 10+ min in trading hours -> "Bot NOT RUNNING (no heartbeat)", again every 30 min;
+  - when it is back -> "Bot heartbeat is back", once;
+  - outside trading hours (the daily 13:10-15:00 PT break, the weekend) -> nothing.
+  A bot that is up but not trading is NOT this alert; that stays the bot's own "Bot NOT LIVE" push.
+  If you ever stop the bot yourself for 10+ min in trading hours, you get that push too. That is the watchdog working.
+  Sunday: the first check after the open is at 15:02:30 PT, to give the weekend start time to bring the bot up.
+  A "NOT RUNNING" on a Sunday afternoon therefore means the bot really did not start.
+
+UNDO (any time, no need to be flat, the bot is not touched):
+  ssh -t root@<server> "bash /root/install-watchdog.sh undo"
+     You want: "watchdog timer removed. The bot was not touched." and DONE.

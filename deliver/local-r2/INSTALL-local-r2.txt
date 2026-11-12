@@ -1,0 +1,475 @@
+MAC - MOVE THE BOT, THE PHONE SERVER AND THE PHONE PAGE TO YOUR OWN PC ("LOCAL r2")        reviewed: SEND WITH RULES
+=======================================================================================================================
+Why: Topstep says "All trading activity must originate from your personal device." Today the bot trades from the server.
+After this sheet the SAME build (executor 26089560, phone page 99ec1630) runs inside Ubuntu on your laptop, with the same
+settings file, the same journal, the same service names and the same tools. The server bot is OFF and stays off.
+
+NOTHING IN THIS SHEET HAS RUN ON WINDOWS, ON WSL OR ON REAL SYSTEMD - not by the builder, not by the reviewer. It was
+tested in a Linux sandbox with a fake broker (120 checks) and the bot was booted, killed and replayed from the copied
+folder. On your PC the stage checks ARE the proof: each "You want" line is a test. That is why stage B comes first, alone.
+
+THE ORDER (rules from the review):
+  1. Stage B first, alone, any day. It does not touch the bot. SEND MacArthur the output of B4, B5 and B6 and wait for
+     the go BEFORE stage C. (They prove the memory limit was read, the sign-in task runs, Ubuntu stays up when idle.)
+  2. Stage C = move day: a WEEKDAY, MARKET OPEN, you FLAT and at the PC for the 15 minutes; C4 to C9 in one sitting.
+  3. After the move NOTHING may ever be started on the server and ALL old server sheets are void, until an undo (stage G).
+  4. Stage E5 (automatic sign-in) after stage C; its restart test is mandatory.
+
+Read these four lines first:
+  * If any step prints STOP, nothing was changed by that step. Do not go on. Send me the lines.
+  * NEVER two bots on one account. The scripts refuse to start one while the other is on; do not work around a refusal.
+  * **WHAT IS SILENT ON A LAPTOP: if the laptop sleeps, the lid closes on battery, the battery runs out, Windows restarts
+    and the automatic sign-in fails, Ubuntu stops, or the home internet drops, the bot stops trading and NOTHING pushes
+    your phone, because the thing that pushes is on the same laptop. Open positions keep their stop and targets at the
+    broker. The outside alarm for this (stage H) is OFF by your ruling of 11/12 until Topstep answers: these cases are
+    silent.**
+  * After a Windows restart, Windows signs in by itself (stage E5, your ruling of 11/12) and the bot is back about
+    3 minutes later. If the automatic sign-in fails, the bot is down until you sign in, and nothing tells you.
+
+Where to type: "PS" = a normal PowerShell window. "PS-ADMIN" = right-click Start > Terminal (Admin). Nothing is typed inside
+Ubuntu. Every Ubuntu command below is run from PowerShell with "wsl ...". Whole sheet: about 45 minutes, stage C needs FLAT.
+When: stage C on a weekday while the market is open and you are flat (not 2-3 PM PT, not the weekend), so the check can see
+the bot LIVE.
+
+Put MacLocal-r2.zip in Downloads (NOT an r1 zip if you were ever sent one: delete that).
+
+=========================== STAGE A - check what is already there (PS, read-only, 2 min) ===========================
+A1) wsl -l -v
+      You want a line:  Ubuntu-24.04   ...   2        (the last column must be 2)
+A2) wsl --version
+      You want a first line "WSL version: 2." something. If the command is not recognised: STOP, send me the line.
+A3) wsl -d Ubuntu-24.04 -u root -- cat /etc/os-release
+      You want: PRETTY_NAME="Ubuntu 24.04..."
+A4) Get-FileHash $env:USERPROFILE\Downloads\MacLocal-r2.zip
+      (must start with 916AC567)
+
+=========================== STAGE B - set up Ubuntu (the bot is NOT touched; 10 min) ===========================
+B1) PS - unpack:
+  cd $env:USERPROFILE\Downloads
+  Expand-Archive .\MacLocal-r2.zip -DestinationPath .\MacLocal-r2
+  cd .\MacLocal-r2
+      From here on, every PS command of stages B and C is typed in THIS folder (Downloads\MacLocal-r2).
+      A new PowerShell window forgets the folder and the server address: cd back here and do C0 again.
+
+B2) PS - memory limit for Ubuntu and "do not shut down when idle". First look whether the file exists:
+  Test-Path $env:USERPROFILE\.wslconfig
+      If it prints True: STOP, send me the file (Get-Content $env:USERPROFILE\.wslconfig). If False, paste this ONE line:
+  Set-Content -Encoding ascii $env:USERPROFILE\.wslconfig "[wsl2]","memory=3GB","swap=2GB","[general]","instanceIdleTimeout=-1"
+      Check: Get-Content $env:USERPROFILE\.wslconfig     shows exactly those 5 lines, one under the other.
+      (3GB: the bot and the phone server are each allowed up to 1024 MB by their service settings, as on the server; the
+      bot measured 325 MB at start with your size of journal. 3 GB holds both at their limit and leaves Windows about 4.8 GB.)
+
+B3) PS - install (Node 18.19.1, services switched on in Ubuntu, the mac-local command). About 2 minutes:
+  wsl -d Ubuntu-24.04 -u root -- bash ./setup-local.sh install
+      You want the last line: "DONE install (the bot is not here yet and nothing was started)."
+      Running it twice is harmless (the second run says "already").
+
+B4) PS - restart Ubuntu so the settings apply, then check:
+  wsl --shutdown
+      wait 10 seconds
+  wsl -d Ubuntu-24.04 -u root -- /usr/local/sbin/mac-local check base
+      You want the last line: "CHECK base: 8 PASS, 0 STOP"   (it shows Node v18.19.1, systemd running, clock within 3 s)
+      If only the clock line says STOP: run the check a second time. Still STOP: PS-ADMIN  w32tm /resync  wait 1 minute,
+      check again. (Ubuntu copies the Windows clock, so the Windows clock is the one to fix.)
+  wsl -d Ubuntu-24.04 -- free -m
+      You want: the "Mem:" total between 2800 and 3100, the "Swap:" total about 2047.
+      If Mem total is about 3900: the .wslconfig file was not read (a typo fails silently). STOP, send me B2's check.
+
+B5) PS-ADMIN - keep Ubuntu running and start it when you sign in. First:  whoami   must print YOUR normal Windows user.
+    Paste these 6 lines together:
+  $a = New-ScheduledTaskAction -Execute "wsl.exe" -Argument "-d Ubuntu-24.04 -u root --exec /usr/bin/sleep infinity"
+  $t = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
+  $s = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew
+  Register-ScheduledTask -TaskName "MacBot-WSL" -Action $a -Trigger $t -Settings $s
+  Start-ScheduledTask -TaskName "MacBot-WSL"
+  (Get-ScheduledTask -TaskName "MacBot-WSL").State
+      You want: Running.  A black empty window may stay open: minimise it, NEVER close it (it is what keeps Ubuntu awake).
+
+B6) The 10-minute test (PS). Close every other terminal window, leave the PC alone for 10 minutes, then:
+  wsl -l --running
+      You want: Ubuntu-24.04 in the list.
+  wsl -d Ubuntu-24.04 -- uptime
+      You want: "up 10 min" or more. If it says up 0 min, Ubuntu was shut down while idle: STOP, send me both outputs.
+
+B7) STOP HERE. Send MacArthur the outputs of B4 (both commands), B5 (the State line) and B6 (both commands), plus the
+    WSL version number from A2. Stage C only after the go.
+
+=========================== STAGE C - the transfer (WEEKDAY, MARKET OPEN, FLAT; about 15 min) ===========================
+Only after the go on stage B. Stay at the PC; do C4 to C9 in one sitting (the file with your broker key lies in Downloads
+in between).
+The phone page goes dark at C2 and comes back at C7 (on the PC; see stage D for the phone).
+
+C0) PS - type the server address once (the one after root@ in your old sheets). It stays in this window only:
+  $srv = Read-Host "Server address"
+
+C1) PS - copy the helper to the server and look (read-only):
+  scp .\vps-handoff.sh root@${srv}:/root/
+  ssh root@$srv "bash /root/vps-handoff.sh status"
+      You want: lines for each unit and a last line "VPS-STATE: RUNNING" (it is still running now).
+
+C2) Be FLAT in TopstepX. PS - stop the server bot for good (type YES when asked):
+  ssh -t root@$srv "bash /root/vps-handoff.sh stop"
+      You want: "VPS-STATE: OFF" and "DONE: the server bot is OFF and will not start at a reboot."
+      It also switches off the two weekend timers on the server (else the server bot would come back on Sunday 3 PM).
+      If it says STOP before YES, nothing changed. If it says STOP at "3/3 verify": do NOT go on, send me the lines.
+
+C3) PS - pack everything into one private file on the server (1 to 3 minutes):
+  ssh root@$srv "bash /root/vps-handoff.sh pack"
+      You want a line "BUNDLE: /root/maclocal/maclocal-bundle.tgz ... sha256 XXXXXXXX" and "DONE". Note the 8 characters.
+      The line "facts:" must show node_version=v18.19.1 executor_sha8=26089560 page_sha8=99ec1630.
+
+C4) PS - bring it to this folder and compare:
+  scp root@${srv}:/root/maclocal/maclocal-bundle.tgz .
+  scp root@${srv}:/root/maclocal/maclocal-bundle.tgz.sha256 .
+  Get-FileHash .\maclocal-bundle.tgz
+      The Hash must start with the same 8 characters as the BUNDLE line of C3. If not: run the two scp lines again.
+      THIS FILE HOLDS YOUR BROKER KEY. It is deleted in C9. Do not move it, mail it or put it in a cloud folder.
+
+C5) PS - put it in place inside Ubuntu (starts nothing; about 1 minute):
+  wsl -d Ubuntu-24.04 -u root -- /usr/local/sbin/mac-local restore ./maclocal-bundle.tgz
+      You want: "bundle sha256 XXXXXXXX" (same 8 again), "build check: 63 code files + phone page match EXPECT.sha256",
+      "verified: N files match the server's sha256 list", a list of PASS lines and
+      "DONE restore: the bot is in place and NOT started."
+      It also removes old phone-request and heartbeat files that must not travel, and tells you which.
+      Running it twice says "ALREADY RESTORED ... Nothing changed."
+
+C6) PS - tell the PC where the server is, for the every-start guard (paste the same address when asked):
+  wsl -d Ubuntu-24.04 -u root -- /usr/local/sbin/mac-local vps-address
+      You want: "stored. Right now the server's phone server does not answer" and DONE.
+      If it says ANSWERS: the server bot is on. STOP.
+
+C7) Still FLAT. PS - first the proof that the server is off AND disabled, then the start (type YES). The proof is valid for
+    10 minutes and for one start:
+  ssh root@$srv "bash /root/vps-handoff.sh status" | wsl -d Ubuntu-24.04 -u root -- /usr/local/sbin/mac-local vps-proof
+      You want the last line: "PROOF OK: the server bot is OFF and DISABLED ..."      If STOP: do not start. Send me the lines.
+  wsl -d Ubuntu-24.04 -u root -- /usr/local/sbin/mac-local start
+      It takes up to 3 minutes after YES. You want these lines and then DONE:
+        PASS  start line: session stamp, executor 26089560
+        PASS  start line: Entering live loop
+        PASS  warm-up OK: 2000 15m bars ...
+        PASS  heartbeat N s old: TIDE LIVE
+        PASS  phone page served = file on disk: 99ec1630
+        PASS  phone server refuses a request without the key (401)
+        DONE: the bot runs on this PC now
+      If anything is off it stops and disables the local bot again by itself and prints STOP: send me the lines.
+      The server is still off in that case; to go back to it use stage G.
+
+C8) PS - look at the page on the PC itself: open  http://localhost:8787/mobile.html  in the browser on this PC.
+      You want: page 2.2.2, LIVE, and the account shown is your COMBINE account. Another account: stage G1 at once, tell me.
+      (No key is asked on the PC itself. That is how the phone server is built: the PC it runs on is trusted.)
+
+C9) PS - delete the private file on both sides, once C7 said DONE:
+  Remove-Item .\maclocal-bundle.tgz, .\maclocal-bundle.tgz.sha256
+  ssh root@$srv "bash /root/vps-handoff.sh clean"
+      Then empty the Recycle Bin. Your ruling of 11/12: the server is KEPT, with its bot off, as the way back (stage G).
+      FROM NOW ON: NEVER START ANYTHING ON THE SERVER. EVERY OLD SERVER SHEET IS VOID (each one ends by starting the
+      bot there, and the server has no guard of its own). The only thing ever run on the server again is stage G.
+      The day you cancel the server, FIRST run:  wsl -d Ubuntu-24.04 -u root -- /usr/local/sbin/mac-local vps-address none
+      (otherwise a stranger's machine on that address could block every start of your bot).
+
+=========================== STAGE D - the phone ===========================
+What works with no extra step: every push (ntfy) arrives as before. The page is on the PC: http://localhost:8787/mobile.html
+Away from the PC your flatten button is the TopstepX app.
+
+D1) OPTION "same Wi-Fi" (no VPN software; phone and laptop on your home Wi-Fi). OFF until you ask for it. NOT tested by
+    us on Windows. Only at home (the firewall rule below is not limited to your home network). Flat only, because it
+    restarts Ubuntu:
+  PS:        Set-Content -Encoding ascii $env:USERPROFILE\.wslconfig "[wsl2]","memory=3GB","swap=2GB","networkingMode=mirrored","[general]","instanceIdleTimeout=-1"
+  PS-ADMIN:  New-NetFirewallHyperVRule -Name "MacBot8787" -DisplayName "MacBot phone page" -Direction Inbound -VMCreatorId '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -Protocol TCP -LocalPorts 8787
+  PS (flat): wsl --shutdown        wait 10 seconds
+             Start-ScheduledTask -TaskName "MacBot-WSL"
+             wsl -d Ubuntu-24.04 -u root -- /usr/local/sbin/mac-local check
+      You want: all PASS again (the bot starts by itself), including "refuses a request without the key (401)".
+  PS:        (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias "Wi-Fi").IPAddress
+      On the phone (home Wi-Fi): open  http://THAT-ADDRESS:8787/mobile.html   and enter the phone key as before.
+      MUST-DO TEST on the phone: open the same address in a private tab and do NOT enter a key: you must get the key screen
+      and no data. If you see data without a key: STOP, run the undo line and tell me.
+      Undo: PS-ADMIN  Remove-NetFirewallHyperVRule -Name "MacBot8787"   (and paste B2's line again when flat, then wsl --shutdown).
+      Limits: only at home; the address can change when the router restarts; anyone on your Wi-Fi who has the key can use it.
+D2) Tailscale is NOT part of this sheet. It is VPN software, and Topstep's page says "The use of VPS, VPNs, and remote
+    servers is prohibited". Only after Topstep says yes in writing; then ask me for that stage.
+
+=========================== STAGE E - laptop settings (PS-ADMIN, 5 min; these do not touch the bot) ===========================
+The laptop must stay ON, PLUGGED IN and SIGNED IN (Win+L to lock is fine; never Sign out, never Sleep, never Shut down in a
+session). Paste these 7 lines together (the power and sleep BUTTONS then do nothing while plugged in; holding the power
+button for 10 seconds still forces the laptop off):
+  powercfg /change standby-timeout-ac 0
+  powercfg /change hibernate-timeout-ac 0
+  powercfg /hibernate off
+  powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS LIDACTION 0
+  powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS PBUTTONACTION 0
+  powercfg /setacvalueindex SCHEME_CURRENT SUB_BUTTONS SBUTTONACTION 0
+  powercfg /setactive SCHEME_CURRENT
+E1) Read back (this is the check; rerun it any time, a Windows update can reset these):
+  powercfg /query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE
+      You want: "Current AC Power Setting Index: 0x00000000"
+  powercfg /query SCHEME_CURRENT SUB_BUTTONS LIDACTION
+      You want: "Current AC Power Setting Index: 0x00000000"   (lid closed while plugged in = do nothing)
+  powercfg /a
+      Just read it. If it lists "Standby (S0 Low Power Idle)" your laptop has Modern Standby: Start > Power > Sleep and an
+      unplugged lid-close still freeze the bot silently. Rule: never use Sleep; never unplug with the lid closed.
+      If a line above says a name is not valid: STOP, send me  powercfg /aliases | findstr /i "LID SUB_BUTTONS SCHEME_CURRENT"
+E2) On battery nothing is changed on purpose: an unplugged laptop will sleep to save itself, and the bot stops. PLUGGED IN.
+E3) Windows Update: Settings > Windows Update > Advanced options > Active hours > Manually: set the 18 hours you most
+    need (suggested 11 PM to 5 PM: it leaves the restart window in the evening). Windows cannot be stopped from restarting
+    for updates for ever. Routine: Saturday, press "Check for updates" yourself, restart, SIGN IN, run the daily check.
+E4) Antivirus: leave Windows Security on. Nothing to exclude.
+E5) Automatic sign-in after a restart (your ruling of 11/12): its own stage E5 below, after stage C, when flat.
+
+=========================== STAGE E5 - Windows signs in by itself after a restart (FLAT; after stage C; 10 min) ===========================
+Your ruling 11/12: YES to automatic sign-in. Do this AFTER stage C of the main sheet says DONE, and when FLAT (it ends
+with a restart). About 10 minutes. If a step prints something else than "You want", stop there: nothing is half-done,
+send me the lines.
+
+THE RISK, PLAINLY: after this, anyone who opens or restarts the laptop is inside your Windows account with no password
+asked: your browser, your saved logins, TopstepX, the bot. And your Windows password is stored on the laptop (encrypted,
+but a person with administrator rights on this laptop can read it back; Microsoft says so, see [2]). Keep the laptop at
+home. Step E5.6 (optional) makes Windows lock the screen again right after it signed in, which removes most of the first risk.
+
+Tool chosen: Microsoft's own "Autologon" (Sysinternals), not netplwiz and not a registry edit. Why:
+  * netplwiz: the checkbox "Users must enter a user name and password to use this computer" is hidden on many Windows 11
+    PCs (when the Windows Hello-only setting of step E5.2 is on), and Microsoft's page for this feature does not describe
+    netplwiz at all. [UNVERIFIED in Microsoft documentation: the checkbox and when it is hidden.]
+  * Registry by hand (Microsoft's page [1]): "the password is stored in the registry in plain text" and that key
+    "can be remotely read by the Authenticated Users group". Not acceptable.
+  * Autologon [2]: same Windows mechanism, but [1] says "the password will be stored in a Local Security Authority (LSA)
+    secret instead of the Winlogon key". It has an Enable and a Disable button. It works on Home.
+  You type the password ONLY into Autologon's own window. Never on a command line, never into a file, never to me.
+
+Where to type: PS = normal PowerShell, PS-ADMIN = right-click Start > Terminal (Admin).
+
+E5.1) PS - which kind of account do you have (read-only):
+  Get-LocalUser -Name $env:USERNAME | Select-Object Name, PrincipalSource
+      You want one of:   PrincipalSource = Local              -> you have a LOCAL account
+                         PrincipalSource = MicrosoftAccount   -> you have a MICROSOFT account (you sign in with an e-mail)
+      Anything else, or an error: STOP, send me the line.     [3]
+  If MICROSOFT account: do you know the PASSWORD of that Microsoft account (not the PIN, not the fingerprint)? Autologon
+  needs the password. If your Microsoft account has no password at all (you only ever use the app or a code): STOP, tell
+  me; this stage cannot work for you as it is.  [UNVERIFIED in Microsoft documentation: [2] does not mention Microsoft
+  accounts. It is tested on your PC by step E5.5.]
+
+E5.2) Settings > Accounts > Sign-in options > "Additional settings": look for the switch
+  "For improved security, only allow Windows Hello sign-in for Microsoft accounts on this device".
+      If it is there and ON: turn it OFF (with it on, Windows refuses password sign-in, which is what Autologon uses).
+      If it is not there (normal with a local account): nothing to do.
+      Your PIN and fingerprint keep working either way.
+      [UNVERIFIED in Microsoft documentation today: the exact wording and place of this switch; the Microsoft Support
+      page I had for it returned "not found". Read-back, also unverified:
+        Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device' | Select-Object DevicePasswordLessBuildVersion
+      0 = off (what you want), 2 = on.]
+
+E5.3) PS - get the tool from Microsoft and check who signed it:
+  cd $env:USERPROFILE\Downloads
+  Invoke-WebRequest https://download.sysinternals.com/files/AutoLogon.zip -OutFile .\AutoLogon.zip
+  Expand-Archive .\AutoLogon.zip -DestinationPath .\AutoLogon
+  (Get-AuthenticodeSignature .\AutoLogon\Autologon64.exe) | Select-Object Status, @{n='Signer';e={$_.SignerCertificate.Subject}}
+      You want: Status Valid, and a Signer line that contains "Microsoft Corporation". Anything else: STOP, delete the folder.
+      (The download address is the one on Microsoft's page [2].)
+
+E5.4) PS - start it (Windows asks "allow changes": Yes; the first time it shows a licence: Agree):
+  .\AutoLogon\Autologon64.exe
+      In its window:  Username = already filled in. Leave it.
+                      Domain   = already filled in. Leave it.
+                      Password = type your Windows password (LOCAL account) or your Microsoft account password.
+      Press ENABLE. You want the message "Autologon successfully configured."
+      Note from Microsoft [2]: "Autologon does not verify the submitted credentials". A typo shows only at the restart
+      test (step E5.5): Windows then stops at the sign-in screen with "incorrect password"; sign in as usual, run step E5.4 again.
+
+E5.4b) PS - read-back (shows no password):
+  Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' | Select-Object AutoAdminLogon, DefaultUserName, DefaultDomainName, DefaultPassword
+      You want: AutoAdminLogon = 1, DefaultUserName = your user, and DefaultPassword EMPTY (nothing after it).
+      If DefaultPassword shows anything: STOP, press Disable in Autologon (step U1) and tell me. Do not send me that line.
+
+E5.5) THE TEST (FLAT; this restarts the laptop and with it the bot):
+  Restart-Computer
+      Do NOT touch the laptop. Windows must reach the desktop by itself. Wait 3 minutes from the desktop appearing, then PS:
+  (Get-ScheduledTask -TaskName "MacBot-WSL").State
+      You want: Running
+  wsl -d Ubuntu-24.04 -- uptime
+      You want: "up 2 min" to "up 5 min" (Ubuntu started by itself, nobody opened it)
+  wsl -d Ubuntu-24.04 -u root -- /usr/local/sbin/mac-local status
+      You want these lines among the output:
+          unit mac-bot-live.service  active=active  enabled=enabled
+          unit mac-bot-proxy.service  active=active  enabled=enabled
+          LOCAL-STATE: RUNNING
+  wsl -d Ubuntu-24.04 -u root -- /usr/local/sbin/mac-local check
+      You want the last line: "CHECK run: N PASS, 0 STOP"  (TIDE LIVE, warm-up 2000, executor 26089560; market must be open)
+      If Windows stopped at the sign-in screen, or any line differs: sign in by hand (the bot then starts as before) and
+      send me the outputs. With a MICROSOFT account, if it stopped at the sign-in screen with your name filled in: in
+      Autologon (step E5.4) type your account's e-mail as Username and  MicrosoftAccount  as Domain, Enable, test again.
+      [UNVERIFIED; this same test settles it.]
+      THIS TEST IS MANDATORY and is the one test of the whole chain. Repeat it: after step E5.6 if you do it; after
+      every Windows feature update (an update can silently switch automatic sign-in off); after every password change.
+
+E5.6) OPTIONAL AND UNTESTED (skip it if you prefer; nobody has run it) - lock the screen again 30 seconds after the
+   automatic sign-in. The bot keeps running behind a locked screen (Win+L was always fine). It removes most of the
+   "anyone who opens the laptop is in" risk. PS-ADMIN, paste the 4 lines together:
+  $a = New-ScheduledTaskAction -Execute "rundll32.exe" -Argument "user32.dll,LockWorkStation"
+  $t = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"; $t.Delay = "PT30S"
+  Register-ScheduledTask -TaskName "MacBot-LockAfterLogon" -Action $a -Trigger $t
+  (Get-ScheduledTask -TaskName "MacBot-LockAfterLogon").State
+      You want: Ready. Then the test of step E5.5 AGAIN (mandatory if you do this step): this time you find the laptop
+      LOCKED after 3 minutes; unlock with your PIN and run the same four checks.     Undo: Unregister-ScheduledTask -TaskName "MacBot-LockAfterLogon"
+
+UNDO OF E5 (any time; does not touch the bot):
+U1) PS:  cd $env:USERPROFILE\Downloads; .\AutoLogon\Autologon64.exe      press DISABLE
+U2) PS:  Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' | Select-Object AutoAdminLogon
+      You want: AutoAdminLogon = 0
+U3) If you turned the Windows Hello switch off in step E5.2, turn it back on.
+One time only, without undoing: hold the SHIFT key while Windows starts and it asks for the sign-in as before. [1][2]
+If you change your Windows or Microsoft password later: run step E5.4 again with the new one, or the next restart stops at
+the sign-in screen (and the bot stays down until you sign in).
+
+What E5 changes: after a restart (update, crash) Windows signs in, the "MacBot-WSL" task starts Ubuntu, the services
+start, the start guard checks the server and the clock, and the bot is LIVE again about 3 minutes later with nobody there.
+It recovers ONLY IF all of these fire: automatic sign-in, the MacBot-WSL task, Ubuntu staying up, the start guard. If one
+fails, the bot is down and NOTHING tells you. Still silent and not fixed by E5: sleep, lid closed on battery, empty
+battery, a power cut that switches the laptop off, Ubuntu stopped, home internet down.
+
+Sources (Microsoft):
+  [1] https://learn.microsoft.com/en-us/troubleshoot/windows-server/user-profiles-and-logon/turn-on-automatic-logon
+      (read 2026-11-12; page dated 2026-02-12; written for Windows Server, the same Winlogon mechanism; it names the
+      Sysinternals tool, the LSA secret, the Shift key, and that Exchange ActiveSync password rules switch autologon off)
+  [2] https://learn.microsoft.com/en-us/sysinternals/downloads/autologon   (read 2026-11-12; the Enable/Disable buttons,
+      "encrypted in the Registry", "a user with administrative rights can easily retrieve and decrypt it")
+  [3] https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.localaccounts/get-localuser
+      (NOT re-read today: the PrincipalSource values Local / MicrosoftAccount are from memory of that page. UNVERIFIED.)
+UNVERIFIED on Windows 11 Home build 26200, all settled by the test in step E5.5: that Autologon works with a Microsoft
+account; the Windows Hello switch wording and its registry value; the file name Autologon64.exe inside the zip and the
+exact success message; that device encryption (if on) lets the laptop start without a key prompt; the lock task of step E5.6.
+
+=========================== STAGE F - daily routine (PS, 1 minute, before each session) ===========================
+  wsl -d Ubuntu-24.04 -u root -- /usr/local/sbin/mac-local check
+      You want the last line "CHECK run: N PASS, 0 STOP". The lines that matter: TIDE LIVE, executor, warm-up 2000,
+      "Linux clock = PC clock", disk, "server check: its phone server does not answer".
+      A STOP line says what to do. "THE SERVER'S PHONE SERVER ANSWERS" = two bots possible: stop one NOW.
+  Also look: charger light on; the black "wsl" window (if you have one) still there.
+  WEEKEND: the weekend timers moved with the bot (stop Friday 2 PM PT, start Sunday 3 PM PT). Best: laptop on at
+  Sunday 3 PM PT. If it was off then, the start is caught up when Ubuntu next starts. A stop that was missed is NOT
+  caught up on the PC (on purpose: caught up late it could switch the bot off for the week). First Monday: run the check
+  before the session and look for "mac-bot-live.service is active" and TIDE LIVE.
+  After the laptop slept by accident: run the check. If a clock line says STOP: run it once more; then PS-ADMIN
+  w32tm /resync , wait 1 minute, check again.
+  During a session: no casual web browsing on this laptop. Any web page open in a browser ON THIS PC can reach the phone
+  server without the key (it trusts the PC it runs on); it could press flatten or pause.
+  A new bot build later: the old "scp the zip to the server" steps are void. Ask me for the PC form of the install.
+  Your old tools work the same, only the front part changes. Old:  ssh -t root@SERVER "MACBOT_DIR=/opt/mac-bot bash ..."
+  New:  wsl -d Ubuntu-24.04 -u root -- env MACBOT_DIR=/opt/mac-bot bash /opt/mac-bot/tools/set-runnerlock.sh show
+  Logs:  wsl -d Ubuntu-24.04 -u root -- journalctl -u mac-bot-live --since "-10 min" --no-pager     (times shown are UTC)
+  Never run  wsl --shutdown  in a session: it kills the bot. Flat only.
+  New combine account later: the account number and broker key live in the env file and account drop-in inside Ubuntu;
+  they are yours to enter. Ask me for that one-line step when the time comes.
+
+=========================== STAGE G - undo: back to the server (FLAT) ===========================
+The server is kept for this (your ruling of 11/12). It still has every file as of step C2; its bot and timers are off.
+G1) PS - stop the bot on the PC (type YES), and stop Ubuntu from being started at sign-in:
+  wsl -d Ubuntu-24.04 -u root -- /usr/local/sbin/mac-local stop
+      You want: "LOCAL-STATE: OFF" and DONE.
+  PS-ADMIN:  Disable-ScheduledTask -TaskName "MacBot-WSL"
+      You want: State Disabled.  (Automatic sign-in can stay on: with this task disabled and the units disabled, a
+      restart starts no bot on the PC.)
+G2) PS - proof for the server that the PC is off, then start the server bot (type YES):
+  $srv = Read-Host "Server address"
+  wsl -d Ubuntu-24.04 -u root -- /usr/local/sbin/mac-local status | ssh root@$srv "bash /root/vps-handoff.sh local-proof"
+      You want: "PROOF OK: the bot on the PC is OFF and DISABLED."
+  ssh -t root@$srv "bash /root/vps-handoff.sh resume"
+      You want: the session stamp line, "VPS-STATE: RUNNING", "DONE: the server bot is back". It puts back exactly what
+      C2 switched off, the weekend timers too.
+G3) OPEN ITEM "COPY-BACK" (not built yet): the server starts from the journal and state it had at C2. Stage G is only
+    complete while the PC bot has NOT traded. After the first trade on the PC, the PC's newer journal and state must be
+    copied back to the server first, with the same checks as stage C. That step does not exist yet: tell me BEFORE G2.
+G4) To come back to the PC later: Enable-ScheduledTask -TaskName "MacBot-WSL", then stage C from C2 (C5 will refuse
+    because a bot is already there: tell me, the fresh journal has to be brought over on purpose).
+
+=========================== STAGE H - OUTSIDE ALARM: OFF - DO NOT RUN (your ruling of 11/12) ===========================
+Kept here for later. It stays off until Topstep answers question 1 in writing. Until then the daily check prints
+"NOTE  NO OUTSIDE ALARM is set": that line is expected.
+Idea: every minute the laptop sends one tiny "I am alive" ping to a free monitoring service. The service knows nothing about
+trading. When pings stop for 5 minutes (sleep, power, internet, Windows restart, Ubuntu stopped, bot frozen) IT alerts you.
+It carries no orders and no account data. Still, mention it when you write to Topstep about the phone (question 1 below).
+H1) Make a free account at a "cron monitoring / heartbeat" service (for example healthchecks.io), add one check with
+    period 1 minute and grace 5 minutes, and set its alert to your phone (it can push through ntfy or mail you).
+    Copy the check's "ping URL".
+H2) PS:  wsl -d Ubuntu-24.04 -u root -- /usr/local/sbin/mac-local deadman set
+      Paste the ping URL when asked. You want: "DONE: test ping sent". The daily check then shows
+      "PASS  outside alarm: last ping sent N s ago".    Off again:  ... mac-local deadman off
+H3) Test it once when flat on a weekend: close the laptop lid on battery for 10 minutes: your phone must get the alert.
+    Weekend: the bot is stopped on purpose Friday 2 PM to Sunday 3 PM PT; the ping keeps going, so no false alarm.
+
+Questions only you can settle (send me the answers):
+  1. Ask Topstep in writing: "May I view my bot's status page on my phone over my home Wi-Fi / over Tailscale, and may my
+     PC send a one-line alive ping to a monitoring service?"
+  Settled 11/12: automatic sign-in YES (stage E5); the server is kept as the way back; the outside alarm stays off until
+  Topstep answers question 1.
+
+=========================== APPENDIX - the reviewer's 23 Windows checks (what to run, what you must see) ===========================
+PS = PowerShell. "autologon step N" = step E5.N of this sheet. Every row is also in its stage above; this is the one list.
+ 1) WHEN: A
+    RUN:  wsl -l -v ; wsl --version
+    SEE:  Ubuntu-24.04 ... 2 ; a first line WSL version: 2.x (write the number down)
+ 2) WHEN: B4
+    RUN:  wsl -d Ubuntu-24.04 -u root -- /usr/local/sbin/mac-local check base
+    SEE:  CHECK base: 8 PASS, 0 STOP (Node v18.19.1, systemd running, clock within 3 s)
+ 3) WHEN: B4
+    RUN:  wsl -d Ubuntu-24.04 -- free -m
+    SEE:  Mem total 2800-3100, Swap about 2047. About 3900 = .wslconfig not read
+ 4) WHEN: B5
+    RUN:  (Get-ScheduledTask -TaskName "MacBot-WSL").State
+    SEE:  Running
+ 5) WHEN: B6
+    RUN:  all windows closed 10 min, then wsl -l --running ; wsl -d Ubuntu-24.04 -- uptime
+    SEE:  Ubuntu-24.04 listed ; up 10 min or more
+ 6) WHEN: C3
+    RUN:  the facts: line of pack
+    SEE:  node_version=v18.19.1 executor_sha8=26089560 page_sha8=99ec1630
+ 7) WHEN: C4/C5
+    RUN:  Get-FileHash .\maclocal-bundle.tgz ; restore
+    SEE:  same 8 characters three times (server, PC, restore); build check: 63 code files + phone page match; DONE restore
+ 8) WHEN: C7
+    RUN:  proof line, then mac-local start
+    SEE:  PROOF OK: the server bot is OFF and DISABLED; then the 6 PASS lines of the sheet and DONE: the bot runs on this PC now
+ 9) WHEN: C8
+    RUN:  browser on the PC: http://localhost:8787/mobile.html
+    SEE:  page 2.2.2, the combine account, LIVE
+10) WHEN: after C
+    RUN:  wsl -d Ubuntu-24.04 -u root -- systemctl list-timers --all "mac-*"
+    SEE:  weekend start, weekend stop, watchdog, tick, each with a NEXT time
+11) WHEN: after C
+    RUN:  wsl -d Ubuntu-24.04 -u root -- systemctl show mac-bot-live -p Environment
+    SEE:  contains NODE_OPTIONS=--max-old-space-size=1024 (and the account line; do not send this output on)
+12) WHEN: E1
+    RUN:  powercfg /query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE ; powercfg /query SCHEME_CURRENT SUB_BUTTONS LIDACTION
+    SEE:  Current AC Power Setting Index: 0x00000000 in both
+13) WHEN: E1
+    RUN:  powercfg /a
+    SEE:  read it: "Standby (S0 Low Power Idle)" = Start > Sleep freezes the bot silently
+14) WHEN: flat, once
+    RUN:  plugged in, lid closed 5 min, open, daily check
+    SEE:  all PASS, heartbeat under 60 s, no "PC clock corrected" push
+15) WHEN: flat, once
+    RUN:  Win+L for 10 min, unlock, daily check
+    SEE:  all PASS
+16) WHEN: E5.5
+    RUN:  Restart-Computer, hands off 3 min, then the four lines of step E5.5
+    SEE:  Running; up 2-5 min; both units active enabled, LOCAL-STATE: RUNNING; CHECK run: N PASS, 0 STOP
+17) WHEN: E5.4b
+    RUN:  the Winlogon read-back line
+    SEE:  AutoAdminLogon = 1, DefaultPassword empty
+18) WHEN: daily
+    RUN:  wsl -d Ubuntu-24.04 -u root -- /usr/local/sbin/mac-local check
+    SEE:  CHECK run: N PASS, 0 STOP; the line NOTE  NO OUTSIDE ALARM is set is expected
+19) WHEN: first Monday
+    RUN:  daily check before the session
+    SEE:  mac-bot-live.service is active, TIDE LIVE (the case "laptop was off over the weekend")
+20) WHEN: first Sunday 3 PM PT
+    RUN:  phone
+    SEE:  no "Bot NOT RUNNING" push at 3:00 (the watchdog must not fire at the Sunday start)
+21) WHEN: weekly
+    RUN:  PS-ADMIN powercfg /sleepstudy
+    SEE:  no standby session inside trading hours
+22) WHEN: after any feature update
+    RUN:  rows 3, 4, 12, 16 again
+    SEE:  unchanged
+23) WHEN: D1 only
+    RUN:  phone on home Wi-Fi, page address in a private tab, no key
+    SEE:  the key screen and no data. Data without a key = undo D1 at once
