@@ -5,7 +5,7 @@
     python3 -I office/tools/loop_daily.py --data-repo <clone> --ref FETCH_HEAD --day latest
 
 Standard library only. Reads the data repository with `git show` / `git ls-tree` (never checks anything out,
-never writes there). Writes only under office/ (state/ledger.json, state/office.json, state/experiments.json,
+never writes there). Writes only under office/ (state/ledger.json, state/office.json, state/experiments.json, state/autopsy.json,
 reviews/daily/<TradeDay>.md). Method notes and data limits: office/tools/README.md.
 """
 import argparse
@@ -1209,6 +1209,15 @@ def public_trade(t):
     return {k: v for k, v in t.items() if not k.startswith("_")}
 
 
+def _insight():
+    """loop_insight.py is loaded by path: the tool runs with python3 -I, which leaves its own folder off sys.path."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("loop_insight", os.path.join(os.path.dirname(os.path.abspath(__file__)), "loop_insight.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 # ----------------------------------------------------------------------------- the run
 
 
@@ -1448,6 +1457,8 @@ def main(argv=None):
         wk_block = None
     if wk_block is not None:
         office_json["weekly"] = wk_block        # written by loop_weekly.py; the daily run carries it over untouched
+    # ---- terminal 2.3: the scoreboard keys on every experiment, and office/state/autopsy.json (loop_insight.py, beside this file)
+    _insight().extend(sys.modules[__name__], office, office_json, xdoc, J, trades, day, tdays, cov["complete"], data_note)
     dump(os.path.join(office, "state", "office.json"), office_json)
 
     # ---- the card

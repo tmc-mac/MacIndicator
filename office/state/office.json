@@ -1,12 +1,12 @@
 {
  "schema": 1,
- "generatedAt": "2026-11-11T22:25:04Z",
- "tradeDay": "2026-11-11",
+ "generatedAt": "2026-11-12T09:45:15Z",
+ "tradeDay": "2026-11-12",
  "data": {
-  "lastSlice": "2026-11-11/slice-1405",
-  "rows": 565,
+  "lastSlice": "2026-11-12/slice-2205",
+  "rows": 971,
   "complete": false,
-  "note": "TradeDay incomplete: journal missing 11/11 10:00 PT to 11/11 10:30 PT"
+  "note": "TradeDay incomplete: journal missing 11/11 22:05 PT to 11/12 13:10 PT"
  },
  "objective": {
   "name": "Topstep $50K Combine",
@@ -19,46 +19,46 @@
   "mode": "virtual",
   "current": {
    "startDay": "2026-11-09",
-   "profit": 630.08,
-   "floorRoom": 2630.08,
-   "bestDay": 0.0,
-   "bestDayPct": null,
-   "days": 3,
+   "profit": 981.8,
+   "floorRoom": 2351.72,
+   "bestDay": 738.14,
+   "bestDayPct": 75.2,
+   "days": 4,
    "status": "open",
-   "needPerDay": 169.28
+   "needPerDay": 155.25
   },
   "history": {
    "started": 20,
    "passed": 0,
-   "breached": 14,
-   "open": 6,
+   "breached": 13,
+   "open": 7,
    "window": "last 20 TradeDays"
   }
  },
  "day": {
-  "net": 738.14,
-  "trades": 21,
-  "wins": 15,
-  "losses": 6,
-  "fullStops": 1,
-  "avgWin": 89.57,
-  "avgLoss": -100.91,
-  "fees": 76.86,
+  "net": 351.72,
+  "trades": 8,
+  "wins": 7,
+  "losses": 1,
+  "fullStops": 0,
+  "avgWin": 79.7,
+  "avgLoss": -206.16,
+  "fees": 29.28,
   "lowClosedNet": 0.0,
   "bySession": {
    "asia": {
-    "net": 168.74,
-    "trades": 11,
-    "fullStops": 1
-   },
-   "london": {
-    "net": 291.72,
+    "net": 351.72,
     "trades": 8,
     "fullStops": 0
    },
+   "london": {
+    "net": 0.0,
+    "trades": 0,
+    "fullStops": 0
+   },
    "ny": {
-    "net": 277.68,
-    "trades": 2,
+    "net": 0.0,
+    "trades": 0,
     "fullStops": 0
    },
    "late": {
@@ -69,10 +69,10 @@
   }
  },
  "week": {
-  "net": 630.08,
-  "trades": 37,
+  "net": 981.8,
+  "trades": 45,
   "fullStops": 3,
-  "lossToWin": 1.44,
+  "lossToWin": 1.53,
   "days": [
    {
     "day": "2026-11-09",
@@ -91,49 +91,28 @@
     "net": 738.14,
     "trades": 21,
     "fullStops": 1
+   },
+   {
+    "day": "2026-11-12",
+    "net": 351.72,
+    "trades": 8,
+    "fullStops": 0
    }
   ]
  },
  "health": {
   "entryRowsWithoutId": 0,
-  "restarts": 17,
+  "restarts": 1,
   "settingsChanges": [
    {
-    "t": "2026-11-11T02:05:42Z",
-    "what": "bot code changed (9 files: brokerReads.js, entryCancelRequests.js, healthAlerts.js, ...), build 8ce446bbb45f"
-   },
-   {
-    "t": "2026-11-11T02:52:03Z",
-    "what": "bot code changed (5 files: edgeExits.js, liveStateMachine.js, phoneSnapshot.js, ...), build 55feac4eb001"
-   },
-   {
-    "t": "2026-11-11T03:43:36Z",
-    "what": "bot code changed (5 files: edgeExits.js, healthAlerts.js, liveStateMachine.js, ...), build 2f4313b42f61"
-   },
-   {
-    "t": "2026-11-11T05:14:44Z",
-    "what": "levelsParity off -> pine"
-   },
-   {
-    "t": "2026-11-11T06:25:14Z",
-    "what": "bot code changed (5 files: bars.js, phoneRequests.js, phoneSnapshot.js, ...), build d299e23647ca"
-   },
-   {
-    "t": "2026-11-11T06:28:57Z",
-    "what": "bot code changed (5 files: bars.js, phoneRequests.js, phoneSnapshot.js, ...), build 8e4194fac934"
-   },
-   {
-    "t": "2026-11-11T07:25:43Z",
-    "what": "bot code changed (7 files: bars.js, journalLines.js, ownerFlags.js, ...), build 7d44e31cb0e2"
+    "t": "2026-11-12T05:18:09Z",
+    "what": "bot code changed (7 files: controlParity.js, dayRisk.js, edgeExits.js, ...), build 681646233ce1"
    }
   ],
-  "build": "7d44e31cb0e2",
+  "build": "681646233ce1",
   "notes": [
-   "TradeDay incomplete: journal missing 11/11 10:00 PT to 11/11 10:30 PT",
-   "warmup alert at 18:06 PT: Warm-up cut short",
-   "warmup alert at 18:51 PT: Warm-up cut short",
-   "full-stop alert at 23:02 PT: Full stop: LONG 3x -$183.66 net",
-   "2 trades have no open-excursion data: the virtual combine tests them on closed P&L only"
+   "TradeDay incomplete: journal missing 11/11 22:05 PT to 11/12 13:10 PT",
+   "earlier TradeDays with journal hours missing (their results may be short): 2026-11-11"
   ]
  },
  "leaks": [
@@ -149,7 +128,7 @@
    "id": "L-02",
    "title": "The runner is dead weight in Asia and London",
    "status": "live",
-   "n": 7,
+   "n": 13,
    "usd": null,
    "next": "First live trade +$86.34 against +$75.84 under the old rule. Keep / kill at 20"
   },
@@ -165,7 +144,7 @@
    "id": "L-04",
    "title": "NY runner: fixed runner leaves money in trends",
    "status": "live",
-   "n": 0,
+   "n": 2,
    "usd": null,
    "next": "Small sample. Keep / kill at 20"
   },
@@ -173,7 +152,7 @@
    "id": "L-05",
    "title": "Control gate reads \"flat\" while the indicator shows a side",
    "status": "live",
-   "n": null,
+   "n": 0,
    "usd": null,
    "next": "P&L effect not measured. Compare gate passes and their results before / after the switch"
   },
@@ -229,8 +208,8 @@
    "id": "L-12",
    "title": "Losing no-progress exits: trades closed by the no-progress rule at a loss",
    "status": "measured",
-   "n": 7,
-   "usd": -492.12,
+   "n": 8,
+   "usd": -698.28,
    "next": "What did price do after each exit: would TP1 or the stop have come first? Needs the minute price path; the daily tool reports it from here on"
   },
   {
@@ -256,6 +235,22 @@
    "n": null,
    "usd": null,
    "next": "X-08: counter in edge r1.4, then a live fix on Mac's go (TP1 at market once touched, or one tick inside). Best candidate for the next live-rule experiment"
+  },
+  {
+   "id": "L-16",
+   "title": "Big NY runners give back almost everything: 11/11 08:43 PT long peaked +127 pts and exited at +2 (live stop entry +2)",
+   "status": "measured",
+   "n": null,
+   "usd": null,
+   "next": "Study ideas/RUNNER-TRAIL-STUDY.md, reviewed REWORK-small. Any rule that keeps most of the 11/11 move also cuts the 11/02 winners that pulled back 80-84% then hit TP2 (+165). Percent, ATR and hybrid trails all lose; only a small ladder costs about nothing (+50/+10 +$48, +75/+20 step +$40 more, sensitive to 2.5 pts and to one rebuilt path). Next: record runner_path rows live; shadow the +75/+20 step; Mac's decision on a 100/50-70 lock (-$364 to -$688, break-even about 1.5-2.5 reversals per deep-pullback winner). Round 2 (Mac 11/12: trail tighter or time exit): tight trails (arm 25/50, give-back 15-35) lose in every cut (-$636 to -$1,041 vs r1.5, cut 4-6 of 6 TP2 winners); 120-min time cap +$202 but a one-trade effect (-$32 without 11/11), shadow only; runners at break-even for hours not seen (0.23 of 9.4 runner-hours at or below +10 after a +25 peak); opportunity cost unmeasured because no signal rows are written while a position is open. Next: record runner_path and position-open signal rows (build), keep r1.5 50/10"
+  },
+  {
+   "id": "L-17",
+   "title": "CHOP and FAIL UP / FAIL DN entries lose through full stops and fit no register row",
+   "status": "measured",
+   "n": null,
+   "usd": null,
+   "next": "Not yet split by build; first step is the full-stop autopsy view in terminal 2.3, then an expectation and a record-only test before any rule. Same desk: of the 100 full stops in that window (-$21,146.82), 31 never reached +3 (-$6,376), 20 reached +3 to +10 (-$3,676), 13 reached +10 to +15 (-$3,067), 9 were labelled \"touched TP1 without a fill\" (-$2,078), 27 have no reading (-$5,949). Corrected by the reviewer the same day: only 1 of those 9 stops (-$254.16) reached its own TP1 (the others had TP1 20 to 50 pts away); 51 of the 100 stops are classed from 20-second polls only, so the classes are lower bounds (polls put 6 of 21 cross-checked stops a class too low); one of the 100 (10/19) closed +$12.28. No class total may be credited to an experiment. Also: the L-15 case logged as 11/10 20:10 PT is clock date 11/09"
   },
   {
    "id": "B-01",
@@ -368,6 +363,22 @@
    "n": null,
    "usd": null,
    "next": "Check warm-up time once on Mac's box after install; a core 2-3x slower still leaves margin"
+  },
+  {
+   "id": "B-15",
+   "title": "The outside health watchdog (health-watchdog.js) is not scheduled on the server: no cron entry and no timer. The in-bot alerts work, but a dead or frozen bot process sends no push",
+   "status": "open",
+   "n": null,
+   "usd": null,
+   "next": "Schedule it in the laptop transfer package (timer, same env file) with a check line; offer Mac a two-command fix on the server meanwhile"
+  },
+  {
+   "id": "B-16",
+   "title": "The ship gate booted builds with a 493 MB heap limit, but the server's services set 1024 MB (drop-in heap.conf) on a 961 MB box, so a heap above RAM can be OOM-killed by the kernel before V8 stops it",
+   "status": "open",
+   "n": null,
+   "usd": null,
+   "next": "Gate from now with the service's real value (1024) inside the 961 MB cgroup; decide the right heap for the laptop in the transfer design"
   }
  ],
  "experiments": [
@@ -379,7 +390,159 @@
    "minN": 20,
    "value": 296.0,
    "unit": "usd",
-   "verdict": "too early"
+   "verdict": "too early",
+   "leak": "L-03",
+   "started": "2026-11-11",
+   "expectation": "More dollars per trade than the fixed +15 in NY",
+   "killIf": "Net per trade is not above the fixed target's, or full stops per 10 trades rise by more than 1",
+   "verdictAt": "20 resolved NY cases",
+   "resolved": 1,
+   "unresolved": 0,
+   "judgeable": true,
+   "judgeWhy": null,
+   "nCounts": null,
+   "carried": null,
+   "valueBasis": null,
+   "valueBroker": null,
+   "rate": {
+    "perTradeDay": 0.5,
+    "basis": "since start: 1 case in 2 TradeDays",
+    "etaTradeDays": 38,
+    "estimate": true
+   },
+   "killCheck": [],
+   "casesTotal": 21,
+   "cases": [
+    {
+     "id": "84b3ac35",
+     "tUtc": "2026-11-12T04:45:41Z",
+     "session": "asia",
+     "state": "resolved"
+    },
+    {
+     "id": "0c752006",
+     "tUtc": "2026-11-12T04:30:32Z",
+     "session": "asia",
+     "state": "unresolved",
+     "why": "another trade opened"
+    },
+    {
+     "id": "63a4b003",
+     "tUtc": "2026-11-12T03:20:25Z",
+     "session": "asia",
+     "state": "resolved"
+    },
+    {
+     "id": "61f2f22f",
+     "tUtc": "2026-11-12T03:14:21Z",
+     "session": "asia",
+     "state": "unresolved",
+     "why": "another trade opened"
+    },
+    {
+     "id": "d3adf1ae",
+     "tUtc": "2026-11-12T02:33:30Z",
+     "session": "asia",
+     "state": "resolved"
+    },
+    {
+     "id": "a193edd5",
+     "tUtc": "2026-11-12T02:06:43Z",
+     "session": "asia",
+     "state": "unresolved",
+     "why": "another trade opened"
+    },
+    {
+     "id": "4375f727",
+     "tUtc": "2026-11-11T23:40:29Z",
+     "session": "asia",
+     "state": "resolved"
+    },
+    {
+     "id": "9e51c80d",
+     "tUtc": "2026-11-11T23:36:30Z",
+     "session": "asia",
+     "state": "resolved"
+    },
+    {
+     "id": "4dbb2608",
+     "tUtc": "2026-11-11T16:43:16Z",
+     "session": "ny",
+     "state": "resolved"
+    },
+    {
+     "id": "447173e3",
+     "tUtc": "2026-11-11T12:09:29Z",
+     "session": "london",
+     "state": "resolved"
+    },
+    {
+     "id": "a0db6e95",
+     "tUtc": "2026-11-11T11:15:16Z",
+     "session": "london",
+     "state": "resolved"
+    },
+    {
+     "id": "532c0f25",
+     "tUtc": "2026-11-11T11:10:18Z",
+     "session": "london",
+     "state": "unresolved",
+     "why": "another trade opened"
+    },
+    {
+     "id": "9b51e1cf",
+     "tUtc": "2026-11-11T10:27:31Z",
+     "session": "london",
+     "state": "resolved"
+    },
+    {
+     "id": "2fa5f009",
+     "tUtc": "2026-11-11T09:50:13Z",
+     "session": "london",
+     "state": "unresolved",
+     "why": "another trade opened"
+    },
+    {
+     "id": "1985ab7f",
+     "tUtc": "2026-11-11T09:44:22Z",
+     "session": "london",
+     "state": "unresolved",
+     "why": "another trade opened"
+    },
+    {
+     "id": "26579d37",
+     "tUtc": "2026-11-11T09:06:32Z",
+     "session": "london",
+     "state": "resolved"
+    },
+    {
+     "id": "cdcdfc02",
+     "tUtc": "2026-11-11T09:00:42Z",
+     "session": "london",
+     "state": "unresolved",
+     "why": "another trade opened"
+    },
+    {
+     "id": "2976540b",
+     "tUtc": "2026-11-11T06:55:51Z",
+     "session": "asia",
+     "state": "resolved"
+    },
+    {
+     "id": "265ad54c",
+     "tUtc": "2026-11-11T06:01:20Z",
+     "session": "asia",
+     "state": "unresolved",
+     "why": "no price for 606 s"
+    },
+    {
+     "id": "4380cced",
+     "tUtc": "2026-11-11T05:42:24Z",
+     "session": "asia",
+     "state": "unresolved",
+     "why": "another trade opened"
+    }
+   ]
   },
   {
    "id": "X-02",
@@ -389,17 +552,187 @@
    "minN": 20,
    "value": 229.5,
    "unit": "usd",
-   "verdict": "too early"
+   "verdict": "too early",
+   "leak": "L-01",
+   "started": "2026-11-11",
+   "expectation": "Smaller average loss; few exits that would have reached TP1",
+   "killIf": "More than 1 in 4 early exits would have reached TP1, or net effect is negative",
+   "verdictAt": "20 live exits",
+   "resolved": 1,
+   "unresolved": 1,
+   "judgeable": true,
+   "judgeWhy": null,
+   "nCounts": "live early exits",
+   "carried": null,
+   "valueBasis": "estimate at the decision price, on the exits whose shadow resolved",
+   "valueBroker": 195.0,
+   "rate": {
+    "perTradeDay": 1.0,
+    "basis": "since start: 2 cases in 2 TradeDays",
+    "etaTradeDays": 18,
+    "estimate": true
+   },
+   "killCheck": [
+    {
+     "clause": "share that would have reached TP1",
+     "value": 0.0,
+     "limit": 0.25,
+     "n": 1,
+     "unit": "share"
+    },
+    {
+     "clause": "net effect",
+     "value": 229.5,
+     "limit": 0,
+     "n": 1,
+     "unit": "usd",
+     "killBelow": true
+    }
+   ],
+   "casesTotal": 2,
+   "cases": [
+    {
+     "id": "26579d37",
+     "tUtc": "2026-11-11T09:09:18Z",
+     "session": "london",
+     "pts": -11.75,
+     "usd": 229.5,
+     "usdBroker": 195.0,
+     "state": "would have hit the stop"
+    },
+    {
+     "id": "4380cced",
+     "tUtc": "2026-11-11T05:45:09Z",
+     "session": "asia",
+     "pts": -10.25,
+     "state": "unresolved",
+     "why": "another trade opened"
+    }
+   ]
   },
   {
    "id": "X-03",
    "title": "Asia / London: all contracts out at TP1",
    "mode": "live",
-   "n": 7,
+   "n": 13,
    "minN": 20,
    "value": 86.34,
    "unit": "usd per winning trade",
-   "verdict": "too early"
+   "verdict": "too early",
+   "leak": "L-02",
+   "started": "2026-11-11",
+   "expectation": "More dollars per winning trade than the old runner rule",
+   "killIf": "Average is below what the old rule would have paid on the same trades",
+   "verdictAt": "20 live trades",
+   "resolved": 13,
+   "unresolved": 8,
+   "judgeable": false,
+   "judgeWhy": "the old rule's pay on the same trades is not in the journal until runner_shadow rows arrive",
+   "nCounts": "trades under the rule that reached TP1; 21 fills carried the rule, and the verdict rule counts live trades",
+   "carried": 21,
+   "valueBasis": "the same on every all-out trade (TP1 distance x contracts x $2 - fees): this figure cannot move",
+   "valueBroker": null,
+   "rate": {
+    "perTradeDay": null,
+    "basis": "n counts TP1 winners; the verdict rule counts live trades",
+    "etaTradeDays": null,
+    "estimate": true
+   },
+   "killCheck": [],
+   "casesTotal": 13,
+   "cases": [
+    {
+     "id": "84b3ac35",
+     "tUtc": "2026-11-12T04:45:41Z",
+     "session": "asia",
+     "usd": 86.34,
+     "state": "tp1-all-out"
+    },
+    {
+     "id": "63a4b003",
+     "tUtc": "2026-11-12T03:20:25Z",
+     "session": "asia",
+     "usd": 86.34,
+     "state": "tp1-all-out"
+    },
+    {
+     "id": "61f2f22f",
+     "tUtc": "2026-11-12T03:14:21Z",
+     "session": "asia",
+     "usd": 86.34,
+     "state": "tp1-all-out"
+    },
+    {
+     "id": "a193edd5",
+     "tUtc": "2026-11-12T02:06:43Z",
+     "session": "asia",
+     "usd": 86.34,
+     "state": "tp1-all-out"
+    },
+    {
+     "id": "4375f727",
+     "tUtc": "2026-11-11T23:40:29Z",
+     "session": "asia",
+     "usd": 86.34,
+     "state": "tp1-all-out"
+    },
+    {
+     "id": "9e51c80d",
+     "tUtc": "2026-11-11T23:36:30Z",
+     "session": "asia",
+     "usd": 86.34,
+     "state": "tp1-all-out"
+    },
+    {
+     "id": "a0db6e95",
+     "tUtc": "2026-11-11T11:15:16Z",
+     "session": "london",
+     "usd": 86.34,
+     "state": "tp1-all-out"
+    },
+    {
+     "id": "532c0f25",
+     "tUtc": "2026-11-11T11:10:18Z",
+     "session": "london",
+     "usd": 86.34,
+     "state": "tp1-all-out"
+    },
+    {
+     "id": "9b51e1cf",
+     "tUtc": "2026-11-11T10:27:31Z",
+     "session": "london",
+     "usd": 86.34,
+     "state": "tp1-all-out"
+    },
+    {
+     "id": "2fa5f009",
+     "tUtc": "2026-11-11T09:50:13Z",
+     "session": "london",
+     "usd": 86.34,
+     "state": "tp1-all-out"
+    },
+    {
+     "id": "1985ab7f",
+     "tUtc": "2026-11-11T09:44:22Z",
+     "session": "london",
+     "usd": 86.34,
+     "state": "tp1-all-out"
+    },
+    {
+     "id": "cdcdfc02",
+     "tUtc": "2026-11-11T09:00:42Z",
+     "session": "london",
+     "usd": 86.34,
+     "state": "tp1-all-out"
+    },
+    {
+     "id": "90e77c32",
+     "tUtc": "2026-11-11T03:06:24Z",
+     "session": "asia",
+     "usd": 86.34,
+     "state": "tp1-all-out"
+    }
+   ]
   },
   {
    "id": "X-04",
@@ -409,17 +742,76 @@
    "minN": 20,
    "value": 138.84,
    "unit": "usd per winning trade",
-   "verdict": "too early"
+   "verdict": "too early",
+   "leak": "L-04",
+   "started": "2026-11-11",
+   "expectation": "Runner pays more than the old fixed runner",
+   "killIf": "Runner net is below the old rule's on the same trades",
+   "verdictAt": "20 live NY trades with a runner",
+   "resolved": 2,
+   "unresolved": 0,
+   "judgeable": false,
+   "judgeWhy": "the old rule's pay on the same trades is not in the journal until runner_shadow rows arrive",
+   "nCounts": "trades under the rule that reached TP1; 2 fills carried the rule, and the verdict rule counts live trades",
+   "carried": 2,
+   "valueBasis": null,
+   "valueBroker": null,
+   "rate": {
+    "perTradeDay": null,
+    "basis": "n counts TP1 winners; the verdict rule counts live trades",
+    "etaTradeDays": null,
+    "estimate": true
+   },
+   "killCheck": [],
+   "casesTotal": 2,
+   "cases": [
+    {
+     "id": "4dbb2608",
+     "tUtc": "2026-11-11T16:43:16Z",
+     "session": "ny",
+     "usd": 60.34,
+     "state": "tp1-then-runner"
+    },
+    {
+     "id": "27ea4bd2",
+     "tUtc": "2026-11-11T14:42:23Z",
+     "session": "ny",
+     "usd": 217.34,
+     "state": "tp1-then-runner"
+    }
+   ]
   },
   {
    "id": "X-05",
    "title": "Control score by the indicator's formula",
    "mode": "live",
-   "n": null,
+   "n": 0,
    "minN": 20,
    "value": null,
    "unit": "usd per trade",
-   "verdict": "not measurable yet"
+   "verdict": "too early",
+   "leak": "L-05",
+   "started": "2026-11-11",
+   "expectation": "More entries pass the 15m control gate; the added entries are not worse than the rest",
+   "killIf": "Those trades lose more per trade than the rest",
+   "verdictAt": "20 trades that the old formula would have blocked",
+   "resolved": 0,
+   "unresolved": 0,
+   "judgeable": true,
+   "judgeWhy": null,
+   "nCounts": null,
+   "carried": null,
+   "valueBasis": null,
+   "valueBroker": null,
+   "rate": {
+    "perTradeDay": null,
+    "basis": "since start",
+    "etaTradeDays": null,
+    "estimate": true
+   },
+   "killCheck": [],
+   "casesTotal": 0,
+   "cases": []
   },
   {
    "id": "X-06",
@@ -429,7 +821,37 @@
    "minN": 20,
    "value": null,
    "unit": "usd, the trades a stand-down would have skipped",
-   "verdict": "too early"
+   "verdict": "too early",
+   "leak": "L-07",
+   "started": "2026-11-11",
+   "expectation": "The Asia / London same-side trades entered within 30 min of a full stop keep losing money as a group; the NY ones keep making money",
+   "killIf": "The next 20 Asia + London cases net zero or better",
+   "verdictAt": "20 further Asia + London cases",
+   "resolved": 0,
+   "unresolved": 0,
+   "judgeable": true,
+   "judgeWhy": null,
+   "nCounts": null,
+   "carried": null,
+   "valueBasis": null,
+   "valueBroker": null,
+   "rate": {
+    "perTradeDay": 1.5,
+    "basis": "30 same-side re-entries within 30 min of a full stop (Asia + London) in the last 20 TradeDays",
+    "etaTradeDays": 14,
+    "estimate": true
+   },
+   "killCheck": [
+    {
+     "clause": "net of the cases (kill at zero or better)",
+     "value": null,
+     "limit": 0,
+     "n": 0,
+     "unit": "usd"
+    }
+   ],
+   "casesTotal": 0,
+   "cases": []
   },
   {
    "id": "X-07",
@@ -439,102 +861,122 @@
    "minN": 20,
    "value": null,
    "unit": "usd, the NY-late trades a stand-down would have skipped",
-   "verdict": "too early"
+   "verdict": "too early",
+   "leak": "L-14",
+   "started": "2026-11-11",
+   "expectation": "NY entries after 09:00 PT keep losing money as a group while 06:30-09:00 entries pay",
+   "killIf": "The next 20 NY trades entered after 09:00 PT net zero or better",
+   "verdictAt": "20 NY trades entered after 09:00 PT",
+   "resolved": 0,
+   "unresolved": 0,
+   "judgeable": true,
+   "judgeWhy": null,
+   "nCounts": null,
+   "carried": null,
+   "valueBasis": null,
+   "valueBroker": null,
+   "rate": {
+    "perTradeDay": 3.5,
+    "basis": "70 NY trades entered after 09:00 PT in the last 20 TradeDays",
+    "etaTradeDays": 6,
+    "estimate": true
+   },
+   "killCheck": [
+    {
+     "clause": "net of the cases (kill at zero or better)",
+     "value": null,
+     "limit": 0,
+     "n": 0,
+     "unit": "usd"
+    }
+   ],
+   "casesTotal": 0,
+   "cases": []
   },
   {
    "id": "X-10",
-   "title": "NY runner profit lock (+50 arms, stop to entry +10)",
+   "title": "NY runner profit lock ladder (+50/+75/+100/+150 lock +25/+45/+65/+110)",
    "mode": "live",
    "n": 0,
    "minN": 20,
    "value": null,
    "unit": "usd, summed broker net of the NY runners with a lock armed",
-   "verdict": "too early"
+   "verdict": "too early",
+   "leak": "L-04, L-16",
+   "started": "r1.6 installed by Mac 2026-11-12 (backup stamp 05:17:47, server clock)",
+   "expectation": "Runners that reach +50 and come back leave with a locked share instead of the +2 stop",
+   "killIf": "Mac's rule: TP2 cuts alone do not kill it. At 20 cases net against the +2 stop, split by lock step and exit reason, goes to Mac to keep, loosen or drop. Offline estimate about -$500 to -$630 per 20 runners against the old +10 rule (an estimate, not a result)",
+   "verdictAt": "20 NY runners with a lock step armed",
+   "resolved": 0,
+   "unresolved": 0,
+   "judgeable": "partly",
+   "judgeWhy": "the +2 stop comparison is not recorded (no bestAfterLock field); TP2 cuts are counted",
+   "nCounts": null,
+   "carried": null,
+   "valueBasis": null,
+   "valueBroker": null,
+   "rate": {
+    "perTradeDay": 0.4,
+    "basis": "8 NY trades with a recorded best of +50 or more in the last 20 TradeDays (best is a lower bound)",
+    "etaTradeDays": 50,
+    "estimate": true
+   },
+   "killCheck": [],
+   "casesTotal": 0,
+   "cases": []
   }
  ],
  "blocked": [
   {
    "gate": "levels only (no level event)",
-   "count": 58,
-   "wouldHaveWon": 40,
+   "count": 25,
+   "wouldHaveWon": 16,
    "wouldHaveLost": 4,
    "neither": 0,
-   "unknown": 14
-  },
-  {
-   "gate": "15m control",
-   "count": 20,
-   "wouldHaveWon": 14,
-   "wouldHaveLost": 3,
-   "neither": 1,
-   "unknown": 2
+   "unknown": 5
   },
   {
    "gate": "HTF alignment",
-   "count": 20,
-   "wouldHaveWon": 9,
-   "wouldHaveLost": 3,
+   "count": 9,
+   "wouldHaveWon": 6,
+   "wouldHaveLost": 2,
    "neither": 0,
-   "unknown": 8
+   "unknown": 1
+  },
+  {
+   "gate": "15m control",
+   "count": 8,
+   "wouldHaveWon": 6,
+   "wouldHaveLost": 2,
+   "neither": 0,
+   "unknown": 0
   },
   {
    "gate": "size below 3 (stop too wide)",
-   "count": 15,
-   "wouldHaveWon": 12,
-   "wouldHaveLost": 0,
-   "neither": 1,
-   "unknown": 2
-  },
-  {
-   "gate": "cooldown",
-   "count": 14,
-   "wouldHaveWon": 6,
+   "count": 8,
+   "wouldHaveWon": 7,
    "wouldHaveLost": 1,
    "neither": 0,
-   "unknown": 7
-  },
-  {
-   "gate": "no chase",
-   "count": 3,
-   "wouldHaveWon": 2,
-   "wouldHaveLost": 0,
-   "neither": 0,
-   "unknown": 1
-  },
-  {
-   "gate": "session close",
-   "count": 3,
-   "wouldHaveWon": 2,
-   "wouldHaveLost": 0,
-   "neither": 0,
-   "unknown": 1
+   "unknown": 0
   },
   {
    "gate": "alignment unknown",
-   "count": 2,
+   "count": 5,
    "wouldHaveWon": 0,
    "wouldHaveLost": 0,
    "neither": 0,
-   "unknown": 2
+   "unknown": 5
   },
   {
-   "gate": "risk cap (stop too wide)",
-   "count": 2,
-   "wouldHaveWon": 1,
-   "wouldHaveLost": 1,
+   "gate": "cooldown",
+   "count": 4,
+   "wouldHaveWon": 4,
+   "wouldHaveLost": 0,
    "neither": 0,
    "unknown": 0
   },
   {
    "gate": "initial quantity refused",
-   "count": 1,
-   "wouldHaveWon": 1,
-   "wouldHaveLost": 0,
-   "neither": 0,
-   "unknown": 0
-  },
-  {
-   "gate": "level ban",
    "count": 1,
    "wouldHaveWon": 1,
    "wouldHaveLost": 0,
