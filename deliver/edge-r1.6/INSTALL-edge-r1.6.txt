@@ -1,0 +1,79 @@
+MAC - INSTALL "EDGE r1.6" (executor 26089560)   PRIVATE - server address inside
+=======================================================================================================
+Works on ANY of the three builds you could have now: edge r1.5 (executor 507af74e), edge r1.4 (executor 871d53ca) or
+edge r1.3 (executor 4168e4bb). Anything else it finds = STOP before it asks YES, nothing changed.
+
+What it changes (one trading rule, ON by default):
+  NY RUNNER PROFIT LOCK, now a 4-step ladder. NY trades only, only the runner (the last contract after the first target).
+  As the runner runs, its stop ratchets up (points from the entry):
+      reaches +50  -> stop moves to entry +25
+      reaches +75  -> stop moves to entry +45
+      reaches +100 -> stop moves to entry +65
+      reaches +150 -> stop moves to entry +110
+  It never loosens. The runner's TP2 target is unchanged. Steps 3 and 4 only arm when TP2 is far enough away
+  (TP2 is 2 x ATR15 from the fill, so they need ATR15 of about 50 or more); on a normal day only steps 1-2 can arm.
+  It is ON by default: you do nothing to have it on. (r1.5 had one step, +50 -> entry +10.)
+  Honest size: there is no live evidence for this ladder yet; it is scored live from here.
+  Everything else is the same as r1.5. Over r1.5 only two files change (live-executor.js and tools/set-runnerlock.sh).
+  If you come from r1.4 you also get r1.5's lock; from r1.3 you also get r1.4's changes (phone server memory fix and the
+  new counters; those only record).
+
+Checked (independent desks, on the frozen build): gate desk on the frozen build: boot on your box's limits (1 core, 961 MB, Node 18.19.1, 98.7 MB journal, real 2000-bar warm-up) 4.4 s to live, peak 354 MB; 9 hard kills, all back LIVE and protected; ladder replays at +130, +158, +55 fall-back, +45 no-arm, lock-off identical to r1.4; 13-min real clock no poll gaps; install path 85/85 over r1.5/r1.4/r1.3 plus rollback. Limits: TP2 caps the ladder (+100/+150 need ATR15 about 50+), market-through-lock exit only unit-tested in the poll path, rig data synthetic, proxy load test carried not re-run. Rolling back to r1.5 with a hand-set stopPts of 10-24 will not start.
+
+Be FLAT in TopstepX. Put MacBot-edge-r1.6.zip in Downloads, open PowerShell:
+
+0) Quick pre-check of your settings file (one line; it must print nothing, or only a number below 25):
+  ssh root@<server> "grep -o '\"stopPts\"[^,}]*' /opt/mac-bot/config-local.json"
+     If it shows stopPts 25 or more, STOP and tell me (the installer also refuses in that case, nothing changed).
+     No output at all is the normal answer.
+
+1) Check the file:
+  cd $env:USERPROFILE\Downloads
+  Get-FileHash .\MacBot-edge-r1.6.zip
+     (must start with BCF0CE0F)
+
+2) Copy it up and unpack:
+  scp .\MacBot-edge-r1.6.zip root@<server>:/root/
+  ssh root@<server> "mkdir -p /root/edge16 && cd /root/edge16 && python3 -m zipfile -e /root/MacBot-edge-r1.6.zip . && ls MacBot-edge-r1.6"
+
+3) Install the bot (type YES when asked):
+  ssh -t root@<server> "cd /root/edge16/MacBot-edge-r1.6 && MACBOT_DIR=/opt/mac-bot bash install-edge.sh tree"
+     It takes up to about 2 minutes after YES while it waits for the new stamp.
+     You want at the end: "session stamp ... (executor 26089560" and "DONE". Keep the rollback line it prints.
+     It also prints which build it replaced ("baseline replaced: edge r1.5", "edge r1.4" or "edge r1.3").
+     If it says STOP before it asks YES, nothing was changed - send me the lines. (If the STOP says you are already on
+     r1.6, do nothing; running it a second time is always a STOP.)
+     If a step fails halfway it undoes itself and prints UNDO then DONE on the old build: send me the lines.
+     If the window closes or the connection drops DURING step 3, do NOT run the install again. Run
+       ssh root@<server> "ls -d /opt/.edge16-backup-*"
+     and send me the output (the rollback line goes with that folder).
+
+4) Phone server restart: ONLY if the installer printed "NEXT: tmc-proxy.js changed" (that is the case only when you came
+   from r1.3). If it printed "tmc-proxy.js is unchanged" (you came from r1.5 or r1.4), skip this step. When needed, THIS
+   RESTARTS THE BOT TOO (the bot's service requires it), so you will see two starts; the memory settings you added stay in place:
+  ssh root@<server> "systemctl restart mac-bot-proxy.service && sleep 3 && systemctl is-active mac-bot-proxy.service"
+     You want: active
+
+5) Check (wait 2 min). The startup line shows the whole ladder:
+  ssh root@<server> "journalctl -u mac-bot-live --since '-5 min' --no-pager | grep -E 'session stamp|runner-lock|Entering live loop|FATAL|unusable' | tail -8"
+     You want: "executor 26089560", a line starting "[runner-lock] NY runner profit lock: ON (" that lists
+     "+50 -> stop entry +25; +75 -> stop entry +45; +100 -> stop entry +65; +150 -> stop entry +110", "Entering live loop".
+     No FATAL lines. Then open Trades and Review on the phone a few times: the phone server should stay up.
+
+SWITCH (flat only, except show; each change restarts the bot once, checks the start line, and puts the file back by itself if anything is off):
+  ssh -t root@<server> "MACBOT_DIR=/opt/mac-bot bash /opt/mac-bot/tools/set-runnerlock.sh show"     (just prints the ladder and mode, no restart, any time)
+  ... set-runnerlock.sh off     (lock off = r1.4 trading; leaves a "lock" line in your settings file)
+  ... set-runnerlock.sh log     (rows in the journal with "would have moved to", NO order sent)
+  ... set-runnerlock.sh on      (asks YES twice)
+  ... set-runnerlock.sh steps "50:25,75:45,100:65,150:110"     (your own ladder: arm:lock pairs, 1 to 6 steps, both rising)
+  ... set-runnerlock.sh clear   (removes the whole lock line: back to the shipped default, which is ON with the 4 steps)
+  Paste the command after the ssh -t ... "MACBOT_DIR=/opt/mac-bot bash /opt/mac-bot/tools/set-runnerlock.sh" part, e.g.
+  ssh -t root@<server> "MACBOT_DIR=/opt/mac-bot bash /opt/mac-bot/tools/set-runnerlock.sh steps '50:25,75:45,100:65,150:110'"
+
+ROLLBACK (flat first). The backup folder remembers which build it replaced (r1.5, r1.4 or r1.3) and puts back exactly that one.
+  BEFORE rolling back to r1.4 or r1.3: if you ever used set-runnerlock.sh off / log / on / steps, first run
+  ssh -t root@<server> "MACBOT_DIR=/opt/mac-bot bash /opt/mac-bot/tools/set-runnerlock.sh clear"
+  because r1.4 and r1.3 REFUSE to start with a lock line in the settings file (the rollback stops by itself and tells
+  you so, nothing changed, if the line is still there). Rolling back to r1.5 is fine with any lock line. Then:
+  ssh -t root@<server> "bash <BACKUP-FOLDER>/rollback-edge.sh <BACKUP-FOLDER>"
+  and, if the installer had said to restart the phone server (you came from r1.3), run step 4 again afterwards.
