@@ -424,8 +424,9 @@ RE_CFG = re.compile(r"^data/(\d{4}-\d{2}-\d{2})/config-local-live\.json$")
 PARSE_TYPES = {"signal_check", "trade_manage", "trade_plan", "entry", "trade_time", "trade_state", "peak_unrealized",
                "trade_block", "session_stamp", "alert", "journal_receipt", "no_progress_outcome", "early_adverse_exit",
                "early_adverse_shadow", "early_adverse_outcome", "early_adverse_check", "runner_rule", "tp1_atr_shadow",
-               "orphan_sweep", "flag", "trade_flag", "mac_flag", "runner_shadow", "tp1_touch", "ny_late_trade", "runner_lock", "runner_exit"}
-ONCE_TYPES = ("runner_shadow", "tp1_touch", "ny_late_trade", "runner_exit")   # r1.4 rows: one per (type, journalId); a later duplicate replaces the earlier
+               "orphan_sweep", "flag", "trade_flag", "mac_flag", "runner_shadow", "tp1_touch", "ny_late_trade", "runner_lock", "runner_exit",
+               "post_exit", "post_exit_error"}   # r1.7 (record-only): parsed and kept; no card reads them until the first rows exist
+ONCE_TYPES = ("runner_shadow", "tp1_touch", "ny_late_trade", "runner_exit", "post_exit")   # r1.4 rows: one per (type, journalId); a later duplicate replaces the earlier
 
 
 class Repo:
