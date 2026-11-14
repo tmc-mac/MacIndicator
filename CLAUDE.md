@@ -32,7 +32,7 @@ Every bot package passes all of these BEFORE it reaches Mac, run by the reviewer
 - Missing or stale journal data is reported as missing. No partial day is presented as a full one.
 
 ## Trading-logic freeze (Mac, 11/14: "Yes to both decisions, freeze it")
-- From 11/14, edge r1.6's trading logic is frozen for at least 10 complete TradeDays so one build can be measured. No change to entries, exits, stops, sizing, cooldowns or alerts unless Mac orders a live change; each such change restarts the count (office/LOOPHOLES.md R-05).
+- From 11/14, edge r1.6's trading logic is frozen for at least 10 complete TradeDays so one build can be measured. No change to entries, exits, stops, sizing, cooldowns or alerts unless Mac orders a live change; each such change restarts the count (office/LOOPHOLES.md R-05). Mac ruled 11/14 that TradeDays 11/09 to 11/13 already count as 5 of the 10 (same logic all week, a small tweak on 11/11), so 5 more are needed.
 - Allowed during the freeze: record-only journal rows, display and terminal work, tools, packaging, replays and studies. Every record-only build still passes the ship gate and is installed by Mac when flat.
 - The first record-only build is edge r1.7 (R-06): price path after every exit and the old-rule counterfactual for X-03 and X-04.
 

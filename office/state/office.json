@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "generatedAt": "2026-11-14T18:22:11Z",
+ "generatedAt": "2026-11-14T18:24:23Z",
  "tradeDay": "2026-11-13",
  "data": {
   "lastSlice": "2026-11-13/slice-1005",
@@ -1185,12 +1185,12 @@
   },
   "passProbability": {
    "current": null,
-   "n": 1,
+   "n": 4,
    "needDays": 10,
    "daysLeft": 12,
    "resamples": 5000,
-   "rulesSince": "2026-11-12",
-   "why": "needs 10 days under the current rules, have 1",
+   "rulesSince": "2026-11-09",
+   "why": "needs 10 days under the current rules, have 4",
    "reference": {
     "p": 0.083,
     "n": 32,

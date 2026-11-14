@@ -226,7 +226,7 @@ def need_per_day(cur, day, day_complete, target_date):
 NY_LATE_MIN = 9 * 60                 # X-07: NY trades entered at or after 09:00 PT
 WHATIF_THRESHOLDS = (400, 600, 800, 1000)
 WHATIF_OUTLIER_DAY = "2026-11-03"    # the day that drives most of the daily-loss what-if (11 full stops, 25-pt stop era)
-RULES_SINCE_DAY = "2026-11-12"       # first complete TradeDay entirely under the 11/11 rule set (11/11 itself starts before the installs)
+RULES_SINCE_DAY = "2026-11-09"       # Mac's ruling 11/14: TradeDays 11/09 to 11/13 count as one rule set (same logic all week, one small tweak on 11/11); before 11/14 this was 2026-11-12
 PASS_MIN_DAYS = 10
 PASS_RESAMPLES = 5000
 SIZES = (1, 2, 3)
