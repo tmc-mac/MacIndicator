@@ -19,7 +19,5 @@ Arithmetic, not a forecast: $1,986.72 more is $165.56 per day over the 12 TradeD
 
 **Waiting on Mac:**
 - D-2026-11-13-01 X-03 (Asia / London: all contracts out at TP1) has its 20 cases: ready: needs the old-rule comparison.
-- R-05 The trading logic keeps changing, so no build has enough days to be measured
-- R-06 X-03 and X-04 cannot be judged against their kill rules and the after-exit shadows stop when the next trade opens
 
 Open next: `office/reviews/daily/2026-11-13.md` (the day), `office/reviews/weekly/2026-W46.md` (the week), `office/LOOPHOLES.md` (the leaks), `office/EXPERIMENTS.md` (the rules on trial).

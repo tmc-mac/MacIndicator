@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "generatedAt": "2026-11-14T18:19:57Z",
+ "generatedAt": "2026-11-14T18:22:11Z",
  "tradeDay": "2026-11-13",
  "data": {
   "lastSlice": "2026-11-13/slice-1005",
@@ -1123,16 +1123,6 @@
    "id": "D-2026-11-13-01",
    "text": "X-03 (Asia / London: all contracts out at TP1) has its 20 cases: ready: needs the old-rule comparison.",
    "recommendation": "Decide keep / kill on the weekly card against the kill rule written in office/EXPERIMENTS.md."
-  },
-  {
-   "id": "R-05",
-   "text": "The trading logic keeps changing, so no build has enough days to be measured",
-   "recommendation": null
-  },
-  {
-   "id": "R-06",
-   "text": "X-03 and X-04 cannot be judged against their kill rules and the after-exit shadows stop when the next trade opens",
-   "recommendation": null
   }
  ],
  "flags": [],

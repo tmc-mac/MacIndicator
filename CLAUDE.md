@@ -31,6 +31,11 @@ Every bot package passes all of these BEFORE it reaches Mac, run by the reviewer
 - **The evidence ladder is not skipped:** expectation written first → measured offline with n → recorded live (no orders) for 20 cases → live behind a switch on Mac's go → keep or kill at 20 live cases. An offline estimate is never reported as a result.
 - Missing or stale journal data is reported as missing. No partial day is presented as a full one.
 
+## Trading-logic freeze (Mac, 11/14: "Yes to both decisions, freeze it")
+- From 11/14, edge r1.6's trading logic is frozen for at least 10 complete TradeDays so one build can be measured. No change to entries, exits, stops, sizing, cooldowns or alerts unless Mac orders a live change; each such change restarts the count (office/LOOPHOLES.md R-05).
+- Allowed during the freeze: record-only journal rows, display and terminal work, tools, packaging, replays and studies. Every record-only build still passes the ship gate and is installed by Mac when flat.
+- The first record-only build is edge r1.7 (R-06): price path after every exit and the old-rule counterfactual for X-03 and X-04.
+
 ## Keep the board current
 - Desk board: `$S/hft/ops/CURRENT.md` in the session scratchpad (desk, task, status, ETA, blocker). Update it when a desk starts, finishes or is blocked. The task list mirrors it.
 - Tell Mac in a few words what each desk is doing whenever he asks or a deadline moves.
