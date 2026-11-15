@@ -1,0 +1,80 @@
+MAC - INSTALL "EDGE r1.7" (executor 9d5bae71)   PRIVATE - server address inside
+=======================================================================================================
+Works on the build you have now, edge r1.6 (executor 26089560). It also accepts the exact r1.5 (507af74e), r1.4 (871d53ca)
+or r1.3 (4168e4bb) builds. Anything else it finds = STOP before it asks YES, nothing changed.
+
+What it is, plainly:
+  RECORD-ONLY. NO TRADING CHANGE. Entries, exits, stops, sizes, cooldowns, alerts and orders are exactly r1.6's. The trading
+  logic stays frozen, as you ruled on 11/14 (r1.6 untouched for 10 complete TradeDays). This build only writes down more.
+  It adds one journal row type, "post_exit": for every trade, the price path from the fill and for 60 minutes after the exit
+  (best and worst points, the first minute each level was touched, whether the old stop / TP1 / TP2 would have been hit),
+  written about 60 minutes after the exit. Runner trades under the old rule are followed up to 240 minutes from the fill so
+  the office can replay the old runner rule on them. A rare "post_exit_error" row says if the recorder itself had a problem.
+  The office reads these rows (X-02 early exits, X-03 / X-04 old-rule comparison, full-stop what-ifs); nothing in the bot
+  reads them and no order or decision depends on them. No new request to the broker or the data feed.
+  It is ON by default: you do nothing to have it on. It keeps a small state file (postexit-MNQ.json) so a restart does not
+  lose a tracker. Journal growth: roughly 13 rows a day of 5-15 KB.
+  Switch: tools/set-afterexit.sh show | on | off | clear (details at the bottom). "off" = the r1.6 journal exactly.
+  The installer changes only the bot's files. It does not touch the service files, the memory settings (your heap drop-in,
+  --max-old-space-size=1024 on the server) or your settings file (config-local.json).
+
+Checked (independent desks, on the frozen build): independent reviewer desk on the frozen build: the diff touches only the 6 named files; replays on three days (r1.6, r1.7 on, r1.7 off, and with every recorder method throwing) give identical broker calls and identical journal rows apart from the new ones; boot on your box's limits (1 core, 961 MB, Node 18.19.1, heap 1024, 150 MB journal) live in about 4 s, peak 337 MB; 3 hard kills, each came back LIVE and resumed the trade and the recorders; install over r1.6 twice and rollback byte-identical; rollback stops and names the clear command while the new key is in your settings. Not run by anyone: real systemd and real PowerShell. Known: the old-runner comparison formula in the office is being corrected before the first X-03/X-04 verdict; recorder extremes are approximate by up to a fraction of a point
+
+Be FLAT in TopstepX. Put MacBot-edge-r1.7.zip in Downloads, open PowerShell:
+
+0) Quick pre-check of your settings file (one line; it must print nothing, or only a number below 25):
+  ssh root@<server> "grep -o 'stopPts[^,}]*' /opt/mac-bot/config-local.json"
+     If it shows stopPts 25 or more, STOP and tell me (the installer also refuses in that case, nothing changed).
+     No output at all is the normal answer.
+
+1) Check the file:
+  cd $env:USERPROFILE\Downloads
+  Get-FileHash .\MacBot-edge-r1.7.zip
+     (must start with 0DC37D8A)
+
+2) Copy it up and unpack:
+  scp .\MacBot-edge-r1.7.zip root@<server>:/root/
+  ssh root@<server> "mkdir -p /root/edge17 && cd /root/edge17 && python3 -m zipfile -e /root/MacBot-edge-r1.7.zip . && ls MacBot-edge-r1.7"
+
+3) Install the bot (type YES when asked):
+  ssh -t root@<server> "cd /root/edge17/MacBot-edge-r1.7 && MACBOT_DIR=/opt/mac-bot bash install-edge.sh tree"
+     It takes up to about 2 minutes after YES while it waits for the new stamp.
+     You want at the end: "session stamp ... (executor 9d5bae71" and "DONE". Keep the rollback line it prints.
+     It also prints which build it replaced ("baseline replaced: edge r1.6", or r1.5, r1.4, r1.3).
+     If it says STOP before it asks YES, nothing was changed - send me the lines. (If the STOP says you are already on
+     r1.7, do nothing; running it a second time is always a STOP.)
+     If a step fails halfway it undoes itself and prints UNDO then DONE on the old build: send me the lines.
+     If the window closes or the connection drops DURING step 3, do NOT run the install again. Run
+       ssh root@<server> "ls -d /opt/.edge17-backup-*"
+     and send me the output (the rollback line goes with that folder).
+     Tell me at once: in that case the bot may be stopped and not trading until we check it.
+
+4) Phone server restart: ONLY if the installer printed "NEXT: tmc-proxy.js changed" (that is the case only when you came
+   from r1.3). Coming from r1.6 (your case) it prints "tmc-proxy.js is unchanged": skip this step. When needed, THIS
+   RESTARTS THE BOT TOO, so you will see two starts; the memory settings you added stay in place:
+  ssh root@<server> "systemctl restart mac-bot-proxy.service && sleep 3 && systemctl is-active mac-bot-proxy.service"
+     You want: active
+
+5) Check (wait 2 min):
+  ssh root@<server> "journalctl -u mac-bot-live --since '-5 min' --no-pager | grep -E 'session stamp|after-exit|runner-lock|Entering live loop|FATAL|unusable' | tail -10"
+     You want: "executor 9d5bae71", a line "[after-exit] afterExitRecord: ON (record only: ...", the "[runner-lock] ... ON" line
+     as before, "Entering live loop". No FATAL lines. After a trade closes you will see its row about an hour later (runner trades that reached TP1 are followed for up to 4 hours, so the first count can stay 0 for hours; that is normal):
+  ssh root@<server> "grep -c post_exit /opt/mac-bot/trade-journal-MNQ.jsonl"
+
+SWITCH (flat only, except show; each change restarts the bot once, checks the start line, and puts the file back by itself if anything is off):
+  ssh -t root@<server> "MACBOT_DIR=/opt/mac-bot bash /opt/mac-bot/tools/set-afterexit.sh show"      (prints the setting, no restart, any time)
+  ... set-afterexit.sh off      (no post_exit rows, no state file: the r1.6 journal exactly; leaves an afterExitRecord line in your settings file)
+  ... set-afterexit.sh on       (writes "on" explicitly; the default is already on)
+  ... set-afterexit.sh clear    (removes the line: back to the shipped default, ON)
+  Same pattern as the other one: ssh -t root@<server> "MACBOT_DIR=/opt/mac-bot bash /opt/mac-bot/tools/set-afterexit.sh clear"
+  (The profit-lock switch tools/set-runnerlock.sh is unchanged from r1.6.)
+
+ROLLBACK (flat first). The backup folder remembers which build it replaced (r1.6, r1.5, r1.4 or r1.3) and puts back exactly that one.
+  BEFORE rolling back, if you ever used set-afterexit.sh off or on, first run
+  ssh -t root@<server> "MACBOT_DIR=/opt/mac-bot bash /opt/mac-bot/tools/set-afterexit.sh clear"
+  because r1.6 and every older build REFUSE to start with an afterExitRecord line in the settings file (the rollback stops by
+  itself and tells you so, nothing changed, if the line is still there). Toward r1.4 or r1.3 the same applies to a
+  profit-lock line: run  set-runnerlock.sh clear  too if you ever used its off / log / on / steps. Then:
+  ssh -t root@<server> "bash <BACKUP-FOLDER>/rollback-edge.sh <BACKUP-FOLDER>"
+  and, if the installer had said to restart the phone server (you came from r1.3), run step 4 again afterwards.
+  The state file postexit-MNQ.json stays behind after a rollback; r1.6 ignores it and it is harmless.

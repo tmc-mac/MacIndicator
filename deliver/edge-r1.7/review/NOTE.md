@@ -1,0 +1,43 @@
+# NOTE for the office: how to compute X-02, X-03, X-04 (and X-10, full-stop what-ifs) from edge r1.7 rows
+
+Source of every number: the `post_exit` row (one per trade, written about 60 minutes after the exit; trades under the old-runner rule are followed longer, see below). The functions below are in `office_formulas.py` (standard library only, `python3 -I`); `check_formulas.py` runs them against the bot's own `runner_shadow` row on three test paths (all three agree).
+
+## What the row holds (fields the formulas use)
+`journalId`, `runnerMode` (live | allAtTp1 | atrTarget), `contracts`, `fill`, `tp1Price/tp1Pts`, `tp2Price`, `stopPrice/stopPts`, `exitReason` (TP1, TP2, STOP, RUNNER_STOP, EARLY_EXIT, NO_PROGRESS, LEVEL_LOSS, SESSION_CLOSE, MORNING_HOLD, MANUAL_FLATTEN, UNKNOWN: the bot's own exit-reason index), `exitAt/exitPrice` (the `trade_time` row when the bot wrote it, else the last poll), `post.*` (first 60 minutes after the exit), `oldRule {lockPts, stepPts, tp1FilledAt, tp1Seen, closeAt}` (old runner rule numbers, only on allAtTp1 / atrTarget trades), `path` (`[minute offset from pathFrom, high, low]` in points from the fill, favourable positive, one bucket per minute, from the fill to the end of the follow-up), `lastPts/lastAt` (the last price seen, points from the fill), `cut/cutWhy`, `windowComplete`, `extendedFor`.
+
+Resolution: one minute. A bucket holds the high and low of that minute from the 1m bars and the 20 s polls; the ORDER of high and low inside a minute is not known. The exit minute mixes prices before and after the exit; `post.*` uses only prices after the exit (polls after the exit minute start, bars from the next minute).
+
+## X-03 (Asia / London, `sessionRunner` allAtTp1) and X-04 (NY, atrTarget): live minus old rule, per trade
+Old rule (the r1.4 `runner_shadow` rule, from `CONFIG.scaleOutRunner`): all contracts but ONE leave at TP1; the runner's stop sits at `offset(peak) = max(lockPts, floor(peak / stepPts) * stepPts - lockPts)` points from the fill, where `peak` is the best price since TP1 (at least TP1); the stop applies from the minute AFTER the one in which TP1 was reached; the runner is flat at the end of the follow-up. Per trade:
+
+```
+runner_pts   = replay(path)                     # old_runner(row): runner_stop at offset(peak), or lastPts at the horizon end
+old_whole_pts = ((n - 1) * tp1Pts + runner_pts) / n          # rounded to 2 decimals
+old_net_usd   = old_whole_pts * n * 2.0 - n * 1.22           # MNQ $2 per point; 1.22 = 2 x (0.36 + 0.25) per contract round trip
+diff_i        = live_net_usd_i - old_net_usd                  # live_net_usd = the ledger's broker net for the journalId
+```
+TP1 never reached (`old_runner` kind `same`): the two rules are the same trade, `diff_i = 0`, and the trade stays in the count (the kill rules say "the average over the trades"; the old-rule shadow counts them the same way). `tp1FilledAt` is used when the polled prices did not show the TP1 touch.
+
+Verdict value = the mean of `diff_i` over the trades under the rule (`x03_x04_verdict`). X-03: kill if the mean is below 0 ("the average is below what the old rule would have paid"). X-04: kill if the mean is below 0 ("runner net is below the old rule's on the same trades"). The order of the high and the low inside one minute is not known, and it matters when a minute both raises the peak and touches the stop. `old_runner` therefore runs under two assumptions, `low_first` (the minute's low is tested against the stop of the previous peak, then the high counts: the shadow's own rule) and `high_first` (the high raises the stop first). Neither is the better case for the old rule (surviving a minute can lead to a worse exit later). Compute the mean `diff` under both and decide only when they agree: **keep** when both means are at or above 0, **kill** when both are below 0, otherwise report **undetermined, n cases** and what each assumption gives. A trade with `status: open` (the follow-up was cut before the old runner ended: `cut` not null and the old runner still open at `lastPts`) is excluded and counted as excluded; so is a trade with no live ledger net or with `pathFromFill: false`.
+
+Horizon of the follow-up: 60 minutes after the exit for every trade; for allAtTp1 / atrTarget trades that reached TP1 (`oldRule.tp1Seen`) until the old shadow's own end: 240 minutes from the fill, or the session close (`oldRule.closeAt`), whichever is first (never less than 60 minutes after the exit). `extendedFor: "old-runner-rule"` marks those rows; `horizonMin` says how long. `windowComplete` is about the 60-minute record only.
+
+## X-02 (early exit): would the trade have reached TP1 before the stop?
+For rows with `exitReason == "EARLY_EXIT"`: `x02_class(row)` reads `post.firstTouch.tp1` and `.stop` (first minute the original TP1 / original stop price was touched in the 60 minutes after the exit, whether or not another trade opened): `would_have_hit_tp1` (TP1 first), `would_have_hit_stop`, `neither`, `unknown_order` (same minute). Kill rule: more than 1 in 4 early exits `would_have_hit_tp1` (count `unknown_order` both ways and report the range). Points for the net clause: if TP1 first the first-leg gain is `tp1Pts`; use `post.fromEntry.bestPts / worstPts` for the extreme. This replaces `early_adverse_shadow` (30 minutes, ended by "another trade opened") as the source for the cases it left unresolved.
+
+## Full stops and any stop / target what-if
+`stop_tp_whatif(row, stop_pts, tp_pts)` walks the minute buckets from the fill: first bucket whose low reaches `-stop_pts` = `stop`, whose high reaches `tp_pts` = `tp`, else `neither` (pessimistic: the stop wins a shared minute). Use it for "would a wider stop have survived to TP1" on every trade, not only the full stops. After a STOP exit: `post.firstTouch.reclaim` (price back at the fill), `.tp1`, `post.fromExit.bestPts` (how far price went back the other way within 60 minutes) and `post.fromExit.worstPts`. Caveat: the path ends at the follow-up end, and a trade stopped out has no old-rule meaning.
+
+## X-10 (NY runner profit lock): the +2 counterfactual and `bestAfterLock`
+`runner_plus2(row)`: after the TP1 touch the old base stop (+2 from the fill) and TP2 (`tp2Price`): `stop2` / `tp2` / `open`, minute resolution, stop first on a shared minute. `bestAfterLock` for a runner that exited on the lock: `post.fromExit.bestPts` (best price in the 60 minutes after the exit, in points from the exit price) and `post.firstTouch.fromExit.p5..p50`. Needs `runnerMode == atrTarget` rows with `exitReason` RUNNER_STOP / TP2.
+
+## Data quality (report these, never fill them in)
+- `cut` not null: the follow-up ended early (`restart`: the bot was down past the window; `session_end`: no price for more than 10 minutes, the last price between 12:50 and 15:00 PT (session close and market break); `price_gap`: no price for more than 10 minutes otherwise; `cap`: six trackers ran at once). `windowComplete` says whether the first 60 minutes were whole.
+- `maxGapMs` (largest gap between samples in the window), `samples`, `priceSource` (poll and 1m bar), `coveredMin`. A window with `maxGapMs` over 180000 is a lower-bound record.
+- `pathFromFill: false` = the trade was first seen after its fill (restart, adopted position): the path starts at the first sight, and the old-rule replay is not valid before it (mark the case `unknown`).
+- `pathTruncated: true`: more than 720 minute buckets; the replay is valid only until the path ends.
+- A trade that opened and closed between two polls (under 20 s) has no row.
+- `exitPriceSource` says whether the exit price came from the `trade_time` row or from the last poll.
+
+## Wiring the daily tool
+`office/tools/loop_daily.py` PARSE_TYPES does not know `post_exit` / `post_exit_error` yet: add them (and `ONCE_TYPES`: one row per journalId). The row contains no key or value the bot's start-up readers keep, so it is safe to add to the journal feed. (Not done here: this desk touches only the bot clone.)
