@@ -2,9 +2,9 @@
  "schema": 1,
  "source": {
   "ref": "FETCH_HEAD",
-  "files": 86,
-  "rows": 117686,
-  "lastRow": "2026-11-13T18:06:34Z"
+  "files": 92,
+  "rows": 122506,
+  "lastRow": "2026-11-16T22:06:06Z"
  },
  "note": "one row per closed trade, keyed by journal id; money from the broker's realized P&L row unless moneySource is 'estimate'; MFE / MAE are lower bounds from the named journal source; leak = the loss class from office/LOOPHOLES.md",
  "tradeDays": [
@@ -234,10 +234,17 @@
   },
   {
    "day": "2026-11-13",
-   "rows": 3660,
-   "complete": false,
-   "trades": 13,
-   "net": 192.42
+   "rows": 4352,
+   "complete": true,
+   "trades": 15,
+   "net": 210.6
+  },
+  {
+   "day": "2026-11-16",
+   "rows": 4039,
+   "complete": true,
+   "trades": 8,
+   "net": 54.72
   }
  ],
  "trades": [
@@ -19644,6 +19651,764 @@
    "rankInDay": 13,
    "prevResult": "win",
    "minutesSincePrev": 3.5,
+   "nearMiss": null
+  },
+  {
+   "id": "338b98a3-f7c7-4b25-b72a-b36c6096c730",
+   "tradeDay": "2026-11-13",
+   "session": "ny",
+   "side": "short",
+   "level": "PDL",
+   "event": "SWEEP-LOSS",
+   "grade": "B",
+   "source": "levels",
+   "contracts": 3,
+   "entryTime": "2026-11-13T19:47:37Z",
+   "exitTime": "2026-11-13T19:55:16Z",
+   "durationSec": 459,
+   "entry": 27971,
+   "exit": 27971,
+   "stop": 28021,
+   "stopPts": 50.0,
+   "tp1": 27956,
+   "exitReason": "no-progress-exit",
+   "fullStop": false,
+   "tp1Hit": false,
+   "gross": 0.0,
+   "fees": 3.66,
+   "net": -3.66,
+   "realized": -2.16,
+   "moneySource": "broker",
+   "netBasis": "broker net (gross - exchange fees - commissions)",
+   "mfePts": 10.5,
+   "mfeSource": "trade_state 1m bars",
+   "maePts": -17.25,
+   "maeSource": "trade_state 1m bars",
+   "rules": {
+    "runner": {
+     "mode": "atrTarget",
+     "session": "ny",
+     "atr15": 87.27,
+     "tp2": 27796.5,
+     "lock": {
+      "mode": "on",
+      "steps": [
+       {
+        "armPts": 50,
+        "lockPts": 25
+       },
+       {
+        "armPts": 75,
+        "lockPts": 45
+       },
+       {
+        "armPts": 100,
+        "lockPts": 65
+       },
+       {
+        "armPts": 150,
+        "lockPts": 110
+       }
+      ]
+     }
+    },
+    "earlyAdverse": {
+     "decision": "keep",
+     "pts": -2.75,
+     "exited": false,
+     "mode": null
+    },
+    "tp1AtrShadow": {
+     "shadowTp1Pts": 60,
+     "state": "resolved",
+     "beAfter": "stop",
+     "beAfterNetUsd": -303.66
+    },
+    "tp1Touch": {
+     "state": "resolved",
+     "touchSource": null,
+     "touchedAt": null,
+     "filled": false,
+     "touchedNotFilled": false
+    },
+    "runnerShadow": {
+     "rule": "atrTarget",
+     "oldRuleExit": "same",
+     "oldRuleUsdEst": null,
+     "resolved": true
+    },
+    "nyLateRow": {
+     "entryAt": "2026-11-13T19:47:38Z",
+     "entryPt": "11:47"
+    }
+   },
+   "stampId": "681646233ce1",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss",
+   "afterFullStopMin": null,
+   "rankInDay": 14,
+   "prevResult": "win",
+   "minutesSincePrev": 473.8,
+   "nearMiss": null
+  },
+  {
+   "id": "e11acbc7-1d50-459e-b971-a0843924b2f9",
+   "tradeDay": "2026-11-13",
+   "session": "ny",
+   "side": "short",
+   "level": "30m Open",
+   "event": "SWEEP-LOSS",
+   "grade": "B",
+   "source": "levels",
+   "contracts": 3,
+   "entryTime": "2026-11-13T20:33:36Z",
+   "exitTime": "2026-11-13T20:40:10Z",
+   "durationSec": 394,
+   "entry": 27985.75,
+   "exit": 27981.5,
+   "stop": 28035.75,
+   "stopPts": 50.0,
+   "tp1": 27970.75,
+   "exitReason": "no-progress-exit",
+   "fullStop": false,
+   "tp1Hit": false,
+   "gross": 25.5,
+   "fees": 3.66,
+   "net": 21.84,
+   "realized": 23.34,
+   "moneySource": "broker",
+   "netBasis": "broker net (gross - exchange fees - commissions)",
+   "mfePts": 11.0,
+   "mfeSource": "trade_state 1m bars",
+   "maePts": -15.0,
+   "maeSource": "trade_state 1m bars",
+   "rules": {
+    "runner": {
+     "mode": "atrTarget",
+     "session": "ny",
+     "atr15": 73.46,
+     "tp2": 27838.75,
+     "lock": {
+      "mode": "on",
+      "steps": [
+       {
+        "armPts": 50,
+        "lockPts": 25
+       },
+       {
+        "armPts": 75,
+        "lockPts": 45
+       },
+       {
+        "armPts": 100,
+        "lockPts": 65
+       },
+       {
+        "armPts": 150,
+        "lockPts": 110
+       }
+      ]
+     }
+    },
+    "earlyAdverse": {
+     "decision": "keep",
+     "pts": 2.5,
+     "exited": false,
+     "mode": null
+    },
+    "tp1AtrShadow": {
+     "shadowTp1Pts": 55.1,
+     "state": "resolved",
+     "beAfter": "breakeven",
+     "beAfterNetUsd": -3.66
+    },
+    "tp1Touch": {
+     "state": "resolved",
+     "touchSource": null,
+     "touchedAt": null,
+     "filled": false,
+     "touchedNotFilled": false
+    },
+    "runnerShadow": {
+     "rule": "atrTarget",
+     "oldRuleExit": "runner_stop",
+     "oldRuleUsdEst": 76.32,
+     "resolved": true
+    },
+    "nyLateRow": {
+     "entryAt": "2026-11-13T20:33:36Z",
+     "entryPt": "12:33"
+    }
+   },
+   "stampId": "681646233ce1",
+   "leak": null,
+   "leakWhy": null,
+   "afterFullStopMin": null,
+   "rankInDay": 15,
+   "prevResult": "loss",
+   "minutesSincePrev": 38.3,
+   "nearMiss": null
+  },
+  {
+   "id": "ed6cfef5-be82-4d00-b67a-32a0f0d4b82a",
+   "tradeDay": "2026-11-16",
+   "session": "asia",
+   "side": "short",
+   "level": "30m Open",
+   "event": "SWEEP-LOSS",
+   "grade": "B",
+   "source": "levels",
+   "contracts": 3,
+   "entryTime": "2026-11-16T01:56:43Z",
+   "exitTime": "2026-11-16T01:58:45Z",
+   "durationSec": 122,
+   "entry": 27881.25,
+   "exit": 27866.25,
+   "stop": 27913.25,
+   "stopPts": 32.0,
+   "tp1": 27866.25,
+   "exitReason": "tp1-all-out",
+   "fullStop": false,
+   "tp1Hit": true,
+   "gross": 90.0,
+   "fees": 3.66,
+   "net": 86.34,
+   "realized": 87.84,
+   "moneySource": "broker",
+   "netBasis": "broker net (gross - exchange fees - commissions)",
+   "mfePts": 15.0,
+   "mfeSource": "TP1 fill",
+   "maePts": -9.0,
+   "maeSource": "trade_time price polls",
+   "rules": {
+    "runner": {
+     "mode": "allAtTp1",
+     "session": "asia",
+     "atr15": 110.61,
+     "tp2": null
+    },
+    "tp1AtrShadow": {
+     "shadowTp1Pts": 60,
+     "state": "resolved",
+     "beAfter": "breakeven",
+     "beAfterNetUsd": -3.66
+    },
+    "tp1Touch": {
+     "state": "resolved",
+     "touchSource": null,
+     "touchedAt": null,
+     "filled": true,
+     "touchedNotFilled": false
+    },
+    "runnerShadow": {
+     "rule": "allAtTp1",
+     "oldRuleExit": "runner_stop",
+     "oldRuleUsdEst": 76.32,
+     "resolved": true
+    }
+   },
+   "stampId": "681646233ce1",
+   "leak": null,
+   "leakWhy": null,
+   "afterFullStopMin": null,
+   "rankInDay": 1,
+   "prevResult": null,
+   "minutesSincePrev": null,
+   "nearMiss": null
+  },
+  {
+   "id": "ea1ee96d-0339-41aa-be8a-d06ec951af5d",
+   "tradeDay": "2026-11-16",
+   "session": "asia",
+   "side": "short",
+   "level": "1H Open",
+   "event": "SWEEP-LOSS",
+   "grade": "B",
+   "source": "levels",
+   "contracts": 3,
+   "entryTime": "2026-11-16T04:18:56Z",
+   "exitTime": "2026-11-16T04:21:17Z",
+   "durationSec": 141,
+   "entry": 27876.75,
+   "exit": 27861.75,
+   "stop": 27912.25,
+   "stopPts": 35.5,
+   "tp1": 27861.75,
+   "exitReason": "tp1-all-out",
+   "fullStop": false,
+   "tp1Hit": true,
+   "gross": 90.0,
+   "fees": 3.66,
+   "net": 86.34,
+   "realized": 87.84,
+   "moneySource": "broker",
+   "netBasis": "broker net (gross - exchange fees - commissions)",
+   "mfePts": 15.0,
+   "mfeSource": "TP1 fill",
+   "maePts": -5.0,
+   "maeSource": "trade_state 1m bars",
+   "rules": {
+    "runner": {
+     "mode": "allAtTp1",
+     "session": "asia",
+     "atr15": 90.3,
+     "tp2": null
+    },
+    "tp1AtrShadow": {
+     "shadowTp1Pts": 60,
+     "state": "resolved",
+     "beAfter": "breakeven",
+     "beAfterNetUsd": -3.66
+    },
+    "tp1Touch": {
+     "state": "resolved",
+     "touchSource": null,
+     "touchedAt": null,
+     "filled": true,
+     "touchedNotFilled": false
+    },
+    "runnerShadow": {
+     "rule": "allAtTp1",
+     "oldRuleExit": "runner_stop",
+     "oldRuleUsdEst": 76.32,
+     "resolved": true
+    }
+   },
+   "stampId": "681646233ce1",
+   "leak": null,
+   "leakWhy": null,
+   "afterFullStopMin": null,
+   "rankInDay": 2,
+   "prevResult": "win",
+   "minutesSincePrev": 140.2,
+   "nearMiss": null
+  },
+  {
+   "id": "688f3a25-0267-4e02-a9f4-ae0b26988bcd",
+   "tradeDay": "2026-11-16",
+   "session": "asia",
+   "side": "short",
+   "level": "1H Open",
+   "event": "SWEEP-LOSS",
+   "grade": "B",
+   "source": "levels",
+   "contracts": 3,
+   "entryTime": "2026-11-16T06:07:15Z",
+   "exitTime": "2026-11-16T06:11:00Z",
+   "durationSec": 225,
+   "entry": 27699,
+   "exit": 27684,
+   "stop": 27749,
+   "stopPts": 50.0,
+   "tp1": 27684,
+   "exitReason": "tp1-all-out",
+   "fullStop": false,
+   "tp1Hit": true,
+   "gross": 90.0,
+   "fees": 3.66,
+   "net": 86.34,
+   "realized": 87.84,
+   "moneySource": "broker",
+   "netBasis": "broker net (gross - exchange fees - commissions)",
+   "mfePts": 15.0,
+   "mfeSource": "TP1 fill",
+   "maePts": -6.75,
+   "maeSource": "trade_time price polls",
+   "rules": {
+    "runner": {
+     "mode": "allAtTp1",
+     "session": "asia",
+     "atr15": 66.64,
+     "tp2": null
+    },
+    "earlyAdverse": {
+     "decision": "keep",
+     "pts": 4.75,
+     "exited": false,
+     "mode": null
+    },
+    "tp1AtrShadow": {
+     "shadowTp1Pts": 49.98,
+     "state": "unresolved",
+     "beAfter": "breakeven",
+     "beAfterNetUsd": null
+    },
+    "tp1Touch": {
+     "state": "resolved",
+     "touchSource": null,
+     "touchedAt": null,
+     "filled": true,
+     "touchedNotFilled": false
+    },
+    "runnerShadow": {
+     "rule": "allAtTp1",
+     "oldRuleExit": "runner_stop",
+     "oldRuleUsdEst": 76.32,
+     "resolved": true
+    }
+   },
+   "stampId": "681646233ce1",
+   "leak": null,
+   "leakWhy": null,
+   "afterFullStopMin": null,
+   "rankInDay": 3,
+   "prevResult": "win",
+   "minutesSincePrev": 106.0,
+   "nearMiss": null
+  },
+  {
+   "id": "48f23f67-423a-41ac-a5a1-8c2bca5ce8fc",
+   "tradeDay": "2026-11-16",
+   "session": "asia",
+   "side": "short",
+   "level": "1H Open",
+   "event": "SWEEP-LOSS",
+   "grade": "B",
+   "source": "levels",
+   "contracts": 3,
+   "entryTime": "2026-11-16T06:30:28Z",
+   "exitTime": "2026-11-16T06:33:08Z",
+   "durationSec": 160,
+   "entry": 27699,
+   "exit": 27722,
+   "stop": 27729,
+   "stopPts": 30.0,
+   "tp1": 27684,
+   "exitReason": "early-adverse-exit",
+   "fullStop": false,
+   "tp1Hit": false,
+   "gross": -138.0,
+   "fees": 3.66,
+   "net": -141.66,
+   "realized": -140.16,
+   "moneySource": "broker",
+   "netBasis": "broker net (gross - exchange fees - commissions)",
+   "mfePts": 0.0,
+   "mfeSource": "trade_state 1m bars",
+   "maePts": -28.75,
+   "maeSource": "trade_state 1m bars",
+   "rules": {
+    "runner": {
+     "mode": "allAtTp1",
+     "session": "asia",
+     "atr15": 65.45,
+     "tp2": null
+    },
+    "earlyAdverse": {
+     "decision": "exit",
+     "pts": -26.25,
+     "exited": true,
+     "mode": "exit",
+     "shadow": "wouldHaveHitStop"
+    },
+    "tp1AtrShadow": {
+     "shadowTp1Pts": 49.09,
+     "state": "resolved",
+     "beAfter": "stop",
+     "beAfterNetUsd": -183.66
+    },
+    "tp1Touch": {
+     "state": "resolved",
+     "touchSource": null,
+     "touchedAt": null,
+     "filled": false,
+     "touchedNotFilled": false
+    },
+    "runnerShadow": {
+     "rule": "allAtTp1",
+     "oldRuleExit": "same",
+     "oldRuleUsdEst": null,
+     "resolved": true
+    }
+   },
+   "stampId": "681646233ce1",
+   "leak": "L-01",
+   "leakWhy": "never worked: closed by the early exit (the live L-01 rule)",
+   "afterFullStopMin": null,
+   "rankInDay": 4,
+   "prevResult": "win",
+   "minutesSincePrev": 19.5,
+   "nearMiss": null
+  },
+  {
+   "id": "b0727791-daa9-4773-a11e-f320cb16065a",
+   "tradeDay": "2026-11-16",
+   "session": "asia",
+   "side": "short",
+   "level": "30m Open",
+   "event": "SWEEP-LOSS",
+   "grade": "B",
+   "source": "levels",
+   "contracts": 3,
+   "entryTime": "2026-11-16T07:45:46Z",
+   "exitTime": "2026-11-16T07:48:11Z",
+   "durationSec": 145,
+   "entry": 27749.25,
+   "exit": 27773.75,
+   "stop": 27795.25,
+   "stopPts": 46.0,
+   "tp1": 27734.25,
+   "exitReason": "early-adverse-exit",
+   "fullStop": false,
+   "tp1Hit": false,
+   "gross": -147.0,
+   "fees": 3.66,
+   "net": -150.66,
+   "realized": -149.16,
+   "moneySource": "broker",
+   "netBasis": "broker net (gross - exchange fees - commissions)",
+   "mfePts": 0.0,
+   "mfeSource": "trade_state 1m bars",
+   "maePts": -26.0,
+   "maeSource": "trade_state 1m bars",
+   "rules": {
+    "runner": {
+     "mode": "allAtTp1",
+     "session": "asia",
+     "atr15": 62.88,
+     "tp2": null
+    },
+    "earlyAdverse": {
+     "decision": "exit",
+     "pts": -19,
+     "exited": true,
+     "mode": "exit",
+     "shadow": "wouldHaveHitStop"
+    },
+    "tp1AtrShadow": {
+     "shadowTp1Pts": 47.16,
+     "state": "resolved",
+     "beAfter": "stop",
+     "beAfterNetUsd": -279.66
+    },
+    "tp1Touch": {
+     "state": "resolved",
+     "touchSource": null,
+     "touchedAt": null,
+     "filled": false,
+     "touchedNotFilled": false
+    },
+    "runnerShadow": {
+     "rule": "allAtTp1",
+     "oldRuleExit": "same",
+     "oldRuleUsdEst": null,
+     "resolved": true
+    }
+   },
+   "stampId": "681646233ce1",
+   "leak": "L-01",
+   "leakWhy": "never worked: closed by the early exit (the live L-01 rule)",
+   "afterFullStopMin": null,
+   "rankInDay": 5,
+   "prevResult": "loss",
+   "minutesSincePrev": 72.6,
+   "nearMiss": null
+  },
+  {
+   "id": "f3196bb8-e9d9-493e-9f75-276c3d947bbc",
+   "tradeDay": "2026-11-16",
+   "session": "london",
+   "side": "long",
+   "level": "1H Open",
+   "event": "SWEEP-RECLAIM",
+   "grade": "B",
+   "source": "levels",
+   "contracts": 3,
+   "entryTime": "2026-11-16T08:14:43Z",
+   "exitTime": "2026-11-16T08:20:02Z",
+   "durationSec": 319,
+   "entry": 27817.5,
+   "exit": 27804,
+   "stop": 27769,
+   "stopPts": 48.5,
+   "tp1": 27832.5,
+   "exitReason": "no-progress-exit",
+   "fullStop": false,
+   "tp1Hit": false,
+   "gross": -81.0,
+   "fees": 3.66,
+   "net": -84.66,
+   "realized": -83.16,
+   "moneySource": "broker",
+   "netBasis": "broker net (gross - exchange fees - commissions)",
+   "mfePts": 11.75,
+   "mfeSource": "trade_state 1m bars",
+   "maePts": -22.75,
+   "maeSource": "trade_state 1m bars",
+   "rules": {
+    "runner": {
+     "mode": "allAtTp1",
+     "session": "london",
+     "atr15": 62.98,
+     "tp2": null
+    },
+    "earlyAdverse": {
+     "decision": "keep",
+     "pts": 5.75,
+     "exited": false,
+     "mode": null
+    },
+    "tp1AtrShadow": {
+     "shadowTp1Pts": 47.24,
+     "state": "resolved",
+     "beAfter": "breakeven",
+     "beAfterNetUsd": -3.66
+    },
+    "tp1Touch": {
+     "state": "resolved",
+     "touchSource": null,
+     "touchedAt": null,
+     "filled": false,
+     "touchedNotFilled": false
+    },
+    "runnerShadow": {
+     "rule": "allAtTp1",
+     "oldRuleExit": "same",
+     "oldRuleUsdEst": null,
+     "resolved": true
+    }
+   },
+   "stampId": "681646233ce1",
+   "leak": "L-12",
+   "leakWhy": "no-progress exit that closed at a loss",
+   "afterFullStopMin": null,
+   "rankInDay": 6,
+   "prevResult": "loss",
+   "minutesSincePrev": 26.5,
+   "nearMiss": null
+  },
+  {
+   "id": "a86af6c1-730f-4776-8d99-65d44821f0ab",
+   "tradeDay": "2026-11-16",
+   "session": "london",
+   "side": "short",
+   "level": "PDL",
+   "event": "SWEEP-LOSS",
+   "grade": "B",
+   "source": "levels",
+   "contracts": 3,
+   "entryTime": "2026-11-16T12:48:15Z",
+   "exitTime": "2026-11-16T12:50:38Z",
+   "durationSec": 142,
+   "entry": 27678.75,
+   "exit": 27663.75,
+   "stop": 27709,
+   "stopPts": 30.25,
+   "tp1": 27663.75,
+   "exitReason": "tp1-all-out",
+   "fullStop": false,
+   "tp1Hit": true,
+   "gross": 90.0,
+   "fees": 3.66,
+   "net": 86.34,
+   "realized": 87.84,
+   "moneySource": "broker",
+   "netBasis": "broker net (gross - exchange fees - commissions)",
+   "mfePts": 15.0,
+   "mfeSource": "TP1 fill",
+   "maePts": -7.75,
+   "maeSource": "trade_time price polls",
+   "rules": {
+    "runner": {
+     "mode": "allAtTp1",
+     "session": "london",
+     "atr15": 65.5,
+     "tp2": null
+    },
+    "tp1AtrShadow": {
+     "shadowTp1Pts": 49.13,
+     "state": "resolved",
+     "beAfter": "breakeven",
+     "beAfterNetUsd": -3.66
+    },
+    "tp1Touch": {
+     "state": "resolved",
+     "touchSource": null,
+     "touchedAt": null,
+     "filled": true,
+     "touchedNotFilled": false
+    },
+    "runnerShadow": {
+     "rule": "allAtTp1",
+     "oldRuleExit": "runner_stop",
+     "oldRuleUsdEst": 76.32,
+     "resolved": true
+    }
+   },
+   "stampId": "681646233ce1",
+   "leak": null,
+   "leakWhy": null,
+   "afterFullStopMin": null,
+   "rankInDay": 7,
+   "prevResult": "loss",
+   "minutesSincePrev": 268.2,
+   "nearMiss": null
+  },
+  {
+   "id": "84084568-7c78-4864-8fed-c6d1aaecafb1",
+   "tradeDay": "2026-11-16",
+   "session": "london",
+   "side": "short",
+   "level": "1H Open",
+   "event": "SWEEP-LOSS",
+   "grade": "B",
+   "source": "levels",
+   "contracts": 3,
+   "entryTime": "2026-11-16T13:12:10Z",
+   "exitTime": "2026-11-16T13:15:08Z",
+   "durationSec": 178,
+   "entry": 27664.5,
+   "exit": 27649.5,
+   "stop": 27710.75,
+   "stopPts": 46.25,
+   "tp1": 27649.5,
+   "exitReason": "tp1-all-out",
+   "fullStop": false,
+   "tp1Hit": true,
+   "gross": 90.0,
+   "fees": 3.66,
+   "net": 86.34,
+   "realized": 87.84,
+   "moneySource": "broker",
+   "netBasis": "broker net (gross - exchange fees - commissions)",
+   "mfePts": 15.0,
+   "mfeSource": "TP1 fill",
+   "maePts": -6.75,
+   "maeSource": "trade_state 1m bars",
+   "rules": {
+    "runner": {
+     "mode": "allAtTp1",
+     "session": "london",
+     "atr15": 66.71,
+     "tp2": null
+    },
+    "tp1AtrShadow": {
+     "shadowTp1Pts": 50.03,
+     "state": "resolved",
+     "beAfter": "breakeven",
+     "beAfterNetUsd": -3.66
+    },
+    "tp1Touch": {
+     "state": "resolved",
+     "touchSource": null,
+     "touchedAt": null,
+     "filled": true,
+     "touchedNotFilled": false
+    },
+    "runnerShadow": {
+     "rule": "allAtTp1",
+     "oldRuleExit": "runner_stop",
+     "oldRuleUsdEst": 76.32,
+     "resolved": true
+    }
+   },
+   "stampId": "681646233ce1",
+   "leak": null,
+   "leakWhy": null,
+   "afterFullStopMin": null,
+   "rankInDay": 8,
+   "prevResult": "win",
+   "minutesSincePrev": 21.5,
    "nearMiss": null
   }
  ]
