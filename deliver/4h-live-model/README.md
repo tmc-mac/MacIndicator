@@ -1,4 +1,4 @@
-# 4H Live Model v2.3
+# 4H Live Model v2.4
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -48,7 +48,7 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
 
 ## Mobile mode and label sides (v2.0, Mac 11/22, for an iPhone 14 Plus)
 - **Turning it on:** Settings → "Mobile / labels" → MOBILE MODE.
-- **Compact dashboard:** 7 rows at Normal text size, in the bottom-left by default (the position is an input):
+- **Compact dashboard:** 7 rows at Normal text size, in the top-right by default (v2.4, Mac's call; the position is an input):
   - 4H, e.g. BULL 4/6 EXPAND
   - the chart candle, e.g. 30m BEAR 2/6 EXTREME
   - P4H direction
@@ -57,7 +57,7 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - TARGET
   - 4H CLOSE countdown
   - The title bar still turns green or red when fully aligned.
-- **Drawings packed close to the last bar:** P4H at +3, C4H at +8, the path from +13 with 2 bars per step. Labels are shorter and Normal size.
+- **Drawings packed close to the last bar:** P4H at +3, C4H at +8, the path from +10 (v2.4) with 2 bars per step. Labels are shorter and Normal size.
 - **Label sides:** level-line labels and path labels sit on the RIGHT by default. Each has a Right/Left input.
 
 ## Full alignment (v1.9, Mac 11/22: "take trades when price is trading in full alignment")

@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v2.3 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v2.4 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -54,7 +54,7 @@ dashTxt   = input.color(color.white, "Text", group = grpDb)
 
 grpMb = "Mobile / labels"
 mobile    = input.bool(false, "MOBILE MODE (iPhone): compact dashboard, bigger text, tighter drawings", group = grpMb)
-mobPosS   = input.string("Bottom Left", "Mobile dashboard position", options = ["Bottom Left", "Bottom Right", "Top Left", "Top Right", "Middle Right"], group = grpMb)
+mobPosS   = input.string("Top Right", "Mobile dashboard position", options = ["Top Right", "Top Left", "Bottom Left", "Bottom Right", "Middle Right"], group = grpMb)
 mobSizeS  = input.string("Normal", "Mobile text size", options = ["Small", "Normal", "Large"], group = grpMb)
 lvlLblS   = input.string("Right", "Level line labels", options = ["Right", "Left"], group = grpMb)
 pathLblS  = input.string("Right", "Path labels", options = ["Right", "Left"], group = grpMb)
@@ -279,7 +279,7 @@ string tfTxt = chSec < 3600 ? str.tostring(math.round(chSec / 60)) + "m" : str.t
 int eP4 = mobile ? 3 : offP4H
 int eC4 = mobile ? 8 : offC4H
 int eW = mobile ? 2 : candleW
-int ePath = mobile ? 13 : offPath
+int ePath = mobile ? 10 : offPath
 int eStep = mobile ? 2 : pathStep
 string eSize = mobile ? mobSizeS : dashSizeS
 string lblSz = mobile ? size.normal : size.small
