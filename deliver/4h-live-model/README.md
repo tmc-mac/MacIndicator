@@ -1,4 +1,4 @@
-# 4H Live Model v1.9
+# 4H Live Model v2.0
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -25,6 +25,20 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
+
+## Mobile mode and label sides (v2.0, Mac 11/22, for an iPhone 14 Plus)
+- **Turning it on:** Settings → "Mobile / labels" → MOBILE MODE.
+- **Compact dashboard:** 7 rows at Normal text size, in the bottom-left by default (the position is an input):
+  - 4H, e.g. BULL 4/6 EXPAND
+  - the chart candle, e.g. 30m BEAR 2/6 EXTREME
+  - P4H direction
+  - ALIGN: LONG ✓, SHORT ✓, or the missing condition
+  - the 4H OPEN, with ▲ or ▼ for where price is now
+  - TARGET
+  - 4H CLOSE countdown
+  - The title bar still turns green or red when fully aligned.
+- **Drawings packed close to the last bar:** P4H at +3, C4H at +8, the path from +13 with 2 bars per step. Labels are shorter and Normal size.
+- **Label sides:** level-line labels and path labels sit on the RIGHT by default. Each has a Right/Left input.
 
 ## Full alignment (v1.9, Mac 11/22: "take trades when price is trading in full alignment")
 FULL ALIGNMENT reads LONG ✓ or SHORT ✓ only when all three of these are true:
