@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v2.2 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v2.3 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -84,6 +84,7 @@ if timeframe.in_seconds() > 14400
 
 // ================= 4H DATA =================
 [p4O, p4H, p4L, p4C] = request.security(syminfo.tickerid, "240", [open[1], high[1], low[1], close[1]], lookahead = barmerge.lookahead_on)
+[p2O, p2C] = request.security(syminfo.tickerid, "240", [open[2], close[2]], lookahead = barmerge.lookahead_on)
 [c4O, c4H, c4L, c4C] = request.security(syminfo.tickerid, "240", [open, high, low, close], lookahead = barmerge.lookahead_off)
 
 // ================= PHASE TRACKING (chart bars) =================
@@ -288,7 +289,7 @@ var bxs = array.new<box>()
 var lns = array.new<line>()
 var lbs = array.new<label>()
 var stageNames = array.from("OPEN", "EXTREME", "RECLAIM", "EXPANSION", "TARGET", "CLOSED")
-var table dash = showDash ? table.new(f_pos(mobile ? mobPosS : dashPosS), 2, 16, bgcolor = dashBg, frame_color = color.new(color.gray, 60), frame_width = 1, border_color = color.new(color.gray, 80), border_width = 1) : na
+var table dash = showDash ? table.new(f_pos(mobile ? mobPosS : dashPosS), 2, 18, bgcolor = dashBg, frame_color = color.new(color.gray, 60), frame_width = 1, border_color = color.new(color.gray, 80), border_width = 1) : na
 var color clear = color.new(color.black, 100)
 
 f_clear() =>
@@ -372,7 +373,20 @@ if barstate.islast
         stage := 6
     bool lost4 = stage == 3 and lostS4 and not r4
     string tag = stage == 2 ? (el4 ? " FORMING" : " SET") : stage == 3 ? (lost4 ? " LOST" : rc4 ? " CLOSED" : " FORMING") : ""
-    string stageTxt = str.tostring(stage) + "/6  " + array.get(stageNames, stage - 1) + tag
+    // DRIVE (v2.3): the extreme has run past the P4H's opposite side with no reclaim -> the candle is driving,
+    // not forming an extreme. Shown as the drive's direction; never counts toward FULL ALIGNMENT.
+    bool drive4 = side4 != 0 and not r4 and stage < 6 and ((side4 == 1 and ext4 <= p4L) or (side4 == -1 and ext4 >= p4H))
+    int drv4Dir = drive4 ? -side4 : 0
+    string stageTxt = drive4 ? "2/6  DRIVE " + (drv4Dir == 1 ? "▲" : "▼") : str.tostring(stage) + "/6  " + array.get(stageNames, stage - 1) + tag
+    // ENGULFING (v2.3): body past the P4H body. FORMING while live, CONFIRMED once the 4H closes; P4H ENGULFED = the last 4H was one.
+    float p4BT = math.max(p4O, p4C)
+    float p4BB = math.min(p4O, p4C)
+    bool eng4Dn = kO >= p4BT and kC < p4BB
+    bool eng4Up = kO <= p4BB and kC > p4BT
+    bool eng4PDn = not na(p2O) and p4O >= math.max(p2O, p2C) and p4C < math.min(p2O, p2C)
+    bool eng4PUp = not na(p2O) and p4O <= math.min(p2O, p2C) and p4C > math.max(p2O, p2C)
+    string eng4Txt = eng4Dn ? (closedNow ? "CONFIRMED ▼" : "FORMING ▼") : eng4Up ? (closedNow ? "CONFIRMED ▲" : "FORMING ▲") : eng4PDn ? "P4H ENGULFED ▼" : eng4PUp ? "P4H ENGULFED ▲" : "—"
+    int eng4Dir = eng4Dn or (not eng4Up and eng4PDn) ? -1 : eng4Up or eng4PUp ? 1 : 0
     // chart-candle stage (path line)
     bool bClosed = timenow >= time_close
     bool bBeyond = bRF and ((bSide == 1 and close >= open + bThr) or (bSide == -1 and close <= open - bThr))
@@ -390,7 +404,17 @@ if barstate.islast
         bStage := 6
     bool bLost = bStage == 3 and bLostS and not bRF
     string bTag = bStage == 2 ? (bExtLive ? " FORMING" : " SET") : bStage == 3 ? (bLost ? " LOST" : bRC ? " CLOSED" : " FORMING") : ""
-    string bStageTxt = str.tostring(bStage) + "/6  " + array.get(stageNames, bStage - 1) + bTag
+    bool bDrive = bSide != 0 and not bRF and bStage < 6 and ((bSide == 1 and bExtP <= low[1]) or (bSide == -1 and bExtP >= high[1]))
+    int bDrvDir = bDrive ? -bSide : 0
+    string bStageTxt = bDrive ? "2/6  DRIVE " + (bDrvDir == 1 ? "▲" : "▼") : str.tostring(bStage) + "/6  " + array.get(stageNames, bStage - 1) + bTag
+    float pBT = math.max(open[1], close[1])
+    float pBB = math.min(open[1], close[1])
+    bool engDn = open >= pBT and close < pBB
+    bool engUp = open <= pBB and close > pBT
+    bool engPDn = open[1] >= math.max(open[2], close[2]) and close[1] < math.min(open[2], close[2])
+    bool engPUp = open[1] <= math.min(open[2], close[2]) and close[1] > math.max(open[2], close[2])
+    string engTxt = engDn ? (bClosed ? "CONFIRMED ▼" : "FORMING ▼") : engUp ? (bClosed ? "CONFIRMED ▲" : "FORMING ▲") : engPDn ? "LAST CANDLE ▼" : engPUp ? "LAST CANDLE ▲" : "—"
+    int engDir = engDn or (not engUp and engPDn) ? -1 : engUp or engPUp ? 1 : 0
 
     // ---- FULL ALIGNMENT (Mac 11/22: "take trades when price is trading in full alignment")
     //   1. P4H closed in the model's direction (switchable)
@@ -402,7 +426,7 @@ if barstate.islast
     bool okCh = bSide != 0 and bSide == side4 and not bLost and (bStage == 4 or bStage == 5 or (bStage == 3 and bRF and (bRC or not alReqRC or useTicks)))
     bool okP4 = not alReqP4 or p4Dir == side4
     int alDir = ok4 and okCh and okP4 ? side4 : 0
-    string alWhy = side4 == 0 ? "4H EXTREME NOT SET" : not okP4 ? "P4H AGAINST" : not ok4 ? (lost4 ? "4H RECLAIM LOST" : "4H NOT RECLAIMED") : bSide != side4 ? tfTxt + " AGAINST 4H" : bLost ? tfTxt + " RECLAIM LOST" : tfTxt + " NOT RECLAIMED"
+    string alWhy = drive4 ? "4H DRIVE" : bDrive ? tfTxt + " DRIVE" : side4 == 0 ? "4H EXTREME NOT SET" : not okP4 ? "P4H AGAINST" : not ok4 ? (lost4 ? "4H RECLAIM LOST" : "4H NOT RECLAIMED") : bSide != side4 ? tfTxt + " AGAINST 4H" : bLost ? tfTxt + " RECLAIM LOST" : tfTxt + " NOT RECLAIMED"
     string fullTxt = alDir == 1 ? "LONG ✓" : alDir == -1 ? "SHORT ✓" : "NO · " + alWhy
     varip int alLast = 0
     if alAlert and alDir != 0 and alDir != alLast and barstate.isrealtime
@@ -445,7 +469,9 @@ if barstate.islast
             array.push(lbs, label.new(xO, open, "1 OPEN", style = label.style_label_down, color = clear, textcolor = chart.fg_color, size = lblSz))
             array.push(lns, line.new(xO, open, xE, bExtP, color = pathCol, width = pathW))
             bool atExt = not bRF and not bLost
-            array.push(lbs, label.new(xE, bExtP, "2 EXTREME " + f_px(bExtP) + (atExt ? " ◀" : ""), style = tagSty, color = clear, textcolor = atExt ? pathCol : chart.fg_color, size = lblSz))
+            string extLbl = bDrive ? "2 DRIVE " + (bDrvDir == 1 ? "▲ " : "▼ ") + f_px(bExtP) : "2 EXTREME " + f_px(bExtP)
+            color extCol = bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : atExt ? pathCol : chart.fg_color
+            array.push(lbs, label.new(xE, bExtP, extLbl + (atExt ? " ◀" : ""), style = tagSty, color = clear, textcolor = extCol, size = lblSz))
             if atExt
                 curX := xE
                 curY := bExtP
@@ -481,8 +507,10 @@ if barstate.islast
     if showDash
         table.cell(dash, 0, 0, alDir == 1 ? (mobile ? "ALIGNED LONG" : "4H LIVE MODEL · ALIGNED LONG") : alDir == -1 ? (mobile ? "ALIGNED SHORT" : "4H LIVE MODEL · ALIGNED SHORT") : "4H LIVE MODEL", text_color = dashTxt, text_halign = text.align_center, text_size = f_size(eSize), bgcolor = alDir == 1 ? color.new(bullCol, 25) : alDir == -1 ? color.new(bearCol, 25) : color.new(pathCol, 35))
         table.merge_cells(dash, 0, 0, 1, 0)
-        string modelTxt = side4 == 1 ? "BULLISH" : side4 == -1 ? "BEARISH" : "—"
-        color modelCol = side4 == 1 ? bullCol : side4 == -1 ? bearCol : dashTxt
+        string modelTxt = drive4 ? (drv4Dir == 1 ? "BULLISH DRIVE" : "BEARISH DRIVE") : side4 == 1 ? "BULLISH" : side4 == -1 ? "BEARISH" : "—"
+        color modelCol = drive4 ? (drv4Dir == 1 ? bullCol : bearCol) : side4 == 1 ? bullCol : side4 == -1 ? bearCol : dashTxt
+        color eng4Col = eng4Dir == 1 ? bullCol : eng4Dir == -1 ? bearCol : dashTxt
+        color engCol = engDir == 1 ? bullCol : engDir == -1 ? bearCol : dashTxt
         float tol = syminfo.mintick / 2
         string loc = na(kC) or na(kO) ? "—" : kC > kO + tol ? "ABOVE OPEN" : kC < kO - tol ? "BELOW OPEN" : "AT OPEN"
         string extTxt = side4 == 1 ? "LOW " + f_px(ext4) : side4 == -1 ? "HIGH " + f_px(ext4) : "—"
@@ -497,15 +525,17 @@ if barstate.islast
         if mobile
             // 7 rows sized for a phone: what you need at a glance
             var shortNames = array.from("OPEN", "EXTREME", "RECLAIM", "EXPAND", "TARGET", "CLOSED")
-            string s4 = (side4 == 1 ? "BULL " : side4 == -1 ? "BEAR " : "— ") + str.tostring(stage) + "/6 " + array.get(shortNames, stage - 1) + (lost4 ? " LOST" : "")
-            string sB = (bSide == 1 ? "BULL " : bSide == -1 ? "BEAR " : "— ") + str.tostring(bStage) + "/6 " + array.get(shortNames, bStage - 1) + (bLost ? " LOST" : "")
+            string s4 = drive4 ? (drv4Dir == 1 ? "DRIVE ▲" : "DRIVE ▼") : (side4 == 1 ? "BULL " : side4 == -1 ? "BEAR " : "— ") + str.tostring(stage) + "/6 " + array.get(shortNames, stage - 1) + (lost4 ? " LOST" : "")
+            string sB = bDrive ? (bDrvDir == 1 ? "DRIVE ▲" : "DRIVE ▼") : (bSide == 1 ? "BULL " : bSide == -1 ? "BEAR " : "— ") + str.tostring(bStage) + "/6 " + array.get(shortNames, bStage - 1) + (bLost ? " LOST" : "")
             f_row(1, "4H", s4, lost4 ? lostCol : modelCol)
-            f_row(2, tfTxt, sB, bLost ? lostCol : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
+            f_row(2, tfTxt, sB, bLost ? lostCol : bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
             f_row(3, "P4H", p4Txt, p4Col)
             f_row(4, "ALIGN", alDir == 1 ? "LONG ✓" : alDir == -1 ? "SHORT ✓" : alWhy, alDir == 1 ? bullCol : alDir == -1 ? bearCol : #ffb300)
             f_row(5, "OPEN", f_px(kO) + (kC > kO + tol ? " ▲" : kC < kO - tol ? " ▼" : " ="), dashTxt)
             f_row(6, "TARGET", side4 == 1 ? f_px(p4H) + " ▲" : side4 == -1 ? f_px(p4L) + " ▼" : "—", modelCol)
             f_row(7, "4H CLOSE", cdTxt, dashTxt)
+            string engM = eng4Txt != "—" ? "4H " + eng4Txt : engTxt != "—" ? tfTxt + " " + engTxt : "—"
+            f_row(8, "ENGULF", engM, eng4Txt != "—" ? eng4Col : engCol)
         else
             f_row(1, "MODEL", modelTxt, modelCol)
             f_row(2, "P4H CANDLE", p4Txt, p4Col)
@@ -519,6 +549,8 @@ if barstate.islast
             f_row(10, "RANGE / P4H O", rngTxt, dashTxt)
             f_row(11, "NEXT TARGET", tgtTxt, modelCol)
             f_row(12, "4H CLOSE IN", cdTxt, dashTxt)
-            f_row(13, tfTxt + " CANDLE", bSide == 1 ? "BULLISH" : bSide == -1 ? "BEARISH" : "—", bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
+            f_row(13, tfTxt + " CANDLE", bDrive ? (bDrvDir == 1 ? "BULLISH DRIVE" : "BEARISH DRIVE") : bSide == 1 ? "BULLISH" : bSide == -1 ? "BEARISH" : "—", bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
             f_row(14, tfTxt + " STAGE", bStageTxt, bLost ? lostCol : dashTxt)
             f_row(15, "FULL ALIGNMENT", fullTxt, alDir == 1 ? bullCol : alDir == -1 ? bearCol : dashTxt)
+            f_row(16, "4H ENGULF", eng4Txt, eng4Col)
+            f_row(17, tfTxt + " ENGULF", engTxt, engCol)

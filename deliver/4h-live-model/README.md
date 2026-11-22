@@ -1,4 +1,4 @@
-# 4H Live Model v2.2
+# 4H Live Model v2.3
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -25,6 +25,18 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
+
+## DRIVE and ENGULFING (v2.3, Mac 11/22)
+- **DRIVE ▲ / DRIVE ▼:** a candle that opens and runs straight one way, with no reclaim, past the previous candle's far side.
+  - "Previous candle" means the P4H for the 4H, and the previous chart candle for the line.
+  - It is shown as a drive in that direction: MODEL "BEARISH DRIVE", STAGE "2/6 DRIVE ▼", and the line point "2 DRIVE ▼".
+  - Before v2.3 it showed as a bullish EXTREME FORMING, which read backwards.
+  - A drive never counts toward FULL ALIGNMENT ("NO · 4H DRIVE").
+  - If price later reclaims the open, the normal stages resume.
+- **ENGULFING:** the body has opened beyond and moved past the previous candle's body.
+  - FORMING ▲/▼ while the candle is live; CONFIRMED once it closes.
+  - "LAST CANDLE ▲/▼" (chart) or "P4H ENGULFED ▲/▼" (4H) when the candle that just closed was an engulfing.
+  - Rows: "4H ENGULF" and "<tf> ENGULF" in the full dashboard, and one "ENGULF" row in mobile mode (the 4H first, otherwise the chart candle).
 
 ## Line chart: all 4 stages, every candle (v2.1, Mac 11/22)
 - **Labels:** the path shows 1 OPEN, 2 EXTREME (with its price), 3 RECLAIM and 4 EXPANSION, each one once it has happened. The stage price is in now is marked "◀" and has the dot.
