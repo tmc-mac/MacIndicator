@@ -8,7 +8,7 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
 - **Side candles:** P4H (the previous completed 4H candle, muted) at +6 bars and C4H LIVE at +16 bars. Both are 4 bars wide and sit at true prices.
 - **Formation path (v1.3, back to the v1 look on Mac's call, 11/22):** a purple line at +26 bars, 3 bars per phase: OPEN → EXTREME → RECLAIM → EXPANSION, with a dot at the live price.
   - Only phases that have happened are drawn, and the live end carries the current stage name.
-  - Mac rejected the v1.1 sketch layout (V with a vertical leg) because it read as a big arrow.
+  - Mac's 11/22 sketch explains the stages a candle goes through. It is not a drawing to put on the chart, so v1.1 drawing it was a mistake.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
 
