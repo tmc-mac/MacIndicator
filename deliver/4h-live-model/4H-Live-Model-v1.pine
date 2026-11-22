@@ -1,0 +1,288 @@
+//@version=5
+// 4H LIVE MODEL v1 (Team Mac)
+// Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
+// beside live price action on any chart timeframe at or below 4H.
+// P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
+// C4H values: the forming 4H candle, live from request.security.
+// Phase order (which extreme came first, reclaim timing) is tracked on the chart's own bars,
+// using TradingView's own 4H boundaries for the symbol (time("240")).
+indicator("4H Live Model", shorttitle = "4H LIVE MODEL", overlay = true, max_boxes_count = 20, max_lines_count = 60, max_labels_count = 60)
+
+// ================= INPUTS =================
+grpEl = "Elements"
+showCandles = input.bool(true, "Side candles (P4H / C4H LIVE)", group = grpEl)
+showPath    = input.bool(true, "Formation path line", group = grpEl)
+showLevels  = input.bool(true, "Level lines", group = grpEl)
+showDash    = input.bool(true, "Dashboard", group = grpEl)
+
+grpSc = "Side candles"
+offP4H    = input.int(6, "P4H offset (bars right of last bar)", minval = 2, maxval = 300, group = grpSc)
+offC4H    = input.int(16, "C4H LIVE offset (bars)", minval = 2, maxval = 300, group = grpSc)
+candleW   = input.int(4, "Candle width (bars)", minval = 1, maxval = 30, group = grpSc)
+wickW     = input.int(2, "Wick width (px)", minval = 1, maxval = 6, group = grpSc)
+bullCol   = input.color(#00c853, "Bullish color", group = grpSc)
+bearCol   = input.color(#ff4f7b, "Bearish color", group = grpSc)
+c4Transp  = input.int(10, "C4H LIVE body transparency", minval = 0, maxval = 100, group = grpSc)
+p4Transp  = input.int(70, "P4H body transparency (muted)", minval = 0, maxval = 100, group = grpSc)
+p4WickTr  = input.int(45, "P4H wick/border transparency", minval = 0, maxval = 100, group = grpSc)
+
+grpPa = "Formation path"
+offPath   = input.int(26, "Path offset (bars)", minval = 2, maxval = 300, group = grpPa)
+pathStep  = input.int(3, "Bars per phase step", minval = 1, maxval = 20, group = grpPa)
+pathCol   = input.color(#a64dff, "Path color", group = grpPa)
+pathW     = input.int(3, "Path width", minval = 1, maxval = 6, group = grpPa)
+
+grpLv = "Level lines"
+extLeft   = input.bool(false, "Extend level lines to the left edge", group = grpLv)
+p4hHiCol  = input.color(#2962ff, "P4H HIGH color", group = grpLv)
+p4hHiSty  = input.string("Solid", "P4H HIGH style", options = ["Solid", "Dashed", "Dotted"], group = grpLv)
+p4hLoCol  = input.color(#ff6d00, "P4H LOW color", group = grpLv)
+p4hLoSty  = input.string("Solid", "P4H LOW style", options = ["Solid", "Dashed", "Dotted"], group = grpLv)
+p4hOpCol  = input.color(#9e9e9e, "P4H OPEN color", group = grpLv)
+p4hOpSty  = input.string("Dashed", "P4H OPEN style", options = ["Solid", "Dashed", "Dotted"], group = grpLv)
+c4hOpCol  = input.color(#1a237e, "C4H OPEN color", group = grpLv)
+c4hOpSty  = input.string("Solid", "C4H OPEN style", options = ["Solid", "Dashed", "Dotted"], group = grpLv)
+c4hOpW    = input.int(3, "C4H OPEN width", minval = 1, maxval = 6, group = grpLv)
+lvlW      = input.int(1, "Other level widths", minval = 1, maxval = 6, group = grpLv)
+
+grpDb = "Dashboard"
+dashPosS  = input.string("Top Right", "Position", options = ["Top Right", "Top Left", "Bottom Right", "Bottom Left", "Middle Right"], group = grpDb)
+dashSizeS = input.string("Small", "Text size", options = ["Tiny", "Small", "Normal", "Large"], group = grpDb)
+dashBg    = input.color(#0d1117, "Background", group = grpDb)
+dashTxt   = input.color(color.white, "Text", group = grpDb)
+
+grpMd = "Model"
+extPct    = input.float(10.0, "Extreme is named when price moves this % of the P4H range away from the open", minval = 0.5, maxval = 100, step = 0.5, group = grpMd)
+
+// ================= HELPERS =================
+f_sty(s) => s == "Dashed" ? line.style_dashed : s == "Dotted" ? line.style_dotted : line.style_solid
+f_pos(s) => s == "Top Left" ? position.top_left : s == "Bottom Right" ? position.bottom_right : s == "Bottom Left" ? position.bottom_left : s == "Middle Right" ? position.middle_right : position.top_right
+f_size(s) => s == "Tiny" ? size.tiny : s == "Normal" ? size.normal : s == "Large" ? size.large : size.small
+f_px(v) => na(v) ? "—" : str.tostring(v, format.mintick)
+f_cd(ms) =>
+    int s = math.max(0, int(math.floor(ms / 1000)))
+    int h = int(s / 3600)
+    int m = int((s % 3600) / 60)
+    int c = s % 60
+    str.tostring(h, "00") + ":" + str.tostring(m, "00") + ":" + str.tostring(c, "00")
+
+if timeframe.in_seconds() > 14400
+    runtime.error("4H Live Model works on chart timeframes at or below 4H.")
+
+// ================= 4H DATA =================
+[p4O, p4H, p4L, p4C] = request.security(syminfo.tickerid, "240", [open[1], high[1], low[1], close[1]], lookahead = barmerge.lookahead_on)
+[c4O, c4H, c4L, c4C] = request.security(syminfo.tickerid, "240", [open, high, low, close], lookahead = barmerge.lookahead_off)
+
+// ================= PHASE TRACKING (chart bars) =================
+t4 = time("240")
+inSess = not na(t4)
+newC = inSess and nz(t4[1], 0) != t4
+
+var float cO = na
+var float cH = na
+var float cL = na
+var int hiBar = na
+var int loBar = na
+var int side = 0          // 0 unformed, 1 bullish (low first), -1 bearish (high first)
+var bool rclF = false     // reclaim happened (intrabar allowed)
+var bool rclC = false     // a chart candle closed back through the open
+var bool tgtHit = false
+var int c4Start = na
+var int p4Start = na
+
+thr = math.max(syminfo.mintick * 2, nz(p4H - p4L) * extPct / 100)
+
+if inSess
+    bool newHi = false
+    bool newLo = false
+    if newC
+        p4Start := c4Start
+        c4Start := bar_index
+        cO := open
+        cH := high
+        cL := low
+        hiBar := bar_index
+        loBar := bar_index
+        side := 0
+        rclF := false
+        rclC := false
+        tgtHit := false
+    else if not na(cO)
+        if high > cH
+            cH := high
+            hiBar := bar_index
+            newHi := true
+        if low < cL
+            cL := low
+            loBar := bar_index
+            newLo := true
+    if not na(cO)
+        // name the template: whichever extreme forms first
+        if side == 0
+            float dnX = cO - cL
+            float upX = cH - cO
+            if dnX >= thr and upX >= thr
+                side := close >= open ? 1 : -1
+            else if dnX >= thr
+                side := 1
+            else if upX >= thr
+                side := -1
+        // the extreme extends again -> reclaim must happen again
+        if (side == 1 and newLo) or (side == -1 and newHi)
+            rclF := false
+            rclC := false
+        if side == 1
+            bool crossed = (bar_index > loBar and high >= cO) or (bar_index == loBar and close >= cO)
+            if crossed
+                rclF := true
+            if barstate.isconfirmed and bar_index >= loBar and close >= cO
+                rclF := true
+                rclC := true
+            if not na(p4H) and cH >= p4H
+                tgtHit := true
+        if side == -1
+            bool crossed = (bar_index > hiBar and low <= cO) or (bar_index == hiBar and close <= cO)
+            if crossed
+                rclF := true
+            if barstate.isconfirmed and bar_index >= hiBar and close <= cO
+                rclF := true
+                rclC := true
+            if not na(p4L) and cL <= p4L
+                tgtHit := true
+
+// ================= DRAWING =================
+var bxs = array.new<box>()
+var lns = array.new<line>()
+var lbs = array.new<label>()
+var stageNames = array.from("OPEN", "EXTREME", "RECLAIM", "EXPANSION", "TARGET", "CLOSED")
+var table dash = showDash ? table.new(f_pos(dashPosS), 2, 11, bgcolor = dashBg, frame_color = color.new(color.gray, 60), frame_width = 1, border_color = color.new(color.gray, 80), border_width = 1) : na
+var color clear = color.new(color.black, 100)
+
+f_clear() =>
+    while array.size(bxs) > 0
+        box.delete(array.pop(bxs))
+    while array.size(lns) > 0
+        line.delete(array.pop(lns))
+    while array.size(lbs) > 0
+        label.delete(array.pop(lbs))
+
+f_candle(int cx, int hw, float o, float h, float l, float c, int bodyTr, int wickTr, string txt) =>
+    color col = c >= o ? bullCol : bearCol
+    float top = math.max(o, c)
+    float bot = math.min(o, c)
+    array.push(bxs, box.new(left = cx - hw, top = top, right = cx + hw, bottom = bot, border_color = color.new(col, wickTr), border_width = 1, bgcolor = color.new(col, bodyTr)))
+    array.push(lns, line.new(cx, top, cx, h, color = color.new(col, wickTr), width = wickW))
+    array.push(lns, line.new(cx, bot, cx, l, color = color.new(col, wickTr), width = wickW))
+    array.push(lbs, label.new(cx, h, txt, style = label.style_label_down, color = clear, textcolor = chart.fg_color, size = size.small))
+
+f_level(int x1, int x2, float y, color col, string sty, int w, string txt) =>
+    if not na(y)
+        array.push(lns, line.new(x1, y, x2, y, color = col, style = f_sty(sty), width = w, extend = extLeft ? extend.left : extend.none))
+        array.push(lbs, label.new(x1, y, txt + " " + str.tostring(y, format.mintick), style = label.style_label_right, color = col, textcolor = color.white, size = size.small))
+
+f_row(int r, string k, string v, color vc) =>
+    table.cell(dash, 0, r, k, text_color = dashTxt, text_halign = text.align_left, text_size = f_size(dashSizeS))
+    table.cell(dash, 1, r, v, text_color = vc, text_halign = text.align_right, text_size = f_size(dashSizeS))
+
+if barstate.islast
+    f_clear()
+    // ---- stage
+    float tCl = nz(float(time_close("240")), float(nz(t4, time)) + 14400000.0)
+    bool closedNow = timenow >= tCl
+    int stage = 1
+    bool beyond = (side == 1 and c4C > c4O) or (side == -1 and c4C < c4O)
+    if side != 0
+        stage := 2
+        if rclF
+            stage := 3
+            if beyond
+                stage := 4
+        if tgtHit
+            stage := 5
+    if closedNow
+        stage := 6
+    string tag = stage == 2 ? ((side == 1 ? loBar : hiBar) == bar_index ? " (FORMING)" : " (SET)") : stage == 3 ? (rclC ? " (CLOSED)" : " (FORMING)") : ""
+    string stageTxt = str.tostring(stage) + "/6 " + array.get(stageNames, stage - 1) + tag
+
+    int hw = int(candleW / 2)
+    int rightOff = 8
+    if showCandles
+        rightOff := math.max(rightOff, math.max(offP4H, offC4H) + hw + 2)
+    if showPath
+        rightOff := math.max(rightOff, offPath + 4 * pathStep + 8)
+    rightOff := math.min(rightOff, 450)
+
+    // ---- Element 1: side candles
+    if showCandles
+        if not na(p4O)
+            f_candle(bar_index + offP4H, hw, p4O, p4H, p4L, p4C, p4Transp, p4WickTr, "P4H")
+        if not na(c4O)
+            f_candle(bar_index + offC4H, hw, c4O, c4H, c4L, c4C, c4Transp, 0, "C4H LIVE")
+
+    // ---- Element 2: formation path
+    if showPath and not na(c4O)
+        int x0 = bar_index + offPath
+        xs = array.new_int()
+        ys = array.new_float()
+        nm = array.new_string()
+        array.push(xs, x0)
+        array.push(ys, c4O)
+        array.push(nm, "")
+        array.push(xs, x0 + pathStep)
+        array.push(ys, c4O)
+        array.push(nm, "OPEN")
+        if side != 0
+            array.push(xs, x0 + 2 * pathStep)
+            array.push(ys, side == 1 ? c4L : c4H)
+            array.push(nm, "EXTREME")
+            if rclF
+                array.push(xs, x0 + 3 * pathStep)
+                array.push(ys, c4O)
+                array.push(nm, "RECLAIM")
+                if beyond or tgtHit
+                    array.push(xs, x0 + 4 * pathStep)
+                    array.push(ys, c4C)
+                    array.push(nm, "EXPANSION")
+        int n = array.size(xs)
+        for i = 1 to n - 1
+            array.push(lns, line.new(array.get(xs, i - 1), array.get(ys, i - 1), array.get(xs, i), array.get(ys, i), color = pathCol, width = pathW))
+        for i = 1 to n - 1
+            string nmI = array.get(nm, i)
+            bool isEnd = i == n - 1
+            string txt = isEnd ? array.get(stageNames, stage - 1) : nmI
+            if isEnd or nmI == "EXTREME" or nmI == "RECLAIM"
+                string sty = nmI == "EXTREME" ? (side == 1 ? label.style_label_up : label.style_label_down) : nmI == "RECLAIM" ? (side == 1 ? label.style_label_down : label.style_label_up) : (side == -1 ? label.style_label_up : label.style_label_down)
+                array.push(lbs, label.new(array.get(xs, i), array.get(ys, i), txt, style = sty, color = clear, textcolor = isEnd ? pathCol : chart.fg_color, size = size.small))
+        array.push(lbs, label.new(array.get(xs, n - 1), array.get(ys, n - 1), "", style = label.style_circle, color = pathCol, size = size.tiny))
+
+    // ---- Element 3: level lines
+    if showLevels
+        int x1 = na(p4Start) ? bar_index - 30 : math.max(p4Start, bar_index - 4900)
+        int x2 = bar_index + rightOff
+        f_level(x1, x2, p4H, p4hHiCol, p4hHiSty, lvlW, "P4H HIGH")
+        f_level(x1, x2, p4L, p4hLoCol, p4hLoSty, lvlW, "P4H LOW")
+        f_level(x1, x2, p4O, p4hOpCol, p4hOpSty, lvlW, "P4H OPEN")
+        f_level(x1, x2, c4O, c4hOpCol, c4hOpSty, c4hOpW, "C4H OPEN")
+
+    // ---- Element 4: dashboard
+    if showDash
+        table.cell(dash, 0, 0, "4H LIVE MODEL", text_color = dashTxt, text_halign = text.align_center, text_size = f_size(dashSizeS), bgcolor = color.new(pathCol, 35))
+        table.merge_cells(dash, 0, 0, 1, 0)
+        string modelTxt = side == 1 ? "BULLISH" : side == -1 ? "BEARISH" : "—"
+        color modelCol = side == 1 ? bullCol : side == -1 ? bearCol : dashTxt
+        float tol = syminfo.mintick / 2
+        string loc = na(c4C) or na(c4O) ? "—" : c4C > c4O + tol ? "ABOVE OPEN" : c4C < c4O - tol ? "BELOW OPEN" : "AT OPEN"
+        string extTxt = side == 1 ? "LOW " + f_px(c4L) : side == -1 ? "HIGH " + f_px(c4H) : "—"
+        string tgtTxt = side == 1 ? "P4H HIGH " + f_px(p4H) : side == -1 ? "P4H LOW " + f_px(p4L) : "—"
+        string rngTxt = f_px(c4H - c4L) + " / " + f_px(p4O)
+        string cdTxt = closedNow ? "—" : f_cd(tCl - timenow)
+        f_row(1, "MODEL", modelTxt, modelCol)
+        f_row(2, "STAGE", stageTxt, dashTxt)
+        f_row(3, "LOCATION", loc, dashTxt)
+        f_row(4, "C4H OPEN", f_px(c4O), dashTxt)
+        f_row(5, "C4H EXTREME", extTxt, dashTxt)
+        f_row(6, "P4H HIGH", f_px(p4H), dashTxt)
+        f_row(7, "P4H LOW", f_px(p4L), dashTxt)
+        f_row(8, "RANGE / P4H O", rngTxt, dashTxt)
+        f_row(9, "NEXT TARGET", tgtTxt, modelCol)
+        f_row(10, "4H CLOSE IN", cdTxt, dashTxt)
