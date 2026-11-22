@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v2.0 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v2.1 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -426,48 +426,58 @@ if barstate.islast
 
     // ---- Element 2: formation path of the CHART-timeframe candle (not the 4H)
     if showPath
+        // the chart candle's 4 stages, always all identified:
+        //   lived legs = solid path colour; stages still to come = dotted grey projection (RECLAIM at the open,
+        //   EXPANSION toward the previous chart candle's high/low); "◀" marks the stage price is in now.
+        //   Everything is rebuilt from the current chart bar on every tick, so a new candle starts a new path.
         int x0 = bar_index + ePath
-        xs = array.new_int()
-        ys = array.new_float()
-        nm = array.new_string()
-        array.push(xs, x0)
-        array.push(ys, open)
-        array.push(nm, "")
-        array.push(xs, x0 + eStep)
-        array.push(ys, open)
-        array.push(nm, "OPEN")
-        if bSide != 0
-            array.push(xs, x0 + 2 * eStep)
-            array.push(ys, bExtP)
-            array.push(nm, "EXTREME")
-            if bRF or bLost
-                array.push(xs, x0 + 3 * eStep)
-                array.push(ys, open)
-                array.push(nm, "RECLAIM")
-                if bRF and (bStage >= 4 or math.abs(close - open) > syminfo.mintick / 2)
-                    array.push(xs, x0 + 4 * eStep)
-                    array.push(ys, close)
-                    array.push(nm, "EXPANSION")
-                else if bLost
-                    array.push(xs, x0 + 4 * eStep)
-                    array.push(ys, close)
-                    array.push(nm, "LOST")
+        int xO = x0 + eStep
+        int xE = x0 + 2 * eStep
+        int xR = x0 + 3 * eStep
+        int xX = x0 + 4 * eStep
+        color ghost = color.new(chart.fg_color, 55)
+        string tagSty = pathLblS == "Right" ? label.style_label_left : label.style_label_right
         array.push(lbs, label.new(x0, open, tfTxt + " CANDLE", style = label.style_label_right, color = clear, textcolor = pathCol, size = lblSz))
-        int n = array.size(xs)
-        for i = 1 to n - 1
-            bool lostLeg = array.get(nm, i) == "LOST"
-            array.push(lns, line.new(array.get(xs, i - 1), array.get(ys, i - 1), array.get(xs, i), array.get(ys, i), color = lostLeg ? lostCol : pathCol, width = pathW, style = lostLeg ? line.style_dashed : line.style_solid))
-        for i = 1 to n - 1
-            string nmI = array.get(nm, i)
-            bool isEnd = i == n - 1
-            string txt = isEnd ? (bLost ? "RECLAIM LOST" : array.get(stageNames, bStage - 1)) : nmI
-            if isEnd or nmI == "EXTREME" or nmI == "RECLAIM"
-                string sty = pathLblS == "Right" ? label.style_label_left : label.style_label_right
-                color tc = isEnd ? (bLost ? lostCol : pathCol) : chart.fg_color
-                array.push(lbs, label.new(array.get(xs, i), array.get(ys, i), txt, style = sty, color = clear, textcolor = tc, size = lblSz))
-        array.push(lbs, label.new(array.get(xs, n - 1), array.get(ys, n - 1), "", style = label.style_circle, color = bLost ? lostCol : pathCol, size = size.tiny))
+        array.push(lns, line.new(x0, open, xO, open, color = pathCol, width = pathW))
+        float tgtP = bSide == 1 ? (na(high[1]) ? open + 3 * bThr : math.max(high[1], open + bThr)) : (na(low[1]) ? open - 3 * bThr : math.min(low[1], open - bThr))
+        int curX = xO
+        float curY = open
+        if bSide == 0
+            array.push(lbs, label.new(xO, open, "1 OPEN ◀  waiting for the extreme", style = tagSty, color = clear, textcolor = pathCol, size = lblSz))
+        else
+            array.push(lbs, label.new(xO, open, "1 OPEN", style = label.style_label_down, color = clear, textcolor = chart.fg_color, size = lblSz))
+            array.push(lns, line.new(xO, open, xE, bExtP, color = pathCol, width = pathW))
+            bool atExt = not bRF and not bLost
+            array.push(lbs, label.new(xE, bExtP, "2 EXTREME " + f_px(bExtP) + (atExt ? " ◀" : ""), style = tagSty, color = clear, textcolor = atExt ? pathCol : chart.fg_color, size = lblSz))
+            if atExt
+                curX := xE
+                curY := bExtP
+                array.push(lns, line.new(xE, bExtP, xR, open, color = ghost, width = 1, style = line.style_dotted))
+                array.push(lbs, label.new(xR, open, "3 RECLAIM " + f_px(open), style = tagSty, color = clear, textcolor = ghost, size = lblSz))
+                array.push(lns, line.new(xR, open, xX, tgtP, color = ghost, width = 1, style = line.style_dotted))
+                array.push(lbs, label.new(xX, tgtP, "4 EXPANSION → " + f_px(tgtP), style = tagSty, color = clear, textcolor = ghost, size = lblSz))
+            else
+                array.push(lns, line.new(xE, bExtP, xR, open, color = pathCol, width = pathW))
+                bool atRcl = bStage == 3 and not bLost
+                array.push(lbs, label.new(xR, open, "3 RECLAIM" + (bRC ? " CLOSED" : "") + (atRcl ? " ◀" : ""), style = tagSty, color = clear, textcolor = atRcl ? pathCol : chart.fg_color, size = lblSz))
+                if bLost
+                    array.push(lns, line.new(xR, open, xX, close, color = lostCol, width = pathW, style = line.style_dashed))
+                    array.push(lbs, label.new(xX, close, "RECLAIM LOST ◀", style = tagSty, color = clear, textcolor = lostCol, size = lblSz))
+                    curX := xX
+                    curY := close
+                else if bStage >= 4
+                    array.push(lns, line.new(xR, open, xX, close, color = pathCol, width = pathW))
+                    string xTxt = "4 EXPANSION" + (bStage == 5 ? " · TARGET HIT" : bStage == 6 ? " · CLOSED" : "") + " ◀"
+                    array.push(lbs, label.new(xX, close, xTxt, style = tagSty, color = clear, textcolor = pathCol, size = lblSz))
+                    curX := xX
+                    curY := close
+                else
+                    curX := xR
+                    curY := open
+                    array.push(lns, line.new(xR, open, xX, tgtP, color = ghost, width = 1, style = line.style_dotted))
+                    array.push(lbs, label.new(xX, tgtP, "4 EXPANSION → " + f_px(tgtP), style = tagSty, color = clear, textcolor = ghost, size = lblSz))
+        array.push(lbs, label.new(curX, curY, "", style = label.style_circle, color = bLost ? lostCol : pathCol, size = size.tiny))
 
-    // ---- Element 3: level lines
     if showLevels
         int x1 = na(p4Start) ? bar_index - 30 : math.max(p4Start, bar_index - 4900)
         int x2 = bar_index + rightOff
