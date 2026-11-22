@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v1.4 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v1.5 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -31,6 +31,7 @@ offPath   = input.int(26, "Path offset (bars)", minval = 2, maxval = 300, group 
 pathStep  = input.int(3, "Bars per phase step", minval = 1, maxval = 20, group = grpPa)
 pathCol   = input.color(#a64dff, "Path color", group = grpPa)
 pathW     = input.int(3, "Path width", minval = 1, maxval = 6, group = grpPa)
+lostCol   = input.color(#ff1744, "RECLAIM LOST color", group = grpPa)
 
 grpLv = "Level lines"
 extLeft   = input.bool(false, "Extend level lines to the left edge", group = grpLv)
@@ -286,7 +287,10 @@ if barstate.islast
             stage := 5
     if closedNow
         stage := 6
-    string tag = stage == 2 ? ((side == 1 ? loBar : hiBar) == bar_index ? " FORMING" : " SET") : stage == 3 ? (rclC ? " CLOSED" : " FORMING") : ""
+    float tolP = syminfo.mintick / 2
+    // RECLAIM LOST: the open was reclaimed, but price is back on the extreme's side of the open
+    bool lost4 = stage == 3 and ((side == 1 and kC < kO - tolP) or (side == -1 and kC > kO + tolP))
+    string tag = stage == 2 ? ((side == 1 ? loBar : hiBar) == bar_index ? " FORMING" : " SET") : stage == 3 ? (lost4 ? " LOST" : rclC ? " CLOSED" : " FORMING") : ""
     string stageTxt = str.tostring(stage) + "/6  " + array.get(stageNames, stage - 1) + tag
     // chart-candle stage (path line)
     bool bClosed = timenow >= time_close
@@ -303,7 +307,8 @@ if barstate.islast
             bStage := 5
     if bClosed
         bStage := 6
-    string bTag = bStage == 2 ? (bExtLive ? " FORMING" : " SET") : bStage == 3 ? (bRC ? " CLOSED" : " FORMING") : ""
+    bool bLost = bStage == 3 and ((bSide == 1 and close < open - tolP) or (bSide == -1 and close > open + tolP))
+    string bTag = bStage == 2 ? (bExtLive ? " FORMING" : " SET") : bStage == 3 ? (bLost ? " LOST" : bRC ? " CLOSED" : " FORMING") : ""
     string bStageTxt = str.tostring(bStage) + "/6  " + array.get(stageNames, bStage - 1) + bTag
 
     int hw = int(candleW / 2)
@@ -345,18 +350,24 @@ if barstate.islast
                     array.push(xs, x0 + 4 * pathStep)
                     array.push(ys, close)
                     array.push(nm, "EXPANSION")
+                else if bLost
+                    array.push(xs, x0 + 4 * pathStep)
+                    array.push(ys, close)
+                    array.push(nm, "LOST")
         array.push(lbs, label.new(x0, open, tfTxt + " CANDLE", style = label.style_label_right, color = clear, textcolor = pathCol, size = size.small))
         int n = array.size(xs)
         for i = 1 to n - 1
-            array.push(lns, line.new(array.get(xs, i - 1), array.get(ys, i - 1), array.get(xs, i), array.get(ys, i), color = pathCol, width = pathW))
+            bool lostLeg = array.get(nm, i) == "LOST"
+            array.push(lns, line.new(array.get(xs, i - 1), array.get(ys, i - 1), array.get(xs, i), array.get(ys, i), color = lostLeg ? lostCol : pathCol, width = pathW, style = lostLeg ? line.style_dashed : line.style_solid))
         for i = 1 to n - 1
             string nmI = array.get(nm, i)
             bool isEnd = i == n - 1
-            string txt = isEnd ? array.get(stageNames, bStage - 1) : nmI
+            string txt = isEnd ? (bLost ? "RECLAIM LOST" : array.get(stageNames, bStage - 1)) : nmI
             if isEnd or nmI == "EXTREME" or nmI == "RECLAIM"
-                string sty = nmI == "EXTREME" ? (bSide == 1 ? label.style_label_up : label.style_label_down) : nmI == "RECLAIM" ? (bSide == 1 ? label.style_label_down : label.style_label_up) : (bSide == -1 ? label.style_label_up : label.style_label_down)
-                array.push(lbs, label.new(array.get(xs, i), array.get(ys, i), txt, style = sty, color = clear, textcolor = isEnd ? pathCol : chart.fg_color, size = size.small))
-        array.push(lbs, label.new(array.get(xs, n - 1), array.get(ys, n - 1), "", style = label.style_circle, color = pathCol, size = size.tiny))
+                string sty = nmI == "EXTREME" ? (bSide == 1 ? label.style_label_up : label.style_label_down) : nmI == "RECLAIM" ? (bSide == 1 ? label.style_label_down : label.style_label_up) : nmI == "LOST" ? (bSide == 1 ? label.style_label_up : label.style_label_down) : (bSide == -1 ? label.style_label_up : label.style_label_down)
+                color tc = isEnd ? (bLost ? lostCol : pathCol) : chart.fg_color
+                array.push(lbs, label.new(array.get(xs, i), array.get(ys, i), txt, style = sty, color = clear, textcolor = tc, size = size.small))
+        array.push(lbs, label.new(array.get(xs, n - 1), array.get(ys, n - 1), "", style = label.style_circle, color = bLost ? lostCol : pathCol, size = size.tiny))
 
     // ---- Element 3: level lines
     if showLevels
@@ -380,7 +391,7 @@ if barstate.islast
         string rngTxt = f_px(kH - kL) + " / " + f_px(p4O)
         string cdTxt = closedNow ? "—" : f_cd(tCl - timenow)
         f_row(1, "MODEL", modelTxt, modelCol)
-        f_row(2, "STAGE", stageTxt, dashTxt)
+        f_row(2, "STAGE", stageTxt, lost4 ? lostCol : dashTxt)
         f_row(3, "LOCATION", loc, dashTxt)
         f_row(4, "C4H OPEN", f_px(kO), dashTxt)
         f_row(5, "C4H EXTREME", extTxt, dashTxt)
@@ -390,4 +401,4 @@ if barstate.islast
         f_row(9, "NEXT TARGET", tgtTxt, modelCol)
         f_row(10, "4H CLOSE IN", cdTxt, dashTxt)
         f_row(11, tfTxt + " CANDLE", bSide == 1 ? "BULLISH" : bSide == -1 ? "BEARISH" : "—", bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
-        f_row(12, tfTxt + " STAGE", bStageTxt, dashTxt)
+        f_row(12, tfTxt + " STAGE", bStageTxt, bLost ? lostCol : dashTxt)

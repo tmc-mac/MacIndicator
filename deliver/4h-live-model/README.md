@@ -1,4 +1,4 @@
-# 4H Live Model v1.4
+# 4H Live Model v1.5
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -30,6 +30,10 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
 - **Reclaim:** after the current extreme, price trades back through the C4H open (FORMING). It becomes CLOSED once a chart candle closes back through the open.
   - If the extreme extends to a new low (bullish) or new high (bearish), the reclaim resets.
 - **EXPANSION:** a reclaim has happened and live price is beyond the open in the model's direction.
+- **RECLAIM LOST (v1.5, Mac 11/22):** a reclaim happened, but price is back on the extreme's side of the open.
+  - It shows in red on the dashboard (for both the 4H and the chart candle).
+  - On the path it is a red dashed leg from the reclaim point to the live price.
+  - If price crosses back through the open in the model's direction, the stage goes to EXPANSION.
 - **TARGET:** the live high reaches the P4H HIGH (bullish), or the live low reaches the P4H LOW (bearish). This holds until the candle closes.
 - **CLOSED:** the 4H close time from `time_close("240")` has passed and no new candle has started, for example after the session close or at the weekend. The countdown then shows "—".
 - **Drawing objects:** everything is deleted and redrawn on the last bar only. That is about 2 boxes, 12 lines and 12 labels.
