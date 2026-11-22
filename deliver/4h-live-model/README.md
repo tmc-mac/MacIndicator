@@ -1,4 +1,4 @@
-# 4H Live Model v2.1
+# 4H Live Model v2.2
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -27,10 +27,9 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
 
 ## Line chart: all 4 stages, every candle (v2.1, Mac 11/22)
-- **Labels:** the path always shows 1 OPEN, 2 EXTREME (with its price), 3 RECLAIM and 4 EXPANSION. The stage price is in now is marked "◀" and has the dot.
+- **Labels:** the path shows 1 OPEN, 2 EXTREME (with its price), 3 RECLAIM and 4 EXPANSION, each one once it has happened. The stage price is in now is marked "◀" and has the dot.
+- **v2.2 (Mac, 11/22):** each stage is drawn and labelled only once it has happened. The v2.1 dotted projection of stages still to come was removed.
 - **Line styles:**
-  - Stages that have happened are drawn solid.
-  - Stages still to come are a dotted grey projection: back to the open (RECLAIM), then toward the previous chart candle's high (bullish) or low (bearish) for EXPANSION, with that price shown.
   - Before any extreme, it reads "1 OPEN ◀ waiting for the extreme".
   - A failed reclaim is a red dashed leg marked "RECLAIM LOST ◀".
 - **New candle:** the whole path is rebuilt from the current chart bar on every tick, so it starts over at "1 OPEN" when a new chart candle opens.

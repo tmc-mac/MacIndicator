@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v2.1 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v2.2 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -427,19 +427,16 @@ if barstate.islast
     // ---- Element 2: formation path of the CHART-timeframe candle (not the 4H)
     if showPath
         // the chart candle's 4 stages, always all identified:
-        //   lived legs = solid path colour; stages still to come = dotted grey projection (RECLAIM at the open,
-        //   EXPANSION toward the previous chart candle's high/low); "◀" marks the stage price is in now.
+        //   a stage is drawn and labelled only once it has happened (Mac 11/22); "◀" marks the stage price is in now.
         //   Everything is rebuilt from the current chart bar on every tick, so a new candle starts a new path.
         int x0 = bar_index + ePath
         int xO = x0 + eStep
         int xE = x0 + 2 * eStep
         int xR = x0 + 3 * eStep
         int xX = x0 + 4 * eStep
-        color ghost = color.new(chart.fg_color, 55)
         string tagSty = pathLblS == "Right" ? label.style_label_left : label.style_label_right
         array.push(lbs, label.new(x0, open, tfTxt + " CANDLE", style = label.style_label_right, color = clear, textcolor = pathCol, size = lblSz))
         array.push(lns, line.new(x0, open, xO, open, color = pathCol, width = pathW))
-        float tgtP = bSide == 1 ? (na(high[1]) ? open + 3 * bThr : math.max(high[1], open + bThr)) : (na(low[1]) ? open - 3 * bThr : math.min(low[1], open - bThr))
         int curX = xO
         float curY = open
         if bSide == 0
@@ -452,10 +449,6 @@ if barstate.islast
             if atExt
                 curX := xE
                 curY := bExtP
-                array.push(lns, line.new(xE, bExtP, xR, open, color = ghost, width = 1, style = line.style_dotted))
-                array.push(lbs, label.new(xR, open, "3 RECLAIM " + f_px(open), style = tagSty, color = clear, textcolor = ghost, size = lblSz))
-                array.push(lns, line.new(xR, open, xX, tgtP, color = ghost, width = 1, style = line.style_dotted))
-                array.push(lbs, label.new(xX, tgtP, "4 EXPANSION → " + f_px(tgtP), style = tagSty, color = clear, textcolor = ghost, size = lblSz))
             else
                 array.push(lns, line.new(xE, bExtP, xR, open, color = pathCol, width = pathW))
                 bool atRcl = bStage == 3 and not bLost
@@ -474,8 +467,6 @@ if barstate.islast
                 else
                     curX := xR
                     curY := open
-                    array.push(lns, line.new(xR, open, xX, tgtP, color = ghost, width = 1, style = line.style_dotted))
-                    array.push(lbs, label.new(xX, tgtP, "4 EXPANSION → " + f_px(tgtP), style = tagSty, color = clear, textcolor = ghost, size = lblSz))
         array.push(lbs, label.new(curX, curY, "", style = label.style_circle, color = bLost ? lostCol : pathCol, size = size.tiny))
 
     if showLevels
