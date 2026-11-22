@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v1.7 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v1.8 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -267,7 +267,7 @@ var bxs = array.new<box>()
 var lns = array.new<line>()
 var lbs = array.new<label>()
 var stageNames = array.from("OPEN", "EXTREME", "RECLAIM", "EXPANSION", "TARGET", "CLOSED")
-var table dash = showDash ? table.new(f_pos(dashPosS), 2, 13, bgcolor = dashBg, frame_color = color.new(color.gray, 60), frame_width = 1, border_color = color.new(color.gray, 80), border_width = 1) : na
+var table dash = showDash ? table.new(f_pos(dashPosS), 2, 15, bgcolor = dashBg, frame_color = color.new(color.gray, 60), frame_width = 1, border_color = color.new(color.gray, 80), border_width = 1) : na
 var color clear = color.new(color.black, 100)
 
 f_clear() =>
@@ -449,15 +449,23 @@ if barstate.islast
         string tgtTxt = side4 == 1 ? "P4H HIGH " + f_px(p4H) : side4 == -1 ? "P4H LOW " + f_px(p4L) : "—"
         string rngTxt = f_px(kH - kL) + " / " + f_px(p4O)
         string cdTxt = closedNow ? "—" : f_cd(tCl - timenow)
+        // previous 4H candle's direction and whether the current 4H model runs with it or against it
+        int p4Dir = na(p4O) or na(p4C) ? 0 : p4C > p4O ? 1 : p4C < p4O ? -1 : 0
+        string p4Txt = na(p4O) ? "—" : p4Dir == 1 ? "BULLISH" : p4Dir == -1 ? "BEARISH" : "DOJI"
+        color p4Col = p4Dir == 1 ? bullCol : p4Dir == -1 ? bearCol : dashTxt
+        string alTxt = side4 == 0 or p4Dir == 0 ? "—" : side4 == p4Dir ? "WITH P4H" : "COUNTER P4H"
+        color alCol = side4 == 0 or p4Dir == 0 ? dashTxt : side4 == p4Dir ? modelCol : #ffb300
         f_row(1, "MODEL", modelTxt, modelCol)
-        f_row(2, "STAGE", stageTxt, lost4 ? lostCol : dashTxt)
-        f_row(3, "LOCATION", loc, dashTxt)
-        f_row(4, "C4H OPEN", f_px(kO), dashTxt)
-        f_row(5, "C4H EXTREME", extTxt, dashTxt)
-        f_row(6, "P4H HIGH", f_px(p4H), dashTxt)
-        f_row(7, "P4H LOW", f_px(p4L), dashTxt)
-        f_row(8, "RANGE / P4H O", rngTxt, dashTxt)
-        f_row(9, "NEXT TARGET", tgtTxt, modelCol)
-        f_row(10, "4H CLOSE IN", cdTxt, dashTxt)
-        f_row(11, tfTxt + " CANDLE", bSide == 1 ? "BULLISH" : bSide == -1 ? "BEARISH" : "—", bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
-        f_row(12, tfTxt + " STAGE", bStageTxt, bLost ? lostCol : dashTxt)
+        f_row(2, "P4H CANDLE", p4Txt, p4Col)
+        f_row(3, "ALIGNMENT", alTxt, alCol)
+        f_row(4, "STAGE", stageTxt, lost4 ? lostCol : dashTxt)
+        f_row(5, "LOCATION", loc, dashTxt)
+        f_row(6, "C4H OPEN", f_px(kO), dashTxt)
+        f_row(7, "C4H EXTREME", extTxt, dashTxt)
+        f_row(8, "P4H HIGH", f_px(p4H), dashTxt)
+        f_row(9, "P4H LOW", f_px(p4L), dashTxt)
+        f_row(10, "RANGE / P4H O", rngTxt, dashTxt)
+        f_row(11, "NEXT TARGET", tgtTxt, modelCol)
+        f_row(12, "4H CLOSE IN", cdTxt, dashTxt)
+        f_row(13, tfTxt + " CANDLE", bSide == 1 ? "BULLISH" : bSide == -1 ? "BEARISH" : "—", bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
+        f_row(14, tfTxt + " STAGE", bStageTxt, bLost ? lostCol : dashTxt)
