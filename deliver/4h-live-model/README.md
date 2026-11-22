@@ -1,4 +1,4 @@
-# 4H Live Model v1.8
+# 4H Live Model v1.9
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -25,6 +25,19 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
+
+## Full alignment (v1.9, Mac 11/22: "take trades when price is trading in full alignment")
+FULL ALIGNMENT reads LONG ✓ or SHORT ✓ only when all three of these are true:
+1. **P4H:** the previous 4H closed in the model's direction. There is a switch to drop this requirement.
+2. **4H:** the 4H model is named, past its reclaim and not lost, so it is in RECLAIM, EXPANSION or TARGET.
+3. **Chart candle:** it has the same model, past its reclaim and not lost.
+   - RECLAIM counts only once it is CLOSED, meaning a 1m candle closed back through the open. There is a switch for this too.
+   - EXPANSION and TARGET always count.
+
+How it shows:
+- **Otherwise:** the row reads "NO · <first missing condition>", for example "NO · P4H AGAINST" or "NO · 30m NOT RECLAIMED".
+- **When aligned:** the dashboard title turns green (ALIGNED LONG) or red (ALIGNED SHORT).
+- **Alert:** `alert()` fires once when alignment starts. Create it in TradingView with the condition "Any alert() function call".
 
 ## Rules as built
 - **P4H** comes from `request.security(…"240", [open[1], high[1], low[1], close[1]], lookahead_on)`. It holds confirmed values only and never repaints.

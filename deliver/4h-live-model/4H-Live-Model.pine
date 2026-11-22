@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v1.8 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v1.9 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -51,6 +51,11 @@ dashPosS  = input.string("Top Right", "Position", options = ["Top Right", "Top L
 dashSizeS = input.string("Small", "Text size", options = ["Tiny", "Small", "Normal", "Large"], group = grpDb)
 dashBg    = input.color(#0d1117, "Background", group = grpDb)
 dashTxt   = input.color(color.white, "Text", group = grpDb)
+
+grpAl = "Full alignment"
+alReqP4   = input.bool(true, "Require the P4H candle to close in the same direction", group = grpAl)
+alReqRC   = input.bool(true, "Require the chart candle's reclaim to be CLOSED (a 1m candle closed back through its open)", group = grpAl)
+alAlert   = input.bool(true, "Alert when full alignment starts (create the alert with 'Any alert() function call')", group = grpAl)
 
 grpMd = "Model"
 extPct    = input.float(10.0, "Extreme is named when price moves this % of the P4H range away from the open", minval = 0.5, maxval = 100, step = 0.5, group = grpMd)
@@ -267,7 +272,7 @@ var bxs = array.new<box>()
 var lns = array.new<line>()
 var lbs = array.new<label>()
 var stageNames = array.from("OPEN", "EXTREME", "RECLAIM", "EXPANSION", "TARGET", "CLOSED")
-var table dash = showDash ? table.new(f_pos(dashPosS), 2, 15, bgcolor = dashBg, frame_color = color.new(color.gray, 60), frame_width = 1, border_color = color.new(color.gray, 80), border_width = 1) : na
+var table dash = showDash ? table.new(f_pos(dashPosS), 2, 16, bgcolor = dashBg, frame_color = color.new(color.gray, 60), frame_width = 1, border_color = color.new(color.gray, 80), border_width = 1) : na
 var color clear = color.new(color.black, 100)
 
 f_clear() =>
@@ -370,6 +375,23 @@ if barstate.islast
     string bTag = bStage == 2 ? (bExtLive ? " FORMING" : " SET") : bStage == 3 ? (bLost ? " LOST" : bRC ? " CLOSED" : " FORMING") : ""
     string bStageTxt = str.tostring(bStage) + "/6  " + array.get(stageNames, bStage - 1) + bTag
 
+    // ---- FULL ALIGNMENT (Mac 11/22: "take trades when price is trading in full alignment")
+    //   1. P4H closed in the model's direction (switchable)
+    //   2. 4H model named, past its reclaim and not lost (RECLAIM / EXPANSION / TARGET)
+    //   3. chart-timeframe candle has the same model, past its reclaim and not lost
+    //      (RECLAIM counts only once CLOSED, switchable; EXPANSION / TARGET always count)
+    int p4Dir = na(p4O) or na(p4C) ? 0 : p4C > p4O ? 1 : p4C < p4O ? -1 : 0
+    bool ok4 = side4 != 0 and stage >= 3 and stage <= 5 and not lost4
+    bool okCh = bSide != 0 and bSide == side4 and not bLost and (bStage == 4 or bStage == 5 or (bStage == 3 and bRF and (bRC or not alReqRC or useTicks)))
+    bool okP4 = not alReqP4 or p4Dir == side4
+    int alDir = ok4 and okCh and okP4 ? side4 : 0
+    string alWhy = side4 == 0 ? "4H EXTREME NOT SET" : not okP4 ? "P4H AGAINST" : not ok4 ? (lost4 ? "4H RECLAIM LOST" : "4H NOT RECLAIMED") : bSide != side4 ? tfTxt + " AGAINST 4H" : bLost ? tfTxt + " RECLAIM LOST" : tfTxt + " NOT RECLAIMED"
+    string fullTxt = alDir == 1 ? "LONG ✓" : alDir == -1 ? "SHORT ✓" : "NO · " + alWhy
+    varip int alLast = 0
+    if alAlert and alDir != 0 and alDir != alLast and barstate.isrealtime
+        alert(syminfo.ticker + " FULL ALIGNMENT " + (alDir == 1 ? "LONG" : "SHORT") + " · 4H " + array.get(stageNames, stage - 1) + " · " + tfTxt + " " + array.get(stageNames, bStage - 1) + " · price " + str.tostring(close, format.mintick), alert.freq_once_per_bar)
+    alLast := alDir
+
     int hw = int(candleW / 2)
     int rightOff = 8
     if showCandles
@@ -439,7 +461,7 @@ if barstate.islast
 
     // ---- Element 4: dashboard
     if showDash
-        table.cell(dash, 0, 0, "4H LIVE MODEL", text_color = dashTxt, text_halign = text.align_center, text_size = f_size(dashSizeS), bgcolor = color.new(pathCol, 35))
+        table.cell(dash, 0, 0, alDir == 1 ? "4H LIVE MODEL · ALIGNED LONG" : alDir == -1 ? "4H LIVE MODEL · ALIGNED SHORT" : "4H LIVE MODEL", text_color = dashTxt, text_halign = text.align_center, text_size = f_size(dashSizeS), bgcolor = alDir == 1 ? color.new(bullCol, 25) : alDir == -1 ? color.new(bearCol, 25) : color.new(pathCol, 35))
         table.merge_cells(dash, 0, 0, 1, 0)
         string modelTxt = side4 == 1 ? "BULLISH" : side4 == -1 ? "BEARISH" : "—"
         color modelCol = side4 == 1 ? bullCol : side4 == -1 ? bearCol : dashTxt
@@ -450,7 +472,6 @@ if barstate.islast
         string rngTxt = f_px(kH - kL) + " / " + f_px(p4O)
         string cdTxt = closedNow ? "—" : f_cd(tCl - timenow)
         // previous 4H candle's direction and whether the current 4H model runs with it or against it
-        int p4Dir = na(p4O) or na(p4C) ? 0 : p4C > p4O ? 1 : p4C < p4O ? -1 : 0
         string p4Txt = na(p4O) ? "—" : p4Dir == 1 ? "BULLISH" : p4Dir == -1 ? "BEARISH" : "DOJI"
         color p4Col = p4Dir == 1 ? bullCol : p4Dir == -1 ? bearCol : dashTxt
         string alTxt = side4 == 0 or p4Dir == 0 ? "—" : side4 == p4Dir ? "WITH P4H" : "COUNTER P4H"
@@ -469,3 +490,4 @@ if barstate.islast
         f_row(12, "4H CLOSE IN", cdTxt, dashTxt)
         f_row(13, tfTxt + " CANDLE", bSide == 1 ? "BULLISH" : bSide == -1 ? "BEARISH" : "—", bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
         f_row(14, tfTxt + " STAGE", bStageTxt, bLost ? lostCol : dashTxt)
+        f_row(15, "FULL ALIGNMENT", fullTxt, alDir == 1 ? bullCol : alDir == -1 ? bearCol : dashTxt)
