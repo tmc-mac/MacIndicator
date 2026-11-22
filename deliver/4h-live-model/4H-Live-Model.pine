@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v1.2 (Team Mac)
+// 4H LIVE MODEL v1.3 (Team Mac): v1 look (Mac 11/22) + live C4H values from the chart bars
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -19,29 +19,28 @@ grpSc = "Side candles"
 offP4H    = input.int(6, "P4H offset (bars right of last bar)", minval = 2, maxval = 300, group = grpSc)
 offC4H    = input.int(16, "C4H LIVE offset (bars)", minval = 2, maxval = 300, group = grpSc)
 candleW   = input.int(4, "Candle width (bars)", minval = 1, maxval = 30, group = grpSc)
-wickW     = input.int(1, "Wick width (px)", minval = 1, maxval = 6, group = grpSc)
-wickCol   = input.color(#787b86, "Wick color", group = grpSc)
-bullCol   = input.color(#26a69a, "Bullish color", group = grpSc)
-bearCol   = input.color(#ef5350, "Bearish color", group = grpSc)
-c4Transp  = input.int(70, "C4H LIVE body transparency", minval = 0, maxval = 100, group = grpSc)
-p4Transp  = input.int(80, "P4H body transparency (muted)", minval = 0, maxval = 100, group = grpSc)
+wickW     = input.int(2, "Wick width (px)", minval = 1, maxval = 6, group = grpSc)
+bullCol   = input.color(#00c853, "Bullish color", group = grpSc)
+bearCol   = input.color(#ff4f7b, "Bearish color", group = grpSc)
+c4Transp  = input.int(10, "C4H LIVE body transparency", minval = 0, maxval = 100, group = grpSc)
+p4Transp  = input.int(70, "P4H body transparency (muted)", minval = 0, maxval = 100, group = grpSc)
+p4WickTr  = input.int(45, "P4H wick/border transparency", minval = 0, maxval = 100, group = grpSc)
 
 grpPa = "Formation path"
-offPath   = input.int(26, "Path offset (bars, left end of the open line)", minval = 2, maxval = 300, group = grpPa)
-pathHalf  = input.int(4, "Path half-width (bars, open to extreme)", minval = 1, maxval = 40, group = grpPa)
-pathCol   = input.color(#9c27b0, "Path color", group = grpPa)
-pathW     = input.int(2, "Path width", minval = 1, maxval = 6, group = grpPa)
-showHiLo  = input.bool(true, "Mark the expansion high/low beyond the live price (dotted)", group = grpPa)
+offPath   = input.int(26, "Path offset (bars)", minval = 2, maxval = 300, group = grpPa)
+pathStep  = input.int(3, "Bars per phase step", minval = 1, maxval = 20, group = grpPa)
+pathCol   = input.color(#a64dff, "Path color", group = grpPa)
+pathW     = input.int(3, "Path width", minval = 1, maxval = 6, group = grpPa)
 
 grpLv = "Level lines"
 extLeft   = input.bool(false, "Extend level lines to the left edge", group = grpLv)
-p4hHiCol  = input.color(#e53935, "P4H HIGH color", group = grpLv)
+p4hHiCol  = input.color(#2962ff, "P4H HIGH color", group = grpLv)
 p4hHiSty  = input.string("Solid", "P4H HIGH style", options = ["Solid", "Dashed", "Dotted"], group = grpLv)
-p4hLoCol  = input.color(#e53935, "P4H LOW color", group = grpLv)
+p4hLoCol  = input.color(#ff6d00, "P4H LOW color", group = grpLv)
 p4hLoSty  = input.string("Solid", "P4H LOW style", options = ["Solid", "Dashed", "Dotted"], group = grpLv)
-p4hOpCol  = input.color(#424242, "P4H OPEN color", group = grpLv)
+p4hOpCol  = input.color(#9e9e9e, "P4H OPEN color", group = grpLv)
 p4hOpSty  = input.string("Dashed", "P4H OPEN style", options = ["Solid", "Dashed", "Dotted"], group = grpLv)
-c4hOpCol  = input.color(#000000, "C4H OPEN color (use white on a dark chart)", group = grpLv)
+c4hOpCol  = input.color(#1a237e, "C4H OPEN color", group = grpLv)
 c4hOpSty  = input.string("Solid", "C4H OPEN style", options = ["Solid", "Dashed", "Dotted"], group = grpLv)
 c4hOpW    = input.int(3, "C4H OPEN width", minval = 1, maxval = 6, group = grpLv)
 lvlW      = input.int(1, "Other level widths", minval = 1, maxval = 6, group = grpLv)
@@ -49,7 +48,7 @@ lvlW      = input.int(1, "Other level widths", minval = 1, maxval = 6, group = g
 grpDb = "Dashboard"
 dashPosS  = input.string("Top Right", "Position", options = ["Top Right", "Top Left", "Bottom Right", "Bottom Left", "Middle Right"], group = grpDb)
 dashSizeS = input.string("Small", "Text size", options = ["Tiny", "Small", "Normal", "Large"], group = grpDb)
-dashBg    = input.color(color.new(#131722, 10), "Background", group = grpDb)
+dashBg    = input.color(#0d1117, "Background", group = grpDb)
 dashTxt   = input.color(color.white, "Text", group = grpDb)
 
 grpMd = "Model"
@@ -175,26 +174,19 @@ f_clear() =>
     while array.size(lbs) > 0
         label.delete(array.pop(lbs))
 
-
-f_candle(int cx, int hw, float o, float h, float l, float c, int bodyTr, string txt) =>
+f_candle(int cx, int hw, float o, float h, float l, float c, int bodyTr, int wickTr, string txt) =>
     color col = c >= o ? bullCol : bearCol
     float top = math.max(o, c)
     float bot = math.min(o, c)
-    array.push(bxs, box.new(left = cx - hw, top = top, right = cx + hw, bottom = bot, border_color = color.new(col, 20), border_width = 1, bgcolor = color.new(col, bodyTr)))
-    array.push(lns, line.new(cx, top, cx, h, color = wickCol, width = wickW))
-    array.push(lns, line.new(cx, bot, cx, l, color = wickCol, width = wickW))
+    array.push(bxs, box.new(left = cx - hw, top = top, right = cx + hw, bottom = bot, border_color = color.new(col, wickTr), border_width = 1, bgcolor = color.new(col, bodyTr)))
+    array.push(lns, line.new(cx, top, cx, h, color = color.new(col, wickTr), width = wickW))
+    array.push(lns, line.new(cx, bot, cx, l, color = color.new(col, wickTr), width = wickW))
     array.push(lbs, label.new(cx, h, txt, style = label.style_label_down, color = clear, textcolor = chart.fg_color, size = size.small))
 
 f_level(int x1, int x2, float y, color col, string sty, int w, string txt) =>
     if not na(y)
         array.push(lns, line.new(x1, y, x2, y, color = col, style = f_sty(sty), width = w, extend = extLeft ? extend.left : extend.none))
-        array.push(lbs, label.new(x1, y, txt + "  " + str.tostring(y, format.mintick), style = label.style_label_lower_left, color = clear, textcolor = chart.fg_color, size = size.small))
-
-f_seg(int xa, float ya, int xb, float yb, string sty, int w) =>
-    array.push(lns, line.new(xa, ya, xb, yb, color = pathCol, style = sty, width = w))
-
-f_tag(int x, float y, string txt, string sty) =>
-    array.push(lbs, label.new(x, y, txt, style = sty, color = clear, textcolor = pathCol, size = size.small))
+        array.push(lbs, label.new(x1, y, txt + " " + str.tostring(y, format.mintick), style = label.style_label_right, color = col, textcolor = color.white, size = size.small))
 
 f_row(int r, string k, string v, color vc) =>
     table.cell(dash, 0, r, k, text_color = dashTxt, text_halign = text.align_left, text_size = f_size(dashSizeS))
@@ -219,47 +211,62 @@ if barstate.islast
         stage := 6
     string tag = stage == 2 ? ((side == 1 ? loBar : hiBar) == bar_index ? " FORMING" : " SET") : stage == 3 ? (rclC ? " CLOSED" : " FORMING") : ""
     string stageTxt = str.tostring(stage) + "/6  " + array.get(stageNames, stage - 1) + tag
-    string arrow = side == -1 ? "▼ " : "▲ "
+
     int hw = int(candleW / 2)
+    int rightOff = 8
+    if showCandles
+        rightOff := math.max(rightOff, math.max(offP4H, offC4H) + hw + 2)
+    if showPath
+        rightOff := math.max(rightOff, offPath + 4 * pathStep + 8)
+    rightOff := math.min(rightOff, 450)
 
     // ---- Element 1: side candles
     if showCandles
         if not na(p4O)
-            f_candle(bar_index + offP4H, hw, p4O, p4H, p4L, p4C, p4Transp, "P4H")
+            f_candle(bar_index + offP4H, hw, p4O, p4H, p4L, p4C, p4Transp, p4WickTr, "P4H")
         if not na(kO)
-            f_candle(bar_index + offC4H, hw, kO, kH, kL, kC, c4Transp, "C4H LIVE")
+            f_candle(bar_index + offC4H, hw, kO, kH, kL, kC, c4Transp, 0, "C4H LIVE")
 
-    // ---- Element 2: formation path (the sketch)
-    //   open line flat across xL..xR; V from xL down/up to the EXTREME at xM, back to the open at xR (RECLAIM);
-    //   EXPANSION: vertical leg from the middle of the open line (xM) to the live price; dotted to the high/low beyond it.
+    // ---- Element 2: formation path
     if showPath and not na(kO)
-        int xL = bar_index + offPath
-        int xM = xL + pathHalf
-        int xR = xL + 2 * pathHalf
-        f_seg(xL, kO, xR, kO, line.style_solid, pathW)
-        if side == 0
-            f_tag(xR, kO, "OPEN", label.style_label_left)
-        else
-            float ext = side == 1 ? kL : kH
-            f_seg(xL, kO, xM, ext, line.style_solid, pathW)
-            f_tag(xM, ext, arrow + "EXTREME", label.style_label_left)
+        int x0 = bar_index + offPath
+        xs = array.new_int()
+        ys = array.new_float()
+        nm = array.new_string()
+        array.push(xs, x0)
+        array.push(ys, kO)
+        array.push(nm, "")
+        array.push(xs, x0 + pathStep)
+        array.push(ys, kO)
+        array.push(nm, "OPEN")
+        if side != 0
+            array.push(xs, x0 + 2 * pathStep)
+            array.push(ys, side == 1 ? kL : kH)
+            array.push(nm, "EXTREME")
             if rclF
-                f_seg(xM, ext, xR, kO, line.style_solid, pathW)
-                f_tag(xR, kO, arrow + "RECLAIM", label.style_label_left)
+                array.push(xs, x0 + 3 * pathStep)
+                array.push(ys, kO)
+                array.push(nm, "RECLAIM")
                 if beyond or tgtHit
-                    float peak = side == 1 ? kH : kL
-                    f_seg(xM, kO, xM, kC, line.style_solid, pathW + 1)
-                    f_tag(xM, kO, "EXPANSION", side == 1 ? label.style_label_lower_right : label.style_label_upper_right)
-                    string endTxt = stage == 6 ? "CLOSE" : stage == 5 ? "TARGET" : "LIVE"
-                    f_tag(xM, kC, arrow + endTxt + "  " + str.tostring(kC, format.mintick), label.style_label_left)
-                    if showHiLo and math.abs(peak - kC) >= syminfo.mintick
-                        f_seg(xM, kC, xM, peak, line.style_dotted, 1)
-                        f_tag(xM, peak, side == 1 ? "HIGH" : "LOW", side == 1 ? label.style_label_down : label.style_label_up)
+                    array.push(xs, x0 + 4 * pathStep)
+                    array.push(ys, kC)
+                    array.push(nm, "EXPANSION")
+        int n = array.size(xs)
+        for i = 1 to n - 1
+            array.push(lns, line.new(array.get(xs, i - 1), array.get(ys, i - 1), array.get(xs, i), array.get(ys, i), color = pathCol, width = pathW))
+        for i = 1 to n - 1
+            string nmI = array.get(nm, i)
+            bool isEnd = i == n - 1
+            string txt = isEnd ? array.get(stageNames, stage - 1) : nmI
+            if isEnd or nmI == "EXTREME" or nmI == "RECLAIM"
+                string sty = nmI == "EXTREME" ? (side == 1 ? label.style_label_up : label.style_label_down) : nmI == "RECLAIM" ? (side == 1 ? label.style_label_down : label.style_label_up) : (side == -1 ? label.style_label_up : label.style_label_down)
+                array.push(lbs, label.new(array.get(xs, i), array.get(ys, i), txt, style = sty, color = clear, textcolor = isEnd ? pathCol : chart.fg_color, size = size.small))
+        array.push(lbs, label.new(array.get(xs, n - 1), array.get(ys, n - 1), "", style = label.style_circle, color = pathCol, size = size.tiny))
 
-    // ---- Element 3: level lines (run from the P4H start to the P4H side candle)
+    // ---- Element 3: level lines
     if showLevels
         int x1 = na(p4Start) ? bar_index - 30 : math.max(p4Start, bar_index - 4900)
-        int x2 = showCandles ? bar_index + offP4H + hw : bar_index + 5
+        int x2 = bar_index + rightOff
         f_level(x1, x2, p4H, p4hHiCol, p4hHiSty, lvlW, "P4H HIGH")
         f_level(x1, x2, p4L, p4hLoCol, p4hLoSty, lvlW, "P4H LOW")
         f_level(x1, x2, p4O, p4hOpCol, p4hOpSty, lvlW, "P4H OPEN")
@@ -267,11 +274,10 @@ if barstate.islast
 
     // ---- Element 4: dashboard
     if showDash
-        table.cell(dash, 0, 0, "4H LIVE MODEL", text_color = dashTxt, text_halign = text.align_center, text_size = f_size(dashSizeS))
+        table.cell(dash, 0, 0, "4H LIVE MODEL", text_color = dashTxt, text_halign = text.align_center, text_size = f_size(dashSizeS), bgcolor = color.new(pathCol, 35))
         table.merge_cells(dash, 0, 0, 1, 0)
         string modelTxt = side == 1 ? "BULLISH" : side == -1 ? "BEARISH" : "—"
         color modelCol = side == 1 ? bullCol : side == -1 ? bearCol : dashTxt
-        color stageCol = stage == 3 ? #ffb300 : stage == 4 or stage == 5 ? modelCol : dashTxt
         float tol = syminfo.mintick / 2
         string loc = na(kC) or na(kO) ? "—" : kC > kO + tol ? "ABOVE OPEN" : kC < kO - tol ? "BELOW OPEN" : "AT OPEN"
         string extTxt = side == 1 ? "LOW " + f_px(kL) : side == -1 ? "HIGH " + f_px(kH) : "—"
@@ -279,7 +285,7 @@ if barstate.islast
         string rngTxt = f_px(kH - kL) + " / " + f_px(p4O)
         string cdTxt = closedNow ? "—" : f_cd(tCl - timenow)
         f_row(1, "MODEL", modelTxt, modelCol)
-        f_row(2, "STAGE", stageTxt, stageCol)
+        f_row(2, "STAGE", stageTxt, dashTxt)
         f_row(3, "LOCATION", loc, dashTxt)
         f_row(4, "C4H OPEN", f_px(kO), dashTxt)
         f_row(5, "C4H EXTREME", extTxt, dashTxt)

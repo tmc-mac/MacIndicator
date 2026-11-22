@@ -1,4 +1,4 @@
-# 4H Live Model v1.2
+# 4H Live Model v1.3
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -6,11 +6,10 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
 
 ## What it draws
 - **Side candles:** P4H (the previous completed 4H candle, muted) at +6 bars and C4H LIVE at +16 bars. Both are 4 bars wide and sit at true prices.
-- **Formation path (v1.1, drawn to Mac's sketch 11/22):** starts at +26 bars and is 8 bars wide.
-  - The 4H open is a flat line across the full width.
-  - A V runs from its left end to the EXTREME in the middle, then back up to the RECLAIM at its right end. The reclaim leg is drawn only once the reclaim has happened.
-  - EXPANSION is a vertical leg from the middle of the open line to the live price, labelled LIVE, TARGET or CLOSE. A dotted extension marks the candle's HIGH (bullish) or LOW (bearish) beyond it.
-- **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the P4H side candle, with text labels at the left.
+- **Formation path (v1.3, back to the v1 look on Mac's call, 11/22):** a purple line at +26 bars, 3 bars per phase: OPEN → EXTREME → RECLAIM → EXPANSION, with a dot at the live price.
+  - Only phases that have happened are drawn, and the live end carries the current stage name.
+  - Mac rejected the v1.1 sketch layout (V with a vertical leg) because it read as a big arrow.
+- **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
 
 ## Rules as built
