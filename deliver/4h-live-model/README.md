@@ -1,4 +1,4 @@
-# 4H Live Model v1.1
+# 4H Live Model v1.2
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -15,7 +15,9 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
 
 ## Rules as built
 - **P4H** comes from `request.security(…"240", [open[1], high[1], low[1], close[1]], lookahead_on)`. It holds confirmed values only and never repaints.
-- **C4H** comes from `request.security(…"240", [open, high, low, close], lookahead_off)` and is read on the last bar, so it updates live.
+- **C4H (v1.2)** comes from the chart's own bars inside the current 4H candle: the first bar's open, the running high and low, and the live close. `request.security(…lookahead_off)` is kept only as a fallback.
+  - Reason: on a last bar that is calculated as history, `request.security(…lookahead_off)` returns the PREVIOUS candle's values. That happens on chart load before the first tick and in bar replay.
+  - Seen on CRYPTO:BTCUSD 30m on 11/22: `request.security` gave the open as 60770.76, which is the P4H open. The true C4H open is 60614.15.
 - **MODEL** names itself by whichever side first moves away from the C4H open by at least `extPct` % of the P4H range (default 10 %, minimum 2 ticks).
   - Low side first means BULLISH; high side first means BEARISH.
   - If both sides pass the threshold inside one chart bar, the bar's colour decides: a green bar means the low came first.

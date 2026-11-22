@@ -1,9 +1,9 @@
 //@version=5
-// 4H LIVE MODEL v1.1 (Team Mac)
+// 4H LIVE MODEL v1.2 (Team Mac)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
-// C4H values: the forming 4H candle, live from request.security.
+// C4H values: the forming 4H candle, live (chart bars of the current 4H candle; request.security as fallback).
 // Phase order (which extreme came first, reclaim timing) is tracked on the chart's own bars,
 // using TradingView's own 4H boundaries for the symbol (time("240")).
 indicator("4H Live Model", shorttitle = "4H LIVE MODEL", overlay = true, max_boxes_count = 20, max_lines_count = 60, max_labels_count = 60)
@@ -151,6 +151,14 @@ if inSess
             if not na(p4L) and cL <= p4L
                 tgtHit := true
 
+// Live C4H values come from the chart's own bars inside the current 4H candle (same feed, exact match
+// to request.security on live bars). request.security(lookahead_off) returns the PREVIOUS 4H candle on a
+// last bar that is calculated as history (chart load before the first tick, bar replay), so it is only the fallback.
+float kO = na(cO) ? c4O : cO
+float kH = na(cO) ? c4H : cH
+float kL = na(cO) ? c4L : cL
+float kC = na(cO) ? c4C : close
+
 // ================= DRAWING =================
 var bxs = array.new<box>()
 var lns = array.new<line>()
@@ -198,7 +206,7 @@ if barstate.islast
     float tCl = nz(float(time_close("240")), float(nz(t4, time)) + 14400000.0)
     bool closedNow = timenow >= tCl
     int stage = 1
-    bool beyond = (side == 1 and c4C > c4O) or (side == -1 and c4C < c4O)
+    bool beyond = (side == 1 and kC > kO) or (side == -1 and kC < kO)
     if side != 0
         stage := 2
         if rclF
@@ -218,34 +226,34 @@ if barstate.islast
     if showCandles
         if not na(p4O)
             f_candle(bar_index + offP4H, hw, p4O, p4H, p4L, p4C, p4Transp, "P4H")
-        if not na(c4O)
-            f_candle(bar_index + offC4H, hw, c4O, c4H, c4L, c4C, c4Transp, "C4H LIVE")
+        if not na(kO)
+            f_candle(bar_index + offC4H, hw, kO, kH, kL, kC, c4Transp, "C4H LIVE")
 
     // ---- Element 2: formation path (the sketch)
     //   open line flat across xL..xR; V from xL down/up to the EXTREME at xM, back to the open at xR (RECLAIM);
     //   EXPANSION: vertical leg from the middle of the open line (xM) to the live price; dotted to the high/low beyond it.
-    if showPath and not na(c4O)
+    if showPath and not na(kO)
         int xL = bar_index + offPath
         int xM = xL + pathHalf
         int xR = xL + 2 * pathHalf
-        f_seg(xL, c4O, xR, c4O, line.style_solid, pathW)
+        f_seg(xL, kO, xR, kO, line.style_solid, pathW)
         if side == 0
-            f_tag(xR, c4O, "OPEN", label.style_label_left)
+            f_tag(xR, kO, "OPEN", label.style_label_left)
         else
-            float ext = side == 1 ? c4L : c4H
-            f_seg(xL, c4O, xM, ext, line.style_solid, pathW)
+            float ext = side == 1 ? kL : kH
+            f_seg(xL, kO, xM, ext, line.style_solid, pathW)
             f_tag(xM, ext, arrow + "EXTREME", label.style_label_left)
             if rclF
-                f_seg(xM, ext, xR, c4O, line.style_solid, pathW)
-                f_tag(xR, c4O, arrow + "RECLAIM", label.style_label_left)
+                f_seg(xM, ext, xR, kO, line.style_solid, pathW)
+                f_tag(xR, kO, arrow + "RECLAIM", label.style_label_left)
                 if beyond or tgtHit
-                    float peak = side == 1 ? c4H : c4L
-                    f_seg(xM, c4O, xM, c4C, line.style_solid, pathW + 1)
-                    f_tag(xM, c4O, "EXPANSION", side == 1 ? label.style_label_lower_right : label.style_label_upper_right)
+                    float peak = side == 1 ? kH : kL
+                    f_seg(xM, kO, xM, kC, line.style_solid, pathW + 1)
+                    f_tag(xM, kO, "EXPANSION", side == 1 ? label.style_label_lower_right : label.style_label_upper_right)
                     string endTxt = stage == 6 ? "CLOSE" : stage == 5 ? "TARGET" : "LIVE"
-                    f_tag(xM, c4C, arrow + endTxt + "  " + str.tostring(c4C, format.mintick), label.style_label_left)
-                    if showHiLo and math.abs(peak - c4C) >= syminfo.mintick
-                        f_seg(xM, c4C, xM, peak, line.style_dotted, 1)
+                    f_tag(xM, kC, arrow + endTxt + "  " + str.tostring(kC, format.mintick), label.style_label_left)
+                    if showHiLo and math.abs(peak - kC) >= syminfo.mintick
+                        f_seg(xM, kC, xM, peak, line.style_dotted, 1)
                         f_tag(xM, peak, side == 1 ? "HIGH" : "LOW", side == 1 ? label.style_label_down : label.style_label_up)
 
     // ---- Element 3: level lines (run from the P4H start to the P4H side candle)
@@ -255,7 +263,7 @@ if barstate.islast
         f_level(x1, x2, p4H, p4hHiCol, p4hHiSty, lvlW, "P4H HIGH")
         f_level(x1, x2, p4L, p4hLoCol, p4hLoSty, lvlW, "P4H LOW")
         f_level(x1, x2, p4O, p4hOpCol, p4hOpSty, lvlW, "P4H OPEN")
-        f_level(x1, x2, c4O, c4hOpCol, c4hOpSty, c4hOpW, "C4H OPEN")
+        f_level(x1, x2, kO, c4hOpCol, c4hOpSty, c4hOpW, "C4H OPEN")
 
     // ---- Element 4: dashboard
     if showDash
@@ -265,15 +273,15 @@ if barstate.islast
         color modelCol = side == 1 ? bullCol : side == -1 ? bearCol : dashTxt
         color stageCol = stage == 3 ? #ffb300 : stage == 4 or stage == 5 ? modelCol : dashTxt
         float tol = syminfo.mintick / 2
-        string loc = na(c4C) or na(c4O) ? "—" : c4C > c4O + tol ? "ABOVE OPEN" : c4C < c4O - tol ? "BELOW OPEN" : "AT OPEN"
-        string extTxt = side == 1 ? "LOW " + f_px(c4L) : side == -1 ? "HIGH " + f_px(c4H) : "—"
+        string loc = na(kC) or na(kO) ? "—" : kC > kO + tol ? "ABOVE OPEN" : kC < kO - tol ? "BELOW OPEN" : "AT OPEN"
+        string extTxt = side == 1 ? "LOW " + f_px(kL) : side == -1 ? "HIGH " + f_px(kH) : "—"
         string tgtTxt = side == 1 ? "P4H HIGH " + f_px(p4H) : side == -1 ? "P4H LOW " + f_px(p4L) : "—"
-        string rngTxt = f_px(c4H - c4L) + " / " + f_px(p4O)
+        string rngTxt = f_px(kH - kL) + " / " + f_px(p4O)
         string cdTxt = closedNow ? "—" : f_cd(tCl - timenow)
         f_row(1, "MODEL", modelTxt, modelCol)
         f_row(2, "STAGE", stageTxt, stageCol)
         f_row(3, "LOCATION", loc, dashTxt)
-        f_row(4, "C4H OPEN", f_px(c4O), dashTxt)
+        f_row(4, "C4H OPEN", f_px(kO), dashTxt)
         f_row(5, "C4H EXTREME", extTxt, dashTxt)
         f_row(6, "P4H HIGH", f_px(p4H), dashTxt)
         f_row(7, "P4H LOW", f_px(p4L), dashTxt)
