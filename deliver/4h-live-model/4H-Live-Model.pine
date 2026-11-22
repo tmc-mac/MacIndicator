@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v2.4 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v2.5 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -288,7 +288,7 @@ string lblSz = mobile ? size.normal : size.small
 var bxs = array.new<box>()
 var lns = array.new<line>()
 var lbs = array.new<label>()
-var stageNames = array.from("OPEN", "EXTREME", "RECLAIM", "EXPANSION", "TARGET", "CLOSED")
+var stageNames = array.from("OPEN", "EXTREME", "RECLAIM", "EXPANSION")
 var table dash = showDash ? table.new(f_pos(mobile ? mobPosS : dashPosS), 2, 18, bgcolor = dashBg, frame_color = color.new(color.gray, 60), frame_width = 1, border_color = color.new(color.gray, 80), border_width = 1) : na
 var color clear = color.new(color.black, 100)
 
@@ -359,7 +359,6 @@ if barstate.islast
     [side4, ext4Raw, r4, rc4, lostS4, pk4, el4, hi4S, lo4S] = f_life(a4o, a4h, a4l, a4c, kO, thr, tolP)
     float ext4 = side4 == -1 and ext4Raw >= hi4S ? kH : side4 == 1 and ext4Raw <= lo4S ? kL : ext4Raw
     bool beyond4 = r4 and ((side4 == 1 and kC >= kO + thr) or (side4 == -1 and kC <= kO - thr))
-    bool tgt4 = r4 and ((side4 == 1 and pk4 >= p4H) or (side4 == -1 and pk4 <= p4L))
     int stage = 1
     if side4 != 0
         stage := 2
@@ -367,17 +366,13 @@ if barstate.islast
             stage := 3
             if beyond4
                 stage := 4
-        if tgt4
-            stage := 5
-    if closedNow
-        stage := 6
     bool lost4 = stage == 3 and lostS4 and not r4
     string tag = stage == 2 ? (el4 ? " FORMING" : " SET") : stage == 3 ? (lost4 ? " LOST" : rc4 ? " CLOSED" : " FORMING") : ""
     // DRIVE (v2.3): the extreme has run past the P4H's opposite side with no reclaim -> the candle is driving,
     // not forming an extreme. Shown as the drive's direction; never counts toward FULL ALIGNMENT.
-    bool drive4 = side4 != 0 and not r4 and stage < 6 and ((side4 == 1 and ext4 <= p4L) or (side4 == -1 and ext4 >= p4H))
+    bool drive4 = side4 != 0 and not r4 and ((side4 == 1 and ext4 <= p4L) or (side4 == -1 and ext4 >= p4H))
     int drv4Dir = drive4 ? -side4 : 0
-    string stageTxt = drive4 ? "2/6  DRIVE " + (drv4Dir == 1 ? "▲" : "▼") : str.tostring(stage) + "/6  " + array.get(stageNames, stage - 1) + tag
+    string stageTxt = drive4 ? "2/4  DRIVE " + (drv4Dir == 1 ? "▲" : "▼") : str.tostring(stage) + "/4  " + array.get(stageNames, stage - 1) + tag
     // ENGULFING (v2.3): body past the P4H body. FORMING while live, CONFIRMED once the 4H closes; P4H ENGULFED = the last 4H was one.
     float p4BT = math.max(p4O, p4C)
     float p4BB = math.min(p4O, p4C)
@@ -390,7 +385,6 @@ if barstate.islast
     // chart-candle stage (path line)
     bool bClosed = timenow >= time_close
     bool bBeyond = bRF and ((bSide == 1 and close >= open + bThr) or (bSide == -1 and close <= open - bThr))
-    bool bTgt = bRF and ((bSide == 1 and bPeak >= high[1]) or (bSide == -1 and bPeak <= low[1]))
     int bStage = 1
     if bSide != 0
         bStage := 2
@@ -398,15 +392,11 @@ if barstate.islast
             bStage := 3
             if bBeyond
                 bStage := 4
-        if bTgt
-            bStage := 5
-    if bClosed
-        bStage := 6
     bool bLost = bStage == 3 and bLostS and not bRF
     string bTag = bStage == 2 ? (bExtLive ? " FORMING" : " SET") : bStage == 3 ? (bLost ? " LOST" : bRC ? " CLOSED" : " FORMING") : ""
-    bool bDrive = bSide != 0 and not bRF and bStage < 6 and ((bSide == 1 and bExtP <= low[1]) or (bSide == -1 and bExtP >= high[1]))
+    bool bDrive = bSide != 0 and not bRF and ((bSide == 1 and bExtP <= low[1]) or (bSide == -1 and bExtP >= high[1]))
     int bDrvDir = bDrive ? -bSide : 0
-    string bStageTxt = bDrive ? "2/6  DRIVE " + (bDrvDir == 1 ? "▲" : "▼") : str.tostring(bStage) + "/6  " + array.get(stageNames, bStage - 1) + bTag
+    string bStageTxt = bDrive ? "2/4  DRIVE " + (bDrvDir == 1 ? "▲" : "▼") : str.tostring(bStage) + "/4  " + array.get(stageNames, bStage - 1) + bTag
     float pBT = math.max(open[1], close[1])
     float pBB = math.min(open[1], close[1])
     bool engDn = open >= pBT and close < pBB
@@ -422,8 +412,8 @@ if barstate.islast
     //   3. chart-timeframe candle has the same model, past its reclaim and not lost
     //      (RECLAIM counts only once CLOSED, switchable; EXPANSION / TARGET always count)
     int p4Dir = na(p4O) or na(p4C) ? 0 : p4C > p4O ? 1 : p4C < p4O ? -1 : 0
-    bool ok4 = side4 != 0 and stage >= 3 and stage <= 5 and not lost4
-    bool okCh = bSide != 0 and bSide == side4 and not bLost and (bStage == 4 or bStage == 5 or (bStage == 3 and bRF and (bRC or not alReqRC or useTicks)))
+    bool ok4 = side4 != 0 and stage >= 3 and not lost4
+    bool okCh = bSide != 0 and bSide == side4 and not bLost and (bStage == 4 or (bStage == 3 and bRF and (bRC or not alReqRC or useTicks)))
     bool okP4 = not alReqP4 or p4Dir == side4
     int alDir = ok4 and okCh and okP4 ? side4 : 0
     string alWhy = drive4 ? "4H DRIVE" : bDrive ? tfTxt + " DRIVE" : side4 == 0 ? "4H EXTREME NOT SET" : not okP4 ? "P4H AGAINST" : not ok4 ? (lost4 ? "4H RECLAIM LOST" : "4H NOT RECLAIMED") : bSide != side4 ? tfTxt + " AGAINST 4H" : bLost ? tfTxt + " RECLAIM LOST" : tfTxt + " NOT RECLAIMED"
@@ -486,7 +476,7 @@ if barstate.islast
                     curY := close
                 else if bStage >= 4
                     array.push(lns, line.new(xR, open, xX, close, color = pathCol, width = pathW))
-                    string xTxt = "4 EXPANSION" + (bStage == 5 ? " · TARGET HIT" : bStage == 6 ? " · CLOSED" : "") + " ◀"
+                    string xTxt = "4 EXPANSION ◀"
                     array.push(lbs, label.new(xX, close, xTxt, style = tagSty, color = clear, textcolor = pathCol, size = lblSz))
                     curX := xX
                     curY := close
@@ -524,9 +514,9 @@ if barstate.islast
         color alCol = side4 == 0 or p4Dir == 0 ? dashTxt : side4 == p4Dir ? modelCol : #ffb300
         if mobile
             // 7 rows sized for a phone: what you need at a glance
-            var shortNames = array.from("OPEN", "EXTREME", "RECLAIM", "EXPAND", "TARGET", "CLOSED")
-            string s4 = drive4 ? (drv4Dir == 1 ? "DRIVE ▲" : "DRIVE ▼") : (side4 == 1 ? "BULL " : side4 == -1 ? "BEAR " : "— ") + str.tostring(stage) + "/6 " + array.get(shortNames, stage - 1) + (lost4 ? " LOST" : "")
-            string sB = bDrive ? (bDrvDir == 1 ? "DRIVE ▲" : "DRIVE ▼") : (bSide == 1 ? "BULL " : bSide == -1 ? "BEAR " : "— ") + str.tostring(bStage) + "/6 " + array.get(shortNames, bStage - 1) + (bLost ? " LOST" : "")
+            var shortNames = array.from("OPEN", "EXTREME", "RECLAIM", "EXPAND")
+            string s4 = drive4 ? (drv4Dir == 1 ? "DRIVE ▲" : "DRIVE ▼") : (side4 == 1 ? "BULL " : side4 == -1 ? "BEAR " : "— ") + str.tostring(stage) + "/4 " + array.get(shortNames, stage - 1) + (lost4 ? " LOST" : "")
+            string sB = bDrive ? (bDrvDir == 1 ? "DRIVE ▲" : "DRIVE ▼") : (bSide == 1 ? "BULL " : bSide == -1 ? "BEAR " : "— ") + str.tostring(bStage) + "/4 " + array.get(shortNames, bStage - 1) + (bLost ? " LOST" : "")
             f_row(1, "4H", s4, lost4 ? lostCol : modelCol)
             f_row(2, tfTxt, sB, bLost ? lostCol : bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
             f_row(3, "P4H", p4Txt, p4Col)
