@@ -1,4 +1,4 @@
-# 4H Live Model v1.5
+# 4H Live Model v1.6
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -8,11 +8,15 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
 - **Side candles:** P4H (the previous completed 4H candle, muted) at +6 bars and C4H LIVE at +16 bars. Both are 4 bars wide and sit at true prices.
 - **Formation path: the candle of the timeframe being viewed (v1.4, Mac 11/22).** On a 30m chart it follows the forming 30m candle, not the 4H.
   - It is drawn as a purple line at +26 bars, labelled "30m CANDLE": OPEN → EXTREME → RECLAIM → EXPANSION, with a dot at the live price.
-  - It uses the same rules as the 4H model, applied to that candle:
-    - EXTREME: the first side to move 10 % of the previous chart candle's range.
-    - RECLAIM: back through that candle's open.
-    - TARGET: the previous chart candle's high or low.
-    - CLOSED: the bar has closed.
+  - **v1.6 (Mac, 11/22): "each candle has 4 stages".** The line follows what the candle actually does, read point by point from its 1-minute bars:
+    - OPEN → EXTREME: the first side to move 10 % of the previous chart candle's range.
+    - → RECLAIM: back through the open.
+    - → EXPANSION: 10 % or more beyond the open on the other side.
+    - If an expansion of at least that size reverses back through the open, the expansion becomes the new EXTREME, and the cross is the new RECLAIM. The candle's direction flips to match.
+    - If a reclaim falls back through the open before expanding, the stage is RECLAIM LOST.
+    - TARGET: the previous chart candle's high or low. CLOSED: the bar has closed.
+  - Checked on BTC 30m 11/22, 14:00 PT candle (open 60,829.22): it reads BEARISH, with the extreme near the high of 60,882, a reclaim down through the open, and EXPANSION down to 60,682. That matches Mac's reading.
+  - The 4H dashboard rows still use the original rule: whichever side moves first names the model, and it does not flip.
   - The order of moves inside the candle comes from its 1-minute bars (`request.security_lower_tf`), or 5-minute bars above 1H. On a 1m chart it comes from live ticks.
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.

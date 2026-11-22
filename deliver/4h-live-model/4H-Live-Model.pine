@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v1.5 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v1.6 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -179,13 +179,22 @@ if barstate.islast and chSec <= 60
     if array.size(tk) < 4000 and close != array.get(tk, array.size(tk) - 1)
         array.push(tk, close)
 
-f_life(float[] ao, float[] ah, float[] al, float[] ac, float O, float th) =>
-    int sd = 0
-    float rHi = O
-    float rLo = O
-    int extI = -1
-    bool rF = false
+// Follows the candle's ACTUAL life, point by point (each sub-bar = open, low/high, high/low, close):
+//   OPEN -> EXTREME (first side to move th away from the open) -> RECLAIM (back through the open)
+//   -> EXPANSION (th or more beyond the open on the other side).
+//   If an expansion of at least th reverses back through the open, that expansion becomes the new EXTREME
+//   and the cross is the new RECLAIM (the candle's identity follows what it is actually doing).
+//   If a reclaim falls back through the open before expanding th, it is RECLAIM LOST and the extreme keeps forming.
+f_life(float[] ao, float[] ah, float[] al, float[] ac, float O, float th, float tol) =>
+    int dir = 0
+    float ext = na
+    float peak = na
+    bool recl = false
     bool rC = false
+    bool lost = false
+    int extI = -1
+    float sHi = O
+    float sLo = O
     int n = array.size(ah)
     if n > 0
         for i = 0 to n - 1
@@ -193,46 +202,63 @@ f_life(float[] ao, float[] ah, float[] al, float[] ac, float O, float th) =>
             float h = array.get(ah, i)
             float l = array.get(al, i)
             float c = array.get(ac, i)
-            bool nHi = h > rHi
-            bool nLo = l < rLo
-            rHi := math.max(rHi, h)
-            rLo := math.min(rLo, l)
-            if sd == 0
-                bool d = O - rLo >= th
-                bool u = rHi - O >= th
-                if d and u
-                    sd := c >= o ? 1 : -1
-                else if d
-                    sd := 1
-                else if u
-                    sd := -1
-                if sd != 0
-                    extI := i
-            else if (sd == 1 and nLo) or (sd == -1 and nHi)
-                extI := i
-                rF := false
-                rC := false
-            if sd == 1
-                if (i > extI and h >= O) or (i == extI and c >= O)
-                    rF := true
-                if i >= extI and c >= O and i < n - 1
-                    rF := true
+            sHi := math.max(sHi, h)
+            sLo := math.min(sLo, l)
+            bool upBar = c >= o
+            for k = 0 to 3
+                float p = k == 0 ? o : k == 1 ? (upBar ? l : h) : k == 2 ? (upBar ? h : l) : c
+                if dir == 0
+                    if p <= O - th
+                        dir := 1
+                        ext := p
+                        extI := i
+                    else if p >= O + th
+                        dir := -1
+                        ext := p
+                        extI := i
+                else if not recl
+                    if (dir == 1 and p < ext) or (dir == -1 and p > ext)
+                        ext := p
+                        extI := i
+                    if (dir == 1 and p >= O) or (dir == -1 and p <= O)
+                        recl := true
+                        lost := false
+                        rC := false
+                        peak := p
+                else
+                    peak := dir == 1 ? math.max(peak, p) : math.min(peak, p)
+                    bool back = (dir == 1 and p < O - tol) or (dir == -1 and p > O + tol)
+                    if back
+                        if math.abs(peak - O) >= th
+                            dir := -dir
+                            ext := peak
+                            extI := i
+                            peak := p
+                            rC := false
+                        else
+                            recl := false
+                            lost := true
+                            if (dir == 1 and p < ext) or (dir == -1 and p > ext)
+                                ext := p
+                                extI := i
+                if k == 3 and recl and i < n - 1 and ((dir == 1 and c >= O) or (dir == -1 and c <= O))
                     rC := true
-            if sd == -1
-                if (i > extI and l <= O) or (i == extI and c <= O)
-                    rF := true
-                if i >= extI and c <= O and i < n - 1
-                    rF := true
-                    rC := true
-    [sd, rF, rC, n > 0 and extI == n - 1]
+    [dir, ext, recl, rC, lost, peak, n > 0 and extI == n - 1, sHi, sLo]
 
 bThr = math.max(syminfo.mintick * 2, nz(high[1] - low[1]) * extPct / 100)
-[bSideL, bRFL, bRCL, bExtL] = f_life(sbO, sbH, sbL, sbC, open, bThr)
-[bSideT, bRFT, bRCT, bExtT] = f_life(tk, tk, tk, tk, open, bThr)
+[bSideL, bExtPL, bRFL, bRCL, bLostL, bPeakL, bExtL, sHiL, sLoL] = f_life(sbO, sbH, sbL, sbC, open, bThr, syminfo.mintick / 2)
+[bSideT, bExtPT, bRFT, bRCT, bLostT, bPeakT, bExtT, sHiT, sLoT] = f_life(tk, tk, tk, tk, open, bThr, syminfo.mintick / 2)
 bool useTicks = chSec <= 60
 int bSide = useTicks ? bSideT : bSideL
+float bExtRaw = useTicks ? bExtPT : bExtPL
+float cHiS = useTicks ? sHiT : sHiL
+float cLoS = useTicks ? sLoT : sLoL
+// when the extreme is the candle's own high/low, show the chart candle's exact price (1m feed can differ by a few ticks)
+float bExtP = bSide == -1 and bExtRaw >= cHiS ? high : bSide == 1 and bExtRaw <= cLoS ? low : bExtRaw
 bool bRF = useTicks ? bRFT : bRFL
 bool bRC = useTicks ? false : bRCL
+bool bLostS = useTicks ? bLostT : bLostL
+float bPeak = useTicks ? bPeakT : bPeakL
 bool bExtLive = useTicks ? bExtT : bExtL
 string tfTxt = chSec < 3600 ? str.tostring(math.round(chSec / 60)) + "m" : str.tostring(math.round(chSec / 3600)) + "H"
 
@@ -294,20 +320,20 @@ if barstate.islast
     string stageTxt = str.tostring(stage) + "/6  " + array.get(stageNames, stage - 1) + tag
     // chart-candle stage (path line)
     bool bClosed = timenow >= time_close
-    bool bBeyond = (bSide == 1 and close > open) or (bSide == -1 and close < open)
-    bool bTgt = (bSide == 1 and high >= high[1]) or (bSide == -1 and low <= low[1])
+    bool bBeyond = bRF and ((bSide == 1 and close >= open + bThr) or (bSide == -1 and close <= open - bThr))
+    bool bTgt = bRF and ((bSide == 1 and bPeak >= high[1]) or (bSide == -1 and bPeak <= low[1]))
     int bStage = 1
     if bSide != 0
         bStage := 2
-        if bRF
+        if bRF or bLostS
             bStage := 3
             if bBeyond
                 bStage := 4
-        if bTgt and bRF
+        if bTgt
             bStage := 5
     if bClosed
         bStage := 6
-    bool bLost = bStage == 3 and ((bSide == 1 and close < open - tolP) or (bSide == -1 and close > open + tolP))
+    bool bLost = bStage == 3 and bLostS and not bRF
     string bTag = bStage == 2 ? (bExtLive ? " FORMING" : " SET") : bStage == 3 ? (bLost ? " LOST" : bRC ? " CLOSED" : " FORMING") : ""
     string bStageTxt = str.tostring(bStage) + "/6  " + array.get(stageNames, bStage - 1) + bTag
 
@@ -340,13 +366,13 @@ if barstate.islast
         array.push(nm, "OPEN")
         if bSide != 0
             array.push(xs, x0 + 2 * pathStep)
-            array.push(ys, bSide == 1 ? low : high)
+            array.push(ys, bExtP)
             array.push(nm, "EXTREME")
-            if bRF
+            if bRF or bLost
                 array.push(xs, x0 + 3 * pathStep)
                 array.push(ys, open)
                 array.push(nm, "RECLAIM")
-                if bBeyond or bTgt
+                if bRF and (bStage >= 4 or math.abs(close - open) > syminfo.mintick / 2)
                     array.push(xs, x0 + 4 * pathStep)
                     array.push(ys, close)
                     array.push(nm, "EXPANSION")
