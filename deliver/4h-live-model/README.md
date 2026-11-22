@@ -1,4 +1,4 @@
-# 4H Live Model v1.6
+# 4H Live Model v1.7
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -16,7 +16,11 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
     - If a reclaim falls back through the open before expanding, the stage is RECLAIM LOST.
     - TARGET: the previous chart candle's high or low. CLOSED: the bar has closed.
   - Checked on BTC 30m 11/22, 14:00 PT candle (open 60,829.22): it reads BEARISH, with the extreme near the high of 60,882, a reclaim down through the open, and EXPANSION down to 60,682. That matches Mac's reading.
-  - The 4H dashboard rows still use the original rule: whichever side moves first names the model, and it does not flip.
+  - **v1.7:** the 4H dashboard rows (MODEL, STAGE, C4H EXTREME, NEXT TARGET) use the same 4-stage rule as the line (Mac, 11/22).
+    - The extreme threshold is 10 % of the P4H range.
+    - The sub-bars are the completed chart bars of the 4H candle, then the live bar's 1-minute bars (ticks on a 1m chart).
+    - The model can now flip mid-candle, which replaces the original "never flips" rule.
+  - **Path labels** sit to the LEFT of their points (Mac, 11/22).
   - The order of moves inside the candle comes from its 1-minute bars (`request.security_lower_tf`), or 5-minute bars above 1H. On a 1m chart it comes from live ticks.
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
