@@ -25,13 +25,13 @@
     "how": "phase 'resolve' rows with session ny and state 'resolved'; value = sum of shadow.beAfterNetUsd - live.netUsd"
    },
    "running": {
-    "asOfTradeDay": "2026-11-20",
+    "asOfTradeDay": "2026-11-23",
     "n": 7,
     "value": -232.5,
     "resolved": 7,
     "unresolved": 0,
     "verdict": "too early",
-    "note": "value = shadow (break-even after +15) net minus live net, summed over resolved NY cases; 108 resolve rows in all sessions, 35 of them unresolved",
+    "note": "value = shadow (break-even after +15) net minus live net, summed over resolved NY cases; 118 resolve rows in all sessions, 40 of them unresolved",
     "cases": [
      {
       "id": "902e3426-5589-4b22-b62a-3947c3efd1dc",
@@ -680,6 +680,66 @@
       "session": "asia",
       "state": "resolved",
       "why": null
+     },
+     {
+      "id": "fcaed4a5-bc80-45e4-8fb2-a183946a1b31",
+      "session": "asia",
+      "state": "resolved",
+      "why": null
+     },
+     {
+      "id": "b12be0f8-476f-4adb-bd8a-0c98e6ebec58",
+      "session": "asia",
+      "state": "resolved",
+      "why": null
+     },
+     {
+      "id": "097168d1-fa0a-4c07-8d7e-5dfba9d082f1",
+      "session": "asia",
+      "state": "unresolved",
+      "why": "another trade opened"
+     },
+     {
+      "id": "c1dc2233-fa62-4342-873c-c0657005a264",
+      "session": "asia",
+      "state": "resolved",
+      "why": null
+     },
+     {
+      "id": "69f1cdb3-8c00-4876-bcc3-d36a12d604cc",
+      "session": "london",
+      "state": "resolved",
+      "why": null
+     },
+     {
+      "id": "630a66eb-6c28-4590-b7fb-05214da38c9d",
+      "session": "london",
+      "state": "unresolved",
+      "why": "another trade opened"
+     },
+     {
+      "id": "2d6b0677-f3ab-41c9-aab8-391db4b797f4",
+      "session": "london",
+      "state": "unresolved",
+      "why": "another trade opened"
+     },
+     {
+      "id": "8d56b702-81cf-4a1b-a4dd-3287edf2dde0",
+      "session": "london",
+      "state": "unresolved",
+      "why": "another trade opened"
+     },
+     {
+      "id": "3920cdbf-60f0-47a5-917b-eec3a65be0eb",
+      "session": "london",
+      "state": "unresolved",
+      "why": "another trade opened"
+     },
+     {
+      "id": "795be77f-c600-4fa6-8bde-a1ee73c9d9a7",
+      "session": "london",
+      "state": "resolved",
+      "why": null
      }
     ]
    }
@@ -707,13 +767,13 @@
     "how": "n = early_adverse_exit rows with decision 'exit' and orderSent; value from the early_adverse_shadow result of each: wouldHaveHitStop = (stopPts - |exitPts|) x contracts x $2 saved, wouldHaveHitTp1 = (tp1Pts + |exitPts|) x contracts x $2 given up, unresolved = not counted"
    },
    "running": {
-    "asOfTradeDay": "2026-11-20",
-    "n": 13,
-    "value": 352.5,
-    "resolved": 9,
+    "asOfTradeDay": "2026-11-23",
+    "n": 15,
+    "value": 376.5,
+    "resolved": 11,
     "unresolved": 4,
     "verdict": "too early",
-    "note": "n = live early exits; value = dollars saved (+) or given up (-) against the stop / TP1 the trade had, from the 9 exits whose shadow resolved (3 would have hit TP1)",
+    "note": "n = live early exits; value = dollars saved (+) or given up (-) against the stop / TP1 the trade had, from the 11 exits whose shadow resolved (4 would have hit TP1)",
     "cases": [
      {
       "id": "4380cced-8ba7-4d21-bed6-4ee6ab58ab3c",
@@ -801,6 +861,20 @@
       "exitPts": -17,
       "shadow": "unresolved",
       "why": "another trade opened"
+     },
+     {
+      "id": "b12be0f8-476f-4adb-bd8a-0c98e6ebec58",
+      "exitPts": -17.5,
+      "shadow": "wouldHaveHitStop",
+      "why": null,
+      "usd": 195.0
+     },
+     {
+      "id": "c1dc2233-fa62-4342-873c-c0657005a264",
+      "exitPts": -13.5,
+      "shadow": "wouldHaveHitTp1",
+      "why": null,
+      "usd": -171.0
      }
     ]
    }
@@ -831,13 +905,13 @@
     "how": "runner_rule rows with mode 'allAtTp1' joined to the ledger; n = those trades that reached TP1; value = their average net dollars"
    },
    "running": {
-    "asOfTradeDay": "2026-11-20",
-    "n": 61,
+    "asOfTradeDay": "2026-11-23",
+    "n": 66,
     "value": 86.34,
-    "resolved": 61,
-    "unresolved": 44,
+    "resolved": 66,
+    "unresolved": 49,
     "verdict": "ready: needs the old-rule comparison",
-    "note": "n = trades under the rule that reached TP1 (105 fills carried the rule); value = average net dollars of those trades. What the old runner rule would have paid on the same trades is not in the journal, so the kill rule cannot be judged by this tool",
+    "note": "n = trades under the rule that reached TP1 (115 fills carried the rule); value = average net dollars of those trades. What the old runner rule would have paid on the same trades is not in the journal, so the kill rule cannot be judged by this tool",
     "cases": [
      {
       "id": "90e77c32-767e-4733-b46b-bdc672faf0dd",
@@ -1204,6 +1278,36 @@
       "session": "asia",
       "net": 86.34,
       "exitReason": "tp1-all-out"
+     },
+     {
+      "id": "097168d1-fa0a-4c07-8d7e-5dfba9d082f1",
+      "session": "asia",
+      "net": 86.34,
+      "exitReason": "tp1-all-out"
+     },
+     {
+      "id": "630a66eb-6c28-4590-b7fb-05214da38c9d",
+      "session": "london",
+      "net": 86.34,
+      "exitReason": "tp1-all-out"
+     },
+     {
+      "id": "2d6b0677-f3ab-41c9-aab8-391db4b797f4",
+      "session": "london",
+      "net": 86.34,
+      "exitReason": "tp1-all-out"
+     },
+     {
+      "id": "8d56b702-81cf-4a1b-a4dd-3287edf2dde0",
+      "session": "london",
+      "net": 86.34,
+      "exitReason": "tp1-all-out"
+     },
+     {
+      "id": "3920cdbf-60f0-47a5-917b-eec3a65be0eb",
+      "session": "london",
+      "net": 86.34,
+      "exitReason": "tp1-all-out"
      }
     ]
    }
@@ -1233,7 +1337,7 @@
     "how": "runner_rule rows with mode 'atrTarget' joined to the ledger; n = those trades that reached TP1 (so had a runner); value = their average net dollars"
    },
    "running": {
-    "asOfTradeDay": "2026-11-20",
+    "asOfTradeDay": "2026-11-23",
     "n": 7,
     "value": 136.34,
     "resolved": 7,
@@ -1309,13 +1413,13 @@
     "how": "needs the old formula's score next to the new one on each entry; the journal does not carry it after the switch, so n stays unknown until the bot writes both"
    },
    "running": {
-    "asOfTradeDay": "2026-11-20",
+    "asOfTradeDay": "2026-11-23",
     "n": 0,
     "value": null,
     "resolved": 0,
     "unresolved": 0,
     "verdict": "too early",
-    "note": "n = entries whose two control scores disagree about the 0.22 line; value = their summed net. All rows with the second score: 12245 agree, 2353 disagree, 7489 not computed; entries: 0 agree, 0 disagree, 0 not computed. 'Not computed' means the row was far from the line (controlAltWhy not-near-line): absence of controlDisagree is read as agreement only when the second score is present, and disagreements beyond 0.15 from the line are not seen",
+    "note": "n = entries whose two control scores disagree about the 0.22 line; value = their summed net. All rows with the second score: 14378 agree, 2801 disagree, 8750 not computed; entries: 0 agree, 0 disagree, 0 not computed. 'Not computed' means the row was far from the line (controlAltWhy not-near-line): absence of controlDisagree is read as agreement only when the second score is present, and disagreements beyond 0.15 from the line are not seen",
     "cases": []
    }
   },
@@ -1345,10 +1449,10 @@
     "how": "ledger trades whose entry is 0-30 min after the exit of an earlier same-side full stop, session asia or london, entered at or after startedAtUtc; n = their count, value = their summed net; NY is reported beside it as context only"
    },
    "running": {
-    "asOfTradeDay": "2026-11-20",
-    "n": 4,
-    "value": -136.14,
-    "resolved": 4,
+    "asOfTradeDay": "2026-11-23",
+    "n": 5,
+    "value": -49.8,
+    "resolved": 5,
     "unresolved": 0,
     "verdict": "too early",
     "note": "n = trades entered on the same side within 30 min after a full stop, in asia / london, since the start time; value = their summed net (what a stand-down would have skipped). Context only, the rule leaves it out: other sessions 1 trade, +$104.34",
@@ -1376,6 +1480,12 @@
       "session": "london",
       "net": -183.66,
       "minAfterStop": 6.9
+     },
+     {
+      "id": "630a66eb-6c28-4590-b7fb-05214da38c9d",
+      "session": "london",
+      "net": 86.34,
+      "minAfterStop": 25.6
      }
     ]
    }
@@ -1402,7 +1512,7 @@
     "how": "ledger trades in session ny entered at or after 09:00 PT and at or after startedAtUtc; n = count, value = summed net; the 06:30-09:00 trades are shown beside it as context"
    },
    "running": {
-    "asOfTradeDay": "2026-11-20",
+    "asOfTradeDay": "2026-11-23",
     "n": 5,
     "value": 198.7,
     "resolved": 5,
@@ -1456,7 +1566,7 @@
     "how": "ledger rules.runnerLock / rules.runnerExit (rows runner_lock once per journalId and step, runner_exit once per journalId); n = NY runners with a lock step armed; exits split by reason; money = broker net; TP2 winners cut = lock-stopped trades whose later price samples reached TP2"
    },
    "running": {
-    "asOfTradeDay": "2026-11-20",
+    "asOfTradeDay": "2026-11-23",
     "n": 2,
     "value": 496.18,
     "resolved": 2,
