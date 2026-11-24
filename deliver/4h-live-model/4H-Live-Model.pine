@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v3.0 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v3.1 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -94,7 +94,6 @@ minR      = input.float(1.5, "Minimum R to call GO (below it reads SKIP)", minva
 planAlert = input.bool(true, "Alert on ARMED / GO / INVALID (alert condition: Any alert() function call)", group = grpPl)
 
 grpMd = "Model"
-flipPct   = input.float(30.0, "Price must go this % of the reference range back through the open to count as RECLAIM LOST or a flip (smaller moves are just testing the open)", minval = 5, maxval = 100, step = 5, group = grpMd)
 extPct    = input.float(10.0, "Extreme is named when price moves this % of the P4H range away from the open", minval = 0.5, maxval = 100, step = 0.5, group = grpMd)
 
 // ================= HELPERS =================
@@ -357,22 +356,26 @@ if barstate.islast and chSec <= 60
     if array.size(tk) < 4000 and close != array.get(tk, array.size(tk) - 1)
         array.push(tk, close)
 
-// Follows the candle's ACTUAL life, point by point (each sub-bar = open, low/high, high/low, close):
-//   OPEN -> EXTREME (first side to move th away from the open) -> RECLAIM (back through the open)
-//   -> EXPANSION (th or more beyond the open on the other side).
-//   If an expansion of at least th reverses back through the open, that expansion becomes the new EXTREME
-//   and the cross is the new RECLAIM (the candle's identity follows what it is actually doing).
-//   If a reclaim falls back through the open before expanding th, it is RECLAIM LOST and the extreme keeps forming.
-f_life(float[] ao, float[] ah, float[] al, float[] ac, float O, float th, float thB, float tol) =>
+// v3.1 (Mac 11/24: "it's only taking the original 1-2-3-4"): the candle's life is read as SEGMENTS between
+// confirmed crosses of the open. A cross is confirmed when a sub-bar (1m bar; a tick on a 1m chart) CLOSES on the
+// other side of the open. Every confirmed cross is judged on its own, so the LATEST cycle always wins:
+//   - the segment that just ended went th or more away from the open -> it was a real extreme (or expansion):
+//     its far point becomes the EXTREME and the cross is the RECLAIM, in the direction of the cross
+//     (same direction as before = reclaimed again, "x2"; opposite = the candle flipped)
+//   - the segment was smaller than th -> price was only testing the open: falling back to the extreme's side is
+//     RECLAIM LOST (the extreme keeps forming), crossing back again is a repeat reclaim
+//   Before the first reclaim, the first side to go th from the open names the EXTREME.
+f_life(float[] ao, float[] ah, float[] al, float[] ac, float O, float th, float tol) =>
     int dir = 0
     float ext = na
-    float peak = na
     bool recl = false
-    bool rC = false
     bool lost = false
     int extI = -1
     int rCount = 0
     int flips = 0
+    int segSide = 0
+    float segHi = O
+    float segLo = O
     float sHi = O
     float sLo = O
     int n = array.size(ah)
@@ -384,58 +387,67 @@ f_life(float[] ao, float[] ah, float[] al, float[] ac, float O, float th, float 
             float c = array.get(ac, i)
             sHi := math.max(sHi, h)
             sLo := math.min(sLo, l)
-            bool upBar = c >= o
-            for k = 0 to 3
-                float p = k == 0 ? o : k == 1 ? (upBar ? l : h) : k == 2 ? (upBar ? h : l) : c
-                if dir == 0
-                    if p <= O - th
-                        dir := 1
-                        ext := p
-                        extI := i
-                    else if p >= O + th
-                        dir := -1
-                        ext := p
-                        extI := i
-                else if not recl
-                    if (dir == 1 and p < ext) or (dir == -1 and p > ext)
-                        ext := p
-                        extI := i
-                    if (dir == 1 and p >= O) or (dir == -1 and p <= O)
+            segHi := math.max(segHi, h)
+            segLo := math.min(segLo, l)
+            // name the first extreme (before any reclaim)
+            if dir == 0
+                bool upBar = c >= o
+                bool dnHit = O - l >= th
+                bool upHit = h - O >= th
+                if dnHit and upHit
+                    dir := upBar ? 1 : -1
+                else if dnHit
+                    dir := 1
+                else if upHit
+                    dir := -1
+                if dir != 0
+                    ext := dir == 1 ? segLo : segHi
+                    extI := i
+            // the extreme keeps forming while price is on its side and not reclaimed
+            else if not recl
+                if dir == 1 and l < ext
+                    ext := l
+                    extI := i
+                if dir == -1 and h > ext
+                    ext := h
+                    extI := i
+            // confirmed side of the open at this sub-bar's close
+            int newSide = c > O + tol ? 1 : c < O - tol ? -1 : segSide
+            if segSide == 0
+                segSide := newSide
+            else if newSide != segSide
+                float exc = segSide == 1 ? segHi - O : O - segLo
+                if exc >= th
+                    // a real extreme / expansion ended: it becomes the extreme, this close is the reclaim
+                    if dir != 0 and dir != newSide
+                        flips += 1
+                        rCount := 0
+                    ext := segSide == 1 ? segHi : segLo
+                    extI := i
+                    dir := newSide
+                    recl := true
+                    lost := false
+                    rCount += 1
+                else if dir != 0
+                    if newSide != dir and recl
+                        recl := false
+                        lost := true
+                    else if newSide == dir and not recl
                         recl := true
                         lost := false
-                        rC := false
-                        peak := p
                         rCount += 1
-                else
-                    peak := dir == 1 ? math.max(peak, p) : math.min(peak, p)
-                    // v2.6: only a move of th or more back through the open counts (testing the open is not a loss)
-                    bool back = (dir == 1 and p <= O - thB) or (dir == -1 and p >= O + thB)
-                    if back
-                        if math.abs(peak - O) >= thB
-                            dir := -dir
-                            ext := peak
-                            extI := i
-                            peak := p
-                            rC := false
-                            flips += 1
-                            rCount := 1
-                        else
-                            recl := false
-                            lost := true
-                            if (dir == 1 and p < ext) or (dir == -1 and p > ext)
-                                ext := p
-                                extI := i
-                if k == 3 and recl and i < n - 1 and ((dir == 1 and c >= O) or (dir == -1 and c <= O))
-                    rC := true
-    [dir, ext, recl, rC, lost, peak, n > 0 and extI == n - 1, sHi, sLo, rCount, flips]
+                segSide := newSide
+                segHi := c
+                segLo := c
+    float peak = dir == 1 ? (segSide == 1 ? segHi : O) : dir == -1 ? (segSide == -1 ? segLo : O) : na
+    [dir, ext, recl, recl, lost, peak, n > 0 and extI == n - 1, sHi, sLo, rCount, flips]
 
 // reference size of a chart candle: the larger of the previous candle's range and the 14-candle ATR
 // (a tiny previous candle no longer makes every wiggle around the open count)
 float bRef = math.max(nz(high[1] - low[1]), nz(ta.atr(14)))
 bThr = math.max(syminfo.mintick * 2, bRef * extPct / 100)
-bThrB = math.max(bThr, bRef * flipPct / 100)
-[bSideL, bExtPL, bRFL, bRCL, bLostL, bPeakL, bExtL, sHiL, sLoL, bRcL, bFlL] = f_life(sbO, sbH, sbL, sbC, open, bThr, bThrB, syminfo.mintick / 2)
-[bSideT, bExtPT, bRFT, bRCT, bLostT, bPeakT, bExtT, sHiT, sLoT, bRcT, bFlT] = f_life(tk, tk, tk, tk, open, bThr, bThrB, syminfo.mintick / 2)
+[bSideL, bExtPL, bRFL, bRCL, bLostL, bPeakL, bExtL, sHiL, sLoL, bRcL, bFlL] = f_life(sbO, sbH, sbL, sbC, open, bThr, syminfo.mintick / 2)
+[bSideT, bExtPT, bRFT, bRCT, bLostT, bPeakT, bExtT, sHiT, sLoT, bRcT, bFlT] = f_life(tk, tk, tk, tk, open, bThr, syminfo.mintick / 2)
 bool useTicks = chSec <= 60
 int bSide = useTicks ? bSideT : bSideL
 float bExtRaw = useTicks ? bExtPT : bExtPL
@@ -447,7 +459,7 @@ int bFlips = useTicks ? bFlT : bFlL
 // the extreme is the candle's own low (bullish) / high (bearish) unless the model has flipped: use the chart
 // candle's exact price (the 1m feed can differ by a few ticks); after a flip, snap only when within 4 ticks
 f_snapExt(int sd, float ex, int fl, float lo, float hi) =>
-    sd == 1 and (fl == 0 or math.abs(ex - lo) <= 4 * syminfo.mintick) ? lo : sd == -1 and (fl == 0 or math.abs(ex - hi) <= 4 * syminfo.mintick) ? hi : ex
+    sd == 1 and (fl == 0 or math.abs(ex - lo) <= 12 * syminfo.mintick) ? lo : sd == -1 and (fl == 0 or math.abs(ex - hi) <= 12 * syminfo.mintick) ? hi : ex
 float bExtP = f_snapExt(bSide, bExtRaw, bFlips, low, high)
 bool bRF = useTicks ? bRFT : bRFL
 bool bRC = useTicks ? false : bRCL
@@ -585,7 +597,7 @@ if barstate.islast
         array.push(a4h, high)
         array.push(a4l, low)
         array.push(a4c, close)
-    [side4, ext4Raw, r4, rc4, lostS4, pk4, el4, hi4S, lo4S, rCnt4, fl4] = f_life(a4o, a4h, a4l, a4c, kO, thr, math.max(thr, nz(p4H - p4L) * flipPct / 100), tolP)
+    [side4, ext4Raw, r4, rc4, lostS4, pk4, el4, hi4S, lo4S, rCnt4, fl4] = f_life(a4o, a4h, a4l, a4c, kO, thr, tolP)
     float ext4 = f_snapExt(side4, ext4Raw, fl4, kL, kH)
     bool beyond4 = r4 and ((side4 == 1 and kC >= kO + thr) or (side4 == -1 and kC <= kO - thr))
     int stage = 1

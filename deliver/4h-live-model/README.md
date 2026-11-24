@@ -1,4 +1,4 @@
-# 4H Live Model v3.0
+# 4H Live Model v3.1
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -25,6 +25,14 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
+
+## Every reclaim counts (v3.1, Mac 11/24: "it's only taking the original 1-2-3-4")
+- **Segments:** the candle is read as segments between confirmed crosses of its open. A cross is confirmed when a 1-minute bar closes on the other side; on a 1m chart, each tick counts.
+- **Real move:** when the segment that just ended went 10 % of a normal candle's range away from the open, its far point becomes the EXTREME and the cross is the RECLAIM, in the direction of the cross. So the **latest** cycle always wins.
+  - In the same direction as before, it reads "×2".
+  - In the opposite direction, the candle has flipped.
+- **Smaller segment:** price was only testing the open. Falling back to the extreme's side is RECLAIM LOST; crossing again is a repeat reclaim.
+- **Removed:** the v2.6 30 % "flipPct" rule. It ignored real reclaims, e.g. the 11/23 16:30 PT MNQ 30m: open 26,845.50, low 26,775, back above the open. v2.6 called it BEARISH; v3.1 calls it BULLISH, extreme 26,775, reclaimed.
 
 ## Your levels + the trade plan (v3.0, Mac 11/24: "bring the levels in, leave the control engine out")
 - **Levels:** Levels PRO **v2.4.2**'s level set, computed with the same code: PDH, PDL, PDC, Daily Open, Asia H/L, London H/L, 06:30 / 15:00 opens, IB H/L, session VWAP, PWH, PWL, Week Open, PWO, MO, MH, ML, PMO, PMoH and PMoL.
