@@ -1,12 +1,12 @@
 //@version=5
-// 4H LIVE MODEL v2.6 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v3.0 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
 // C4H values: the forming 4H candle, live (chart bars of the current 4H candle; request.security as fallback).
 // Phase order (which extreme came first, reclaim timing) is tracked on the chart's own bars,
 // using TradingView's own 4H boundaries for the symbol (time("240")).
-indicator("4H Live Model", shorttitle = "4H LIVE MODEL", overlay = true, max_bars_back = 500, max_boxes_count = 20, max_lines_count = 60, max_labels_count = 60)
+indicator("4H Live Model", shorttitle = "4H LIVE MODEL", overlay = true, max_bars_back = 500, max_boxes_count = 20, max_lines_count = 120, max_labels_count = 120)
 
 // ================= INPUTS =================
 grpEl = "Elements"
@@ -63,6 +63,35 @@ grpAl = "Full alignment"
 alReqP4   = input.bool(true, "Require the P4H candle to close in the same direction", group = grpAl)
 alReqRC   = input.bool(true, "Require the chart candle's reclaim to be CLOSED (a 1m candle closed back through its open)", group = grpAl)
 alAlert   = input.bool(true, "Alert when full alignment starts (create the alert with 'Any alert() function call')", group = grpAl)
+
+grpLvl = "Your levels (Levels PRO v2.4.2)"
+showLv    = input.bool(true, "Show your levels (and use them for AT LEVEL and targets)", group = grpLvl)
+lvPDH     = input.bool(true, "PDH / PDL", group = grpLvl)
+lvPDC     = input.bool(true, "PDC (prev day close)", group = grpLvl)
+lvWeek    = input.bool(true, "Prev Week H/L + Week Open", group = grpLvl)
+lvDO      = input.bool(true, "Daily Open", group = grpLvl)
+lvAsia    = input.bool(true, "Asia High / Low", group = grpLvl)
+lvLon     = input.bool(true, "London High / Low", group = grpLvl)
+lvOpens   = input.bool(true, "06:30 / 15:00 Opens", group = grpLvl)
+lvIB      = input.bool(true, "Initial Balance H/L", group = grpLvl)
+lvVW      = input.bool(true, "Session VWAP", group = grpLvl)
+lvPWO     = input.bool(true, "Prev Week Open (PWO)", group = grpLvl)
+lvMO      = input.bool(true, "Month Open (MO)", group = grpLvl)
+lvMHML    = input.bool(true, "Month High / Low (MH / ML)", group = grpLvl)
+lvPM      = input.bool(true, "Prev Month Open / High / Low (PMO / PMoH / PMoL)", group = grpLvl)
+lvMax     = input.int(12, "Levels drawn: nearest N (desktop)", minval = 1, maxval = 30, group = grpLvl)
+lvMaxMob  = input.int(6, "Levels drawn: nearest N (mobile)", minval = 1, maxval = 20, group = grpLvl)
+lvBack    = input.int(60, "Level lines start this many bars back", minval = 5, maxval = 500, group = grpLvl)
+lvColW    = input.color(#ffc53d, "Weekly / monthly levels", group = grpLvl)
+lvColD    = input.color(#4dd9e8, "Daily levels", group = grpLvl)
+lvColS    = input.color(#9fb3c8, "Session levels", group = grpLvl)
+atLvlPct  = input.float(10.0, "AT LEVEL: extreme within this % of a normal candle's range of a level", minval = 1, maxval = 50, step = 1, group = grpLvl)
+
+grpPl = "Trade plan (WAIT / ARMED / GO)"
+contracts = input.int(1, "Contracts (for the $ risk / reward)", minval = 1, maxval = 100, group = grpPl)
+stopTk    = input.int(4, "Stop buffer beyond the extreme (ticks)", minval = 0, maxval = 400, group = grpPl)
+minR      = input.float(1.5, "Minimum R to call GO (below it reads SKIP)", minval = 0.5, maxval = 10, step = 0.1, group = grpPl)
+planAlert = input.bool(true, "Alert on ARMED / GO / INVALID (alert condition: Any alert() function call)", group = grpPl)
 
 grpMd = "Model"
 flipPct   = input.float(30.0, "Price must go this % of the reference range back through the open to count as RECLAIM LOST or a flip (smaller moves are just testing the open)", minval = 5, maxval = 100, step = 5, group = grpMd)
@@ -172,6 +201,141 @@ float kO = na(cO) ? c4O : cO
 float kH = na(cO) ? c4H : cH
 float kL = na(cO) ? c4L : cL
 float kC = na(cO) ? c4C : close
+
+// ================= YOUR LEVELS (computed exactly as Levels PRO v2.4.2, Mac 11/24) =================
+string LTZ = "America/Los_Angeles"
+lvNewDay    = ta.change(time("D", LTZ)) != 0
+lvInAsia    = not na(time(timeframe.period, "1500-0000", LTZ))
+lvInLon     = not na(time(timeframe.period, "0000-0630", LTZ))
+lvAsiaStart = lvInAsia and not lvInAsia[1]
+lvAsiaEnd   = not lvInAsia and lvInAsia[1]
+lvLonStart  = lvInLon and not lvInLon[1]
+lvLonEnd    = not lvInLon and lvInLon[1]
+lvY  = year(time, LTZ)
+lvMo = month(time, LTZ)
+lvDd = dayofmonth(time, LTZ)
+lvTs0630 = timestamp(LTZ, lvY, lvMo, lvDd, 6, 30)
+lvTs0730 = timestamp(LTZ, lvY, lvMo, lvDd, 7, 30)
+lvTs1500 = timestamp(LTZ, lvY, lvMo, lvDd, 15, 0)
+lvX0630 = time >= lvTs0630 and nz(time[1]) < lvTs0630
+lvX1500 = time >= lvTs1500 and nz(time[1]) < lvTs1500
+lvInIB  = time >= lvTs0630 and time < lvTs0730
+
+var float dayHi = na
+var float dayLo = na
+var float prevDayHi = na
+var float prevDayLo = na
+var float prevDayC = na
+var float dayOpen = na
+var bool dayFull = false
+if lvNewDay
+    prevDayHi := dayFull ? dayHi : na
+    prevDayLo := dayFull ? dayLo : na
+    prevDayC  := nz(close[1], close)
+    dayHi     := high
+    dayLo     := low
+    dayOpen   := open
+    dayFull   := true
+else
+    if na(dayHi)
+        dayHi   := high
+        dayLo   := low
+        dayOpen := na
+    dayHi := math.max(dayHi, high)
+    dayLo := math.min(dayLo, low)
+
+var float asiaHiL = na
+var float asiaLoL = na
+var float asiaHiK = na
+var float asiaLoK = na
+if lvAsiaStart
+    asiaHiL := high
+    asiaLoL := low
+if lvInAsia
+    asiaHiL := math.max(nz(asiaHiL, high), high)
+    asiaLoL := math.min(nz(asiaLoL, low),  low)
+if lvAsiaEnd and not na(asiaHiL)
+    asiaHiK := asiaHiL
+    asiaLoK := asiaLoL
+asiaHi = lvInAsia ? asiaHiL : asiaHiK
+asiaLo = lvInAsia ? asiaLoL : asiaLoK
+
+var float lonHiL = na
+var float lonLoL = na
+var float lonHiK = na
+var float lonLoK = na
+if lvLonStart
+    lonHiL := high
+    lonLoL := low
+if lvInLon
+    lonHiL := math.max(nz(lonHiL, high), high)
+    lonLoL := math.min(nz(lonLoL, low),  low)
+if lvLonEnd and not na(lonHiL)
+    lonHiK := lonHiL
+    lonLoK := lonLoL
+lonHi = lvInLon ? lonHiL : lonHiK
+lonLo = lvInLon ? lonLoL : lonLoK
+
+var float open0630 = na
+var int   day0630  = -1
+var float open1500 = na
+var int   day1500  = -1
+if lvX0630
+    open0630 := time == lvTs0630 ? open : na
+    day0630  := lvDd
+if lvX1500
+    open1500 := time == lvTs1500 ? open : na
+    day1500  := lvDd
+o0630 = day0630 == lvDd ? open0630 : na
+o1500 = day1500 == lvDd ? open1500 : na
+
+var float ibHiL = na
+var float ibLoL = na
+var float ibHi = na
+var float ibLo = na
+if lvNewDay
+    ibHiL := na
+    ibLoL := na
+    ibHi  := na
+    ibLo  := na
+if lvInIB
+    ibHiL := math.max(nz(ibHiL, high), high)
+    ibLoL := math.min(nz(ibLoL, low),  low)
+    ibHi  := ibHiL
+    ibLo  := ibLoL
+
+var float vwPV = 0.0
+var float vwVol = 0.0
+if lvX0630 or lvNewDay
+    vwPV  := 0.0
+    vwVol := 0.0
+if time >= lvTs0630
+    vwPV  := vwPV + hlc3 * volume
+    vwVol := vwVol + volume
+sessVWAP = vwVol > 0 ? vwPV / vwVol : na
+
+pwh_v   = request.security("", "W", high[1], lookahead = barmerge.lookahead_on)
+pwl_v   = request.security("", "W", low[1],  lookahead = barmerge.lookahead_on)
+wk_open = request.security("", "W", open,    lookahead = barmerge.lookahead_on)
+pwo_v   = request.security("", "W", open[1], lookahead = barmerge.lookahead_on)
+mo_v    = request.security("", "M", open,    lookahead = barmerge.lookahead_on)
+pmo_v   = request.security("", "M", open[1], lookahead = barmerge.lookahead_on)
+pmoh_v  = request.security("", "M", high[1], lookahead = barmerge.lookahead_on)
+pmol_v  = request.security("", "M", low[1],  lookahead = barmerge.lookahead_on)
+
+int  m_start_t = time("M")
+bool roll_m    = ta.change(time("M")) != 0
+var bool  mSeen  = false
+var float mHiAcc = na
+var float mLoAcc = na
+if roll_m
+    mSeen  := not na(m_start_t) and time == m_start_t
+    mHiAcc := na
+    mLoAcc := na
+mh_v = mSeen ? mHiAcc : na
+ml_v = mSeen ? mLoAcc : na
+mHiAcc := math.max(nz(mHiAcc, high), high)
+mLoAcc := math.min(nz(mLoAcc, low), low)
 
 // ================= CHART-CANDLE LIFE (drives the path line) =================
 // The path line follows the candle of the timeframe being viewed (e.g. the forming 30m candle),
@@ -306,7 +470,7 @@ var bxs = array.new<box>()
 var lns = array.new<line>()
 var lbs = array.new<label>()
 var stageNames = array.from("OPEN", "EXTREME", "RECLAIM", "EXPANSION")
-var table dash = showDash ? table.new(f_pos(mobile ? mobPosS : dashPosS), 2, 18, bgcolor = dashBg, frame_color = color.new(color.gray, 60), frame_width = 1, border_color = color.new(color.gray, 80), border_width = 1) : na
+var table dash = showDash ? table.new(f_pos(mobile ? mobPosS : dashPosS), 2, 22, bgcolor = dashBg, frame_color = color.new(color.gray, 60), frame_width = 1, border_color = color.new(color.gray, 80), border_width = 1) : na
 var color clear = color.new(color.black, 100)
 
 f_clear() =>
@@ -335,6 +499,54 @@ f_level(int x1, int x2, float y, color col, string sty, int w, string txt) =>
 f_row(int r, string k, string v, color vc) =>
     table.cell(dash, 0, r, k, text_color = dashTxt, text_halign = text.align_left, text_size = f_size(eSize))
     table.cell(dash, 1, r, v, text_color = vc, text_halign = text.align_right, text_size = f_size(eSize))
+
+// level list helpers (v3.0): heavier levels are added first; a level within 2 ticks of one already listed merges into it
+f_addLv(string[] n, float[] p, int[] g, bool on, string nm, float px, int tier) =>
+    bool added = false
+    if on and not na(px)
+        bool dup = false
+        int sz = array.size(p)
+        if sz > 0
+            for j = 0 to sz - 1
+                if not dup and math.abs(array.get(p, j) - px) <= syminfo.mintick * 2
+                    dup := true
+                    if array.get(g, j) > 0
+                        array.set(n, j, array.get(n, j) + " +" + nm)
+        if not dup
+            array.push(n, nm)
+            array.push(p, px)
+            array.push(g, tier)
+            added := true
+    added
+
+f_nearLv(string[] n, float[] p, float price, float tol) =>
+    string best = ""
+    float bd = tol
+    int sz = array.size(p)
+    if sz > 0 and not na(price)
+        for j = 0 to sz - 1
+            float d = math.abs(array.get(p, j) - price)
+            if d <= bd
+                bd := d
+                best := array.get(n, j)
+    best
+
+f_tgtLv(string[] n, float[] p, float from, int dir) =>
+    string tn = ""
+    float tp = na
+    float bg = 1e12
+    int sz = array.size(p)
+    if sz > 0 and not na(from) and dir != 0
+        for j = 0 to sz - 1
+            float pj = array.get(p, j)
+            float gap = dir == 1 ? pj - from : from - pj
+            if gap > syminfo.mintick * 4 and gap < bg
+                bg := gap
+                tn := array.get(n, j)
+                tp := pj
+    [tn, tp]
+
+f_nm(string full, string ab) => mobile ? ab : full
 
 if barstate.islast
     f_clear()
@@ -511,8 +723,129 @@ if barstate.islast
         f_level(x1, x2, kO, c4hOpCol, c4hOpSty, c4hOpW, mobile ? "C4H O" : "C4H OPEN")
 
     // ---- Element 4: dashboard
+    // ---- YOUR LEVELS (v3.0): the 4H references first, then Levels PRO v2.4.2's set by its own weights ----
+    lvN = array.new_string()
+    lvP = array.new_float()
+    lvG = array.new_int()
+    f_addLv(lvN, lvP, lvG, true, "P4H H", p4H, 0)
+    f_addLv(lvN, lvP, lvG, true, "P4H L", p4L, 0)
+    f_addLv(lvN, lvP, lvG, true, "C4H O", kO, 0)
+    f_addLv(lvN, lvP, lvG, true, "P4H O", p4O, 0)
+    if showLv
+        f_addLv(lvN, lvP, lvG, lvPM, "PMoH", pmoh_v, 3)
+        f_addLv(lvN, lvP, lvG, lvPM, "PMoL", pmol_v, 3)
+        f_addLv(lvN, lvP, lvG, lvWeek, "PWH", pwh_v, 3)
+        f_addLv(lvN, lvP, lvG, lvWeek, "PWL", pwl_v, 3)
+        f_addLv(lvN, lvP, lvG, lvMO, "MO", mo_v, 3)
+        f_addLv(lvN, lvP, lvG, lvPDH, "PDH", prevDayHi, 2)
+        f_addLv(lvN, lvP, lvG, lvPDH, "PDL", prevDayLo, 2)
+        f_addLv(lvN, lvP, lvG, lvOpens, f_nm("06:30 Open", "NYO"), o0630, 1)
+        f_addLv(lvN, lvP, lvG, lvVW, f_nm("VWAP", "VW"), sessVWAP, 2)
+        f_addLv(lvN, lvP, lvG, lvWeek, f_nm("Week Open", "WO"), wk_open, 3)
+        f_addLv(lvN, lvP, lvG, lvMHML, "MH", mh_v, 3)
+        f_addLv(lvN, lvP, lvG, lvMHML, "ML", ml_v, 3)
+        f_addLv(lvN, lvP, lvG, lvPDC, "PDC", prevDayC, 2)
+        f_addLv(lvN, lvP, lvG, lvAsia, f_nm("Asia High", "AH"), asiaHi, 1)
+        f_addLv(lvN, lvP, lvG, lvAsia, f_nm("Asia Low", "AL"), asiaLo, 1)
+        f_addLv(lvN, lvP, lvG, lvLon, f_nm("London High", "LH"), lonHi, 1)
+        f_addLv(lvN, lvP, lvG, lvLon, f_nm("London Low", "LL"), lonLo, 1)
+        f_addLv(lvN, lvP, lvG, lvOpens, f_nm("15:00 Open", "1500"), o1500, 1)
+        f_addLv(lvN, lvP, lvG, lvPWO, "PWO", pwo_v, 3)
+        f_addLv(lvN, lvP, lvG, lvPM, "PMO", pmo_v, 3)
+        f_addLv(lvN, lvP, lvG, lvDO, f_nm("Daily Open", "DO"), dayOpen, 2)
+        f_addLv(lvN, lvP, lvG, lvIB, f_nm("IB High", "IBH"), ibHi, 1)
+        f_addLv(lvN, lvP, lvG, lvIB, f_nm("IB Low", "IBL"), ibLo, 1)
+        // draw the nearest N (the 4H references are drawn by the level lines above)
+        int nL = array.size(lvP)
+        int maxN = mobile ? lvMaxMob : lvMax
+        if nL > 0
+            for j = 0 to nL - 1
+                int tr = array.get(lvG, j)
+                if tr > 0
+                    float pj = array.get(lvP, j)
+                    float dj = math.abs(pj - close)
+                    int rk = 0
+                    for q = 0 to nL - 1
+                        if q != j and array.get(lvG, q) > 0 and math.abs(array.get(lvP, q) - close) < dj
+                            rk += 1
+                    if rk < maxN
+                        color lc = tr == 3 ? lvColW : tr == 2 ? lvColD : lvColS
+                        int lx1 = math.max(0, bar_index - lvBack)
+                        int lx2 = bar_index + rightOff
+                        bool onR = lvlLblS == "Right"
+                        array.push(lns, line.new(lx1, pj, lx2, pj, color = lc, width = tr == 3 ? 2 : 1, style = tr == 1 ? line.style_dotted : line.style_solid))
+                        array.push(lbs, label.new(onR ? lx2 : lx1, pj, array.get(lvN, j) + " " + str.tostring(pj, format.mintick), style = onR ? label.style_label_left : label.style_label_right, color = color.new(#060B14, 15), textcolor = lc, size = lblSz))
+
+    // ---- AT LEVEL: an extreme that formed at one of the levels (a sweep of a level, then the reclaim = the A+ setup)
+    float tolB = math.max(syminfo.mintick * 4, bRef * atLvlPct / 100)
+    float tol4L = math.max(syminfo.mintick * 4, nz(p4H - p4L) * atLvlPct / 200)
+    string atB = bSide != 0 and not bDrive ? f_nearLv(lvN, lvP, bExtP, tolB) : ""
+    string at4 = side4 != 0 and not drive4 ? f_nearLv(lvN, lvP, ext4, tol4L) : ""
+    string atTxt = atB == "" and at4 == "" ? "—" : (atB != "" ? tfTxt + " extreme at " + atB : "") + (atB != "" and at4 != "" ? " · " : "") + (at4 != "" ? "4H extreme at " + at4 : "")
+
+    // ---- TRADE PLAN (v3.0): WAIT -> ARMED -> GO, or INVALID / SKIP
+    //   WAIT    the 4H is not ready (no extreme, DRIVE, P4H against, not reclaimed or reclaim lost) or the chart candle is not with it
+    //   ARMED   the 4H is past its reclaim with P4H; the chart candle has its extreme in the same direction; waiting for its reclaim
+    //   GO      FULL ALIGNMENT: the chart candle's reclaim is confirmed (or it is expanding); entry = its open, stop beyond its extreme
+    //   SKIP    GO, but the next level gives less than the minimum R
+    //   INVALID the chart candle's reclaim was lost
+    int D = side4
+    int pState = 0
+    string pWhy = ""
+    float eP = open
+    float sP = na
+    string tN = ""
+    float tP = na
+    float rr = na
+    if drive4
+        pWhy := "4H DRIVE"
+    else if D == 0
+        pWhy := "4H no extreme yet"
+    else if not okP4
+        pWhy := "P4H against"
+    else if lost4
+        pWhy := "4H reclaim lost"
+    else if stage < 3
+        pWhy := "4H reclaim " + f_px(kO)
+    else if bDrive or bSide == -D
+        pWhy := tfTxt + " against"
+    else if bSide == 0
+        pWhy := tfTxt + " no extreme yet"
+    else if bLost
+        pState := 3
+        pWhy := tfTxt + " reclaim lost"
+    else if alDir == D
+        pState := 2
+    else
+        pState := 1
+        pWhy := (bStage == 3 ? "reclaim forming " : "reclaim ") + f_px(open)
+    if pState == 1 or pState == 2
+        sP := D == 1 ? bExtP - stopTk * syminfo.mintick : bExtP + stopTk * syminfo.mintick
+        [tn0, tp0] = f_tgtLv(lvN, lvP, eP, D)
+        tN := tn0
+        tP := tp0
+        float rkP = math.abs(eP - sP)
+        rr := na(tP) or rkP <= 0 ? na : math.abs(tP - eP) / rkP
+        if pState == 2 and not na(rr) and rr < minR
+            pState := 4
+    float usd = syminfo.pointvalue * contracts
+    float riskPts = na(sP) ? na : math.abs(eP - sP)
+    float rewPts = na(tP) ? na : math.abs(tP - eP)
+    string rTxt = na(rr) ? "R —" : str.tostring(rr, "0.0") + "R"
+    string money = na(riskPts) ? "" : "-$" + str.tostring(riskPts * usd, "#,##0") + (na(rewPts) ? "" : " / +$" + str.tostring(rewPts * usd, "#,##0"))
+    string riskTxt = na(sP) ? "—" : "E " + f_px(eP) + "  S " + f_px(sP) + "  T " + (na(tP) ? "no level" : f_px(tP) + " " + tN) + "  ·  " + rTxt + "  ·  " + money
+    string riskM = na(sP) ? "—" : rTxt + "  " + money
+    string dirW = D == 1 ? "LONG" : "SHORT"
+    string star = atB != "" ? " ★" : ""
+    string planTxt = pState == 2 ? "GO " + dirW + star : pState == 4 ? "SKIP " + dirW + " · " + rTxt + star : pState == 1 ? "ARMED " + dirW + " · " + pWhy + star : pState == 3 ? "INVALID · " + pWhy : "WAIT · " + pWhy
+    color planCol = pState == 2 ? (D == 1 ? bullCol : bearCol) : pState == 1 ? #ffb300 : pState == 3 ? lostCol : pState == 4 ? #ffb300 : dashTxt
+    varip int planLast = -1
+    if planAlert and barstate.isrealtime and pState != planLast and (pState == 1 or pState == 2 or pState == 3)
+        alert(syminfo.ticker + " " + tfTxt + " " + planTxt + (atTxt != "—" ? " · " + atTxt : "") + (pState == 2 ? " · " + riskTxt : "") + " · price " + str.tostring(close, format.mintick), alert.freq_once_per_bar)
+    planLast := pState
+
     if showDash
-        table.cell(dash, 0, 0, alDir == 1 ? (mobile ? "ALIGNED LONG" : "4H LIVE MODEL · ALIGNED LONG") : alDir == -1 ? (mobile ? "ALIGNED SHORT" : "4H LIVE MODEL · ALIGNED SHORT") : "4H LIVE MODEL", text_color = dashTxt, text_halign = text.align_center, text_size = f_size(eSize), bgcolor = alDir == 1 ? color.new(bullCol, 25) : alDir == -1 ? color.new(bearCol, 25) : color.new(pathCol, 35))
+        table.cell(dash, 0, 0, pState == 2 ? (mobile ? "GO " + dirW : "4H LIVE MODEL · GO " + dirW) : pState == 1 ? (mobile ? "ARMED " + dirW : "4H LIVE MODEL · ARMED " + dirW) : "4H LIVE MODEL", text_color = dashTxt, text_halign = text.align_center, text_size = f_size(eSize), bgcolor = pState == 2 ? color.new(D == 1 ? bullCol : bearCol, 25) : pState == 1 ? color.new(#ffb300, 45) : color.new(pathCol, 35))
         table.merge_cells(dash, 0, 0, 1, 0)
         string modelTxt = drive4 ? (drv4Dir == 1 ? "BULLISH DRIVE" : "BEARISH DRIVE") : side4 == 1 ? "BULLISH" : side4 == -1 ? "BEARISH" : "—"
         color modelCol = drive4 ? (drv4Dir == 1 ? bullCol : bearCol) : side4 == 1 ? bullCol : side4 == -1 ? bearCol : dashTxt
@@ -534,30 +867,34 @@ if barstate.islast
             var shortNames = array.from("OPEN", "EXTREME", "RECLAIM", "EXPAND")
             string s4 = drive4 ? (drv4Dir == 1 ? "DRIVE ▲" : "DRIVE ▼") : (side4 == 1 ? "BULL " : side4 == -1 ? "BEAR " : "— ") + str.tostring(stage) + "/4 " + array.get(shortNames, stage - 1) + (lost4 ? " LOST" : "")
             string sB = bDrive ? (bDrvDir == 1 ? "DRIVE ▲" : "DRIVE ▼") : (bSide == 1 ? "BULL " : bSide == -1 ? "BEAR " : "— ") + str.tostring(bStage) + "/4 " + array.get(shortNames, bStage - 1) + (bLost ? " LOST" : "")
-            f_row(1, "4H", s4, lost4 ? lostCol : modelCol)
-            f_row(2, tfTxt, sB, bLost ? lostCol : bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
-            f_row(3, "P4H", p4Txt, p4Col)
-            f_row(4, "ALIGN", alDir == 1 ? "LONG ✓" : alDir == -1 ? "SHORT ✓" : alWhy, alDir == 1 ? bullCol : alDir == -1 ? bearCol : #ffb300)
-            f_row(5, "OPEN", f_px(kO) + (kC > kO + tol ? " ▲" : kC < kO - tol ? " ▼" : " ="), dashTxt)
-            f_row(6, "TARGET", side4 == 1 ? f_px(p4H) + " ▲" : side4 == -1 ? f_px(p4L) + " ▼" : "—", modelCol)
-            f_row(7, "4H CLOSE", cdTxt, dashTxt)
+            f_row(1, "PLAN", planTxt, planCol)
+            f_row(2, "RISK", riskM, pState == 2 ? planCol : dashTxt)
+            f_row(3, "4H", s4, lost4 ? lostCol : modelCol)
+            f_row(4, tfTxt, sB, bLost ? lostCol : bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
+            f_row(5, "P4H", p4Txt, p4Col)
+            f_row(6, "ALIGN", alDir == 1 ? "LONG ✓" : alDir == -1 ? "SHORT ✓" : alWhy, alDir == 1 ? bullCol : alDir == -1 ? bearCol : #ffb300)
+            f_row(7, "OPEN", f_px(kO) + (kC > kO + tol ? " ▲" : kC < kO - tol ? " ▼" : " ="), dashTxt)
+            f_row(8, "4H CLOSE", cdTxt, dashTxt)
             string engM = eng4Txt != "—" ? "4H " + eng4Txt : engTxt != "—" ? tfTxt + " " + engTxt : "—"
-            f_row(8, "ENGULF", engM, eng4Txt != "—" ? eng4Col : engCol)
+            f_row(9, "ENGULF", engM, eng4Txt != "—" ? eng4Col : engCol)
         else
-            f_row(1, "MODEL", modelTxt, modelCol)
-            f_row(2, "P4H CANDLE", p4Txt, p4Col)
-            f_row(3, "ALIGNMENT", alTxt, alCol)
-            f_row(4, "STAGE", stageTxt, lost4 ? lostCol : dashTxt)
-            f_row(5, "LOCATION", loc, dashTxt)
-            f_row(6, "C4H OPEN", f_px(kO), dashTxt)
-            f_row(7, "C4H EXTREME", extTxt, dashTxt)
-            f_row(8, "P4H HIGH", f_px(p4H), dashTxt)
-            f_row(9, "P4H LOW", f_px(p4L), dashTxt)
-            f_row(10, "RANGE / P4H O", rngTxt, dashTxt)
-            f_row(11, "NEXT TARGET", tgtTxt, modelCol)
-            f_row(12, "4H CLOSE IN", cdTxt, dashTxt)
-            f_row(13, tfTxt + " CANDLE", bDrive ? (bDrvDir == 1 ? "BULLISH DRIVE" : "BEARISH DRIVE") : bSide == 1 ? "BULLISH" : bSide == -1 ? "BEARISH" : "—", bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
-            f_row(14, tfTxt + " STAGE", bStageTxt, bLost ? lostCol : dashTxt)
-            f_row(15, "FULL ALIGNMENT", fullTxt, alDir == 1 ? bullCol : alDir == -1 ? bearCol : dashTxt)
-            f_row(16, "4H ENGULF", eng4Txt, eng4Col)
-            f_row(17, tfTxt + " ENGULF", engTxt, engCol)
+            f_row(1, "PLAN", planTxt, planCol)
+            f_row(2, "RISK", riskTxt, pState == 2 ? planCol : dashTxt)
+            f_row(3, "AT LEVEL", atTxt, atTxt == "—" ? dashTxt : #ffc53d)
+            f_row(4, "MODEL", modelTxt, modelCol)
+            f_row(5, "P4H CANDLE", p4Txt, p4Col)
+            f_row(6, "ALIGNMENT", alTxt, alCol)
+            f_row(7, "STAGE", stageTxt, lost4 ? lostCol : dashTxt)
+            f_row(8, "LOCATION", loc, dashTxt)
+            f_row(9, "C4H OPEN", f_px(kO), dashTxt)
+            f_row(10, "C4H EXTREME", extTxt, dashTxt)
+            f_row(11, "P4H HIGH", f_px(p4H), dashTxt)
+            f_row(12, "P4H LOW", f_px(p4L), dashTxt)
+            f_row(13, "RANGE / P4H O", rngTxt, dashTxt)
+            f_row(14, "NEXT TARGET", tgtTxt, modelCol)
+            f_row(15, "4H CLOSE IN", cdTxt, dashTxt)
+            f_row(16, tfTxt + " CANDLE", bDrive ? (bDrvDir == 1 ? "BULLISH DRIVE" : "BEARISH DRIVE") : bSide == 1 ? "BULLISH" : bSide == -1 ? "BEARISH" : "—", bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
+            f_row(17, tfTxt + " STAGE", bStageTxt, bLost ? lostCol : dashTxt)
+            f_row(18, "FULL ALIGNMENT", fullTxt, alDir == 1 ? bullCol : alDir == -1 ? bearCol : dashTxt)
+            f_row(19, "4H ENGULF", eng4Txt, eng4Col)
+            f_row(20, tfTxt + " ENGULF", engTxt, engCol)

@@ -1,4 +1,4 @@
-# 4H Live Model v2.6
+# 4H Live Model v3.0
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -25,6 +25,20 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
+
+## Your levels + the trade plan (v3.0, Mac 11/24: "bring the levels in, leave the control engine out")
+- **Levels:** Levels PRO **v2.4.2**'s level set, computed with the same code: PDH, PDL, PDC, Daily Open, Asia H/L, London H/L, 06:30 / 15:00 opens, IB H/L, session VWAP, PWH, PWL, Week Open, PWO, MO, MH, ML, PMO, PMoH and PMoL.
+  - Each group has a toggle, as in Levels PRO.
+  - Levels within 2 ticks merge into the heavier one, in Levels PRO's weight order.
+  - The nearest 12 are drawn (6 on mobile), coloured weekly/monthly gold, daily cyan, session slate (dotted).
+  - The control engine (HOLD/PUSH/FLOW, RVOL, ladder, parity tables) is not included.
+- **AT LEVEL:** set when the chart candle's extreme, or the 4H extreme, formed within 10 % of a normal candle's range of one of these levels, or of a P4H / C4H line. The dashboard shows "30m extreme at PDL", and GO/ARMED carry a ★.
+- **PLAN row (top of the dashboard)** — states, with an alert on ARMED, GO and INVALID ("Any alert() function call"):
+  - **WAIT · reason:** 4H no extreme, 4H DRIVE, P4H against, 4H reclaim <price>, 4H reclaim lost, 30m against, or 30m no extreme yet.
+  - **ARMED LONG/SHORT · reclaim <open>:** the 4H is past its reclaim with P4H agreeing, and the chart candle has its extreme in the same direction.
+  - **GO:** full alignment. **SKIP:** GO, but below the minimum R (1.5). **INVALID:** the chart candle's reclaim was lost.
+- **RISK row:** entry = the chart candle's open; stop = 4 ticks beyond its extreme; target = the next level beyond the entry. It shows R and $ for the Contracts input (default 1).
+- **Testing:** the new parts compile on TradingView. They have not yet been watched live on a chart.
 
 ## Extremes and repeated reclaims (v2.6, Mac 11/24, MNQ 30m screenshot)
 - **DRIVE fix:** DRIVE now shows only while price is still beyond the previous candle's far side.
