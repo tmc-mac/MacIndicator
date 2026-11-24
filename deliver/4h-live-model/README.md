@@ -1,4 +1,4 @@
-# 4H Live Model v2.5
+# 4H Live Model v2.6
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -25,6 +25,19 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
+
+## Extremes and repeated reclaims (v2.6, Mac 11/24, MNQ 30m screenshot)
+- **DRIVE fix:** DRIVE now shows only while price is still beyond the previous candle's far side.
+  - A sweep of the P4H low that comes back inside the range is a bullish EXTREME waiting for its reclaim, not a bearish drive.
+  - Case: 11/24, 03:00 PT 4H. It opened at 26,888.25 and swept to 26,683.75, under the P4H low of 26,692.75. v2.5 called it BEARISH DRIVE; v2.6 calls it BULLISH, extreme 26,683.75.
+- **Exact extreme prices:** the extreme is now the candle's own exact low or high unless the model has flipped. The 1m feed can be a few ticks off.
+  - Case: 04:00 PT 30m. The extreme now reads 26,731.25; v2.5 showed 26,733.50.
+- **Testing the open:**
+  - A move back through the open counts as RECLAIM LOST, or as a flip, only once it goes 30 % of the reference range past the open. This is the new "flipPct" input.
+  - Smaller moves are just testing the open and the stage stays RECLAIM.
+  - The reference range is the larger of the previous candle's range and the 14-candle ATR on the chart, or the P4H range on the 4H.
+  - The same 04:00 30m candle flipped 4 times in v2.5 and 0 times in v2.6.
+- **Repeated reclaims:** the reclaim is counted, e.g. "3 RECLAIM ×2".
 
 ## Four stages only (v2.5, Mac 11/22: "I only care for the first 4")
 - Stages are OPEN → EXTREME → RECLAIM → EXPANSION, shown as n/4 for both the 4H and the chart candle.

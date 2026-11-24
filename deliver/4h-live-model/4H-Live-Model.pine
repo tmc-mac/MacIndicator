@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v2.5 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v2.6 (Team Mac): side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -65,6 +65,7 @@ alReqRC   = input.bool(true, "Require the chart candle's reclaim to be CLOSED (a
 alAlert   = input.bool(true, "Alert when full alignment starts (create the alert with 'Any alert() function call')", group = grpAl)
 
 grpMd = "Model"
+flipPct   = input.float(30.0, "Price must go this % of the reference range back through the open to count as RECLAIM LOST or a flip (smaller moves are just testing the open)", minval = 5, maxval = 100, step = 5, group = grpMd)
 extPct    = input.float(10.0, "Extreme is named when price moves this % of the P4H range away from the open", minval = 0.5, maxval = 100, step = 0.5, group = grpMd)
 
 // ================= HELPERS =================
@@ -198,7 +199,7 @@ if barstate.islast and chSec <= 60
 //   If an expansion of at least th reverses back through the open, that expansion becomes the new EXTREME
 //   and the cross is the new RECLAIM (the candle's identity follows what it is actually doing).
 //   If a reclaim falls back through the open before expanding th, it is RECLAIM LOST and the extreme keeps forming.
-f_life(float[] ao, float[] ah, float[] al, float[] ac, float O, float th, float tol) =>
+f_life(float[] ao, float[] ah, float[] al, float[] ac, float O, float th, float thB, float tol) =>
     int dir = 0
     float ext = na
     float peak = na
@@ -206,6 +207,8 @@ f_life(float[] ao, float[] ah, float[] al, float[] ac, float O, float th, float 
     bool rC = false
     bool lost = false
     int extI = -1
+    int rCount = 0
+    int flips = 0
     float sHi = O
     float sLo = O
     int n = array.size(ah)
@@ -238,16 +241,20 @@ f_life(float[] ao, float[] ah, float[] al, float[] ac, float O, float th, float 
                         lost := false
                         rC := false
                         peak := p
+                        rCount += 1
                 else
                     peak := dir == 1 ? math.max(peak, p) : math.min(peak, p)
-                    bool back = (dir == 1 and p < O - tol) or (dir == -1 and p > O + tol)
+                    // v2.6: only a move of th or more back through the open counts (testing the open is not a loss)
+                    bool back = (dir == 1 and p <= O - thB) or (dir == -1 and p >= O + thB)
                     if back
-                        if math.abs(peak - O) >= th
+                        if math.abs(peak - O) >= thB
                             dir := -dir
                             ext := peak
                             extI := i
                             peak := p
                             rC := false
+                            flips += 1
+                            rCount := 1
                         else
                             recl := false
                             lost := true
@@ -256,18 +263,28 @@ f_life(float[] ao, float[] ah, float[] al, float[] ac, float O, float th, float 
                                 extI := i
                 if k == 3 and recl and i < n - 1 and ((dir == 1 and c >= O) or (dir == -1 and c <= O))
                     rC := true
-    [dir, ext, recl, rC, lost, peak, n > 0 and extI == n - 1, sHi, sLo]
+    [dir, ext, recl, rC, lost, peak, n > 0 and extI == n - 1, sHi, sLo, rCount, flips]
 
-bThr = math.max(syminfo.mintick * 2, nz(high[1] - low[1]) * extPct / 100)
-[bSideL, bExtPL, bRFL, bRCL, bLostL, bPeakL, bExtL, sHiL, sLoL] = f_life(sbO, sbH, sbL, sbC, open, bThr, syminfo.mintick / 2)
-[bSideT, bExtPT, bRFT, bRCT, bLostT, bPeakT, bExtT, sHiT, sLoT] = f_life(tk, tk, tk, tk, open, bThr, syminfo.mintick / 2)
+// reference size of a chart candle: the larger of the previous candle's range and the 14-candle ATR
+// (a tiny previous candle no longer makes every wiggle around the open count)
+float bRef = math.max(nz(high[1] - low[1]), nz(ta.atr(14)))
+bThr = math.max(syminfo.mintick * 2, bRef * extPct / 100)
+bThrB = math.max(bThr, bRef * flipPct / 100)
+[bSideL, bExtPL, bRFL, bRCL, bLostL, bPeakL, bExtL, sHiL, sLoL, bRcL, bFlL] = f_life(sbO, sbH, sbL, sbC, open, bThr, bThrB, syminfo.mintick / 2)
+[bSideT, bExtPT, bRFT, bRCT, bLostT, bPeakT, bExtT, sHiT, sLoT, bRcT, bFlT] = f_life(tk, tk, tk, tk, open, bThr, bThrB, syminfo.mintick / 2)
 bool useTicks = chSec <= 60
 int bSide = useTicks ? bSideT : bSideL
 float bExtRaw = useTicks ? bExtPT : bExtPL
 float cHiS = useTicks ? sHiT : sHiL
 float cLoS = useTicks ? sLoT : sLoL
 // when the extreme is the candle's own high/low, show the chart candle's exact price (1m feed can differ by a few ticks)
-float bExtP = bSide == -1 and bExtRaw >= cHiS ? high : bSide == 1 and bExtRaw <= cLoS ? low : bExtRaw
+int bRCount = useTicks ? bRcT : bRcL
+int bFlips = useTicks ? bFlT : bFlL
+// the extreme is the candle's own low (bullish) / high (bearish) unless the model has flipped: use the chart
+// candle's exact price (the 1m feed can differ by a few ticks); after a flip, snap only when within 4 ticks
+f_snapExt(int sd, float ex, int fl, float lo, float hi) =>
+    sd == 1 and (fl == 0 or math.abs(ex - lo) <= 4 * syminfo.mintick) ? lo : sd == -1 and (fl == 0 or math.abs(ex - hi) <= 4 * syminfo.mintick) ? hi : ex
+float bExtP = f_snapExt(bSide, bExtRaw, bFlips, low, high)
 bool bRF = useTicks ? bRFT : bRFL
 bool bRC = useTicks ? false : bRCL
 bool bLostS = useTicks ? bLostT : bLostL
@@ -356,8 +373,8 @@ if barstate.islast
         array.push(a4h, high)
         array.push(a4l, low)
         array.push(a4c, close)
-    [side4, ext4Raw, r4, rc4, lostS4, pk4, el4, hi4S, lo4S] = f_life(a4o, a4h, a4l, a4c, kO, thr, tolP)
-    float ext4 = side4 == -1 and ext4Raw >= hi4S ? kH : side4 == 1 and ext4Raw <= lo4S ? kL : ext4Raw
+    [side4, ext4Raw, r4, rc4, lostS4, pk4, el4, hi4S, lo4S, rCnt4, fl4] = f_life(a4o, a4h, a4l, a4c, kO, thr, math.max(thr, nz(p4H - p4L) * flipPct / 100), tolP)
+    float ext4 = f_snapExt(side4, ext4Raw, fl4, kL, kH)
     bool beyond4 = r4 and ((side4 == 1 and kC >= kO + thr) or (side4 == -1 and kC <= kO - thr))
     int stage = 1
     if side4 != 0
@@ -367,10 +384,10 @@ if barstate.islast
             if beyond4
                 stage := 4
     bool lost4 = stage == 3 and lostS4 and not r4
-    string tag = stage == 2 ? (el4 ? " FORMING" : " SET") : stage == 3 ? (lost4 ? " LOST" : rc4 ? " CLOSED" : " FORMING") : ""
+    string tag = stage == 2 ? (el4 ? " FORMING" : " SET") : stage == 3 ? (lost4 ? " LOST" : (rCnt4 > 1 ? " ×" + str.tostring(rCnt4) : "") + (rc4 ? " CLOSED" : " FORMING")) : ""
     // DRIVE (v2.3): the extreme has run past the P4H's opposite side with no reclaim -> the candle is driving,
     // not forming an extreme. Shown as the drive's direction; never counts toward FULL ALIGNMENT.
-    bool drive4 = side4 != 0 and not r4 and ((side4 == 1 and ext4 <= p4L) or (side4 == -1 and ext4 >= p4H))
+    bool drive4 = side4 != 0 and not r4 and ((side4 == 1 and kC <= p4L) or (side4 == -1 and kC >= p4H))
     int drv4Dir = drive4 ? -side4 : 0
     string stageTxt = drive4 ? "2/4  DRIVE " + (drv4Dir == 1 ? "▲" : "▼") : str.tostring(stage) + "/4  " + array.get(stageNames, stage - 1) + tag
     // ENGULFING (v2.3): body past the P4H body. FORMING while live, CONFIRMED once the 4H closes; P4H ENGULFED = the last 4H was one.
@@ -393,8 +410,8 @@ if barstate.islast
             if bBeyond
                 bStage := 4
     bool bLost = bStage == 3 and bLostS and not bRF
-    string bTag = bStage == 2 ? (bExtLive ? " FORMING" : " SET") : bStage == 3 ? (bLost ? " LOST" : bRC ? " CLOSED" : " FORMING") : ""
-    bool bDrive = bSide != 0 and not bRF and ((bSide == 1 and bExtP <= low[1]) or (bSide == -1 and bExtP >= high[1]))
+    string bTag = bStage == 2 ? (bExtLive ? " FORMING" : " SET") : bStage == 3 ? (bLost ? " LOST" : (bRCount > 1 ? " ×" + str.tostring(bRCount) : "") + (bRC ? " CLOSED" : " FORMING")) : ""
+    bool bDrive = bSide != 0 and not bRF and ((bSide == 1 and close <= low[1]) or (bSide == -1 and close >= high[1]))
     int bDrvDir = bDrive ? -bSide : 0
     string bStageTxt = bDrive ? "2/4  DRIVE " + (bDrvDir == 1 ? "▲" : "▼") : str.tostring(bStage) + "/4  " + array.get(stageNames, bStage - 1) + bTag
     float pBT = math.max(open[1], close[1])
@@ -468,7 +485,7 @@ if barstate.islast
             else
                 array.push(lns, line.new(xE, bExtP, xR, open, color = pathCol, width = pathW))
                 bool atRcl = bStage == 3 and not bLost
-                array.push(lbs, label.new(xR, open, "3 RECLAIM" + (bRC ? " CLOSED" : "") + (atRcl ? " ◀" : ""), style = tagSty, color = clear, textcolor = atRcl ? pathCol : chart.fg_color, size = lblSz))
+                array.push(lbs, label.new(xR, open, "3 RECLAIM" + (bRCount > 1 ? " ×" + str.tostring(bRCount) : "") + (bRC ? " CLOSED" : "") + (atRcl ? " ◀" : ""), style = tagSty, color = clear, textcolor = atRcl ? pathCol : chart.fg_color, size = lblSz))
                 if bLost
                     array.push(lns, line.new(xR, open, xX, close, color = lostCol, width = pathW, style = line.style_dashed))
                     array.push(lbs, label.new(xX, close, "RECLAIM LOST ◀", style = tagSty, color = clear, textcolor = lostCol, size = lblSz))
