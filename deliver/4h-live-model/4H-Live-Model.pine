@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v3.4.1 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v3.5 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -530,7 +530,7 @@ var bxs = array.new<box>()
 var lns = array.new<line>()
 var lbs = array.new<label>()
 var stageNames = array.from("OPEN", "EXTREME", "RECLAIM", "EXPANSION")
-var table dash = showDash ? table.new(f_pos(mobile ? mobPosS : dashPosS), 2, 32, bgcolor = dashBg, frame_color = color.new(color.gray, 60), frame_width = 1, border_color = color.new(color.gray, 80), border_width = 1) : na
+var table dash = showDash ? table.new(f_pos(mobile ? mobPosS : dashPosS), 2, 14, bgcolor = dashBg, frame_color = color.new(color.gray, 60), frame_width = 1, border_color = color.new(color.gray, 80), border_width = 1) : na
 var color clear = color.new(color.black, 100)
 
 f_clear() =>
@@ -1018,7 +1018,7 @@ if barstate.islast
     color dnBg = color.new(bearCol, 72)
 
     if showDash
-        table.cell(dash, 0, 0, enter ? (mobile ? "ENTER " + dirG : "4H LIVE MODEL · ENTER " + dirG) : tfAl != 0 ? (mobile ? (tfAl == 1 ? "TF ALIGNED ▲" : "TF ALIGNED ▼") : "4H LIVE MODEL · TF ALIGNED " + (tfAl == 1 ? "▲" : "▼")) : "4H LIVE MODEL", text_color = dashTxt, text_halign = text.align_center, text_size = f_size(eSize), bgcolor = enter ? color.new(Dg == 1 ? bullCol : bearCol, 25) : tfAl != 0 ? color.new(tfAl == 1 ? bullCol : bearCol, 45) : color.new(pathCol, 35))
+        table.cell(dash, 0, 0, enter ? "ENTER " + dirG : tfAl != 0 ? (tfAl == 1 ? "TF ALIGNED ▲" : "TF ALIGNED ▼") : "4H LIVE MODEL", text_color = dashTxt, text_halign = text.align_center, text_size = f_size(eSize), bgcolor = enter ? color.new(Dg == 1 ? bullCol : bearCol, 25) : tfAl != 0 ? color.new(tfAl == 1 ? bullCol : bearCol, 45) : color.new(pathCol, 35))
         table.merge_cells(dash, 0, 0, 1, 0)
         string modelTxt = drive4 ? (drv4Dir == 1 ? "BULLISH DRIVE" : "BEARISH DRIVE") : side4 == 1 ? "BULLISH" : side4 == -1 ? "BEARISH" : "—"
         color modelCol = drive4 ? (drv4Dir == 1 ? bullCol : bearCol) : side4 == 1 ? bullCol : side4 == -1 ? bearCol : dashTxt
@@ -1035,51 +1035,22 @@ if barstate.islast
         color p4Col = p4Dir == 1 ? bullCol : p4Dir == -1 ? bearCol : dashTxt
         string alTxt = side4 == 0 or p4Dir == 0 ? "—" : side4 == p4Dir ? "WITH P4H" : "COUNTER P4H"
         color alCol = side4 == 0 or p4Dir == 0 ? dashTxt : side4 == p4Dir ? modelCol : #ffb300
-        if mobile
-            // 7 rows sized for a phone: what you need at a glance
-            var shortNames = array.from("OPEN", "EXTREME", "RECLAIM", "EXPAND")
-            string n4M = stage == 4 ? (now4 == 1 ? " ▶" : now4 == 3 ? " RT" : " CONS") : stage == 3 ? (now4 == 3 ? " RT" : "") : ""
-            string nBM = bStage == 4 ? (bNow == 1 ? " ▶" : bNow == 3 ? " RT" : " CONS") : bStage == 3 ? (bNow == 3 ? " RT" : "") : ""
-            string s4 = drive4 ? (drv4Dir == 1 ? "DRIVE ▲" : "DRIVE ▼") : (side4 == 1 ? "BULL " : side4 == -1 ? "BEAR " : "— ") + str.tostring(stage) + "/4 " + array.get(shortNames, stage - 1) + n4M
-            string sB = bDrive ? (bDrvDir == 1 ? "DRIVE ▲" : "DRIVE ▼") : (bSide == 1 ? "BULL " : bSide == -1 ? "BEAR " : "— ") + str.tostring(bStage) + "/4 " + array.get(shortNames, bStage - 1) + nBM
-            f_rowBg(1, "ENTRY", gateTxt, gateCol, gateBg)
-            f_row(2, "CHECK", chkTxt, dashTxt)
-            f_tfRow(3, "3m", s3, k3c, k3t, O4, bullCol, bearCol, upBg, dnBg)
-            f_tfRow(4, "5m", s5, k5c, k5t, O4, bullCol, bearCol, upBg, dnBg)
-            f_tfRow(5, "15m", s15, k15c, k15t, O4, bullCol, bearCol, upBg, dnBg)
-            f_tfRow(6, "30m", s30, k30c, k30t, O4, bullCol, bearCol, upBg, dnBg)
-            f_tfRow(7, "1H", s60, k60c, k60t, O4, bullCol, bearCol, upBg, dnBg)
-            f_rowBg(8, "TF ALIGN", tfAlTxt, tfAl == 0 ? dashTxt : color.white, tfAl == 1 ? color.new(bullCol, 45) : tfAl == -1 ? color.new(bearCol, 45) : tfPart == 1 ? color.new(bullCol, 78) : tfPart == -1 ? color.new(bearCol, 78) : dashBg)
-            f_row(9, "4H", s4, lost4 ? lostCol : modelCol)
-            f_row(10, tfTxt, sB, bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
-            f_row(11, "RISK", riskM, enter ? gateCol : dashTxt)
-            f_row(12, "4H CLOSE", cdTxt, dashTxt)
-        else
-            f_rowBg(1, "ENTRY", gateTxt, gateCol, gateBg)
-            f_row(2, "CHECKLIST", chkTxt, dashTxt)
-            f_row(3, "RISK", riskTxt, enter ? gateCol : dashTxt)
-            f_row(4, "AT LEVEL", atTxt, atTxt == "—" ? dashTxt : #ffc53d)
-            f_tfRow(5, "3m CLOSE", s3, k3c, k3t, O4, bullCol, bearCol, upBg, dnBg)
-            f_tfRow(6, "5m CLOSE", s5, k5c, k5t, O4, bullCol, bearCol, upBg, dnBg)
-            f_tfRow(7, "15m CLOSE", s15, k15c, k15t, O4, bullCol, bearCol, upBg, dnBg)
-            f_tfRow(8, "30m CLOSE", s30, k30c, k30t, O4, bullCol, bearCol, upBg, dnBg)
-            f_tfRow(9, "1H CLOSE", s60, k60c, k60t, O4, bullCol, bearCol, upBg, dnBg)
-            f_rowBg(10, "TF ALIGN (vs 4H open)", tfAlTxt, tfAl == 0 ? dashTxt : color.white, tfAl == 1 ? color.new(bullCol, 45) : tfAl == -1 ? color.new(bearCol, 45) : tfPart == 1 ? color.new(bullCol, 78) : tfPart == -1 ? color.new(bearCol, 78) : dashBg)
-            f_row(11, "PLAN", planTxt, planCol)
-            f_row(12, "MODEL", modelTxt, modelCol)
-            f_row(13, "P4H CANDLE", p4Txt, p4Col)
-            f_row(14, "ALIGNMENT", alTxt, alCol)
-            f_row(15, "STAGE", stageTxt, lost4 ? lostCol : dashTxt)
-            f_row(16, "LOCATION", loc, dashTxt)
-            f_row(17, "C4H OPEN", f_px(kO), dashTxt)
-            f_row(18, "C4H EXTREME", extTxt, dashTxt)
-            f_row(19, "P4H HIGH", f_px(p4H), dashTxt)
-            f_row(20, "P4H LOW", f_px(p4L), dashTxt)
-            f_row(21, "RANGE / P4H O", rngTxt, dashTxt)
-            f_row(22, "NEXT TARGET", tgtTxt, modelCol)
-            f_row(23, "4H CLOSE IN", cdTxt, dashTxt)
-            f_row(24, tfTxt + " CANDLE", bDrive ? (bDrvDir == 1 ? "BULLISH DRIVE" : "BEARISH DRIVE") : bSide == 1 ? "BULLISH" : bSide == -1 ? "BEARISH" : "—", bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
-            f_row(25, tfTxt + " STAGE", bStageTxt, bLost ? lostCol : dashTxt)
-            f_row(26, "FULL ALIGNMENT", fullTxt, alDir == 1 ? bullCol : alDir == -1 ? bearCol : dashTxt)
-            f_row(27, "4H ENGULF", eng4Txt, eng4Col)
-            f_row(28, tfTxt + " ENGULF", engTxt, engCol)
+        // v3.5 (Mac 11/25): ONE compact dashboard on desktop and phone
+        // 7 rows sized for a phone: what you need at a glance
+        var shortNames = array.from("OPEN", "EXTREME", "RECLAIM", "EXPAND")
+        string n4M = stage == 4 ? (now4 == 1 ? " ▶" : now4 == 3 ? " RT" : " CONS") : stage == 3 ? (now4 == 3 ? " RT" : "") : ""
+        string nBM = bStage == 4 ? (bNow == 1 ? " ▶" : bNow == 3 ? " RT" : " CONS") : bStage == 3 ? (bNow == 3 ? " RT" : "") : ""
+        string s4 = drive4 ? (drv4Dir == 1 ? "DRIVE ▲" : "DRIVE ▼") : (side4 == 1 ? "BULL " : side4 == -1 ? "BEAR " : "— ") + str.tostring(stage) + "/4 " + array.get(shortNames, stage - 1) + n4M
+        string sB = bDrive ? (bDrvDir == 1 ? "DRIVE ▲" : "DRIVE ▼") : (bSide == 1 ? "BULL " : bSide == -1 ? "BEAR " : "— ") + str.tostring(bStage) + "/4 " + array.get(shortNames, bStage - 1) + nBM
+        f_rowBg(1, "ENTRY", gateTxt, gateCol, gateBg)
+        f_row(2, "CHECK", chkTxt, dashTxt)
+        f_tfRow(3, "3m", s3, k3c, k3t, O4, bullCol, bearCol, upBg, dnBg)
+        f_tfRow(4, "5m", s5, k5c, k5t, O4, bullCol, bearCol, upBg, dnBg)
+        f_tfRow(5, "15m", s15, k15c, k15t, O4, bullCol, bearCol, upBg, dnBg)
+        f_tfRow(6, "30m", s30, k30c, k30t, O4, bullCol, bearCol, upBg, dnBg)
+        f_tfRow(7, "1H", s60, k60c, k60t, O4, bullCol, bearCol, upBg, dnBg)
+        f_rowBg(8, "TF ALIGN", tfAlTxt, tfAl == 0 ? dashTxt : color.white, tfAl == 1 ? color.new(bullCol, 45) : tfAl == -1 ? color.new(bearCol, 45) : tfPart == 1 ? color.new(bullCol, 78) : tfPart == -1 ? color.new(bearCol, 78) : dashBg)
+        f_row(9, "4H", s4, lost4 ? lostCol : modelCol)
+        f_row(10, tfTxt, sB, bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
+        f_row(11, "RISK", mobile ? riskM : riskTxt, enter ? gateCol : dashTxt)
+        f_row(12, "4H CLOSE", cdTxt, dashTxt)

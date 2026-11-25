@@ -1,4 +1,4 @@
-# 4H Live Model v3.4
+# 4H Live Model v3.5
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -25,6 +25,12 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
+
+## One dashboard (v3.5, Mac 11/25: "desktop version is way too big")
+- **One layout:** the compact layout is now the only one, on desktop and phone. It has 12 rows: ENTRY, CHECK, 3m / 5m / 15m / 30m / 1H closes, TF ALIGN, 4H, chart candle, RISK, 4H CLOSE.
+- **RISK row:** on desktop it shows the full entry / stop / target / R / $ line; on the phone, R and $ only.
+- **Mobile mode** now only changes text size, position and drawing spacing.
+- **Removed (the 28-row desktop board):** MODEL, P4H CANDLE, ALIGNMENT, LOCATION, C4H OPEN/EXTREME, P4H HIGH/LOW, RANGE, NEXT TARGET, FULL ALIGNMENT, ENGULF and PLAN. Their information is in the 4H / chart rows, the line chart and the level labels.
 
 ## v3.4 fixes from Mac's MES 30m phone screenshot (11/25, 11:29 PT)
 - **Waiting rows:**
