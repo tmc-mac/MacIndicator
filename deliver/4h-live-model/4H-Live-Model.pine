@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v3.1 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v3.2 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -61,7 +61,7 @@ pathLblS  = input.string("Right", "Path labels", options = ["Right", "Left"], gr
 
 grpAl = "Full alignment"
 alReqP4   = input.bool(true, "Require the P4H candle to close in the same direction", group = grpAl)
-alReqRC   = input.bool(true, "Require the chart candle's reclaim to be CLOSED (a 1m candle closed back through its open)", group = grpAl)
+alReqRC   = input.bool(true, "Require the chart candle's reclaim (v3.2: always a 3m / 5m close)", group = grpAl)
 alAlert   = input.bool(true, "Alert when full alignment starts (create the alert with 'Any alert() function call')", group = grpAl)
 
 grpLvl = "Your levels (Levels PRO v2.4.2)"
@@ -94,7 +94,8 @@ minR      = input.float(1.5, "Minimum R to call GO (below it reads SKIP)", minva
 planAlert = input.bool(true, "Alert on ARMED / GO / INVALID (alert condition: Any alert() function call)", group = grpPl)
 
 grpMd = "Model"
-extPct    = input.float(10.0, "Extreme is named when price moves this % of the P4H range away from the open", minval = 0.5, maxval = 100, step = 0.5, group = grpMd)
+confTF    = input.string("5m", "Reclaim confirmed by a close on", options = ["3m", "5m"], group = grpMd, tooltip = "Mac 11/25: the open is reclaimed when a 3m or 5m candle closes through it. On charts at or below this timeframe, 1m closes are used.")
+extPct    = input.float(10.0, "Legacy setting (v3.2: stages use 3m / 5m closes, not a percentage)", minval = 0.5, maxval = 100, step = 0.5, group = grpMd)
 
 // ================= HELPERS =================
 f_sty(s) => s == "Dashed" ? line.style_dashed : s == "Dotted" ? line.style_dotted : line.style_solid
@@ -338,11 +339,12 @@ mLoAcc := math.min(nz(mLoAcc, low), low)
 
 // ================= CHART-CANDLE LIFE (drives the path line) =================
 // The path line follows the candle of the timeframe being viewed (e.g. the forming 30m candle),
-// using the same model: OPEN -> EXTREME (first side to move extPct % of the previous chart candle's range)
+// using Mac's definitions (v3.2): RECLAIM = a 3m / 5m close through the open, EXPANSION = new candle prices after it
 // -> RECLAIM (back through that candle's open) -> EXPANSION -> TARGET (previous chart candle high/low) -> CLOSED.
 // Order inside the candle comes from its 1-minute bars (5-minute above 1H); on a 1m chart, from live ticks.
 int chSec = timeframe.in_seconds()
-string ltf = chSec <= 3600 ? "1" : "5"
+int confSec = confTF == "3m" ? 180 : 300
+string ltf = chSec > confSec ? (confTF == "3m" ? "3" : "5") : "1"
 [sbO, sbH, sbL, sbC] = request.security_lower_tf(syminfo.tickerid, ltf, [open, high, low, close])
 varip tk = array.new_float()
 varip int tkBar = -1
@@ -356,21 +358,26 @@ if barstate.islast and chSec <= 60
     if array.size(tk) < 4000 and close != array.get(tk, array.size(tk) - 1)
         array.push(tk, close)
 
-// v3.1 (Mac 11/24: "it's only taking the original 1-2-3-4"): the candle's life is read as SEGMENTS between
-// confirmed crosses of the open. A cross is confirmed when a sub-bar (1m bar; a tick on a 1m chart) CLOSES on the
-// other side of the open. Every confirmed cross is judged on its own, so the LATEST cycle always wins:
-//   - the segment that just ended went th or more away from the open -> it was a real extreme (or expansion):
-//     its far point becomes the EXTREME and the cross is the RECLAIM, in the direction of the cross
-//     (same direction as before = reclaimed again, "x2"; opposite = the candle flipped)
-//   - the segment was smaller than th -> price was only testing the open: falling back to the extreme's side is
-//     RECLAIM LOST (the extreme keeps forming), crossing back again is a repeat reclaim
-//   Before the first reclaim, the first side to go th from the open names the EXTREME.
-f_life(float[] ao, float[] ah, float[] al, float[] ac, float O, float th, float tol) =>
+// v3.2 (Mac 11/25), Mac's definitions, no percentages:
+//   RECLAIM   = a 3m / 5m candle (input "Reclaim confirmed by") CLOSES through the open. Direction = the side it closes on.
+//               Every such close counts: closing back the other way is a reclaim the other way (the latest one wins).
+//   EXTREME   = the far point the candle reached on the other side of the open before that close.
+//               Before the first reclaim: the side price is closing on, and its far point so far.
+//   EXPANSION = after the reclaim, price VISITS NEW PRICES for the candle in the reclaim direction
+//               (a new candle high for a bullish reclaim, a new candle low for a bearish one).
+//   Right now, after the reclaim:  EXPANDING (making new prices now) / RETEST (back at the open, no close through)
+//               / CONSOLIDATING (inside the candle's range, no new prices).
+// Sub-bars are the confirmation candles (3m / 5m); on charts at or below that timeframe, 1m bars (ticks on 1m).
+// Returns: dir, extreme, reclaimed, expanded, now (0 -, 1 EXPANDING, 2 CONSOLIDATING, 3 RETEST), expansion peak,
+//          extreme set on the last sub-bar, candle high, candle low, reclaim count, flips
+f_life(float[] ao, float[] ah, float[] al, float[] ac, float O, float tol) =>
     int dir = 0
     float ext = na
     bool recl = false
-    bool lost = false
+    bool expd = false
+    int nowT = 0
     int extI = -1
+    int recI = -1
     int rCount = 0
     int flips = 0
     int segSide = 0
@@ -378,76 +385,68 @@ f_life(float[] ao, float[] ah, float[] al, float[] ac, float O, float th, float 
     float segLo = O
     float sHi = O
     float sLo = O
+    float pkHi = na
+    float pkLo = na
     int n = array.size(ah)
     if n > 0
         for i = 0 to n - 1
-            float o = array.get(ao, i)
             float h = array.get(ah, i)
             float l = array.get(al, i)
             float c = array.get(ac, i)
+            float prevHi = sHi
+            float prevLo = sLo
             sHi := math.max(sHi, h)
             sLo := math.min(sLo, l)
             segHi := math.max(segHi, h)
             segLo := math.min(segLo, l)
-            // name the first extreme (before any reclaim)
-            if dir == 0
-                bool upBar = c >= o
-                bool dnHit = O - l >= th
-                bool upHit = h - O >= th
-                if dnHit and upHit
-                    dir := upBar ? 1 : -1
-                else if dnHit
-                    dir := 1
-                else if upHit
-                    dir := -1
-                if dir != 0
-                    ext := dir == 1 ? segLo : segHi
-                    extI := i
-            // the extreme keeps forming while price is on its side and not reclaimed
-            else if not recl
-                if dir == 1 and l < ext
-                    ext := l
-                    extI := i
-                if dir == -1 and h > ext
-                    ext := h
-                    extI := i
-            // confirmed side of the open at this sub-bar's close
-            int newSide = c > O + tol ? 1 : c < O - tol ? -1 : segSide
+            int side = c > O + tol ? 1 : c < O - tol ? -1 : segSide
+            bool crossed = false
             if segSide == 0
-                segSide := newSide
-            else if newSide != segSide
-                float exc = segSide == 1 ? segHi - O : O - segLo
-                if exc >= th
-                    // a real extreme / expansion ended: it becomes the extreme, this close is the reclaim
-                    if dir != 0 and dir != newSide
-                        flips += 1
-                        rCount := 0
-                    ext := segSide == 1 ? segHi : segLo
+                segSide := side
+            else if side != segSide
+                // a confirmation candle closed through the open: RECLAIM in the direction it closed
+                crossed := true
+                if dir != 0 and recl and dir != side
+                    flips += 1
+                    rCount := 0
+                ext := segSide == 1 ? segHi : segLo
+                extI := i
+                dir := side
+                recl := true
+                // the reclaim candle itself may already visit new prices for the candle
+                expd := (side == 1 and h > prevHi) or (side == -1 and l < prevLo)
+                rCount += 1
+                recI := i
+                pkHi := h
+                pkLo := l
+                segSide := side
+                segHi := side == 1 ? h : c
+                segLo := side == -1 ? l : c
+            if not recl and segSide != 0
+                // before the first reclaim: the extreme is forming on the side price is closing on
+                float e0 = segSide == 1 ? segHi : segLo
+                if na(ext) or e0 != ext
                     extI := i
-                    dir := newSide
-                    recl := true
-                    lost := false
-                    rCount += 1
-                else if dir != 0
-                    if newSide != dir and recl
-                        recl := false
-                        lost := true
-                    else if newSide == dir and not recl
-                        recl := true
-                        lost := false
-                        rCount += 1
-                segSide := newSide
-                segHi := c
-                segLo := c
-    float peak = dir == 1 ? (segSide == 1 ? segHi : O) : dir == -1 ? (segSide == -1 ? segLo : O) : na
-    [dir, ext, recl, recl, lost, peak, n > 0 and extI == n - 1, sHi, sLo, rCount, flips]
+                ext := e0
+                dir := -segSide
+            if recl and not crossed
+                pkHi := math.max(pkHi, h)
+                pkLo := math.min(pkLo, l)
+                bool newP = dir == 1 ? h > prevHi : l < prevLo
+                if newP
+                    expd := true
+                if i == n - 1
+                    nowT := newP ? 1 : (dir == 1 ? l <= O + 2 * syminfo.mintick : h >= O - 2 * syminfo.mintick) ? 3 : 2
+            else if recl and crossed and i == n - 1
+                nowT := expd ? 1 : 3
+    float peak = dir == 1 ? pkHi : pkLo
+    [dir, ext, recl, expd, nowT, peak, n > 0 and extI == n - 1, sHi, sLo, rCount, flips]
 
 // reference size of a chart candle: the larger of the previous candle's range and the 14-candle ATR
 // (a tiny previous candle no longer makes every wiggle around the open count)
 float bRef = math.max(nz(high[1] - low[1]), nz(ta.atr(14)))
-bThr = math.max(syminfo.mintick * 2, bRef * extPct / 100)
-[bSideL, bExtPL, bRFL, bRCL, bLostL, bPeakL, bExtL, sHiL, sLoL, bRcL, bFlL] = f_life(sbO, sbH, sbL, sbC, open, bThr, syminfo.mintick / 2)
-[bSideT, bExtPT, bRFT, bRCT, bLostT, bPeakT, bExtT, sHiT, sLoT, bRcT, bFlT] = f_life(tk, tk, tk, tk, open, bThr, syminfo.mintick / 2)
+[bSideL, bExtPL, bRFL, bExpL, bNowL, bPeakL, bExtL, sHiL, sLoL, bRcL, bFlL] = f_life(sbO, sbH, sbL, sbC, open, syminfo.mintick / 2)
+[bSideT, bExtPT, bRFT, bExpT, bNowT, bPeakT, bExtT, sHiT, sLoT, bRcT, bFlT] = f_life(tk, tk, tk, tk, open, syminfo.mintick / 2)
 bool useTicks = chSec <= 60
 int bSide = useTicks ? bSideT : bSideL
 float bExtRaw = useTicks ? bExtPT : bExtPL
@@ -462,8 +461,10 @@ f_snapExt(int sd, float ex, int fl, float lo, float hi) =>
     sd == 1 and (fl == 0 or math.abs(ex - lo) <= 12 * syminfo.mintick) ? lo : sd == -1 and (fl == 0 or math.abs(ex - hi) <= 12 * syminfo.mintick) ? hi : ex
 float bExtP = f_snapExt(bSide, bExtRaw, bFlips, low, high)
 bool bRF = useTicks ? bRFT : bRFL
-bool bRC = useTicks ? false : bRCL
-bool bLostS = useTicks ? bLostT : bLostL
+bool bExp = useTicks ? bExpT : bExpL
+int bNow = useTicks ? bNowT : bNowL
+bool bRC = bRF
+bool bLostS = false
 float bPeak = useTicks ? bPeakT : bPeakL
 bool bExtLive = useTicks ? bExtT : bExtL
 string tfTxt = chSec < 3600 ? str.tostring(math.round(chSec / 60)) + "m" : str.tostring(math.round(chSec / 3600)) + "H"
@@ -476,6 +477,34 @@ int ePath = mobile ? 10 : offPath
 int eStep = mobile ? 2 : pathStep
 string eSize = mobile ? mobSizeS : dashSizeS
 string lblSz = mobile ? size.normal : size.small
+
+// the current 4H candle's confirmation candles (3m / 5m; 1m on small charts), stored once per closed chart bar
+var h4o = array.new_float()
+var h4h = array.new_float()
+var h4l = array.new_float()
+var h4c = array.new_float()
+if newC
+    array.clear(h4o)
+    array.clear(h4h)
+    array.clear(h4l)
+    array.clear(h4c)
+if barstate.isconfirmed and inSess
+    if chSec <= 60 or array.size(sbH) == 0
+        array.push(h4o, open)
+        array.push(h4h, high)
+        array.push(h4l, low)
+        array.push(h4c, close)
+    else
+        for q = 0 to array.size(sbH) - 1
+            array.push(h4o, array.get(sbO, q))
+            array.push(h4h, array.get(sbH, q))
+            array.push(h4l, array.get(sbL, q))
+            array.push(h4c, array.get(sbC, q))
+    if array.size(h4c) > 2000
+        array.shift(h4o)
+        array.shift(h4h)
+        array.shift(h4l)
+        array.shift(h4c)
 
 // ================= DRAWING =================
 var bxs = array.new<box>()
@@ -568,18 +597,21 @@ if barstate.islast
     float tolP = syminfo.mintick / 2
     // 4H uses the same 4-stage life as the line (Mac 11/22): completed chart bars of this 4H candle,
     // then the live chart bar's own 1-minute bars (ticks on a 1m chart).
-    a4o = array.new_float()
-    a4h = array.new_float()
-    a4l = array.new_float()
-    a4c = array.new_float()
-    int nB = math.min(bar_index - nz(c4Start, bar_index), 480)
-    if nB > 0
-        for j = nB to 1
-            array.push(a4o, open[j])
-            array.push(a4h, high[j])
-            array.push(a4l, low[j])
-            array.push(a4c, close[j])
-    if useTicks and array.size(tk) > 0
+    a4o = array.copy(h4o)
+    a4h = array.copy(h4h)
+    a4l = array.copy(h4l)
+    a4c = array.copy(h4c)
+    if barstate.isconfirmed
+        // this bar is already in the stored list
+        array.clear(a4o)
+        array.clear(a4h)
+        array.clear(a4l)
+        array.clear(a4c)
+        array.concat(a4o, h4o)
+        array.concat(a4h, h4h)
+        array.concat(a4l, h4l)
+        array.concat(a4c, h4c)
+    else if useTicks and array.size(tk) > 0
         for q = 0 to array.size(tk) - 1
             float pq = array.get(tk, q)
             array.push(a4o, pq)
@@ -597,9 +629,11 @@ if barstate.islast
         array.push(a4h, high)
         array.push(a4l, low)
         array.push(a4c, close)
-    [side4, ext4Raw, r4, rc4, lostS4, pk4, el4, hi4S, lo4S, rCnt4, fl4] = f_life(a4o, a4h, a4l, a4c, kO, thr, tolP)
+    [side4, ext4Raw, r4, exp4, now4, pk4, el4, hi4S, lo4S, rCnt4, fl4] = f_life(a4o, a4h, a4l, a4c, kO, tolP)
+    bool rc4 = r4
+    bool lostS4 = false
     float ext4 = f_snapExt(side4, ext4Raw, fl4, kL, kH)
-    bool beyond4 = r4 and ((side4 == 1 and kC >= kO + thr) or (side4 == -1 and kC <= kO - thr))
+    bool beyond4 = r4 and exp4
     int stage = 1
     if side4 != 0
         stage := 2
@@ -608,7 +642,8 @@ if barstate.islast
             if beyond4
                 stage := 4
     bool lost4 = stage == 3 and lostS4 and not r4
-    string tag = stage == 2 ? (el4 ? " FORMING" : " SET") : stage == 3 ? (lost4 ? " LOST" : (rCnt4 > 1 ? " ×" + str.tostring(rCnt4) : "") + (rc4 ? " CLOSED" : " FORMING")) : ""
+    string nowTxt4 = now4 == 1 ? "EXPANDING" : now4 == 3 ? "RETEST" : "CONSOLIDATING"
+    string tag = stage == 2 ? (el4 ? " FORMING" : " SET") : stage == 3 ? (rCnt4 > 1 ? " ×" + str.tostring(rCnt4) : "") + (now4 == 3 ? " · RETEST" : " · HOLDING") : stage == 4 ? " · " + nowTxt4 : ""
     // DRIVE (v2.3): the extreme has run past the P4H's opposite side with no reclaim -> the candle is driving,
     // not forming an extreme. Shown as the drive's direction; never counts toward FULL ALIGNMENT.
     bool drive4 = side4 != 0 and not r4 and ((side4 == 1 and kC <= p4L) or (side4 == -1 and kC >= p4H))
@@ -625,7 +660,7 @@ if barstate.islast
     int eng4Dir = eng4Dn or (not eng4Up and eng4PDn) ? -1 : eng4Up or eng4PUp ? 1 : 0
     // chart-candle stage (path line)
     bool bClosed = timenow >= time_close
-    bool bBeyond = bRF and ((bSide == 1 and close >= open + bThr) or (bSide == -1 and close <= open - bThr))
+    bool bBeyond = bRF and bExp
     int bStage = 1
     if bSide != 0
         bStage := 2
@@ -634,7 +669,8 @@ if barstate.islast
             if bBeyond
                 bStage := 4
     bool bLost = bStage == 3 and bLostS and not bRF
-    string bTag = bStage == 2 ? (bExtLive ? " FORMING" : " SET") : bStage == 3 ? (bLost ? " LOST" : (bRCount > 1 ? " ×" + str.tostring(bRCount) : "") + (bRC ? " CLOSED" : " FORMING")) : ""
+    string bNowTxt = bNow == 1 ? "EXPANDING" : bNow == 3 ? "RETEST" : "CONSOLIDATING"
+    string bTag = bStage == 2 ? (bExtLive ? " FORMING" : " SET") : bStage == 3 ? (bRCount > 1 ? " ×" + str.tostring(bRCount) : "") + (bNow == 3 ? " · RETEST" : " · HOLDING") : bStage == 4 ? " · " + bNowTxt : ""
     bool bDrive = bSide != 0 and not bRF and ((bSide == 1 and close <= low[1]) or (bSide == -1 and close >= high[1]))
     int bDrvDir = bDrive ? -bSide : 0
     string bStageTxt = bDrive ? "2/4  DRIVE " + (bDrvDir == 1 ? "▲" : "▼") : str.tostring(bStage) + "/4  " + array.get(stageNames, bStage - 1) + bTag
@@ -709,21 +745,28 @@ if barstate.islast
             else
                 array.push(lns, line.new(xE, bExtP, xR, open, color = pathCol, width = pathW))
                 bool atRcl = bStage == 3 and not bLost
-                array.push(lbs, label.new(xR, open, "3 RECLAIM" + (bRCount > 1 ? " ×" + str.tostring(bRCount) : "") + (bRC ? " CLOSED" : "") + (atRcl ? " ◀" : ""), style = tagSty, color = clear, textcolor = atRcl ? pathCol : chart.fg_color, size = lblSz))
+                array.push(lbs, label.new(xR, open, "3 RECLAIM" + (bRCount > 1 ? " ×" + str.tostring(bRCount) : "") + (atRcl ? (bNow == 3 ? " · RETEST ◀" : " · HOLDING ◀") : ""), style = tagSty, color = clear, textcolor = atRcl ? pathCol : chart.fg_color, size = lblSz))
                 if bLost
                     array.push(lns, line.new(xR, open, xX, close, color = lostCol, width = pathW, style = line.style_dashed))
                     array.push(lbs, label.new(xX, close, "RECLAIM LOST ◀", style = tagSty, color = clear, textcolor = lostCol, size = lblSz))
                     curX := xX
                     curY := close
                 else if bStage >= 4
-                    array.push(lns, line.new(xR, open, xX, close, color = pathCol, width = pathW))
-                    string xTxt = "4 EXPANSION ◀"
-                    array.push(lbs, label.new(xX, close, xTxt, style = tagSty, color = clear, textcolor = pathCol, size = lblSz))
+                    // the expansion leg goes to the new prices the candle visited; the live price is marked after it
+                    array.push(lns, line.new(xR, open, xX, bPeak, color = pathCol, width = pathW))
+                    array.push(lbs, label.new(xX, bPeak, "4 EXPANSION " + f_px(bPeak) + (bNow == 1 ? " ◀" : ""), style = tagSty, color = clear, textcolor = bNow == 1 ? pathCol : chart.fg_color, size = lblSz))
+                    curX := xX
+                    curY := bPeak
+                    if bNow != 1
+                        array.push(lns, line.new(xX, bPeak, xX + eStep, close, color = pathCol, width = 1, style = line.style_dotted))
+                        array.push(lbs, label.new(xX + eStep, close, (bNow == 3 ? "RETEST" : "CONSOLIDATING") + " ◀", style = tagSty, color = clear, textcolor = pathCol, size = lblSz))
+                        curX := xX + eStep
+                        curY := close
+                else
+                    // reclaimed, no new prices yet: mark the live price beside the reclaim
+                    array.push(lns, line.new(xR, open, xX, close, color = pathCol, width = 1, style = line.style_dotted))
                     curX := xX
                     curY := close
-                else
-                    curX := xR
-                    curY := open
         array.push(lbs, label.new(curX, curY, "", style = label.style_circle, color = bLost ? lostCol : pathCol, size = size.tiny))
 
     if showLevels
@@ -877,8 +920,10 @@ if barstate.islast
         if mobile
             // 7 rows sized for a phone: what you need at a glance
             var shortNames = array.from("OPEN", "EXTREME", "RECLAIM", "EXPAND")
-            string s4 = drive4 ? (drv4Dir == 1 ? "DRIVE ▲" : "DRIVE ▼") : (side4 == 1 ? "BULL " : side4 == -1 ? "BEAR " : "— ") + str.tostring(stage) + "/4 " + array.get(shortNames, stage - 1) + (lost4 ? " LOST" : "")
-            string sB = bDrive ? (bDrvDir == 1 ? "DRIVE ▲" : "DRIVE ▼") : (bSide == 1 ? "BULL " : bSide == -1 ? "BEAR " : "— ") + str.tostring(bStage) + "/4 " + array.get(shortNames, bStage - 1) + (bLost ? " LOST" : "")
+            string n4M = stage == 4 ? (now4 == 1 ? " ▶" : now4 == 3 ? " RT" : " CONS") : stage == 3 ? (now4 == 3 ? " RT" : "") : ""
+            string nBM = bStage == 4 ? (bNow == 1 ? " ▶" : bNow == 3 ? " RT" : " CONS") : bStage == 3 ? (bNow == 3 ? " RT" : "") : ""
+            string s4 = drive4 ? (drv4Dir == 1 ? "DRIVE ▲" : "DRIVE ▼") : (side4 == 1 ? "BULL " : side4 == -1 ? "BEAR " : "— ") + str.tostring(stage) + "/4 " + array.get(shortNames, stage - 1) + n4M
+            string sB = bDrive ? (bDrvDir == 1 ? "DRIVE ▲" : "DRIVE ▼") : (bSide == 1 ? "BULL " : bSide == -1 ? "BEAR " : "— ") + str.tostring(bStage) + "/4 " + array.get(shortNames, bStage - 1) + nBM
             f_row(1, "PLAN", planTxt, planCol)
             f_row(2, "RISK", riskM, pState == 2 ? planCol : dashTxt)
             f_row(3, "4H", s4, lost4 ? lostCol : modelCol)

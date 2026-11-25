@@ -1,4 +1,4 @@
-# 4H Live Model v3.1
+# 4H Live Model v3.2
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -25,6 +25,22 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
+
+## Mac's definitions, no percentages (v3.2, Mac 11/25)
+- **RECLAIM:** a **3m or 5m candle closes** through the open. The confirmation timeframe is an input (default 5m); on charts at or below it, 1m closes are used. Direction = the side it closes on, and every such close counts, so the latest one wins.
+- **EXTREME:** the far point the candle reached on the other side of the open before that close.
+- **EXPANSION:** after the reclaim, price **visits new prices for the candle** in the reclaim direction: a new candle high for a bullish reclaim, a new candle low for a bearish one.
+- **What price is doing now, after the reclaim:**
+  - **EXPANDING:** new prices right now.
+  - **RETEST:** back at the open without closing through.
+  - **CONSOLIDATING:** inside the range, no new prices.
+  - Before any new prices, the stage reads "3/4 RECLAIM · HOLDING / RETEST"; after them, "4/4 EXPANSION · EXPANDING / CONSOLIDATING / RETEST".
+- **Line chart:** the expansion point is the new price the candle reached, and the live price is marked separately.
+- **4H:** the same rules, using the 5m (or 3m) closes inside the 4H candle.
+- **Checked on MNQ 30m, 11/25, 4H open 25,925.75:**
+  - The 30m candle from Mac's screenshot (open 25,886.25, high 25,959.25, low 25,860) now reads BEARISH, extreme 25,959.25, reclaimed, no new low since → 3/4 RECLAIM · RETEST. v3.1 called it 4/4 EXPAND.
+  - The 4H reads BEARISH, extreme 25,959.25, reclaimed, consolidating.
+- **Removed:** the v3.1 percentage thresholds.
 
 ## Every reclaim counts (v3.1, Mac 11/24: "it's only taking the original 1-2-3-4")
 - **Segments:** the candle is read as segments between confirmed crosses of its open. A cross is confirmed when a 1-minute bar closes on the other side; on a 1m chart, each tick counts.
