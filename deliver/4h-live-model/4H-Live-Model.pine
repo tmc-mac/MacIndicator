@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v3.3 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v3.4 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -574,9 +574,12 @@ f_mmss(float ms) =>
     int c = s % 60
     (h > 0 ? str.tostring(h) + ":" + str.tostring(m, "00") : str.tostring(m)) + ":" + str.tostring(c, "00")
 
+f_doneT(float tCl, int tfMs) => na(tCl) ? na : timenow >= tCl ? tCl : tCl - tfMs
+
 f_tfRow(int r, string k, int s, float cNow, float tCl, float O4, color upC, color dnC, color upB, color dnB) =>
-    int sl = cNow > O4 + syminfo.mintick / 2 ? 1 : cNow < O4 - syminfo.mintick / 2 ? -1 : 0
-    string v = (s == 1 ? "▲ CLOSED ABOVE" : s == -1 ? "▼ CLOSED BELOW" : "= AT OPEN") + (sl != s ? (sl == 1 ? " · live ▲" : sl == -1 ? " · live ▼" : " · live =") : "") + (na(tCl) or timenow >= tCl ? "" : "  " + f_mmss(tCl - timenow))
+    int sl0 = cNow > O4 + syminfo.mintick / 2 ? 1 : cNow < O4 - syminfo.mintick / 2 ? -1 : 0
+    int sl = s == 9 ? sl0 * 10 : sl0
+    string v = (s == 9 ? "… no close yet this 4H" : s == 1 ? "▲ CLOSED ABOVE" : s == -1 ? "▼ CLOSED BELOW" : "= AT OPEN") + (s == 9 ? (sl0 == 1 ? " · live ▲" : sl0 == -1 ? " · live ▼" : "") : sl != s ? (sl == 1 ? " · live ▲" : sl == -1 ? " · live ▼" : " · live =") : "") + (na(tCl) or timenow >= tCl ? "" : "  " + f_mmss(tCl - timenow))
     f_rowBg(r, k, v, s == 0 ? dashTxt : color.white, s == 1 ? upB : s == -1 ? dnB : dashBg)
 
 // level list helpers (v3.0): heavier levels are added first; a level within 2 ticks of one already listed merges into it
@@ -626,6 +629,22 @@ f_tgtLv(string[] n, float[] p, float from, int dir) =>
     [tn, tp]
 
 f_nm(string full, string ab) => mobile ? ab : full
+
+// v3.4: the target is the first level beyond the entry that pays at least minRew (levels closer than that are skipped)
+f_tgtR(string[] n, float[] p, float from, int dir, float minRew) =>
+    string tn = ""
+    float tp = na
+    float bg = 1e12
+    int sz = array.size(p)
+    if sz > 0 and not na(from) and dir != 0
+        for j = 0 to sz - 1
+            float pj = array.get(p, j)
+            float gap = dir == 1 ? pj - from : from - pj
+            if gap >= math.max(minRew, syminfo.mintick * 4) and gap < bg
+                bg := gap
+                tn := array.get(n, j)
+                tp := pj
+    [tn, tp]
 
 if barstate.islast
     f_clear()
@@ -764,17 +783,17 @@ if barstate.islast
         int xR = x0 + 3 * eStep
         int xX = x0 + 4 * eStep
         string tagSty = pathLblS == "Right" ? label.style_label_left : label.style_label_right
-        array.push(lbs, label.new(x0, open, tfTxt + " CANDLE", style = label.style_label_right, color = clear, textcolor = pathCol, size = lblSz))
+        array.push(lbs, label.new(x0, open, mobile ? tfTxt : tfTxt + " CANDLE", style = label.style_label_right, color = clear, textcolor = pathCol, size = lblSz))
         array.push(lns, line.new(x0, open, xO, open, color = pathCol, width = pathW))
         int curX = xO
         float curY = open
         if bSide == 0
-            array.push(lbs, label.new(xO, open, "1 OPEN ◀  waiting for the extreme", style = tagSty, color = clear, textcolor = pathCol, size = lblSz))
+            array.push(lbs, label.new(xO, open, mobile ? "1 ◀" : "1 OPEN ◀  waiting for the extreme", style = tagSty, color = clear, textcolor = pathCol, size = lblSz))
         else
-            array.push(lbs, label.new(xO, open, "1 OPEN", style = label.style_label_down, color = clear, textcolor = chart.fg_color, size = lblSz))
+            array.push(lbs, label.new(xO, open, mobile ? "1" : "1 OPEN", style = label.style_label_down, color = clear, textcolor = chart.fg_color, size = lblSz))
             array.push(lns, line.new(xO, open, xE, bExtP, color = pathCol, width = pathW))
             bool atExt = not bRF and not bLost
-            string extLbl = bDrive ? "2 DRIVE " + (bDrvDir == 1 ? "▲ " : "▼ ") + f_px(bExtP) : "2 EXTREME " + f_px(bExtP)
+            string extLbl = mobile ? (bDrive ? "2 DRIVE" + (bDrvDir == 1 ? " ▲" : " ▼") : "2") : bDrive ? "2 DRIVE " + (bDrvDir == 1 ? "▲ " : "▼ ") + f_px(bExtP) : "2 EXTREME " + f_px(bExtP)
             color extCol = bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : atExt ? pathCol : chart.fg_color
             array.push(lbs, label.new(xE, bExtP, extLbl + (atExt ? " ◀" : ""), style = tagSty, color = clear, textcolor = extCol, size = lblSz))
             if atExt
@@ -783,7 +802,7 @@ if barstate.islast
             else
                 array.push(lns, line.new(xE, bExtP, xR, open, color = pathCol, width = pathW))
                 bool atRcl = bStage == 3 and not bLost
-                array.push(lbs, label.new(xR, open, "3 RECLAIM" + (bRCount > 1 ? " ×" + str.tostring(bRCount) : "") + (atRcl ? (bNow == 3 ? " · RETEST ◀" : " · HOLDING ◀") : ""), style = tagSty, color = clear, textcolor = atRcl ? pathCol : chart.fg_color, size = lblSz))
+                array.push(lbs, label.new(xR, open, mobile ? "3" + (atRcl ? " ◀" : "") : "3 RECLAIM" + (bRCount > 1 ? " ×" + str.tostring(bRCount) : "") + (atRcl ? (bNow == 3 ? " · RETEST ◀" : " · HOLDING ◀") : ""), style = tagSty, color = clear, textcolor = atRcl ? pathCol : chart.fg_color, size = lblSz))
                 if bLost
                     array.push(lns, line.new(xR, open, xX, close, color = lostCol, width = pathW, style = line.style_dashed))
                     array.push(lbs, label.new(xX, close, "RECLAIM LOST ◀", style = tagSty, color = clear, textcolor = lostCol, size = lblSz))
@@ -792,12 +811,12 @@ if barstate.islast
                 else if bStage >= 4
                     // the expansion leg goes to the new prices the candle visited; the live price is marked after it
                     array.push(lns, line.new(xR, open, xX, bPeak, color = pathCol, width = pathW))
-                    array.push(lbs, label.new(xX, bPeak, "4 EXPANSION " + f_px(bPeak) + (bNow == 1 ? " ◀" : ""), style = tagSty, color = clear, textcolor = bNow == 1 ? pathCol : chart.fg_color, size = lblSz))
+                    array.push(lbs, label.new(xX, bPeak, (mobile ? "4" : "4 EXPANSION " + f_px(bPeak)) + (bNow == 1 ? " ◀" : ""), style = tagSty, color = clear, textcolor = bNow == 1 ? pathCol : chart.fg_color, size = lblSz))
                     curX := xX
                     curY := bPeak
                     if bNow != 1
                         array.push(lns, line.new(xX, bPeak, xX + eStep, close, color = pathCol, width = 1, style = line.style_dotted))
-                        array.push(lbs, label.new(xX + eStep, close, (bNow == 3 ? "RETEST" : "CONSOLIDATING") + " ◀", style = tagSty, color = clear, textcolor = pathCol, size = lblSz))
+                        array.push(lbs, label.new(xX + eStep, close, (bNow == 3 ? "RETEST" : mobile ? "CONS" : "CONSOLIDATING") + " ◀", style = tagSty, color = clear, textcolor = pathCol, size = lblSz))
                         curX := xX + eStep
                         curY := close
                 else
@@ -864,7 +883,7 @@ if barstate.islast
                     if rk < maxN
                         color lc = tr == 3 ? lvColW : tr == 2 ? lvColD : lvColS
                         int lx1 = math.max(0, bar_index - lvBack)
-                        int lx2 = bar_index + rightOff
+                        int lx2 = bar_index + rightOff + (mobile ? 3 : 0)
                         bool onR = lvlLblS == "Right"
                         array.push(lns, line.new(lx1, pj, lx2, pj, color = lc, width = tr == 3 ? 2 : 1, style = tr == 1 ? line.style_dotted : line.style_solid))
                         array.push(lbs, label.new(onR ? lx2 : lx1, pj, array.get(lvN, j) + " " + str.tostring(pj, format.mintick), style = onR ? label.style_label_left : label.style_label_right, color = color.new(#060B14, 15), textcolor = lc, size = lblSz))
@@ -914,7 +933,7 @@ if barstate.islast
         pWhy := (bStage == 3 ? "reclaim forming " : "reclaim ") + f_px(open)
     if pState == 1 or pState == 2
         sP := D == 1 ? bExtP - stopTk * syminfo.mintick : bExtP + stopTk * syminfo.mintick
-        [tn0, tp0] = f_tgtLv(lvN, lvP, eP, D)
+        [tn0, tp0] = f_tgtR(lvN, lvP, eP, D, math.abs(eP - sP) * minR)
         tN := tn0
         tP := tp0
         float rkP = math.abs(eP - sP)
@@ -945,16 +964,20 @@ if barstate.islast
     float d15 = f_tfDone(k15c, k15p, k15t)
     float d30 = f_tfDone(k30c, k30p, k30t)
     float d60 = f_tfDone(k60c, k60p, k60t)
-    int s3  = na(d3)  ? 0 : d3  > O4 + tolO ? 1 : d3  < O4 - tolO ? -1 : 0
-    int s5  = na(d5)  ? 0 : d5  > O4 + tolO ? 1 : d5  < O4 - tolO ? -1 : 0
-    int s15 = na(d15) ? 0 : d15 > O4 + tolO ? 1 : d15 < O4 - tolO ? -1 : 0
-    int s30 = na(d30) ? 0 : d30 > O4 + tolO ? 1 : d30 < O4 - tolO ? -1 : 0
-    int s60 = na(d60) ? 0 : d60 > O4 + tolO ? 1 : d60 < O4 - tolO ? -1 : 0
+    int s3 = na(d3) ? 0 : f_doneT(k3t, 180000) <= nz(t4, 0) ? 9 : d3 > O4 + tolO ? 1 : d3 < O4 - tolO ? -1 : 0
+    int s5 = na(d5) ? 0 : f_doneT(k5t, 300000) <= nz(t4, 0) ? 9 : d5 > O4 + tolO ? 1 : d5 < O4 - tolO ? -1 : 0
+    int s15 = na(d15) ? 0 : f_doneT(k15t, 900000) <= nz(t4, 0) ? 9 : d15 > O4 + tolO ? 1 : d15 < O4 - tolO ? -1 : 0
+    int s30 = na(d30) ? 0 : f_doneT(k30t, 1800000) <= nz(t4, 0) ? 9 : d30 > O4 + tolO ? 1 : d30 < O4 - tolO ? -1 : 0
+    int s60 = na(d60) ? 0 : f_doneT(k60t, 3600000) <= nz(t4, 0) ? 9 : d60 > O4 + tolO ? 1 : d60 < O4 - tolO ? -1 : 0
     int sLive = close > O4 + tolO ? 1 : close < O4 - tolO ? -1 : 0
     int nUp = (s3 == 1 ? 1 : 0) + (s5 == 1 ? 1 : 0) + (s15 == 1 ? 1 : 0) + (s30 == 1 ? 1 : 0) + (s60 == 1 ? 1 : 0)
     int nDn = (s3 == -1 ? 1 : 0) + (s5 == -1 ? 1 : 0) + (s15 == -1 ? 1 : 0) + (s30 == -1 ? 1 : 0) + (s60 == -1 ? 1 : 0)
+    // only closes made inside this 4H count; a timeframe with no close yet in this 4H is "waiting"
+    int nWait = (s3 == 9 ? 1 : 0) + (s5 == 9 ? 1 : 0) + (s15 == 9 ? 1 : 0) + (s30 == 9 ? 1 : 0) + (s60 == 9 ? 1 : 0)
+    int nCl = 5 - nWait
     int tfAl = nUp == 5 ? 1 : nDn == 5 ? -1 : 0
-    string tfAlTxt = tfAl == 1 ? "5/5 CLOSED ABOVE ▲" : tfAl == -1 ? "5/5 CLOSED BELOW ▼" : str.tostring(nUp) + "▲  " + str.tostring(nDn) + "▼  MIXED"
+    int tfPart = tfAl == 0 and nCl > 0 and nUp == nCl ? 1 : tfAl == 0 and nCl > 0 and nDn == nCl ? -1 : 0
+    string tfAlTxt = tfAl == 1 ? "5/5 CLOSED ABOVE ▲" : tfAl == -1 ? "5/5 CLOSED BELOW ▼" : tfPart != 0 ? str.tostring(nCl) + "/" + str.tostring(nCl) + (tfPart == 1 ? " ABOVE ▲" : " BELOW ▼") + " so far · " + str.tostring(nWait) + " waiting" : str.tostring(nUp) + "▲  " + str.tostring(nDn) + "▼  MIXED"
 
     // ---- ENTRY GATE (v3.3): one answer, WAIT or ENTER, and why
     int Dg = side4
@@ -962,7 +985,7 @@ if barstate.islast
     bool g3 = bRF and bSide == Dg and not bDrive
     bool g4 = g3 and bRetest
     float sG = Dg == 1 ? bExtP - stopTk * syminfo.mintick : bExtP + stopTk * syminfo.mintick
-    [tnG, tpG] = f_tgtLv(lvN, lvP, close, Dg)
+    [tnG, tpG] = f_tgtR(lvN, lvP, close, Dg, math.abs(close - sG) * minR)
     float rkG = math.abs(close - sG)
     float rrNow = na(tpG) or rkG <= 0 or Dg == 0 ? na : math.abs(tpG - close) / rkG
     bool g5 = not na(rrNow) and rrNow >= minR
@@ -972,7 +995,7 @@ if barstate.islast
     string confCd = na(confT) ? "" : f_mmss(confT - timenow)
     bool enter = g1 and g3 and g5 and (entryMode == "Close" or g4)
     string dirG = Dg == 1 ? "LONG" : "SHORT"
-    string gateTxt = enter ? "ENTER " + dirG + (atB != "" ? " ★" : "") : unconf ? "WAIT · NOT CONFIRMED · " + confTF + " closes in " + confCd : g3 and not g5 ? "WAIT · TOO FAR · retest " + f_px(open) : g3 and entryMode == "Retest" and not g4 ? "WAIT · for the retest of " + f_px(open) : "WAIT · do not enter"
+    string gateTxt = enter ? "ENTER " + dirG + (atB != "" ? " ★" : "") : unconf ? "WAIT · NOT CONFIRMED · " + confTF + " closes in " + confCd : g3 and not g5 ? "WAIT · no level " + str.tostring(minR, "0.0") + "R away · retest " + f_px(open) : g3 and entryMode == "Retest" and not g4 ? "WAIT · for the retest of " + f_px(open) : "WAIT · do not enter"
     color gateCol = enter ? (Dg == 1 ? bullCol : bearCol) : unconf or (g3 and not g5) ? #ffb300 : dashTxt
     color gateBg = enter ? color.new(Dg == 1 ? bullCol : bearCol, 55) : unconf ? color.new(#ffb300, 70) : dashBg
     string chkTxt = (g1 ? "✓" : "·") + " 4H   " + (g3 ? "✓" : unconf ? "…" : "·") + " " + confTF + " close   " + (entryMode == "Retest" ? (g4 ? "✓" : "·") + " retest   " : "") + (g5 ? "✓" : "·") + " room" + (atB != "" ? "   ★ level" : "")
@@ -1026,7 +1049,7 @@ if barstate.islast
             f_tfRow(5, "15m", s15, k15c, k15t, O4, bullCol, bearCol, upBg, dnBg)
             f_tfRow(6, "30m", s30, k30c, k30t, O4, bullCol, bearCol, upBg, dnBg)
             f_tfRow(7, "1H", s60, k60c, k60t, O4, bullCol, bearCol, upBg, dnBg)
-            f_rowBg(8, "TF ALIGN", tfAlTxt, tfAl == 0 ? dashTxt : color.white, tfAl == 1 ? color.new(bullCol, 45) : tfAl == -1 ? color.new(bearCol, 45) : dashBg)
+            f_rowBg(8, "TF ALIGN", tfAlTxt, tfAl == 0 ? dashTxt : color.white, tfAl == 1 ? color.new(bullCol, 45) : tfAl == -1 ? color.new(bearCol, 45) : tfPart == 1 ? color.new(bullCol, 78) : tfPart == -1 ? color.new(bearCol, 78) : dashBg)
             f_row(9, "4H", s4, lost4 ? lostCol : modelCol)
             f_row(10, tfTxt, sB, bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
             f_row(11, "RISK", riskM, enter ? gateCol : dashTxt)
@@ -1041,7 +1064,7 @@ if barstate.islast
             f_tfRow(7, "15m CLOSE", s15, k15c, k15t, O4, bullCol, bearCol, upBg, dnBg)
             f_tfRow(8, "30m CLOSE", s30, k30c, k30t, O4, bullCol, bearCol, upBg, dnBg)
             f_tfRow(9, "1H CLOSE", s60, k60c, k60t, O4, bullCol, bearCol, upBg, dnBg)
-            f_rowBg(10, "TF ALIGN (vs 4H open)", tfAlTxt, tfAl == 0 ? dashTxt : color.white, tfAl == 1 ? color.new(bullCol, 45) : tfAl == -1 ? color.new(bearCol, 45) : dashBg)
+            f_rowBg(10, "TF ALIGN (vs 4H open)", tfAlTxt, tfAl == 0 ? dashTxt : color.white, tfAl == 1 ? color.new(bullCol, 45) : tfAl == -1 ? color.new(bearCol, 45) : tfPart == 1 ? color.new(bullCol, 78) : tfPart == -1 ? color.new(bearCol, 78) : dashBg)
             f_row(11, "PLAN", planTxt, planCol)
             f_row(12, "MODEL", modelTxt, modelCol)
             f_row(13, "P4H CANDLE", p4Txt, p4Col)

@@ -1,4 +1,4 @@
-# 4H Live Model v3.3
+# 4H Live Model v3.4
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -25,6 +25,16 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
+
+## v3.4 fixes from Mac's MES 30m phone screenshot (11/25, 11:29 PT)
+- **Waiting rows:**
+  - **Problem:** right after a new 4H opens, the 30m and 1H rows read "= AT OPEN". Their last close was the previous 4H's final close, which equals the new open.
+  - **Fix:** a timeframe with no close yet inside this 4H now reads "… no close yet this 4H". It is shown with its live side and countdown, and does not count toward TF ALIGN.
+  - TF ALIGN then reads e.g. "3/3 BELOW ▼ so far · 2 waiting" with a faint red background. Full red or green still needs all 5.
+- **Target:**
+  - **Problem:** the target was the nearest level beyond the entry, even when it was only a few points away. In the screenshot: P4H L 7,150 from a 7,154.25 entry gave 0.7R; AL 7,130.50 from 7,133 was 2.5 points.
+  - **Fix:** the target is now the first level that pays at least the minimum R (1.5). When no level does, ENTRY reads "WAIT · no level 1.5R away · retest <open>".
+- **Mobile labels:** the line chart's stage labels are just the numbers 1 / 2 / 3 / 4 with ◀ on the current one (the dashboard shows the words). Level labels sit 3 bars further right, so they no longer cover the path labels.
 
 ## Timeframe closes, TF alignment and the entry gate (v3.3, Mac 11/25)
 - **Close rows:** 3m CLOSE, 5m CLOSE, 15m CLOSE, 30m CLOSE and 1H CLOSE. Each row shows that timeframe's **last completed close vs the 4H open**.
