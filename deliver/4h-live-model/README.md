@@ -1,4 +1,4 @@
-# 4H Live Model v3.10
+# 4H Live Model v3.11
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -25,6 +25,20 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
+
+## A+ alert (v3.11, Mac 11/26 on MES 5m: "We retested the PDL and slammed down as expected with timeframe alignment in the direction of where price is headed")
+
+An A+ fires when all of these are true at once:
+1. The ENTRY gate says ENTER: 4H stage, a 3m/5m close confirming the reclaim, room ≥ min R, and not late in the 4H.
+2. The extreme was a retest or sweep of a level (the chart candle's extreme, or else the 4H extreme, within the AT LEVEL tolerance; PDL in Mac's example).
+3. The 3m and 5m closed beyond the 4H open in the trade direction, and the live price is beyond it too. 15m/30m/1H may still be on their earlier close: they confirm after the entry, they are not needed before it.
+
+What you see:
+- The ENTRY row reads "A+ ENTER SHORT …".
+- One alert per 4H per direction, e.g. "MES1! A+ SHORT · 5m retest of PDL · 3m/5m closed below the 4H open 7145.25 · LIMIT 7145.25 (don't chase) · E/S/T · price".
+- Create the alert with "Any alert() function call". Turn it off with "A+ alert" under Trade plan.
+
+Not yet measured: how often an A+ fires and how it pays has not been backtested. It is a filter on the existing ENTER, built from one example.
 
 ## Steeper liquidity grab on the line chart (v3.10, Mac 11/26: "My extreme line is a little flat… so we can see how these candles do the same liquidity grabbing after opening")
 

@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v3.10 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v3.11 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -98,6 +98,7 @@ closeAlerts = input.bool(true, "Alerts: confirmed close, retest held, ENTER, rec
 contracts = input.int(1, "Contracts (for the $ risk / reward)", minval = 1, maxval = 100, group = grpPl)
 stopTk    = input.int(4, "Stop buffer beyond the extreme (ticks)", minval = 0, maxval = 400, group = grpPl)
 minR      = input.float(1.5, "Minimum R to call GO (below it reads SKIP)", minval = 0.5, maxval = 10, step = 0.1, group = grpPl)
+aPlusAl  = input.bool(true, "A+ alert: ENTER + extreme at a level + 3m/5m closed and live price beyond the 4H open (Any alert() function call)", group = grpPl)
 planAlert = input.bool(true, "Alert on ARMED / GO / INVALID (alert condition: Any alert() function call)", group = grpPl)
 
 grpMd = "Model"
@@ -1027,13 +1028,20 @@ if barstate.islast
     float rkE = math.abs(open - sG)
     float pastR = Dg == 0 or rkE <= 0 ? 0.0 : (Dg == 1 ? close - open : open - close) / rkE
     bool chase = enter and pastR > chaseR
+    // ---- A+ SETUP (v3.11, Mac 11/26 on MES: "We retested the PDL and slammed down as expected with timeframe alignment")
+    //   the ENTER gate + the extreme was a sweep/retest of a level + the fast closes (3m, 5m) AND the live price
+    //   are beyond the 4H open in the trade direction. 15m/30m/1H may still be on their earlier close: they are
+    //   the slow confirmation that comes after the entry, not a precondition for it
+    string aLvN = atB != "" ? atB : at4
+    bool aAl = Dg != 0 and s3 == Dg and s5 == Dg and sLive == Dg
+    bool aPlus = enter and aLvN != "" and aAl
     //   level in the way: the nearest level between price and the target (highlighted until price trades beyond it)
     [wayN0, wayP0] = f_tgtLv(lvN, lvP, close, Dg)
     bool wayOn = Dg != 0 and not na(wayP0) and (na(tpG) or wayP0 != tpG) and math.abs(wayP0 - close) < math.abs(nz(tpG, wayP0 + Dg * 1e9) - close)
     string wayN = wayOn ? wayN0 : ""
     float wayP = wayOn ? wayP0 : na
     string dirG = Dg == 1 ? "LONG" : "SHORT"
-    string gateTxt = enter ? (chase ? "ENTER " + dirG + " · LIMIT " + f_px(open) + " (don't chase)" : "ENTER " + dirG) + (atB != "" ? " ★" : "") + (wayOn ? " · ⚠ " + wayN : "") : setupOk and lateG ? "WAIT · 4H closes in " + str.tostring(math.ceil(minsLeft)) + "m · no new entries" : unconf ? "WAIT · NOT CONFIRMED · " + confTF + " closes in " + confCd : g3 and not g5 ? "WAIT · no level " + str.tostring(minR, "0.0") + "R away · retest " + f_px(open) : g3 and entryMode == "Retest" and not g4 ? "WAIT · for the retest of " + f_px(open) : "WAIT · do not enter"
+    string gateTxt = (aPlus ? "A+ " : "") + (enter ? (chase ? "ENTER " + dirG + " · LIMIT " + f_px(open) + " (don't chase)" : "ENTER " + dirG) + (atB != "" ? " ★" : "") + (wayOn ? " · ⚠ " + wayN : "") : setupOk and lateG ? "WAIT · 4H closes in " + str.tostring(math.ceil(minsLeft)) + "m · no new entries" : unconf ? "WAIT · NOT CONFIRMED · " + confTF + " closes in " + confCd : g3 and not g5 ? "WAIT · no level " + str.tostring(minR, "0.0") + "R away · retest " + f_px(open) : g3 and entryMode == "Retest" and not g4 ? "WAIT · for the retest of " + f_px(open) : "WAIT · do not enter")
     color gateCol = enter ? (Dg == 1 ? bullCol : bearCol) : unconf or (g3 and not g5) or (setupOk and lateG) ? #ffb300 : dashTxt
     color gateBg = enter ? color.new(Dg == 1 ? bullCol : bearCol, 55) : unconf ? color.new(#ffb300, 70) : dashBg
     string chkTxt = (g1 ? "✓" : "·") + " 4H   " + (g3 ? "✓" : unconf ? "…" : "·") + " " + confTF + " close   " + (entryMode == "Retest" ? (g4 ? "✓" : "·") + " retest   " : "") + (g5 ? "✓" : "·") + " room" + (lateMin > 0 ? (lateG ? "   · time" : "   ✓ time") : "") + (atB != "" ? "   ★ " + atB : "")
@@ -1052,6 +1060,10 @@ if barstate.islast
             alert(syminfo.ticker + " " + dirG + ": price moved beyond " + wayLast + " (no longer in the way) · price " + f_px(close), alert.freq_once_per_bar)
         if enter and not enLast
             alert(syminfo.ticker + " ENTER " + dirG + " · " + riskTxt + " · price " + f_px(close), alert.freq_once_per_bar)
+    varip float aLast = na
+    if aPlusAl and barstate.isrealtime and aPlus and (na(aLast) or aLast != nz(t4) + Dg)
+        alert(syminfo.ticker + " A+ " + dirG + " · " + tfTxt + " retest of " + aLvN + " · 3m/5m closed " + (Dg == 1 ? "above" : "below") + " the 4H open " + f_px(O4) + " · " + (chase ? "LIMIT " + f_px(open) + " (don't chase) · " : "") + riskTxt + " · price " + f_px(close), alert.freq_once_per_bar)
+        aLast := nz(t4) + Dg
     g3Last := g3
     g4Last := g4
     enLast := enter
