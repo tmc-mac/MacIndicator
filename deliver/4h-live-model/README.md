@@ -1,4 +1,4 @@
-# 4H Live Model v3.2
+# 4H Live Model v3.3
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -25,6 +25,19 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
+
+## Timeframe closes, TF alignment and the entry gate (v3.3, Mac 11/25)
+- **Close rows:** 3m CLOSE, 5m CLOSE, 15m CLOSE, 30m CLOSE and 1H CLOSE. Each row shows that timeframe's **last completed close vs the 4H open**.
+  - The row lights green (closed above) or red (closed below).
+  - When the live candle is on the other side, the row adds "live ▲/▼". It also counts down to that candle's close.
+- **TF ALIGN:** "5/5 CLOSED ABOVE ▲" (green) or "5/5 CLOSED BELOW ▼" (red); otherwise the count, e.g. "3▲ 2▼ MIXED". The dashboard title lights the same way.
+- **ENTRY gate:** the top row reads WAIT until the setup is confirmed, then ENTER LONG / ENTER SHORT (★ when the extreme is at a level).
+  - **NOT CONFIRMED · 5m closes in m:ss:** price is through the open but no 3m/5m candle has closed through it.
+  - **TOO FAR · retest <open>:** confirmed, but from the current price the R to the next level is below the minimum.
+  - **Waiting for the retest:** in "Enter on: Retest" mode, ENTER also needs RETEST HELD. That means price came back within N ticks of the open and a 3m/5m candle closed on the reclaim side.
+- **CHECKLIST:** ✓ 4H · ✓ 5m close · (✓ retest) · ✓ room · ★ level.
+- **Alerts** (with "Any alert() function call"): 5m close confirmed, retest held, ENTER, reclaim lost.
+- **Mobile rows:** ENTRY, CHECK, the five close rows, TF ALIGN, 4H, chart candle, RISK, 4H CLOSE.
 
 ## Mac's definitions, no percentages (v3.2, Mac 11/25)
 - **RECLAIM:** a **3m or 5m candle closes** through the open. The confirmation timeframe is an input (default 5m); on charts at or below it, 1m closes are used. Direction = the side it closes on, and every such close counts, so the latest one wins.
