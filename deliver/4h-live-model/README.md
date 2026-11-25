@@ -34,7 +34,7 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
 - **Target:**
   - **Problem:** the target was the nearest level beyond the entry, even when it was only a few points away. In the screenshot: P4H L 7,150 from a 7,154.25 entry gave 0.7R; AL 7,130.50 from 7,133 was 2.5 points.
   - **Fix:** the target is now the first level that pays at least the minimum R (1.5). When no level does, ENTRY reads "WAIT · no level 1.5R away · retest <open>".
-- **Mobile labels:** the line chart's stage labels are just the numbers 1 / 2 / 3 / 4 with ◀ on the current one (the dashboard shows the words). Level labels sit 3 bars further right, so they no longer cover the path labels.
+- **Mobile labels:** the line chart's stage labels keep the stage names without prices: 1 OPEN, 2 EXTREME, 3 RECLAIM, 4 EXPANSION, with ◀ on the current one. Numbers alone (the first v3.4 build) were rejected by Mac on 11/25 as unreadable, and this was fixed in v3.4.1. Level labels sit 3 bars further right, so they no longer cover the path labels.
 
 ## Timeframe closes, TF alignment and the entry gate (v3.3, Mac 11/25)
 - **Close rows:** 3m CLOSE, 5m CLOSE, 15m CLOSE, 30m CLOSE and 1H CLOSE. Each row shows that timeframe's **last completed close vs the 4H open**.

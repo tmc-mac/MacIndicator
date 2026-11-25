@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v3.4 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v3.4.1 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -788,12 +788,12 @@ if barstate.islast
         int curX = xO
         float curY = open
         if bSide == 0
-            array.push(lbs, label.new(xO, open, mobile ? "1 ◀" : "1 OPEN ◀  waiting for the extreme", style = tagSty, color = clear, textcolor = pathCol, size = lblSz))
+            array.push(lbs, label.new(xO, open, mobile ? "1 OPEN ◀" : "1 OPEN ◀  waiting for the extreme", style = tagSty, color = clear, textcolor = pathCol, size = lblSz))
         else
-            array.push(lbs, label.new(xO, open, mobile ? "1" : "1 OPEN", style = label.style_label_down, color = clear, textcolor = chart.fg_color, size = lblSz))
+            array.push(lbs, label.new(xO, open, "1 OPEN", style = label.style_label_down, color = clear, textcolor = chart.fg_color, size = lblSz))
             array.push(lns, line.new(xO, open, xE, bExtP, color = pathCol, width = pathW))
             bool atExt = not bRF and not bLost
-            string extLbl = mobile ? (bDrive ? "2 DRIVE" + (bDrvDir == 1 ? " ▲" : " ▼") : "2") : bDrive ? "2 DRIVE " + (bDrvDir == 1 ? "▲ " : "▼ ") + f_px(bExtP) : "2 EXTREME " + f_px(bExtP)
+            string extLbl = mobile ? (bDrive ? "2 DRIVE" + (bDrvDir == 1 ? " ▲" : " ▼") : "2 EXTREME") : bDrive ? "2 DRIVE " + (bDrvDir == 1 ? "▲ " : "▼ ") + f_px(bExtP) : "2 EXTREME " + f_px(bExtP)
             color extCol = bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : atExt ? pathCol : chart.fg_color
             array.push(lbs, label.new(xE, bExtP, extLbl + (atExt ? " ◀" : ""), style = tagSty, color = clear, textcolor = extCol, size = lblSz))
             if atExt
@@ -802,7 +802,7 @@ if barstate.islast
             else
                 array.push(lns, line.new(xE, bExtP, xR, open, color = pathCol, width = pathW))
                 bool atRcl = bStage == 3 and not bLost
-                array.push(lbs, label.new(xR, open, mobile ? "3" + (atRcl ? " ◀" : "") : "3 RECLAIM" + (bRCount > 1 ? " ×" + str.tostring(bRCount) : "") + (atRcl ? (bNow == 3 ? " · RETEST ◀" : " · HOLDING ◀") : ""), style = tagSty, color = clear, textcolor = atRcl ? pathCol : chart.fg_color, size = lblSz))
+                array.push(lbs, label.new(xR, open, mobile ? "3 RECLAIM" + (atRcl ? (bNow == 3 ? " · RETEST ◀" : " ◀") : "") : "3 RECLAIM" + (bRCount > 1 ? " ×" + str.tostring(bRCount) : "") + (atRcl ? (bNow == 3 ? " · RETEST ◀" : " · HOLDING ◀") : ""), style = tagSty, color = clear, textcolor = atRcl ? pathCol : chart.fg_color, size = lblSz))
                 if bLost
                     array.push(lns, line.new(xR, open, xX, close, color = lostCol, width = pathW, style = line.style_dashed))
                     array.push(lbs, label.new(xX, close, "RECLAIM LOST ◀", style = tagSty, color = clear, textcolor = lostCol, size = lblSz))
@@ -811,7 +811,7 @@ if barstate.islast
                 else if bStage >= 4
                     // the expansion leg goes to the new prices the candle visited; the live price is marked after it
                     array.push(lns, line.new(xR, open, xX, bPeak, color = pathCol, width = pathW))
-                    array.push(lbs, label.new(xX, bPeak, (mobile ? "4" : "4 EXPANSION " + f_px(bPeak)) + (bNow == 1 ? " ◀" : ""), style = tagSty, color = clear, textcolor = bNow == 1 ? pathCol : chart.fg_color, size = lblSz))
+                    array.push(lbs, label.new(xX, bPeak, (mobile ? "4 EXPANSION" : "4 EXPANSION " + f_px(bPeak)) + (bNow == 1 ? " ◀" : ""), style = tagSty, color = clear, textcolor = bNow == 1 ? pathCol : chart.fg_color, size = lblSz))
                     curX := xX
                     curY := bPeak
                     if bNow != 1
