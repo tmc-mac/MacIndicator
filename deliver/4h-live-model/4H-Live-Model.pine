@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v3.5 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v3.6 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -415,8 +415,13 @@ f_life(float[] ao, float[] ah, float[] al, float[] ac, float O, float tol, float
             int cSide = c > O + tol ? 1 : c < O - tol ? -1 : segSide
             bool crossed = false
             if segSide == 0
-                segSide := cSide
-            else if cSide != segSide
+                // v3.6: the side price visited FIRST after the open starts the first segment (a dip below the open that
+                // is followed by a 5m close above it is a bullish reclaim, not a drive up from the open)
+                float o = array.get(ao, i)
+                bool upB = c >= o
+                int fv = upB ? (l < O - tol ? -1 : h > O + tol ? 1 : 0) : (h > O + tol ? 1 : l < O - tol ? -1 : 0)
+                segSide := fv != 0 ? fv : cSide
+            if segSide != 0 and cSide != segSide
                 // a confirmation candle closed through the open: RECLAIM in the direction it closed
                 crossed := true
                 if dir != 0 and recl and dir != cSide

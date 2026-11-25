@@ -1,4 +1,4 @@
-# 4H Live Model v3.5
+# 4H Live Model v3.6
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -25,6 +25,13 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
+
+## First move counts (v3.6, Mac's MNQ 15m screenshot, 11/25, 23:58 PT)
+- **Problem:** the first segment's side came from the first 5m CLOSE. A candle that dipped below its open inside the first 5m candle and then closed above was read as having started above the open, so it showed "DRIVE ▲" and never a reclaim.
+  - Case: 15m 23:45 PT, open 25,671.50, low 25,661, then up to 25,792.50.
+- **Fix:** the side price visited FIRST after the open starts the first segment.
+  - The same candle now reads BULL · extreme 25,661 · reclaimed by the first 5m close above · 4/4 EXPANSION · EXPANDING.
+  - Checked on TradingView data.
 
 ## One dashboard (v3.5, Mac 11/25: "desktop version is way too big")
 - **One layout:** the compact layout is now the only one, on desktop and phone. It has 12 rows: ENTRY, CHECK, 3m / 5m / 15m / 30m / 1H closes, TF ALIGN, 4H, chart candle, RISK, 4H CLOSE.
