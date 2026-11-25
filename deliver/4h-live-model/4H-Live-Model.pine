@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v3.9 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v3.10 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -29,6 +29,7 @@ p4WickTr  = input.int(45, "P4H wick/border transparency", minval = 0, maxval = 1
 grpPa = "Formation path"
 offPath   = input.int(24, "Path offset (bars)", minval = 2, maxval = 300, group = grpPa)
 pathStep  = input.int(5, "Bars per phase step", minval = 1, maxval = 20, group = grpPa)
+extStep   = input.int(1, "Bars for the open → extreme → reclaim grab (smaller = steeper)", minval = 1, maxval = 10, group = grpPa)
 pathCol   = input.color(#a64dff, "Path color", group = grpPa)
 pathW     = input.int(3, "Path width", minval = 1, maxval = 6, group = grpPa)
 lostCol   = input.color(#ff1744, "RECLAIM LOST color", group = grpPa)
@@ -502,6 +503,7 @@ int eC4 = mobile ? 8 : offC4H
 int eW = mobile ? 2 : candleW
 int ePath = mobile ? 10 : offPath
 int eStep = mobile ? 3 : pathStep
+int eExt = extStep
 string eSize = mobile ? mobSizeS : dashSizeS
 string lblSz = mobile ? size.normal : size.small
 
@@ -787,9 +789,11 @@ if barstate.islast
         //   Everything is rebuilt from the current chart bar on every tick, so a new candle starts a new path.
         int x0 = bar_index + ePath
         int xO = x0 + eStep
-        int xE = x0 + 2 * eStep
-        int xR = x0 + 3 * eStep
-        int xX = x0 + 4 * eStep
+        // v3.10 (Mac 11/26: extreme line too flat): the open → extreme → reclaim legs are only eExt bars wide,
+        // so the liquidity grab after the open draws as a sharp spike; the expansion keeps the normal step
+        int xE = xO + eExt
+        int xR = xE + eExt
+        int xX = xR + eStep
         string tagSty = pathLblS == "Right" ? label.style_label_left : label.style_label_right
         // v3.9 (Mac 11/26: labels hard to read): solid plates, and each stage label sits ABOVE or BELOW its point
         // so neighbouring stages never print on top of each other (the extreme, the reclaim and the expansion alternate)
@@ -797,12 +801,13 @@ if barstate.islast
         int sd = bSide == 0 ? 1 : bSide
         string stAbove = label.style_label_down
         string stBelow = label.style_label_up
-        string sOpen = sd == 1 ? stAbove : stBelow
+        string sOpen = sd == 1 ? label.style_label_lower_right : label.style_label_upper_right
+        string sTitle = sd == 1 ? label.style_label_upper_right : label.style_label_lower_right
         string sExt = sd == 1 ? stBelow : stAbove
-        string sRcl = sd == 1 ? stAbove : stBelow
+        string sRcl = sd == 1 ? label.style_label_lower_left : label.style_label_upper_left
         string sExp = sd == 1 ? stAbove : stBelow
         string sNow = sd == 1 ? stBelow : stAbove
-        array.push(lbs, label.new(x0, open, mobile ? tfTxt : tfTxt + " CANDLE", style = label.style_label_right, color = clear, textcolor = pathCol, size = lblSz))
+        array.push(lbs, label.new(x0, open, mobile ? tfTxt : tfTxt + " CANDLE", style = bSide == 0 ? label.style_label_right : sTitle, color = clear, textcolor = pathCol, size = lblSz))
         array.push(lns, line.new(x0, open, xO, open, color = pathCol, width = pathW))
         int curX = xO
         float curY = open

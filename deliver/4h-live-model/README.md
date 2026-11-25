@@ -1,4 +1,4 @@
-# 4H Live Model v3.9
+# 4H Live Model v3.10
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -25,6 +25,13 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
+
+## Steeper liquidity grab on the line chart (v3.10, Mac 11/26: "My extreme line is a little flat… so we can see how these candles do the same liquidity grabbing after opening")
+
+- The open → extreme → reclaim legs are now 1 bar wide each (new input "Bars for the open → extreme → reclaim grab", default 1), so the grab after the open draws as a sharp spike. The expansion leg keeps the normal 5-bar step.
+- To make room for the narrow spike, OPEN now sits beside-left of its point and RECLAIM beside-right. EXTREME stays at the spike tip, on the opposite side. The candle title moves to the other side of the open so it never covers the OPEN label.
+- How steep the spike looks also depends on how far the extreme went from the open and on your chart's price zoom. A 2-pt poke still looks small.
+- There are no logic changes.
 
 ## Line-chart labels readable (v3.9, Mac 11/26: "The labels for the line chart is hard to read")
 
