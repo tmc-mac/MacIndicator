@@ -1,4 +1,4 @@
-# 4H Live Model v3.7
+# 4H Live Model v3.8
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -25,6 +25,20 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
+
+## GRAB / SHIFT at the 4H open (v3.8, Mac 11/26: liquidity grab vs a real change of direction)
+- **Original side:** taken from the highest timeframe that has closed inside this 4H (1H, else 30m, else 15m).
+- **Row states:**
+  - **HOLDING ▼/▲:** nothing has happened against the original side.
+  - **POKE:** price is through the 4H open against the original side, with no 5m (3m) close beyond.
+  - **LIQUIDITY GRAB ✓ <price>:** within the last hour, a 5m candle of this 4H wicked through the open and closed back. The original side is intact. A GRAB tag marks it on the chart.
+  - **TESTING:** a 5m close beyond. One close is not a reversal.
+  - **SHIFTING:** the 15m closed beyond while the 30m is still on the original side.
+  - **DIRECTION CHANGED:** the 30m closed beyond, when the 1H is the original side.
+- **Alerts:** one alert at each step from GRAB onwards.
+- **Chosen by MacArthur and confirmed by Mac ("What do you think is best?"):**
+  - the ladder is 5m → 15m → 30m, rather than going up to the 1H;
+  - the row watches the 4H open only; grabs at other levels are chart tags only.
 
 ## Patience tools (v3.7, Mac 11/26: "add nearby level warning ... continue to add things that will help the trader be patient")
 - **IN THE WAY (row 3):** the nearest of your levels between price and the target, e.g. "⚠ London Low 25,738.75 · 33 pts".
