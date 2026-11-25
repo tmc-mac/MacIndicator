@@ -1,4 +1,4 @@
-# 4H Live Model v3.12
+# 4H Live Model v3.13
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -25,6 +25,12 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
+
+## WATCH row replaces RISK (v3.13, Mac 11/26: "change risk to level to watch with the price level and level name to watch")
+
+- The RISK row is now WATCH: the level closest to price, either side, with its name, price, points away and ▲ (above price) / ▼ (below). Example: `PDL 7145.25 · 12.50 ▲`.
+- `★` and amber = the chart candle's extreme formed at that level, so the level is in play.
+- Entry, stop, target and $ are still in the ENTER and A+ alert text.
 
 ## Smaller mobile dashboard (v3.12, Mac 11/26: "Dashboard too big on mobile")
 

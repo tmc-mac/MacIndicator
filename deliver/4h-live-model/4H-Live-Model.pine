@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v3.12 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v3.13 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -624,6 +624,20 @@ f_nearLv(string[] n, float[] p, float price, float tol) =>
                 best := array.get(n, j)
     best
 
+// v3.13: the level closest to price, either side (the WATCH row)
+f_watchLv(string[] n, float[] p, float price) =>
+    string wn = ""
+    float wp = na
+    float bd = 1e12
+    int sz = array.size(p)
+    if sz > 0 and not na(price)
+        for j = 0 to sz - 1
+            float d = math.abs(array.get(p, j) - price)
+            if d < bd
+                bd := d
+                wn := array.get(n, j)
+                wp := array.get(p, j)
+    [wn, wp]
 f_tgtLv(string[] n, float[] p, float from, int dir) =>
     string tn = ""
     float tp = na
@@ -1157,6 +1171,12 @@ if barstate.islast
         f_rowBg(1, "ENTRY", gateTxt, gateCol, gateBg)
         f_row(2, "CHECK", chkTxt, dashTxt)
         f_rowBg(3, "IN THE WAY", Dg == 0 ? "—" : wayOn ? "⚠ " + wayN + " " + f_px(wayP) + " · " + str.tostring(math.abs(wayP - close), format.mintick) + " pts" : "clear to the target", wayOn ? color.black : dashTxt, wayOn ? color.new(wayCol, 15) : dashBg)
+        // v3.13 (Mac 11/26: "change risk to level to watch with the price level and level name"):
+        // the RISK row becomes WATCH = the level closest to price (name, price, points away, above/below).
+        // ★ = the chart candle's extreme formed at it (the level is in play). Risk stays in the ENTER / A+ alerts.
+        [wN, wP] = f_watchLv(lvN, lvP, close)
+        string watchTxt = wN == "" ? "—" : (atB == wN ? "★ " : "") + wN + " " + f_px(wP) + " · " + str.tostring(math.abs(wP - close), format.mintick) + (wP > close ? " ▲" : wP < close ? " ▼" : " AT")
+        color watchCol = wN == "" ? dashTxt : atB == wN ? #ffb300 : dashTxt
         if mobile
             // v3.12 (Mac 11/26: "Dashboard too big on mobile"): the five TF rows fold into ONE row,
             // the 4H CLOSE countdown moves into the title, 9 rows instead of 15
@@ -1165,7 +1185,7 @@ if barstate.islast
             f_rowBg(5, "GRAB", gsTxt, gsFg, gsBg)
             f_row(6, "4H", s4, lost4 ? lostCol : modelCol)
             f_row(7, tfTxt, sB, bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
-            f_row(8, "RISK", riskM, enter ? gateCol : dashTxt)
+            f_row(8, "WATCH", watchTxt, watchCol)
         else
             f_tfRow(4, "3m", s3, k3c, k3t, O4, bullCol, bearCol, upBg, dnBg)
             f_tfRow(5, "5m", s5, k5c, k5t, O4, bullCol, bearCol, upBg, dnBg)
@@ -1176,5 +1196,5 @@ if barstate.islast
             f_rowBg(10, "GRAB / SHIFT", gsTxt, gsFg, gsBg)
             f_row(11, "4H", s4, lost4 ? lostCol : modelCol)
             f_row(12, tfTxt, sB, bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
-            f_row(13, "RISK", mobile ? riskM : riskTxt, enter ? gateCol : dashTxt)
+            f_row(13, "WATCH", watchTxt, watchCol)
             f_row(14, "4H CLOSE", cdTxt, dashTxt)
