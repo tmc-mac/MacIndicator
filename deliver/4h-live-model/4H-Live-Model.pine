@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v3.8 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v3.9 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -27,8 +27,8 @@ p4Transp  = input.int(70, "P4H body transparency (muted)", minval = 0, maxval = 
 p4WickTr  = input.int(45, "P4H wick/border transparency", minval = 0, maxval = 100, group = grpSc)
 
 grpPa = "Formation path"
-offPath   = input.int(26, "Path offset (bars)", minval = 2, maxval = 300, group = grpPa)
-pathStep  = input.int(3, "Bars per phase step", minval = 1, maxval = 20, group = grpPa)
+offPath   = input.int(24, "Path offset (bars)", minval = 2, maxval = 300, group = grpPa)
+pathStep  = input.int(5, "Bars per phase step", minval = 1, maxval = 20, group = grpPa)
 pathCol   = input.color(#a64dff, "Path color", group = grpPa)
 pathW     = input.int(3, "Path width", minval = 1, maxval = 6, group = grpPa)
 lostCol   = input.color(#ff1744, "RECLAIM LOST color", group = grpPa)
@@ -501,7 +501,7 @@ int eP4 = mobile ? 3 : offP4H
 int eC4 = mobile ? 8 : offC4H
 int eW = mobile ? 2 : candleW
 int ePath = mobile ? 10 : offPath
-int eStep = mobile ? 2 : pathStep
+int eStep = mobile ? 3 : pathStep
 string eSize = mobile ? mobSizeS : dashSizeS
 string lblSz = mobile ? size.normal : size.small
 
@@ -791,40 +791,51 @@ if barstate.islast
         int xR = x0 + 3 * eStep
         int xX = x0 + 4 * eStep
         string tagSty = pathLblS == "Right" ? label.style_label_left : label.style_label_right
+        // v3.9 (Mac 11/26: labels hard to read): solid plates, and each stage label sits ABOVE or BELOW its point
+        // so neighbouring stages never print on top of each other (the extreme, the reclaim and the expansion alternate)
+        color plate = color.new(#0d1117, 8)
+        int sd = bSide == 0 ? 1 : bSide
+        string stAbove = label.style_label_down
+        string stBelow = label.style_label_up
+        string sOpen = sd == 1 ? stAbove : stBelow
+        string sExt = sd == 1 ? stBelow : stAbove
+        string sRcl = sd == 1 ? stAbove : stBelow
+        string sExp = sd == 1 ? stAbove : stBelow
+        string sNow = sd == 1 ? stBelow : stAbove
         array.push(lbs, label.new(x0, open, mobile ? tfTxt : tfTxt + " CANDLE", style = label.style_label_right, color = clear, textcolor = pathCol, size = lblSz))
         array.push(lns, line.new(x0, open, xO, open, color = pathCol, width = pathW))
         int curX = xO
         float curY = open
         if bSide == 0
-            array.push(lbs, label.new(xO, open, mobile ? "1 OPEN ◀" : "1 OPEN ◀  waiting for the extreme", style = tagSty, color = clear, textcolor = pathCol, size = lblSz))
+            array.push(lbs, label.new(xO, open, mobile ? "1 OPEN ◀" : "1 OPEN ◀  waiting for the extreme", style = tagSty, color = plate, textcolor = pathCol, size = lblSz))
         else
-            array.push(lbs, label.new(xO, open, "1 OPEN", style = label.style_label_down, color = clear, textcolor = chart.fg_color, size = lblSz))
+            array.push(lbs, label.new(xO, open, "1 OPEN", style = sOpen, color = plate, textcolor = #d1d4dc, size = lblSz))
             array.push(lns, line.new(xO, open, xE, bExtP, color = pathCol, width = pathW))
             bool atExt = not bRF and not bLost
             string extLbl = mobile ? (bDrive ? "2 DRIVE" + (bDrvDir == 1 ? " ▲" : " ▼") : "2 EXTREME") : bDrive ? "2 DRIVE " + (bDrvDir == 1 ? "▲ " : "▼ ") + f_px(bExtP) : "2 EXTREME " + f_px(bExtP)
-            color extCol = bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : atExt ? pathCol : chart.fg_color
-            array.push(lbs, label.new(xE, bExtP, extLbl + (atExt ? " ◀" : ""), style = tagSty, color = clear, textcolor = extCol, size = lblSz))
+            color extCol = bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : atExt ? pathCol : #d1d4dc
+            array.push(lbs, label.new(xE, bExtP, extLbl + (atExt ? " ◀" : ""), style = sExt, color = plate, textcolor = extCol, size = lblSz))
             if atExt
                 curX := xE
                 curY := bExtP
             else
                 array.push(lns, line.new(xE, bExtP, xR, open, color = pathCol, width = pathW))
                 bool atRcl = bStage == 3 and not bLost
-                array.push(lbs, label.new(xR, open, mobile ? "3 RECLAIM" + (atRcl ? (bNow == 3 ? " · RETEST ◀" : " ◀") : "") : "3 RECLAIM" + (bRCount > 1 ? " ×" + str.tostring(bRCount) : "") + (atRcl ? (bNow == 3 ? " · RETEST ◀" : " · HOLDING ◀") : ""), style = tagSty, color = clear, textcolor = atRcl ? pathCol : chart.fg_color, size = lblSz))
+                array.push(lbs, label.new(xR, open, mobile ? "3 RECLAIM" + (atRcl ? (bNow == 3 ? " · RETEST ◀" : " ◀") : "") : "3 RECLAIM" + (bRCount > 1 ? " ×" + str.tostring(bRCount) : "") + (atRcl ? (bNow == 3 ? " · RETEST ◀" : " · HOLDING ◀") : ""), style = sRcl, color = plate, textcolor = atRcl ? pathCol : chart.fg_color, size = lblSz))
                 if bLost
                     array.push(lns, line.new(xR, open, xX, close, color = lostCol, width = pathW, style = line.style_dashed))
-                    array.push(lbs, label.new(xX, close, "RECLAIM LOST ◀", style = tagSty, color = clear, textcolor = lostCol, size = lblSz))
+                    array.push(lbs, label.new(xX, close, "RECLAIM LOST ◀", style = sNow, color = plate, textcolor = lostCol, size = lblSz))
                     curX := xX
                     curY := close
                 else if bStage >= 4
                     // the expansion leg goes to the new prices the candle visited; the live price is marked after it
                     array.push(lns, line.new(xR, open, xX, bPeak, color = pathCol, width = pathW))
-                    array.push(lbs, label.new(xX, bPeak, (mobile ? "4 EXPANSION" : "4 EXPANSION " + f_px(bPeak)) + (bNow == 1 ? " ◀" : ""), style = tagSty, color = clear, textcolor = bNow == 1 ? pathCol : chart.fg_color, size = lblSz))
+                    array.push(lbs, label.new(xX, bPeak, (mobile ? "4 EXPANSION" : "4 EXPANSION " + f_px(bPeak)) + (bNow == 1 ? " ◀" : ""), style = sExp, color = plate, textcolor = bNow == 1 ? pathCol : chart.fg_color, size = lblSz))
                     curX := xX
                     curY := bPeak
                     if bNow != 1
                         array.push(lns, line.new(xX, bPeak, xX + eStep, close, color = pathCol, width = 1, style = line.style_dotted))
-                        array.push(lbs, label.new(xX + eStep, close, (bNow == 3 ? "RETEST" : mobile ? "CONS" : "CONSOLIDATING") + " ◀", style = tagSty, color = clear, textcolor = pathCol, size = lblSz))
+                        array.push(lbs, label.new(xX + eStep, close, (bNow == 3 ? "RETEST" : mobile ? "CONS" : "CONSOLIDATING") + " ◀", style = sNow, color = plate, textcolor = pathCol, size = lblSz))
                         curX := xX + eStep
                         curY := close
                 else

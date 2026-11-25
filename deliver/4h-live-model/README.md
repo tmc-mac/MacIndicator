@@ -1,4 +1,4 @@
-# 4H Live Model v3.8
+# 4H Live Model v3.9
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -25,6 +25,13 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
+
+## Line-chart labels readable (v3.9, Mac 11/26: "The labels for the line chart is hard to read")
+
+- Every stage label now sits on a solid dark plate instead of a transparent background, so it reads over candles, level lines and the grid.
+- Labels alternate above and below their points, so two stages at about the same price never print on top of each other. For a bull candle (extreme = the low), EXTREME goes below and OPEN, RECLAIM and EXPANSION go above. For a bear candle, it is the mirror. The live RETEST / CONSOLIDATING / RECLAIM LOST tag sits on the side opposite the expansion.
+- More room between stages: the defaults are now 5 bars per stage step (was 3) and a path offset of 24 bars (was 26). In mobile mode the step is 3 bars (was 2). Both are still adjustable under Inputs.
+- There are no logic changes. Stages, the dashboard and alerts are the same as v3.8.
 
 ## GRAB / SHIFT at the 4H open (v3.8, Mac 11/26: liquidity grab vs a real change of direction)
 - **Original side:** taken from the highest timeframe that has closed inside this 4H (1H, else 30m, else 15m).
