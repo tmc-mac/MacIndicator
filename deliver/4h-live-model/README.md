@@ -36,7 +36,7 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - **SHIFTING:** the 15m closed beyond while the 30m is still on the original side.
   - **DIRECTION CHANGED:** the 30m closed beyond, when the 1H is the original side.
 - **Alerts:** one alert at each step from GRAB onwards.
-- **Chosen by MacArthur and confirmed by Mac ("What do you think is best?"):**
+- **Chosen by MacArthur when Mac asked "What do you think is best?" (not yet confirmed by Mac):**
   - the ladder is 5m → 15m → 30m, rather than going up to the 1H;
   - the row watches the 4H open only; grabs at other levels are chart tags only.
 
