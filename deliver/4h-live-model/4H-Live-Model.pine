@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v3.6 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v3.7 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -90,6 +90,9 @@ atLvlPct  = input.float(10.0, "AT LEVEL: extreme within this % of a normal candl
 grpPl = "Trade plan (WAIT / ARMED / GO)"
 entryMode = input.string("Close", "Enter on", options = ["Close", "Retest"], group = grpPl, tooltip = "Close: ENTER once the chart candle's reclaim is confirmed by a 3m / 5m close. Retest: also wait for price to come back to the open and a 3m / 5m candle to close on the reclaim side (RETEST HELD).")
 rtTicks   = input.int(8, "Retest zone around the open (ticks)", minval = 0, maxval = 200, group = grpPl)
+chaseR    = input.float(0.3, "Patience: price more than this many R past the entry = use a LIMIT at the entry, don't chase", minval = 0.05, maxval = 3, step = 0.05, group = grpPl)
+lateMin   = input.int(20, "Patience: no new ENTER in the last N minutes of the 4H (0 = off)", minval = 0, maxval = 120, group = grpPl)
+wayCol    = input.color(#ffb300, "Level in the way (highlight)", group = grpPl)
 closeAlerts = input.bool(true, "Alerts: confirmed close, retest held, ENTER, reclaim lost (Any alert() function call)", group = grpPl)
 contracts = input.int(1, "Contracts (for the $ risk / reward)", minval = 1, maxval = 100, group = grpPl)
 stopTk    = input.int(4, "Stop buffer beyond the extreme (ticks)", minval = 0, maxval = 400, group = grpPl)
@@ -535,7 +538,7 @@ var bxs = array.new<box>()
 var lns = array.new<line>()
 var lbs = array.new<label>()
 var stageNames = array.from("OPEN", "EXTREME", "RECLAIM", "EXPANSION")
-var table dash = showDash ? table.new(f_pos(mobile ? mobPosS : dashPosS), 2, 14, bgcolor = dashBg, frame_color = color.new(color.gray, 60), frame_width = 1, border_color = color.new(color.gray, 80), border_width = 1) : na
+var table dash = showDash ? table.new(f_pos(mobile ? mobPosS : dashPosS), 2, 15, bgcolor = dashBg, frame_color = color.new(color.gray, 60), frame_width = 1, border_color = color.new(color.gray, 80), border_width = 1) : na
 var color clear = color.new(color.black, 100)
 
 f_clear() =>
@@ -998,15 +1001,30 @@ if barstate.islast
     bool unconf = g1 and liveBeyond and not g3
     float confT = confTF == "3m" ? k3t : k5t
     string confCd = na(confT) ? "" : f_mmss(confT - timenow)
-    bool enter = g1 and g3 and g5 and (entryMode == "Close" or g4)
+    bool setupOk = g1 and g3 and g5 and (entryMode == "Close" or g4)
+    // ---- PATIENCE (v3.7)
+    //   late in the 4H: no new entries in its last lateMin minutes
+    float minsLeft = (tCl - timenow) / 60000.0
+    bool lateG = lateMin > 0 and not closedNow and minsLeft < lateMin
+    bool enter = setupOk and not lateG
+    //   chasing: price already ran more than chaseR R past the entry -> LIMIT back at the entry
+    float rkE = math.abs(open - sG)
+    float pastR = Dg == 0 or rkE <= 0 ? 0.0 : (Dg == 1 ? close - open : open - close) / rkE
+    bool chase = enter and pastR > chaseR
+    //   level in the way: the nearest level between price and the target (highlighted until price trades beyond it)
+    [wayN0, wayP0] = f_tgtLv(lvN, lvP, close, Dg)
+    bool wayOn = Dg != 0 and not na(wayP0) and (na(tpG) or wayP0 != tpG) and math.abs(wayP0 - close) < math.abs(nz(tpG, wayP0 + Dg * 1e9) - close)
+    string wayN = wayOn ? wayN0 : ""
+    float wayP = wayOn ? wayP0 : na
     string dirG = Dg == 1 ? "LONG" : "SHORT"
-    string gateTxt = enter ? "ENTER " + dirG + (atB != "" ? " ★" : "") : unconf ? "WAIT · NOT CONFIRMED · " + confTF + " closes in " + confCd : g3 and not g5 ? "WAIT · no level " + str.tostring(minR, "0.0") + "R away · retest " + f_px(open) : g3 and entryMode == "Retest" and not g4 ? "WAIT · for the retest of " + f_px(open) : "WAIT · do not enter"
-    color gateCol = enter ? (Dg == 1 ? bullCol : bearCol) : unconf or (g3 and not g5) ? #ffb300 : dashTxt
+    string gateTxt = enter ? (chase ? "ENTER " + dirG + " · LIMIT " + f_px(open) + " (don't chase)" : "ENTER " + dirG) + (atB != "" ? " ★" : "") + (wayOn ? " · ⚠ " + wayN : "") : setupOk and lateG ? "WAIT · 4H closes in " + str.tostring(math.ceil(minsLeft)) + "m · no new entries" : unconf ? "WAIT · NOT CONFIRMED · " + confTF + " closes in " + confCd : g3 and not g5 ? "WAIT · no level " + str.tostring(minR, "0.0") + "R away · retest " + f_px(open) : g3 and entryMode == "Retest" and not g4 ? "WAIT · for the retest of " + f_px(open) : "WAIT · do not enter"
+    color gateCol = enter ? (Dg == 1 ? bullCol : bearCol) : unconf or (g3 and not g5) or (setupOk and lateG) ? #ffb300 : dashTxt
     color gateBg = enter ? color.new(Dg == 1 ? bullCol : bearCol, 55) : unconf ? color.new(#ffb300, 70) : dashBg
-    string chkTxt = (g1 ? "✓" : "·") + " 4H   " + (g3 ? "✓" : unconf ? "…" : "·") + " " + confTF + " close   " + (entryMode == "Retest" ? (g4 ? "✓" : "·") + " retest   " : "") + (g5 ? "✓" : "·") + " room" + (atB != "" ? "   ★ level" : "")
+    string chkTxt = (g1 ? "✓" : "·") + " 4H   " + (g3 ? "✓" : unconf ? "…" : "·") + " " + confTF + " close   " + (entryMode == "Retest" ? (g4 ? "✓" : "·") + " retest   " : "") + (g5 ? "✓" : "·") + " room" + (lateMin > 0 ? (lateG ? "   · time" : "   ✓ time") : "") + (atB != "" ? "   ★ " + atB : "")
     varip bool g3Last = false
     varip bool g4Last = false
     varip bool enLast = false
+    varip string wayLast = ""
     if closeAlerts and barstate.isrealtime
         if g3 and not g3Last
             alert(syminfo.ticker + " " + tfTxt + " " + dirG + ": " + confTF + " CLOSE CONFIRMED beyond the open " + f_px(open), alert.freq_once_per_bar)
@@ -1014,11 +1032,20 @@ if barstate.islast
             alert(syminfo.ticker + " " + tfTxt + ": RECLAIM LOST, back through the open " + f_px(open), alert.freq_once_per_bar)
         if g4 and not g4Last
             alert(syminfo.ticker + " " + tfTxt + " " + dirG + ": RETEST HELD at the open " + f_px(open), alert.freq_once_per_bar)
+        if wayLast != "" and wayN != wayLast and Dg != 0
+            alert(syminfo.ticker + " " + dirG + ": price moved beyond " + wayLast + " (no longer in the way) · price " + f_px(close), alert.freq_once_per_bar)
         if enter and not enLast
             alert(syminfo.ticker + " ENTER " + dirG + " · " + riskTxt + " · price " + f_px(close), alert.freq_once_per_bar)
     g3Last := g3
     g4Last := g4
     enLast := enter
+    wayLast := wayN
+    // highlight the level in the way on the chart
+    if wayOn
+        int wx1 = math.max(0, bar_index - lvBack)
+        int wx2 = bar_index + rightOff + (mobile ? 3 : 0)
+        array.push(lns, line.new(wx1, wayP, wx2, wayP, color = color.new(wayCol, 0), width = 3))
+        array.push(lbs, label.new(wx1, wayP, "⚠ IN THE WAY · " + wayN + " " + f_px(wayP), style = label.style_label_right, color = color.new(wayCol, 10), textcolor = color.black, size = lblSz))
     color upBg = color.new(bullCol, 72)
     color dnBg = color.new(bearCol, 72)
 
@@ -1049,13 +1076,14 @@ if barstate.islast
         string sB = bDrive ? (bDrvDir == 1 ? "DRIVE ▲" : "DRIVE ▼") : (bSide == 1 ? "BULL " : bSide == -1 ? "BEAR " : "— ") + str.tostring(bStage) + "/4 " + array.get(shortNames, bStage - 1) + nBM
         f_rowBg(1, "ENTRY", gateTxt, gateCol, gateBg)
         f_row(2, "CHECK", chkTxt, dashTxt)
-        f_tfRow(3, "3m", s3, k3c, k3t, O4, bullCol, bearCol, upBg, dnBg)
-        f_tfRow(4, "5m", s5, k5c, k5t, O4, bullCol, bearCol, upBg, dnBg)
-        f_tfRow(5, "15m", s15, k15c, k15t, O4, bullCol, bearCol, upBg, dnBg)
-        f_tfRow(6, "30m", s30, k30c, k30t, O4, bullCol, bearCol, upBg, dnBg)
-        f_tfRow(7, "1H", s60, k60c, k60t, O4, bullCol, bearCol, upBg, dnBg)
-        f_rowBg(8, "TF ALIGN", tfAlTxt, tfAl == 0 ? dashTxt : color.white, tfAl == 1 ? color.new(bullCol, 45) : tfAl == -1 ? color.new(bearCol, 45) : tfPart == 1 ? color.new(bullCol, 78) : tfPart == -1 ? color.new(bearCol, 78) : dashBg)
-        f_row(9, "4H", s4, lost4 ? lostCol : modelCol)
-        f_row(10, tfTxt, sB, bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
-        f_row(11, "RISK", mobile ? riskM : riskTxt, enter ? gateCol : dashTxt)
-        f_row(12, "4H CLOSE", cdTxt, dashTxt)
+        f_rowBg(3, "IN THE WAY", Dg == 0 ? "—" : wayOn ? "⚠ " + wayN + " " + f_px(wayP) + " · " + str.tostring(math.abs(wayP - close), format.mintick) + " pts" : "clear to the target", wayOn ? color.black : dashTxt, wayOn ? color.new(wayCol, 15) : dashBg)
+        f_tfRow(4, "3m", s3, k3c, k3t, O4, bullCol, bearCol, upBg, dnBg)
+        f_tfRow(5, "5m", s5, k5c, k5t, O4, bullCol, bearCol, upBg, dnBg)
+        f_tfRow(6, "15m", s15, k15c, k15t, O4, bullCol, bearCol, upBg, dnBg)
+        f_tfRow(7, "30m", s30, k30c, k30t, O4, bullCol, bearCol, upBg, dnBg)
+        f_tfRow(8, "1H", s60, k60c, k60t, O4, bullCol, bearCol, upBg, dnBg)
+        f_rowBg(9, "TF ALIGN", tfAlTxt, tfAl == 0 ? dashTxt : color.white, tfAl == 1 ? color.new(bullCol, 45) : tfAl == -1 ? color.new(bearCol, 45) : tfPart == 1 ? color.new(bullCol, 78) : tfPart == -1 ? color.new(bearCol, 78) : dashBg)
+        f_row(10, "4H", s4, lost4 ? lostCol : modelCol)
+        f_row(11, tfTxt, sB, bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
+        f_row(12, "RISK", mobile ? riskM : riskTxt, enter ? gateCol : dashTxt)
+        f_row(13, "4H CLOSE", cdTxt, dashTxt)

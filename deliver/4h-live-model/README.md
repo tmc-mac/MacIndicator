@@ -1,4 +1,4 @@
-# 4H Live Model v3.6
+# 4H Live Model v3.7
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -25,6 +25,16 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
+
+## Patience tools (v3.7, Mac 11/26: "add nearby level warning ... continue to add things that will help the trader be patient")
+- **IN THE WAY (row 3):** the nearest of your levels between price and the target, e.g. "⚠ London Low 25,738.75 · 33 pts".
+  - **On the chart:** it is drawn as a thick amber line labelled "⚠ IN THE WAY" and stays highlighted until price trades beyond it.
+  - **Alert:** when that happens, an alert says the level is no longer in the way.
+  - **ENTER:** still allowed, but it carries "· ⚠ <level>".
+  - **No level:** the row reads "clear to the target".
+- **Don't chase:** if price has already run more than 0.3R (input) past the entry, ENTER reads "ENTER SHORT · LIMIT <entry> (don't chase)".
+- **Late in the 4H:** no new ENTER in the last 20 minutes (input, 0 = off). It reads "WAIT · 4H closes in 12m · no new entries".
+- **CHECK** adds "✓ time" and names the level, e.g. "★ P4H L".
 
 ## First move counts (v3.6, Mac's MNQ 15m screenshot, 11/25, 23:58 PT)
 - **Problem:** the first segment's side came from the first 5m CLOSE. A candle that dipped below its open inside the first 5m candle and then closed above was read as having started above the open, so it showed "DRIVE ▲" and never a reclaim.
