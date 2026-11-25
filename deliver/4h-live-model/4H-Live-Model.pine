@@ -399,31 +399,31 @@ f_life(float[] ao, float[] ah, float[] al, float[] ac, float O, float tol) =>
             sLo := math.min(sLo, l)
             segHi := math.max(segHi, h)
             segLo := math.min(segLo, l)
-            int side = c > O + tol ? 1 : c < O - tol ? -1 : segSide
+            int cSide = c > O + tol ? 1 : c < O - tol ? -1 : segSide
             bool crossed = false
             if segSide == 0
-                segSide := side
-            else if side != segSide
+                segSide := cSide
+            else if cSide != segSide
                 // a confirmation candle closed through the open: RECLAIM in the direction it closed
                 crossed := true
-                if dir != 0 and recl and dir != side
+                if dir != 0 and recl and dir != cSide
                     flips += 1
                     rCount := 0
                 ext := segSide == 1 ? segHi : segLo
                 extI := i
-                dir := side
+                dir := cSide
                 recl := true
                 // the reclaim candle itself may already visit new prices for the candle
-                expd := (side == 1 and h > prevHi) or (side == -1 and l < prevLo)
+                expd := (cSide == 1 and h > prevHi) or (cSide == -1 and l < prevLo)
                 rCount += 1
                 recI := i
                 pkHi := h
                 pkLo := l
-                segSide := side
-                segHi := side == 1 ? h : c
-                segLo := side == -1 ? l : c
+                segSide := cSide
+                segHi := cSide == 1 ? h : c
+                segLo := cSide == -1 ? l : c
             if not recl and segSide != 0
-                // before the first reclaim: the extreme is forming on the side price is closing on
+                // before the first reclaim: the extreme is forming on the cSide price is closing on
                 float e0 = segSide == 1 ? segHi : segLo
                 if na(ext) or e0 != ext
                     extI := i
