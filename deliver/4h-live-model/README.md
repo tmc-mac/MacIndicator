@@ -1,4 +1,4 @@
-# 4H Live Model v3.13
+# 4H Live Model v3.14
 
 A Pine Script v5 overlay (`4H-Live-Model.pine`) that draws the current 4H candle beside live price. It works on any chart timeframe at or below 4H.
 
@@ -25,6 +25,24 @@ Install: in TradingView open Pine Editor, choose New, paste the file, then Save 
   - The side candles, level lines and the first 10 dashboard rows stay on the 4H. Two dashboard rows, "<tf> CANDLE" and "<tf> STAGE", show the chart candle.
 - **Level lines:** P4H HIGH, P4H LOW, P4H OPEN (dashed) and C4H OPEN (solid, thick). They run from the start of the P4H candle to the end of the path, with coloured price labels at the left.
 - **Dashboard:** MODEL, P4H CANDLE (the previous 4H's direction: BULLISH, BEARISH or DOJI), ALIGNMENT (WITH P4H, or COUNTER P4H in amber, v1.8), STAGE n/6, LOCATION, C4H OPEN, C4H EXTREME, P4H HIGH, P4H LOW, RANGE / P4H O, NEXT TARGET and 4H CLOSE IN.
+
+## 3 IN A ROW (v3.14, Mac 11/27: "identify when we have 3 consecutive bullish or bearish candles … three white soldiers or three black crows")
+
+**Soldier** (crow = mirror). Each of these must hold:
+- a bull candle that closes above the previous close;
+- a body of at least half its range;
+- a close in the top third of its range.
+
+A long upper wick breaks the run. There is no "opens inside the previous body" rule, because MNQ trades about 23 hours and rarely gaps.
+
+**Row.** It lists every timeframe whose last completed candles are a run of 3 or more, e.g. `15m ▲3 · 1H ▲4`. It covers 3m, 5m, 15m, 30m, 1H and 4H. The count keeps climbing while the run lasts.
+
+**Reading.** The highest timeframe with a run is read against the model:
+- `· with 4H` (green / red): the run is with the 4H side after the reclaim. Expansion is confirmed; wait for the retest, don't chase.
+- `· into <level>` (amber): a level is within 1 ATR ahead of the run. That is a take-profit zone, not an entry.
+- `· vs 4H` (amber): the run is against the 4H side. That is likely a direction change, not a grab.
+
+**Placement and alert.** On desktop the row sits under TF ALIGN; on mobile it sits under TF (mobile is now 10 rows). There is an alert, "Alert when a new 3-in-a-row forms on 15m / 30m / 1H", which fires once when a run reaches 3.
 
 ## WATCH row replaces RISK (v3.13, Mac 11/26: "change risk to level to watch with the price level and level name to watch")
 

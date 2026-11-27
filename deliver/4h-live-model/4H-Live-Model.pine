@@ -1,5 +1,5 @@
 //@version=5
-// 4H LIVE MODEL v3.13 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
+// 4H LIVE MODEL v3.14 (Team Mac): + your Levels PRO v2.4.2 levels, AT LEVEL, WAIT/ARMED/GO plan with risk: side candles + levels + dashboard = 4H; path line = the chart-timeframe candle (Mac 11/22)
 // Shows the current 4H candle's life (OPEN -> EXTREME -> RECLAIM -> EXPANSION -> TARGET -> CLOSED)
 // beside live price action on any chart timeframe at or below 4H.
 // P4H values: previous completed 4H candle (lookahead_on + [1] = confirmed only, never repaints).
@@ -123,7 +123,7 @@ if timeframe.in_seconds() > 14400
 // ================= 4H DATA =================
 [p4O, p4H, p4L, p4C] = request.security(syminfo.tickerid, "240", [open[1], high[1], low[1], close[1]], lookahead = barmerge.lookahead_on)
 [p2O, p2C] = request.security(syminfo.tickerid, "240", [open[2], close[2]], lookahead = barmerge.lookahead_on)
-[c4O, c4H, c4L, c4C] = request.security(syminfo.tickerid, "240", [open, high, low, close], lookahead = barmerge.lookahead_off)
+[c4O, c4H, c4L, c4C, k240q] = request.security(syminfo.tickerid, "240", [open, high, low, close, f_streak1()], lookahead = barmerge.lookahead_off)
 
 // ================= PHASE TRACKING (chart bars) =================
 t4 = time("240")
@@ -345,14 +345,30 @@ ml_v = mSeen ? mLoAcc : na
 mHiAcc := math.max(nz(mHiAcc, high), high)
 mLoAcc := math.min(nz(mLoAcc, low), low)
 
+// ================= 3 IN A ROW (v3.14, Mac 11/27: three white soldiers / three black crows) =================
+// A soldier (crow mirrored): a bull candle that closes above the previous close, body >= half its range,
+// closing in the top third of its range (a long upper wick = selling into it = not a soldier).
+// No "opens inside the previous body" rule: MNQ trades ~23h and rarely gaps.
+// f_streak1 runs inside each timeframe's own context and returns the signed run length that ended on the
+// LAST COMPLETED candle of that timeframe (+3 = three soldiers, -4 = four crows, 0 = none).
+f_sq(int d) =>
+    float rg = high - low
+    rg > 0 and (d == 1 ? close > open and close > close[1] and close >= high - rg / 3 : close < open and close < close[1] and close <= low + rg / 3) and math.abs(close - open) >= 0.5 * rg
+f_streak1() =>
+    var int n = 0
+    int q = f_sq(1) ? 1 : f_sq(-1) ? -1 : 0
+    n := q == 0 ? 0 : math.sign(n) == q ? n + q : q
+    n[1]
+sqAlert = input.bool(true, "Alert when a new 3-in-a-row forms on 15m / 30m / 1H (Any alert() function call)", group = grpPl)
+
 // ================= TIMEFRAME CLOSES vs THE 4H OPEN (v3.3, Mac 11/25) =================
 // For each timeframe: its live close, its last COMPLETED close and when the current candle closes.
 // (On charts above a row's timeframe TradingView returns that timeframe's latest intrabar.)
-[k3c, k3p, k3t]    = request.security(syminfo.tickerid, "3",  [close, close[1], time_close], lookahead = barmerge.lookahead_off)
-[k5c, k5p, k5t]    = request.security(syminfo.tickerid, "5",  [close, close[1], time_close], lookahead = barmerge.lookahead_off)
-[k15c, k15p, k15t] = request.security(syminfo.tickerid, "15", [close, close[1], time_close], lookahead = barmerge.lookahead_off)
-[k30c, k30p, k30t] = request.security(syminfo.tickerid, "30", [close, close[1], time_close], lookahead = barmerge.lookahead_off)
-[k60c, k60p, k60t] = request.security(syminfo.tickerid, "60", [close, close[1], time_close], lookahead = barmerge.lookahead_off)
+[k3c, k3p, k3t, k3q]    = request.security(syminfo.tickerid, "3",  [close, close[1], time_close, f_streak1()], lookahead = barmerge.lookahead_off)
+[k5c, k5p, k5t, k5q]    = request.security(syminfo.tickerid, "5",  [close, close[1], time_close, f_streak1()], lookahead = barmerge.lookahead_off)
+[k15c, k15p, k15t, k15q] = request.security(syminfo.tickerid, "15", [close, close[1], time_close, f_streak1()], lookahead = barmerge.lookahead_off)
+[k30c, k30p, k30t, k30q] = request.security(syminfo.tickerid, "30", [close, close[1], time_close, f_streak1()], lookahead = barmerge.lookahead_off)
+[k60c, k60p, k60t, k60q] = request.security(syminfo.tickerid, "60", [close, close[1], time_close, f_streak1()], lookahead = barmerge.lookahead_off)
 
 // ================= CHART-CANDLE LIFE (drives the path line) =================
 // The path line follows the candle of the timeframe being viewed (e.g. the forming 30m candle),
@@ -471,7 +487,8 @@ f_life(float[] ao, float[] ah, float[] al, float[] ac, float O, float tol, float
 
 // reference size of a chart candle: the larger of the previous candle's range and the 14-candle ATR
 // (a tiny previous candle no longer makes every wiggle around the open count)
-float bRef = math.max(nz(high[1] - low[1]), nz(ta.atr(14)))
+float atr14 = ta.atr(14)
+float bRef = math.max(nz(high[1] - low[1]), nz(atr14))
 float rtZoneP = rtTicks * syminfo.mintick
 [bSideL, bExtPL, bRFL, bExpL, bNowL, bPeakL, bExtL, sHiL, sLoL, bRcL, bFlL, bRtL] = f_life(sbO, sbH, sbL, sbC, open, syminfo.mintick / 2, rtZoneP)
 [bSideT, bExtPT, bRFT, bExpT, bNowT, bPeakT, bExtT, sHiT, sLoT, bRcT, bFlT, bRtT] = f_life(tk, tk, tk, tk, open, syminfo.mintick / 2, rtZoneP)
@@ -654,6 +671,10 @@ f_tgtLv(string[] n, float[] p, float from, int dir) =>
     [tn, tp]
 
 f_nm(string full, string ab) => mobile ? ab : full
+// " · 15m ▲3" when that timeframe's last completed candles are a run of 3+ (the leading " · " is cut once)
+f_sqTF(string k, float q) =>
+    int n = int(nz(q))
+    math.abs(n) >= 3 ? " · " + k + " " + (n > 0 ? "▲" : "▼") + str.tostring(math.abs(n)) : ""
 // compact TF cell for mobile: 3▼ = last close below the 4H open, 1H▲→▼ = last close above but live below, 15… = no close yet this 4H
 f_tsM(string k, int s, int sl) =>
     string sy = s == 1 ? "▲" : s == -1 ? "▼" : s == 9 ? "…" : "="
@@ -1078,6 +1099,20 @@ if barstate.islast
             alert(syminfo.ticker + " " + dirG + ": price moved beyond " + wayLast + " (no longer in the way) · price " + f_px(close), alert.freq_once_per_bar)
         if enter and not enLast
             alert(syminfo.ticker + " ENTER " + dirG + " · " + riskTxt + " · price " + f_px(close), alert.freq_once_per_bar)
+    // v3.14: a NEW 3-in-a-row on 15m / 30m / 1H (fires once, when the run reaches 3)
+    varip int q15L = 0
+    varip int q30L = 0
+    varip int q60L = 0
+    if sqAlert and barstate.isrealtime
+        int q15 = int(nz(k15q))
+        int q30 = int(nz(k30q))
+        int q60 = int(nz(k60q))
+        string sqA = (math.abs(q15) == 3 and q15 != q15L ? " 15m" + (q15 > 0 ? " ▲" : " ▼") : "") + (math.abs(q30) == 3 and q30 != q30L ? " 30m" + (q30 > 0 ? " ▲" : " ▼") : "") + (math.abs(q60) == 3 and q60 != q60L ? " 1H" + (q60 > 0 ? " ▲" : " ▼") : "")
+        if sqA != ""
+            alert(syminfo.ticker + " 3 IN A ROW:" + sqA + " · 4H open " + f_px(O4) + " · price " + f_px(close), alert.freq_once_per_bar)
+    q15L := int(nz(k15q))
+    q30L := int(nz(k30q))
+    q60L := int(nz(k60q))
     varip float aLast = na
     if aPlusAl and barstate.isrealtime and aPlus and (na(aLast) or aLast != nz(t4) + Dg)
         alert(syminfo.ticker + " A+ " + dirG + " · " + tfTxt + " retest of " + aLvN + " · 3m/5m closed " + (Dg == 1 ? "above" : "below") + " the 4H open " + f_px(O4) + " · " + (chase ? "LIMIT " + f_px(open) + " (don't chase) · " : "") + riskTxt + " · price " + f_px(close), alert.freq_once_per_bar)
@@ -1175,6 +1210,22 @@ if barstate.islast
         // the RISK row becomes WATCH = the level closest to price (name, price, points away, above/below).
         // ★ = the chart candle's extreme formed at it (the level is in play). Risk stays in the ENTER / A+ alerts.
         [wN, wP] = f_watchLv(lvN, lvP, close)
+        // v3.14 3 IN A ROW: every timeframe with a run of 3+ soldiers / crows on its last completed candles;
+        // the highest such timeframe is read against the model:
+        //   with the 4H side after the reclaim = expansion confirmed (wait for the retest, don't chase)
+        //   a level within 1 ATR ahead of it   = running INTO a level: take-profit zone, not an entry (amber)
+        //   against the 4H side                = a likely direction change, not a grab (amber)
+        string sqTxt = f_sqTF("3m", k3q) + f_sqTF("5m", k5q) + f_sqTF("15m", k15q) + f_sqTF("30m", k30q) + f_sqTF("1H", k60q) + f_sqTF("4H", k240q)
+        int sqMain = math.abs(nz(k240q)) >= 3 ? nz(k240q) : math.abs(nz(k60q)) >= 3 ? nz(k60q) : math.abs(nz(k30q)) >= 3 ? nz(k30q) : math.abs(nz(k15q)) >= 3 ? nz(k15q) : math.abs(nz(k5q)) >= 3 ? nz(k5q) : math.abs(nz(k3q)) >= 3 ? nz(k3q) : 0
+        int sqDir = int(math.sign(sqMain))
+        [sqLvN, sqLvP] = f_tgtLv(lvN, lvP, close, sqDir)
+        bool sqInto = sqDir != 0 and not na(sqLvP) and math.abs(sqLvP - close) <= nz(atr14, 0)
+        bool sqWith = sqDir != 0 and sqDir == side4 and stage >= 3
+        bool sqVs = sqDir != 0 and side4 != 0 and sqDir == -side4
+        string sqNote = sqDir == 0 ? "" : sqInto ? " · into " + sqLvN : sqWith ? " · with 4H" : sqVs ? " · vs 4H" : ""
+        string sqOut = sqTxt == "" ? "—" : str.substring(sqTxt, 3) + sqNote
+        color sqFg = sqDir == 0 ? dashTxt : sqInto or sqVs ? color.black : color.white
+        color sqBg = sqDir == 0 ? dashBg : sqInto or sqVs ? color.new(#ffb300, 15) : color.new(sqDir == 1 ? bullCol : bearCol, 45)
         string watchTxt = wN == "" ? "—" : (atB == wN ? "★ " : "") + wN + " " + f_px(wP) + " · " + str.tostring(math.abs(wP - close), format.mintick) + (wP > close ? " ▲" : wP < close ? " ▼" : " AT")
         color watchCol = wN == "" ? dashTxt : atB == wN ? #ffb300 : dashTxt
         if mobile
@@ -1182,10 +1233,11 @@ if barstate.islast
             // the 4H CLOSE countdown moves into the title, 9 rows instead of 15
             string tfM = f_tsM("3", s3, sLive) + " " + f_tsM("5", s5, sLive) + " " + f_tsM("15", s15, sLive) + " " + f_tsM("30", s30, sLive) + " " + f_tsM("1H", s60, sLive)
             f_rowBg(4, "TF", tfM, tfAl == 0 ? dashTxt : color.white, tfAl == 1 ? color.new(bullCol, 45) : tfAl == -1 ? color.new(bearCol, 45) : tfPart == 1 ? color.new(bullCol, 78) : tfPart == -1 ? color.new(bearCol, 78) : dashBg)
-            f_rowBg(5, "GRAB", gsTxt, gsFg, gsBg)
-            f_row(6, "4H", s4, lost4 ? lostCol : modelCol)
-            f_row(7, tfTxt, sB, bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
-            f_row(8, "WATCH", watchTxt, watchCol)
+            f_rowBg(5, "3 ROW", sqOut, sqFg, sqBg)
+            f_rowBg(6, "GRAB", gsTxt, gsFg, gsBg)
+            f_row(7, "4H", s4, lost4 ? lostCol : modelCol)
+            f_row(8, tfTxt, sB, bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
+            f_row(9, "WATCH", watchTxt, watchCol)
         else
             f_tfRow(4, "3m", s3, k3c, k3t, O4, bullCol, bearCol, upBg, dnBg)
             f_tfRow(5, "5m", s5, k5c, k5t, O4, bullCol, bearCol, upBg, dnBg)
@@ -1193,8 +1245,9 @@ if barstate.islast
             f_tfRow(7, "30m", s30, k30c, k30t, O4, bullCol, bearCol, upBg, dnBg)
             f_tfRow(8, "1H", s60, k60c, k60t, O4, bullCol, bearCol, upBg, dnBg)
             f_rowBg(9, "TF ALIGN", tfAlTxt, tfAl == 0 ? dashTxt : color.white, tfAl == 1 ? color.new(bullCol, 45) : tfAl == -1 ? color.new(bearCol, 45) : tfPart == 1 ? color.new(bullCol, 78) : tfPart == -1 ? color.new(bearCol, 78) : dashBg)
-            f_rowBg(10, "GRAB / SHIFT", gsTxt, gsFg, gsBg)
-            f_row(11, "4H", s4, lost4 ? lostCol : modelCol)
-            f_row(12, tfTxt, sB, bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
-            f_row(13, "WATCH", watchTxt, watchCol)
-            f_row(14, "4H CLOSE", cdTxt, dashTxt)
+            f_rowBg(10, "3 IN A ROW", sqOut, sqFg, sqBg)
+            f_rowBg(11, "GRAB / SHIFT", gsTxt, gsFg, gsBg)
+            f_row(12, "4H", s4, lost4 ? lostCol : modelCol)
+            f_row(13, tfTxt, sB, bDrive ? (bDrvDir == 1 ? bullCol : bearCol) : bSide == 1 ? bullCol : bSide == -1 ? bearCol : dashTxt)
+            f_row(14, "WATCH", watchTxt, watchCol)
+            f_row(15, "4H CLOSE", cdTxt, dashTxt)
