@@ -121,6 +121,15 @@ if timeframe.in_seconds() > 14400
     runtime.error("4H Live Model works on chart timeframes at or below 4H.")
 
 // ================= 4H DATA =================
+// 3 IN A ROW helpers (v3.14; described in the 3 IN A ROW section below; defined here because the 4H request uses them)
+f_sq(int d) =>
+    float rg = high - low
+    rg > 0 and (d == 1 ? close > open and close > close[1] and close >= high - rg / 3 : close < open and close < close[1] and close <= low + rg / 3) and math.abs(close - open) >= 0.5 * rg
+f_streak1() =>
+    var int n = 0
+    int q = f_sq(1) ? 1 : f_sq(-1) ? -1 : 0
+    n := q == 0 ? 0 : math.sign(n) == q ? n + q : q
+    n[1]
 [p4O, p4H, p4L, p4C] = request.security(syminfo.tickerid, "240", [open[1], high[1], low[1], close[1]], lookahead = barmerge.lookahead_on)
 [p2O, p2C] = request.security(syminfo.tickerid, "240", [open[2], close[2]], lookahead = barmerge.lookahead_on)
 [c4O, c4H, c4L, c4C, k240q] = request.security(syminfo.tickerid, "240", [open, high, low, close, f_streak1()], lookahead = barmerge.lookahead_off)
@@ -351,14 +360,6 @@ mLoAcc := math.min(nz(mLoAcc, low), low)
 // No "opens inside the previous body" rule: MNQ trades ~23h and rarely gaps.
 // f_streak1 runs inside each timeframe's own context and returns the signed run length that ended on the
 // LAST COMPLETED candle of that timeframe (+3 = three soldiers, -4 = four crows, 0 = none).
-f_sq(int d) =>
-    float rg = high - low
-    rg > 0 and (d == 1 ? close > open and close > close[1] and close >= high - rg / 3 : close < open and close < close[1] and close <= low + rg / 3) and math.abs(close - open) >= 0.5 * rg
-f_streak1() =>
-    var int n = 0
-    int q = f_sq(1) ? 1 : f_sq(-1) ? -1 : 0
-    n := q == 0 ? 0 : math.sign(n) == q ? n + q : q
-    n[1]
 sqAlert = input.bool(true, "Alert when a new 3-in-a-row forms on 15m / 30m / 1H (Any alert() function call)", group = grpPl)
 
 // ================= TIMEFRAME CLOSES vs THE 4H OPEN (v3.3, Mac 11/25) =================
